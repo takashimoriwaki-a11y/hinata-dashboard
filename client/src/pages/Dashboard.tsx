@@ -173,7 +173,7 @@ function VisitCountCard() {
 
   return (
     <Card className="fade-in-up stagger-1 shadow-sm">
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-1 pt-3 px-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <Activity className="w-4 h-4 text-primary" />
@@ -187,7 +187,7 @@ function VisitCountCard() {
           {currentMonthData.month}（3/3時点の累計）
         </p>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3 px-4 pb-3">
         <div className="grid grid-cols-3 gap-2">
           {/* メイン */}
           <div className="space-y-1.5 border border-border rounded-xl p-2.5 bg-muted/20">
