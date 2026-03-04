@@ -159,19 +159,20 @@ export default function DailyMessageBar() {
   return (
     <div className="flex-shrink-0">
       {/* ========== 今日の一言バー ========== */}
-      <div className="flex items-center gap-2 px-3 md:px-4 py-2 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100">
-        <span className="text-sm flex-shrink-0">🌻</span>
-        <p className="text-xs font-semibold text-orange-700 tracking-wide flex-1 truncate">
+      <div className="flex items-center gap-2.5 px-3 md:px-5 py-2.5 border-b flex-shrink-0"
+        style={{background: "linear-gradient(90deg, #fff7ed 0%, #fffbeb 60%, #fef9c3 100%)", borderColor: "#fed7aa"}}>
+        <span className="text-base flex-shrink-0 drop-shadow-sm">🌻</span>
+        <p className="text-sm font-bold text-orange-800 tracking-wide flex-1 truncate drop-shadow-sm">
           {dailyMessage}
         </p>
         {/* 編集ボタン */}
         <button
           onClick={handleEditClick}
           className={cn(
-            "flex-shrink-0 p-1 rounded transition-colors",
+            "flex-shrink-0 p-1.5 rounded-full transition-colors",
             isAuthenticated
-              ? "text-orange-600 hover:bg-orange-100"
-              : "text-orange-300 hover:text-orange-500 hover:bg-orange-100"
+              ? "text-orange-600 bg-orange-100 hover:bg-orange-200"
+              : "text-orange-400 hover:text-orange-600 hover:bg-orange-100"
           )}
           title={isAuthenticated ? "メッセージを編集" : "編集（権限が必要）"}
         >
