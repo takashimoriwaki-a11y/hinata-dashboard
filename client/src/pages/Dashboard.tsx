@@ -1035,7 +1035,7 @@ export default function Dashboard() {
             <p className="text-sm md:text-base font-bold text-white/90" style={{textShadow: '0 1px 4px rgba(0,0,0,0.2)'}}>{greeting}</p>
           </div>
           {/* 右端：ショートカットボタン */}
-          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 flex-shrink-0">
+          <div className="flex flex-row items-center gap-2 flex-shrink-0">
             <a
               href="https://zest.jp/"
               target="_blank"
