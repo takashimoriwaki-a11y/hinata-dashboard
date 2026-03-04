@@ -41,17 +41,17 @@ const navItems = [
 ];
 
 const externalTools = [
-  { label: "iBow（電子カルテ）", href: "https://ibow.cloud/", icon: ExternalLink },
   { label: "ZEST（スケジュール）", href: "https://zest.jp/", icon: ExternalLink },
+  { label: "iBow（電子カルテ）", href: "https://ibow.cloud/", icon: ExternalLink },
 ];
 
 // ボトムナビゲーション（5タブ）
 const bottomNavItems = [
   { type: "internal", href: "/", icon: LayoutDashboard, label: "ホーム" },
   { type: "internal", href: "/record", icon: ClipboardEdit, label: "記録" },
+  { type: "internal", href: "/tasks", icon: CheckSquare, label: "タスク" },
   { type: "external", href: "https://zest.jp/", icon: Calendar, label: "ZEST" },
   { type: "external", href: "https://ibow.cloud/", icon: ClipboardList, label: "iBow" },
-  { type: "internal", href: "/tasks", icon: CheckSquare, label: "タスク" },
 ] as const;
 
 interface DashboardLayoutProps {
