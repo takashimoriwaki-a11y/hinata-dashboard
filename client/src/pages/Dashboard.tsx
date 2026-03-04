@@ -711,7 +711,7 @@ function ToolsCard() {
           <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1">
             📊 スプレッドシート
           </p>
-          <div className="grid grid-cols-2 gap-1.5">
+          <div className="flex flex-col gap-1.5">
             {spreadsheetLinks.map((link) => (
               <a
                 key={link.label}
@@ -1017,11 +1017,11 @@ export default function Dashboard() {
       <div className="relative rounded-2xl overflow-hidden shadow-md fade-in-up" style={{background: "linear-gradient(135deg, #f97316 0%, #fb923c 50%, #fbbf24 100%)"}}>
         {/* 背景装飾 */}
         <div className="absolute inset-0 opacity-10" style={{backgroundImage: "radial-gradient(circle at 80% 20%, white 0%, transparent 60%)"}} />
-        <div className="relative p-4">
+        <div className="relative p-5 md:p-6">
           {/* 挨拶メッセージ */}
-          <div className="mb-3">
-            <p className="text-base font-semibold text-white/90 leading-tight mb-0.5">{greeting}</p>
-            <p className="text-3xl font-extrabold text-white leading-tight tracking-wide drop-shadow-sm">{userName}さん</p>
+          <div className="mb-4">
+            <p className="text-lg font-bold text-white/95 leading-snug mb-1" style={{textShadow: '0 1px 4px rgba(0,0,0,0.25)'}}>{greeting}</p>
+            <p className="text-4xl md:text-5xl font-extrabold text-white leading-tight tracking-wide" style={{textShadow: '0 2px 8px rgba(0,0,0,0.2)'}}>{userName}<span className="text-3xl md:text-4xl">さん</span></p>
           </div>
           {/* 下段：ショートカットボタン */}
           <div className="flex flex-wrap gap-2">

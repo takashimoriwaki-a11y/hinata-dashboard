@@ -159,17 +159,19 @@ export default function DailyMessageBar() {
   return (
     <div className="flex-shrink-0">
       {/* ========== 今日の一言バー ========== */}
-      <div className="flex items-center gap-2.5 px-3 md:px-5 py-2.5 border-b flex-shrink-0"
+      <div className="relative flex items-center justify-center px-10 py-3 border-b flex-shrink-0"
         style={{background: "linear-gradient(90deg, #fff7ed 0%, #fffbeb 60%, #fef9c3 100%)", borderColor: "#fed7aa"}}>
-        <span className="text-base flex-shrink-0 drop-shadow-sm">🌻</span>
-        <p className="text-sm font-bold text-orange-800 tracking-wide flex-1 truncate drop-shadow-sm">
+        {/* 左側のアイコン */}
+        <span className="absolute left-4 text-lg flex-shrink-0">🌻</span>
+        {/* 中央メッセージ */}
+        <p className="text-base font-extrabold text-orange-800 tracking-widest text-center drop-shadow-sm">
           {dailyMessage}
         </p>
-        {/* 編集ボタン */}
+        {/* 右側の編集ボタン */}
         <button
           onClick={handleEditClick}
           className={cn(
-            "flex-shrink-0 p-1.5 rounded-full transition-colors",
+            "absolute right-3 p-1.5 rounded-full transition-colors",
             isAuthenticated
               ? "text-orange-600 bg-orange-100 hover:bg-orange-200"
               : "text-orange-400 hover:text-orange-600 hover:bg-orange-100"
