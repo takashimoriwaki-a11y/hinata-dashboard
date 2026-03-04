@@ -188,9 +188,9 @@ function VisitCountCard() {
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2">
           {/* メイン */}
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 border border-border rounded-xl p-2.5 bg-muted/20">
             <p className="text-xs text-muted-foreground font-medium">メイン</p>
             <p className="text-2xl font-bold text-foreground tabular-nums">
               {currentMonthData.mainActual}
@@ -202,7 +202,7 @@ function VisitCountCard() {
             <p className="text-xs font-semibold text-primary">{Math.round(main)}%</p>
           </div>
           {/* サブ */}
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 border border-border rounded-xl p-2.5 bg-muted/20">
             <p className="text-xs text-muted-foreground font-medium">サブ</p>
             <p className="text-2xl font-bold text-foreground tabular-nums">
               {currentMonthData.subActual}
@@ -214,7 +214,7 @@ function VisitCountCard() {
             <p className="text-xs font-semibold text-muted-foreground">—</p>
           </div>
           {/* 合計 */}
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 border border-border rounded-xl p-2.5 bg-muted/20">
             <p className="text-xs text-muted-foreground font-medium">合計</p>
             <p className="text-2xl font-bold text-foreground tabular-nums">
               {currentMonthData.totalActual}
@@ -230,21 +230,32 @@ function VisitCountCard() {
         <Separator />
 
         {/* 先月実績 */}
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground">2月実績</p>
-            <p className="text-lg font-bold tabular-nums">
-              {currentMonthData.lastMonthActual.toLocaleString()}
-              <span className="text-sm font-normal text-muted-foreground ml-1">
-                / {currentMonthData.lastMonthTarget.toLocaleString()} 件
-              </span>
-            </p>
+        <div className="space-y-2 border border-border rounded-xl p-3 bg-muted/10">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-muted-foreground">2月実績</p>
+            <div className="flex items-center gap-2">
+              <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">
+                達成率 {currentMonthData.lastMonthAchievement}%
+              </Badge>
+              <span className="text-xs text-emerald-600 font-semibold">🎉 達成！</span>
+            </div>
           </div>
-          <div className="text-right">
-            <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">
-              達成率 {currentMonthData.lastMonthAchievement}%
-            </Badge>
-            <p className="text-xs text-emerald-600 font-semibold mt-1">🎉 達成！すばらしい！</p>
+          <div className="flex items-center justify-between text-sm mb-1">
+            <span className="font-bold tabular-nums text-foreground">{currentMonthData.lastMonthActual.toLocaleString()} 件</span>
+            <span className="text-xs text-muted-foreground">目標 {currentMonthData.lastMonthTarget.toLocaleString()} 件</span>
+          </div>
+          {/* 横棒グラフ */}
+          <div className="relative h-5 rounded-full overflow-hidden bg-muted">
+            <div
+              className="absolute inset-y-0 left-0 rounded-full transition-all duration-700"
+              style={{
+                width: `${Math.min((currentMonthData.lastMonthActual / currentMonthData.lastMonthTarget) * 100, 100)}%`,
+                background: 'linear-gradient(90deg, #10b981 0%, #34d399 100%)'
+              }}
+            />
+            <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow">
+              {currentMonthData.lastMonthActual.toLocaleString()} / {currentMonthData.lastMonthTarget.toLocaleString()} 件
+            </span>
           </div>
         </div>
       </CardContent>
@@ -1017,11 +1028,11 @@ export default function Dashboard() {
       <div className="relative rounded-2xl overflow-hidden shadow-md fade-in-up" style={{background: "linear-gradient(135deg, #f97316 0%, #fb923c 50%, #fbbf24 100%)"}}>
         {/* 背景装飾 */}
         <div className="absolute inset-0 opacity-10" style={{backgroundImage: "radial-gradient(circle at 80% 20%, white 0%, transparent 60%)"}} />
-        <div className="relative p-5 md:p-6">
+        <div className="relative px-5 py-3 md:px-6 md:py-4">
           {/* 挨拶メッセージ */}
-          <div className="mb-4">
-            <p className="text-lg font-bold text-white/95 leading-snug mb-1" style={{textShadow: '0 1px 4px rgba(0,0,0,0.25)'}}>{greeting}</p>
-            <p className="text-4xl md:text-5xl font-extrabold text-white leading-tight tracking-wide" style={{textShadow: '0 2px 8px rgba(0,0,0,0.2)'}}>{userName}<span className="text-3xl md:text-4xl">さん</span></p>
+          <div className="mb-3">
+            <p className="text-sm font-bold text-white/95 leading-snug mb-0.5" style={{textShadow: '0 1px 4px rgba(0,0,0,0.25)'}}>{greeting}</p>
+            <p className="text-3xl md:text-4xl font-extrabold text-white leading-tight tracking-wide" style={{textShadow: '0 2px 8px rgba(0,0,0,0.2)'}}>{userName}<span className="text-2xl md:text-3xl">さん</span></p>
           </div>
           {/* 下段：ショートカットボタン */}
           <div className="flex flex-wrap gap-2">
