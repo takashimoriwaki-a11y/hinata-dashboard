@@ -1012,7 +1012,7 @@ export default function Dashboard() {
   const userName = "崇";
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-3 md:p-4 space-y-3 md:space-y-4 max-w-screen-xl mx-auto">
       {/* ウェルカムバナー */}
       <div className="relative rounded-2xl overflow-hidden shadow-md fade-in-up" style={{background: "linear-gradient(135deg, #f97316 0%, #fb923c 40%, #fbbf24 100%)"}}>
         {/* 背景装飾 */}
@@ -1058,15 +1058,15 @@ export default function Dashboard() {
       </div>
 
       {/* メインコンテンツ */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
         {/* 左カラム */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-3 md:space-y-4">
           <VisitCountCard />
           <ScheduleScreenshotCard />
         </div>
 
         {/* 右カラム */}
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           <ToolsCard />
           <TasksCard />
           <MessageBoard title="申し送り" type="notice" />
