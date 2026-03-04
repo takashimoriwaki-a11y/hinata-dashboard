@@ -1028,11 +1028,11 @@ export default function Dashboard() {
       <div className="relative rounded-2xl overflow-hidden shadow-md fade-in-up" style={{background: "linear-gradient(135deg, #f97316 0%, #fb923c 50%, #fbbf24 100%)"}}>
         {/* 背景装飾 */}
         <div className="absolute inset-0 opacity-10" style={{backgroundImage: "radial-gradient(circle at 80% 20%, white 0%, transparent 60%)"}} />
-        <div className="relative px-5 py-3 md:px-6 md:py-4 flex items-center justify-between gap-3">
-          {/* 挨拶メッセージ */}
-          <div>
-            <p className="text-sm font-bold text-white/95 leading-snug mb-0.5" style={{textShadow: '0 1px 4px rgba(0,0,0,0.25)'}}>{greeting}</p>
-            <p className="text-3xl md:text-4xl font-extrabold text-white leading-tight tracking-wide" style={{textShadow: '0 2px 8px rgba(0,0,0,0.2)'}}>{userName}<span className="text-2xl md:text-3xl">さん</span></p>
+        <div className="relative px-4 py-2 md:px-5 md:py-2.5 flex items-center justify-between gap-3">
+          {/* 挨拶メッセージ（名前の横） */}
+          <div className="flex items-center gap-3">
+            <p className="text-2xl md:text-3xl font-extrabold text-white leading-tight tracking-wide" style={{textShadow: '0 2px 8px rgba(0,0,0,0.2)'}}>{userName}<span className="text-xl md:text-2xl">さん</span></p>
+            <p className="text-sm md:text-base font-bold text-white/90" style={{textShadow: '0 1px 4px rgba(0,0,0,0.2)'}}>{greeting}</p>
           </div>
           {/* 右端：ショートカットボタン */}
           <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 flex-shrink-0">
