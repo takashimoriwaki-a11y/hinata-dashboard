@@ -1014,18 +1014,14 @@ export default function Dashboard() {
   return (
     <div className="p-3 md:p-4 space-y-3 md:space-y-4 max-w-screen-xl mx-auto">
       {/* ウェルカムバナー */}
-      <div className="relative rounded-2xl overflow-hidden shadow-md fade-in-up" style={{background: "linear-gradient(135deg, #2d7d9a 0%, #3a9abf 45%, #5bb8d4 100%)"}}>
+      <div className="relative rounded-2xl overflow-hidden shadow-md fade-in-up" style={{background: "linear-gradient(135deg, #f97316 0%, #fb923c 50%, #fbbf24 100%)"}}>
         {/* 背景装飾 */}
         <div className="absolute inset-0 opacity-10" style={{backgroundImage: "radial-gradient(circle at 80% 20%, white 0%, transparent 60%)"}} />
         <div className="relative p-4">
-          {/* 上段：ロゴ＋挨拶 */}
-          <div className="flex items-center gap-3 mb-3">
-            <img src={LOGO_MARK} alt="ひなた" className="w-12 h-12 object-contain drop-shadow-sm" />
-            <div>
-              <p className="text-xs font-medium text-white/80 leading-tight">{greeting}</p>
-              <p className="text-xl font-bold text-white leading-tight">{userName}さん</p>
-              <p className="text-sm font-semibold text-white/90 leading-tight mt-0.5 tracking-wider">こころの訪問看護ステーション ひなた</p>
-            </div>
+          {/* 挨拶メッセージ */}
+          <div className="mb-3">
+            <p className="text-base font-semibold text-white/90 leading-tight mb-0.5">{greeting}</p>
+            <p className="text-3xl font-extrabold text-white leading-tight tracking-wide drop-shadow-sm">{userName}さん</p>
           </div>
           {/* 下段：ショートカットボタン */}
           <div className="flex flex-wrap gap-2">

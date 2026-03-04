@@ -282,6 +282,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             {/* ロゴマーク */}
             <img src={LOGO_MARK_URL} alt="ひなた" className="w-7 h-7 object-contain" />
             <span className="text-xs md:text-sm text-muted-foreground font-medium">{dateStr}</span>
+            <span className="hidden sm:block text-xs text-muted-foreground/60 font-medium border-l border-border pl-3">こころの訪問看護ステーション ひなた</span>
           </div>
           <div className="flex items-center gap-1.5 md:gap-2">
             <Button variant="ghost" size="icon" className="relative text-muted-foreground w-8 h-8">
