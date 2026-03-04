@@ -989,24 +989,59 @@ function MessageBoard({ title, type }: { title: string; type: "notice" | "messag
 
 // ========== メインページ ==========
 
+function getGreeting(): string {
+  const now = new Date();
+  const totalMinutes = now.getHours() * 60 + now.getMinutes();
+  // 5:00～9:00
+  if (totalMinutes >= 300 && totalMinutes <= 540) return "おはようございます！";
+  // 9:01～17:00
+  if (totalMinutes >= 541 && totalMinutes <= 1020) return "お仕事がんばって！";
+  // 17:01～19:00
+  if (totalMinutes >= 1021 && totalMinutes <= 1140) return "おつかれさまでした！";
+  // 19:01～23:59
+  if (totalMinutes >= 1141 && totalMinutes <= 1439) return "時間外にありがとう！";
+  // 0:00～4:59
+  return "夜中にありがとう！";
+}
+
 export default function Dashboard() {
-  const hour = new Date().getHours();
-  const greeting =
-    hour < 12 ? "おはようございます" : hour < 18 ? "こんにちは" : "おつかれさまでした";
+  const greeting = getGreeting();
+  const userName = "崇"; // ログインユーザー名
 
   return (
     <div className="p-4 space-y-4">
       {/* ヘッダー挨拶バナー */}
-      <div className="rounded-xl bg-gradient-to-r from-orange-500 to-amber-400 text-white p-4 flex items-center justify-between shadow-sm fade-in-up">
-        <div>
-          <p className="text-sm font-medium opacity-90">今日も{greeting}</p>
-          <p className="text-xl font-bold">崇さん 🌻</p>
+      <div className="rounded-xl bg-gradient-to-r from-orange-500 to-amber-400 text-white p-4 shadow-sm fade-in-up">
+        {/* 上段：メッセージ＋名前 */}
+        <div className="mb-3">
+          <p className="text-sm font-medium opacity-90">{greeting}</p>
+          <p className="text-xl font-bold">{userName}さん 🌻</p>
         </div>
-        <div className="text-right">
+        {/* 下段：3つのショートカットボタン */}
+        <div className="flex flex-wrap gap-2">
+          <a
+            href="https://zest.jp/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition-colors text-white text-xs font-medium px-3 py-1.5 rounded-lg"
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            ZEST
+          </a>
+          <a
+            href="https://gemini.google.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition-colors text-white text-xs font-medium px-3 py-1.5 rounded-lg"
+          >
+            <span className="text-sm leading-none">✨</span>
+            Gemini
+          </a>
           <Link href="/record">
-            <Button size="sm" variant="secondary" className="text-xs bg-white/20 hover:bg-white/30 text-white border-0">
+            <span className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition-colors text-white text-xs font-medium px-3 py-1.5 rounded-lg cursor-pointer">
+              <ClipboardList className="w-3.5 h-3.5" />
               記録入力
-            </Button>
+            </span>
           </Link>
         </div>
       </div>
@@ -1017,8 +1052,6 @@ export default function Dashboard() {
         <div className="lg:col-span-2 space-y-4">
           <VisitCountCard />
           <ScheduleScreenshotCard />
-          <TrendChart />
-          <PatientTrendChart />
         </div>
 
         {/* 右カラム */}
