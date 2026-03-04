@@ -1,10 +1,10 @@
 /**
  * Dashboard - メインダッシュボードページ
  * Design: 温かみのある和モダン・ケアUI
- * 機能: 訪問件数表示、業務ツールクイックアクセス、タスク、申し送り、訪問推移グラフ
+ * 機能: 訪問件数表示、ZESTスクリーンショット、業務ツールクイックアクセス、タスク、申し送り、訪問推移グラフ
  */
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,11 +33,13 @@ import {
   TrendingUp,
   Users,
   Activity,
-  Target,
   Link as LinkIcon,
   Trash2,
   MessageSquare,
   ClipboardList,
+  Upload,
+  Calendar,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -151,6 +153,18 @@ const initialMessages: MessageItem[] = [
   },
 ];
 
+// ========== スケジュールスクリーンショット型 ==========
+type ScheduleImage = {
+  id: number;
+  team: string;
+  day: string;
+  dataUrl: string;
+  uploadedAt: string;
+};
+
+const TEAMS = ["身体", "天理", "郡山北部", "郡山南部"] as const;
+const DAYS = ["今日", "明日"] as const;
+
 // ========== サブコンポーネント ==========
 
 function VisitCountCard() {
@@ -238,6 +252,365 @@ function VisitCountCard() {
   );
 }
 
+// ========== ZESTスクリーンショットカード ==========
+
+function ScheduleScreenshotCard() {
+  const [images, setImages] = useState<ScheduleImage[]>([]);
+  const [selectedTeam, setSelectedTeam] = useState<string>("身体");
+  const [selectedDay, setSelectedDay] = useState<string>("今日");
+  const [isDragging, setIsDragging] = useState(false);
+  const [viewImage, setViewImage] = useState<ScheduleImage | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const currentImage = images.find(
+    (img) => img.team === selectedTeam && img.day === selectedDay
+  );
+
+  const processFile = useCallback(
+    (file: File) => {
+      if (!file.type.startsWith("image/")) {
+        toast.error("画像ファイルを選択してください");
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("ファイルサイズは10MB以下にしてください");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        const now = new Date();
+        const timeStr = now.toLocaleString("ja-JP", {
+          month: "numeric",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        setImages((prev) => {
+          const filtered = prev.filter(
+            (img) => !(img.team === selectedTeam && img.day === selectedDay)
+          );
+          return [
+            ...filtered,
+            {
+              id: Date.now(),
+              team: selectedTeam,
+              day: selectedDay,
+              dataUrl,
+              uploadedAt: timeStr,
+            },
+          ];
+        });
+        toast.success(`${selectedTeam} / ${selectedDay} のスクリーンショットを登録しました`);
+      };
+      reader.readAsDataURL(file);
+    },
+    [selectedTeam, selectedDay]
+  );
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+    e.target.value = "";
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => setIsDragging(false);
+
+  const deleteImage = () => {
+    setImages((prev) =>
+      prev.filter(
+        (img) => !(img.team === selectedTeam && img.day === selectedDay)
+      )
+    );
+    toast.success("削除しました");
+  };
+
+  return (
+    <>
+      <Card className="fade-in-up stagger-2 shadow-sm">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-primary" />
+              訪問スケジュール
+            </CardTitle>
+            <a
+              href="https://zest.jp/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-primary hover:underline flex items-center gap-1"
+            >
+              <ExternalLink className="w-3 h-3" />
+              ZESTで確認・変更
+            </a>
+          </div>
+
+          {/* チーム・日付セレクター */}
+          <div className="flex flex-wrap gap-2 mt-2">
+            <div className="flex gap-1">
+              {TEAMS.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setSelectedTeam(t)}
+                  className={cn(
+                    "text-xs px-2.5 py-1 rounded-md border transition-colors",
+                    selectedTeam === t
+                      ? "bg-primary text-white border-primary"
+                      : "border-border text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-1 ml-auto">
+              {DAYS.map((d) => (
+                <button
+                  key={d}
+                  onClick={() => setSelectedDay(d)}
+                  className={cn(
+                    "text-xs px-2.5 py-1 rounded-md border transition-colors",
+                    selectedDay === d
+                      ? "bg-primary text-white border-primary"
+                      : "border-border text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-3">
+          {currentImage ? (
+            /* 登録済み画像表示 */
+            <div className="space-y-2">
+              <div className="relative group rounded-lg overflow-hidden border border-border">
+                <img
+                  src={currentImage.dataUrl}
+                  alt={`${selectedTeam}チーム ${selectedDay}のスケジュール`}
+                  className="w-full object-contain max-h-72 cursor-pointer"
+                  onClick={() => setViewImage(currentImage)}
+                />
+                {/* ホバーオーバーレイ */}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                  <button
+                    onClick={() => setViewImage(currentImage)}
+                    className="bg-white/90 text-foreground text-xs px-3 py-1.5 rounded-full font-medium shadow"
+                  >
+                    拡大表示
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] text-muted-foreground">
+                  {selectedTeam}チーム / {selectedDay} · {currentImage.uploadedAt} 登録
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    更新
+                  </button>
+                  <span className="text-muted-foreground text-xs">·</span>
+                  <button
+                    onClick={deleteImage}
+                    className="text-xs text-destructive hover:underline"
+                  >
+                    削除
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* ドロップゾーン */
+            <div
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onClick={() => fileInputRef.current?.click()}
+              className={cn(
+                "border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all",
+                isDragging
+                  ? "border-primary bg-primary/5 scale-[1.01]"
+                  : "border-border hover:border-primary/50 hover:bg-muted/30"
+              )}
+            >
+              <div className="flex flex-col items-center gap-2.5">
+                <div
+                  className={cn(
+                    "w-12 h-12 rounded-full flex items-center justify-center transition-colors",
+                    isDragging ? "bg-primary/20" : "bg-muted"
+                  )}
+                >
+                  <Upload
+                    className={cn(
+                      "w-6 h-6 transition-colors",
+                      isDragging ? "text-primary" : "text-muted-foreground"
+                    )}
+                  />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {isDragging ? "ここにドロップ" : "クリックまたはドラッグ＆ドロップ"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    ZESTのスクリーンショットを登録
+                  </p>
+                  <p className="text-[11px] text-primary font-medium mt-1.5">
+                    {selectedTeam}チーム / {selectedDay}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    PNG・JPG・WEBP対応 / 最大10MB
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+
+          {/* 登録済みサムネイル一覧 */}
+          {images.length > 0 && (
+            <div>
+              <p className="text-[10px] text-muted-foreground mb-1.5">登録済みスクリーンショット</p>
+              <div className="flex flex-wrap gap-1.5">
+                {images.map((img) => (
+                  <button
+                    key={img.id}
+                    onClick={() => {
+                      setSelectedTeam(img.team);
+                      setSelectedDay(img.day);
+                    }}
+                    className={cn(
+                      "relative w-16 h-11 rounded overflow-hidden border-2 transition-all",
+                      img.team === selectedTeam && img.day === selectedDay
+                        ? "border-primary shadow-sm"
+                        : "border-border hover:border-primary/50"
+                    )}
+                  >
+                    <img src={img.dataUrl} alt="" className="w-full h-full object-cover" />
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[8px] text-center py-0.5 leading-tight">
+                      {img.team}/{img.day}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 拡大モーダル */}
+      {viewImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setViewImage(null)}
+        >
+          <div
+            className="relative max-w-4xl w-full bg-white rounded-xl overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* モーダルヘッダー */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-primary" />
+                <span className="text-sm font-semibold">
+                  {viewImage.team}チーム / {viewImage.day}
+                </span>
+                <span className="text-xs text-muted-foreground">· {viewImage.uploadedAt} 登録</span>
+              </div>
+              <button
+                onClick={() => setViewImage(null)}
+                className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* 画像 */}
+            <div className="overflow-auto max-h-[75vh] bg-muted/20">
+              <img
+                src={viewImage.dataUrl}
+                alt={`${viewImage.team}チーム ${viewImage.day}のスケジュール`}
+                className="w-full object-contain"
+              />
+            </div>
+
+            {/* チーム・日付切り替えボタン */}
+            <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-muted/20">
+              <div className="flex gap-1.5">
+                {TEAMS.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => {
+                      const found = images.find(
+                        (img) => img.team === t && img.day === viewImage.day
+                      );
+                      if (found) setViewImage(found);
+                      else toast.info(`${t}チームの${viewImage.day}のスクリーンショットは未登録です`);
+                    }}
+                    className={cn(
+                      "text-xs px-2.5 py-1 rounded border transition-colors",
+                      viewImage.team === t
+                        ? "bg-primary text-white border-primary"
+                        : "border-border text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-1.5">
+                {DAYS.map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => {
+                      const found = images.find(
+                        (img) => img.team === viewImage.team && img.day === d
+                      );
+                      if (found) setViewImage(found);
+                      else toast.info(`${viewImage.team}チームの${d}のスクリーンショットは未登録です`);
+                    }}
+                    className={cn(
+                      "text-xs px-2.5 py-1 rounded border transition-colors",
+                      viewImage.day === d
+                        ? "bg-primary text-white border-primary"
+                        : "border-border text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function TrendChart() {
   return (
     <Card className="fade-in-up stagger-2 shadow-sm">
@@ -259,7 +632,6 @@ function TrendChart() {
               formatter={(value: number) => [`${value} 件/日`, "平日平均訪問件数"]}
             />
             <Bar dataKey="平日平均訪問件数" fill="#F97316" radius={[4, 4, 0, 0]} />
-            {/* 目標ライン */}
             <Line
               type="monotone"
               dataKey={() => 71}
@@ -547,7 +919,7 @@ function TasksCard() {
 }
 
 function MessageBoard({ title, type }: { title: string; type: "notice" | "message" }) {
-  const [messages, setMessages] = useState<typeof initialMessages>(
+  const [messages, setMessages] = useState<MessageItem[]>(
     type === "notice" ? initialMessages : []
   );
   const [newMsg, setNewMsg] = useState("");
@@ -644,6 +1016,7 @@ export default function Dashboard() {
         {/* 左カラム */}
         <div className="lg:col-span-2 space-y-4">
           <VisitCountCard />
+          <ScheduleScreenshotCard />
           <TrendChart />
           <PatientTrendChart />
         </div>
