@@ -1029,7 +1029,7 @@ export default function Dashboard() {
               href="https://zest.jp/"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm"
+              className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm" style={{backgroundColor: '#00b5a3'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#009e8e')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#00b5a3')}
             >
               <Calendar className="w-3.5 h-3.5" />
               ZEST
@@ -1038,13 +1038,13 @@ export default function Dashboard() {
               href="https://gemini.google.com/"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 bg-white/25 hover:bg-white/40 backdrop-blur-sm transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm"
+              className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm" style={{backgroundColor: '#9b7fd4'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#8a6ec3')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#9b7fd4')}
             >
               <span className="text-sm leading-none">✨</span>
               Gemini
             </a>
             <Link href="/record">
-              <span className="flex items-center gap-1.5 bg-white/25 hover:bg-white/40 backdrop-blur-sm transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm cursor-pointer">
+              <span className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm cursor-pointer" style={{backgroundColor: '#e06060'}}>
                 <ClipboardList className="w-3.5 h-3.5" />
                 記録
               </span>
