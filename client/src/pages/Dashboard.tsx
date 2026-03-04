@@ -1029,7 +1029,7 @@ export default function Dashboard() {
               href="https://zest.jp/"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 bg-white/25 hover:bg-white/40 backdrop-blur-sm transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm"
+              className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm"
             >
               <Calendar className="w-3.5 h-3.5" />
               ZEST
