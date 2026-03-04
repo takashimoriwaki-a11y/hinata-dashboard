@@ -1,10 +1,8 @@
 /**
  * DashboardLayout - サイドバー付きレイアウト
- * Design: 温かみのある和モダン・ケアUI
- * Features:
- *   - サイドバー折りたたみ（アイコンのみ表示 ↔ フル表示）
- *   - 画面下部に常時表示のボトムナビゲーションバー
- *     タブ: ホーム / 記録 / ZEST / iBow / タスク
+ * Design: ひなた公式ロゴ・ブランドカラー（オレンジ #E8845A系）を使用した温かみのあるUI
+ * Sidebar: デフォルト折りたたみ（アイコンのみ）、ボタンで展開
+ * BottomNav: ホーム / 記録 / ZEST / iBow / タスク
  */
 
 import { useState } from "react";
@@ -12,8 +10,6 @@ import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard,
   ClipboardEdit,
-  Users,
-  Calendar,
   CheckSquare,
   ExternalLink,
   Bell,
@@ -21,8 +17,8 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Sun,
   ClipboardList,
+  Calendar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -30,13 +26,15 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
-// ========== ナビゲーション定義 ==========
+// ロゴCDN URL
+const LOGO_MARK_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/hinata_logo_mark_bf1d0229.png";
+const LOGO_TEXT_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/hinata_logo_text_9eb540dd.svg";
 
+// ========== ナビゲーション定義 ==========
+// 訪問スケジュール・利用者一覧はサイドバーから削除
 const navItems = [
-  { href: "/", icon: LayoutDashboard, label: "ダッシュボード" },
-  { href: "/record", icon: ClipboardEdit, label: "記録入力" },
-  { href: "/patients", icon: Users, label: "利用者一覧" },
-  { href: "/schedule", icon: Calendar, label: "訪問スケジュール" },
+  { href: "/", icon: LayoutDashboard, label: "ホーム" },
+  { href: "/record", icon: ClipboardEdit, label: "記録" },
   { href: "/tasks", icon: CheckSquare, label: "タスク" },
 ];
 
@@ -60,7 +58,8 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [location] = useLocation();
-  const [collapsed, setCollapsed] = useState(false);
+  // デフォルト折りたたみ（true = 折りたたみ状態）
+  const [collapsed, setCollapsed] = useState(true);
 
   const today = new Date();
   const dateStr = today.toLocaleDateString("ja-JP", {
@@ -77,31 +76,37 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       <aside
         className={cn(
           "relative flex flex-col h-full transition-all duration-300 ease-in-out z-30 flex-shrink-0",
-          "bg-sidebar text-sidebar-foreground",
+          "bg-sidebar text-sidebar-foreground border-r border-sidebar-border",
           collapsed ? "w-[60px]" : "w-56"
         )}
       >
-        {/* ロゴ */}
+        {/* ロゴエリア */}
         <div
           className={cn(
-            "flex items-center gap-2 px-3 py-4 border-b border-sidebar-border",
-            collapsed && "justify-center px-0"
+            "flex items-center border-b border-sidebar-border py-3",
+            collapsed ? "justify-center px-0" : "gap-2 px-3"
           )}
         >
-          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-            <Sun className="w-4 h-4 text-white" />
-          </div>
+          <img
+            src={LOGO_MARK_URL}
+            alt="ひなた"
+            className="w-9 h-9 object-contain flex-shrink-0"
+          />
           {!collapsed && (
-            <div className="overflow-hidden">
-              <p className="text-[10px] text-sidebar-foreground/60 leading-tight">こころの訪問看護</p>
-              <p className="text-sm font-bold text-sidebar-foreground leading-tight">ひなた</p>
+            <div className="overflow-hidden flex flex-col gap-0.5">
+              <p className="text-[9px] text-sidebar-foreground/50 leading-tight">こころの訪問看護ステーション</p>
+              <img
+                src={LOGO_TEXT_URL}
+                alt="ひなた"
+                className="h-5 object-contain object-left"
+              />
             </div>
           )}
         </div>
 
         {/* ユーザー情報 */}
         {!collapsed && (
-          <div className="px-4 py-3 border-b border-sidebar-border">
+          <div className="px-3 py-3 border-b border-sidebar-border">
             <div className="flex items-center gap-2">
               <Avatar className="w-8 h-8 flex-shrink-0">
                 <AvatarFallback className="bg-primary text-white text-xs font-bold">崇</AvatarFallback>
@@ -208,14 +213,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </button>
         </div>
 
-        {/* 折りたたみトグルボタン（サイドバー右端に固定） */}
+        {/* 折りたたみトグルボタン */}
         <button
           onClick={() => setCollapsed(!collapsed)}
           className={cn(
-            "absolute -right-3 top-[72px] z-40",
+            "absolute -right-3 top-[68px] z-40",
             "w-6 h-6 rounded-full bg-white border border-border shadow-md",
             "flex items-center justify-center",
-            "text-muted-foreground hover:text-foreground hover:shadow-lg transition-all duration-200"
+            "text-muted-foreground hover:text-primary hover:shadow-lg transition-all duration-200"
           )}
           title={collapsed ? "サイドバーを開く" : "サイドバーを閉じる"}
         >
@@ -230,9 +235,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       <div className="flex flex-col flex-1 overflow-hidden">
 
         {/* トップヘッダー */}
-        <header className="flex items-center justify-between px-4 py-3 bg-white border-b border-border shadow-sm flex-shrink-0">
+        <header className="flex items-center justify-between px-4 py-2.5 bg-white border-b border-border shadow-sm flex-shrink-0">
           <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground font-medium">{dateStr}</span>
+            {/* ロゴマーク（折りたたみ時の補助） */}
+            <img src={LOGO_MARK_URL} alt="ひなた" className="w-7 h-7 object-contain" />
+            <span className="text-sm text-muted-foreground font-medium hidden sm:block">{dateStr}</span>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" className="relative text-muted-foreground">
@@ -247,7 +254,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </header>
 
-        {/* ページコンテンツ（ボトムナビ分の余白を確保） */}
+        {/* ページコンテンツ（ボトムナビ分の余白） */}
         <main className="flex-1 overflow-y-auto bg-background pb-16">
           {children}
         </main>
@@ -280,11 +287,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Link key={item.label} href={item.href}>
                   <div
                     className={cn(
-                      "flex flex-col items-center justify-center gap-1 transition-colors h-full px-2",
-                      "w-full",
-                      isActive
-                        ? "text-primary"
-                        : "text-muted-foreground hover:text-primary"
+                      "flex flex-col items-center justify-center gap-1 transition-colors h-full px-2 w-full",
+                      isActive ? "text-primary" : "text-muted-foreground hover:text-primary"
                     )}
                   >
                     <div className="relative">
@@ -293,12 +297,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                         <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-primary" />
                       )}
                     </div>
-                    <span
-                      className={cn(
-                        "text-[10px] font-medium",
-                        isActive && "font-bold"
-                      )}
-                    >
+                    <span className={cn("text-[10px] font-medium", isActive && "font-bold")}>
                       {item.label}
                     </span>
                   </div>

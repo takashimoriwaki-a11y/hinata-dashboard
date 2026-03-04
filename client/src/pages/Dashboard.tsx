@@ -1004,45 +1004,56 @@ function getGreeting(): string {
   return "夜中にありがとう！";
 }
 
+const LOGO_MARK = "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/hinata_logo_mark_bf1d0229.png";
+const LOGO_TEXT = "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/hinata_logo_text_9eb540dd.svg";
+
 export default function Dashboard() {
   const greeting = getGreeting();
-  const userName = "崇"; // ログインユーザー名
+  const userName = "崇";
 
   return (
     <div className="p-4 space-y-4">
-      {/* ヘッダー挨拶バナー */}
-      <div className="rounded-xl bg-gradient-to-r from-orange-500 to-amber-400 text-white p-4 shadow-sm fade-in-up">
-        {/* 上段：メッセージ＋名前 */}
-        <div className="mb-3">
-          <p className="text-sm font-medium opacity-90">{greeting}</p>
-          <p className="text-xl font-bold">{userName}さん 🌻</p>
-        </div>
-        {/* 下段：3つのショートカットボタン */}
-        <div className="flex flex-wrap gap-2">
-          <a
-            href="https://zest.jp/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition-colors text-white text-xs font-medium px-3 py-1.5 rounded-lg"
-          >
-            <Calendar className="w-3.5 h-3.5" />
-            ZEST
-          </a>
-          <a
-            href="https://gemini.google.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition-colors text-white text-xs font-medium px-3 py-1.5 rounded-lg"
-          >
-            <span className="text-sm leading-none">✨</span>
-            Gemini
-          </a>
-          <Link href="/record">
-            <span className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition-colors text-white text-xs font-medium px-3 py-1.5 rounded-lg cursor-pointer">
-              <ClipboardList className="w-3.5 h-3.5" />
-              記録入力
-            </span>
-          </Link>
+      {/* ウェルカムバナー */}
+      <div className="relative rounded-2xl overflow-hidden shadow-md fade-in-up" style={{background: "linear-gradient(135deg, #f97316 0%, #fb923c 40%, #fbbf24 100%)"}}>
+        {/* 背景装飾 */}
+        <div className="absolute inset-0 opacity-10" style={{backgroundImage: "radial-gradient(circle at 80% 20%, white 0%, transparent 60%)"}} />
+        <div className="relative p-4">
+          {/* 上段：ロゴ＋挨拶 */}
+          <div className="flex items-center gap-3 mb-3">
+            <img src={LOGO_MARK} alt="ひなた" className="w-12 h-12 object-contain drop-shadow-sm" />
+            <div>
+              <p className="text-xs font-medium text-white/80 leading-tight">{greeting}</p>
+              <p className="text-xl font-bold text-white leading-tight">{userName}さん</p>
+              <img src={LOGO_TEXT} alt="ひなた" className="h-4 object-contain object-left mt-0.5 brightness-0 invert opacity-80" />
+            </div>
+          </div>
+          {/* 下段：ショートカットボタン */}
+          <div className="flex flex-wrap gap-2">
+            <a
+              href="https://zest.jp/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 bg-white/25 hover:bg-white/40 backdrop-blur-sm transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm"
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              ZEST
+            </a>
+            <a
+              href="https://gemini.google.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 bg-white/25 hover:bg-white/40 backdrop-blur-sm transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm"
+            >
+              <span className="text-sm leading-none">✨</span>
+              Gemini
+            </a>
+            <Link href="/record">
+              <span className="flex items-center gap-1.5 bg-white/25 hover:bg-white/40 backdrop-blur-sm transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm cursor-pointer">
+                <ClipboardList className="w-3.5 h-3.5" />
+                記録
+              </span>
+            </Link>
+          </div>
         </div>
       </div>
 
