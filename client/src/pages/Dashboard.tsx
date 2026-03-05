@@ -48,6 +48,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
 import { useTheme } from "@/contexts/ThemeContext";
+import TaskCreateForm from "@/components/TaskCreateForm";
 
 // ========== データ定義 ==========
 
@@ -982,13 +983,13 @@ function ToolsCard() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className={cn(
-                    "flex items-center gap-1.5 text-xs py-1.5 px-2 rounded-md",
+                    "flex items-center gap-2 text-sm py-2.5 px-3 rounded-md",
                     "bg-muted/50 hover:bg-muted transition-colors",
                     link.color ?? "text-emerald-600"
                   )}
                 >
-                  <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                  <span className="truncate">{link.label}</span>
+                  <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="truncate font-medium">{link.label}</span>
                 </a>
               ))
             ) : (
@@ -1000,13 +1001,13 @@ function ToolsCard() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className={cn(
-                    "flex items-center gap-1.5 text-xs py-1.5 px-2 rounded-md",
+                    "flex items-center gap-2 text-sm py-2.5 px-3 rounded-md",
                     "bg-muted/50 hover:bg-muted transition-colors",
                     link.color
                   )}
                 >
-                  <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                  <span className="truncate">{link.label}</span>
+                  <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="truncate font-medium">{link.label}</span>
                 </a>
               ))
             )}
@@ -1107,7 +1108,7 @@ function ToolsCard() {
                         href={link.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex-1 flex items-center gap-1.5 text-xs py-1.5 px-2 rounded-md bg-muted/50 hover:bg-muted text-primary transition-colors min-w-0"
+                        className="flex-1 flex items-center gap-2 text-sm py-2.5 px-3 rounded-md bg-muted/50 hover:bg-muted text-primary transition-colors min-w-0 font-medium"
                       >
                         <span className="flex-shrink-0">{link.emoji ?? "🔗"}</span>
                         <span className="truncate">{link.label}</span>
@@ -1173,95 +1174,89 @@ function QuickLinksCard() {
 }
 
 function TasksCard() {
-  const [tasks, setTasks] = useState(initialTasks);
-  const [newTask, setNewTask] = useState("");
+  const utils = trpc.useUtils();
+  const [showForm, setShowForm] = useState(false);
 
-  const toggleTask = (id: number) => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t))
-    );
-  };
+  // DBから未完了タスクを取得
+  const { data: tasks = [] } = trpc.tasks.getMine.useQuery();
+  const incomplete = tasks.filter((t) => t.done === 0);
 
-  const addTask = () => {
-    if (!newTask.trim()) return;
-    setTasks((prev) => [
-      ...prev,
-      { id: Date.now(), text: newTask, done: false, priority: "medium" as const },
-    ]);
-    setNewTask("");
-    toast.success("タスクを追加しました");
-  };
-
-  const deleteTask = (id: number) => {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
-  };
-
-  const incomplete = tasks.filter((t) => !t.done);
+  const toggleTask = trpc.tasks.toggle.useMutation({
+    onMutate: async ({ id, done }) => {
+      await utils.tasks.getMine.cancel();
+      const prev = utils.tasks.getMine.getData();
+      utils.tasks.getMine.setData(undefined, (old) =>
+        old?.map((t) => t.id === id ? { ...t, done: done ? 1 : 0 } : t)
+      );
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) utils.tasks.getMine.setData(undefined, ctx.prev);
+    },
+    onSettled: () => utils.tasks.getMine.invalidate(),
+  });
 
   return (
-    <Card className="fade-in-up stagger-3 shadow-sm">
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <ClipboardList className="w-4 h-4 text-primary" />
-            未完了タスク
-          </CardTitle>
-          <Link href="/tasks">
-            <span className="text-xs text-primary hover:underline cursor-pointer">すべて見る</span>
-          </Link>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {incomplete.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-3">
-            未完了のタスクはありません ✓
-          </p>
-        ) : (
-          incomplete.slice(0, 5).map((task) => (
-            <div key={task.id} className="flex items-center gap-2 group">
-              <button onClick={() => toggleTask(task.id)} className="flex-shrink-0">
-                {task.done ? (
-                  <CheckCircle2 className="w-4 h-4 text-primary" />
-                ) : (
-                  <Circle className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                )}
-              </button>
-              <span
-                className={cn(
-                  "flex-1 text-sm",
-                  task.done ? "line-through text-muted-foreground" : "text-foreground"
-                )}
-              >
-                {task.text}
-              </span>
-              {task.priority === "high" && (
-                <Badge variant="destructive" className="text-[10px] h-4 px-1">急</Badge>
-              )}
-              <button
-                onClick={() => deleteTask(task.id)}
-                className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
-              >
-                <Trash2 className="w-3 h-3" />
-              </button>
-            </div>
-          ))
-        )}
+    <div className="fade-in-up stagger-3 space-y-2">
+      <Card className="shadow-sm">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <ClipboardList className="w-4 h-4 text-primary" />
+              未完了タスク
+            </CardTitle>
+            <Link href="/tasks">
+              <span className="text-xs text-primary hover:underline cursor-pointer">すべて見る</span>
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {incomplete.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-3">
+              未完了のタスクはありません ✓
+            </p>
+          ) : (
+            incomplete.slice(0, 5).map((task) => (
+              <div key={task.id} className="flex items-center gap-2 group">
+                <button
+                  onClick={() => toggleTask.mutate({ id: task.id, done: task.done === 0 })}
+                  className="flex-shrink-0"
+                >
+                  {task.done ? (
+                    <CheckCircle2 className="w-4 h-4 text-primary" />
+                  ) : (
+                    <Circle className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                  )}
+                </button>
+                <span className={cn("flex-1 text-sm", task.done ? "line-through text-muted-foreground" : "text-foreground")}>
+                  {task.text}
+                </span>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
 
-        <div className="flex gap-1.5 pt-1">
-          <input
-            type="text"
-            placeholder="新しいタスクを追加..."
-            value={newTask}
-            onChange={(e) => setNewTask(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addTask()}
-            className="flex-1 text-xs border border-border rounded-md px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-          <Button size="sm" className="h-7 text-xs px-2" onClick={addTask}>
-            <Plus className="w-3 h-3" />
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      {/* 新規追加ボタン */}
+      <button
+        onClick={() => setShowForm((v) => !v)}
+        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-primary/30 text-primary hover:border-primary hover:bg-primary/5 transition-colors text-sm font-medium"
+      >
+        {showForm ? (
+          <><X className="w-4 h-4" />フォームを閉じる</>
+        ) : (
+          <><Plus className="w-4 h-4" />新しいタスクを追加</>
+        )}
+      </button>
+
+      {/* 詳細フォーム */}
+      {showForm && (
+        <TaskCreateForm
+          onClose={() => setShowForm(false)}
+          onSuccess={() => utils.tasks.getMine.invalidate()}
+        />
+      )}
+    </div>
   );
 }
 

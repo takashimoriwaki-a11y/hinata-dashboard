@@ -577,23 +577,20 @@ export default function Tasks() {
                 />
                 <button
                   type="button"
-                  onMouseDown={startRecording}
-                  onMouseUp={stopRecording}
-                  onTouchStart={startRecording}
-                  onTouchEnd={stopRecording}
+                  onClick={() => isRecording ? stopRecording() : startRecording()}
                   className={cn(
                     "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors self-end text-base",
                     isRecording
                       ? "bg-red-500 text-white animate-pulse"
                       : "bg-muted text-muted-foreground hover:bg-primary/20"
                   )}
-                  title="押して話す"
+                  title={isRecording ? "タップして停止" : "タップして開始"}
                 >
                   🎤
                 </button>
               </div>
               {isRecording && (
-                <p className="text-[10px] text-red-500 font-medium animate-pulse mt-1">● 録音中...指を離すと停止</p>
+                <p className="text-[10px] text-red-500 font-medium animate-pulse mt-1">● 録音中...もう一度タップすると停止</p>
               )}
             </div>
 
