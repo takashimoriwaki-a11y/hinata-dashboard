@@ -291,7 +291,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <img src={LOGO_MARK_URL} alt="ひなた" className="w-7 h-7 object-contain flex-shrink-0" />
             {/* 日付・ステーション名: スマホでは縦並び、PCでは横並び */}
             <div className="flex flex-col md:flex-row md:items-center md:gap-3 min-w-0">
-              <span className={cn("text-xs md:text-sm font-medium whitespace-nowrap", isNight ? "text-slate-200" : "text-muted-foreground")}>{dateStr}</span>
+              <span className={cn("text-xs md:text-sm font-semibold whitespace-nowrap", isNight ? "text-slate-200" : "text-foreground/80")}>{dateStr}</span>
               <span className={cn("hidden md:block text-xs font-medium border-l border-border pl-3 whitespace-nowrap", isNight ? "text-slate-300" : "text-foreground/75")}>こころの訪問看護ステーションひなた</span>
               <span className={cn("md:hidden text-[10px] font-semibold leading-tight whitespace-nowrap", isNight ? "text-slate-300" : "text-foreground/70")}>こころの訪問看護ステーションひなた</span>
             </div>

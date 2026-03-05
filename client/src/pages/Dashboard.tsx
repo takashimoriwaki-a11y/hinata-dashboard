@@ -408,9 +408,9 @@ function VisitCountCard() {
           </div>
           {/* 達成・未達成メッセージ */}
           {prevAchieved ? (
-            <div className="flex items-center gap-1.5 pt-0.5">
-              <span className="text-base">🎉</span>
-              <p className={cn("text-xs font-bold", isNight ? "text-emerald-400" : "text-emerald-700")}>先月は目標達成！みんなで協力したおかげです！🌟</p>
+            <div className="flex items-center gap-1.5 pt-0.5 overflow-hidden">
+              <span className="text-base flex-shrink-0">🎉</span>
+              <p className={cn("text-xs font-bold whitespace-nowrap overflow-hidden text-ellipsis", isNight ? "text-emerald-400" : "text-emerald-700")}>先月は目標達成！みんなで協力したおかげです！🌟</p>
             </div>
           ) : (
             <div className="flex items-center gap-1.5 pt-0.5">
@@ -1611,9 +1611,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 訪問件数カード（ウェルカムバナー直下） */}
-      <VisitCountCard />
-
       {/* メインコンテンツ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
         {/* 左カラム */}
@@ -1626,6 +1623,7 @@ export default function Dashboard() {
           <ToolsCard />
           <TasksCard />
           <MessageBoard title="メッセージ" />
+          <VisitCountCard />
           <QuickLinksCard />
         </div>
       </div>
