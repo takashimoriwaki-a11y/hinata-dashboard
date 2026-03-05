@@ -280,7 +280,7 @@ function VisitCountCard() {
             <Progress value={mainPct} className="h-2" indicatorClassName={data.mainDailyTargetCumul > 0 ? getPctBarColor(mainPct) : undefined} />
             <div className="flex items-center justify-between">
               <p className={cn(
-                "text-xs font-semibold",
+                "text-sm font-extrabold",
                 data.mainDailyTargetCumul > 0 ? getPctColor(mainPct) : "text-orange-400"
               )}>{data.mainDailyTargetCumul > 0 ? `${Math.round(mainPct)}%` : "—"}</p>
               {data.mainTarget > 0 && (
@@ -308,7 +308,7 @@ function VisitCountCard() {
             <Progress value={subPct} className="h-2" indicatorClassName={data.subDailyTargetCumul > 0 ? getPctBarColor(subPct) : undefined} />
             <div className="flex items-center justify-between">
               <p className={cn(
-                "text-xs font-semibold",
+                "text-sm font-extrabold",
                 data.subDailyTargetCumul > 0 ? getPctColor(subPct) : "text-sky-400"
               )}>
                 {data.subDailyTargetCumul > 0 ? `${Math.round(subPct)}%` : "—"}
@@ -338,7 +338,7 @@ function VisitCountCard() {
             <Progress value={totalPct} className="h-2" indicatorClassName={getPctBarColor(totalPct)} />
             <div className="flex items-center justify-between">
               <p className={cn(
-                "text-xs font-bold",
+                "text-base font-extrabold",
                 getPctColor(totalPct)
               )}>{Math.round(totalPct)}%</p>
               {data.mainTarget > 0 && (
@@ -378,10 +378,10 @@ function VisitCountCard() {
             )}>{data.prevMonth}実績</p>
             <div className="flex items-center gap-2">
               <Badge className={cn(
-                "border-0 text-xs",
+                "border-0 text-sm font-extrabold px-3 py-1",
                 isNight
-                  ? (prevAchieved ? "bg-emerald-900/60 text-emerald-300" : "bg-amber-900/60 text-amber-300")
-                  : (prevAchieved ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700")
+                  ? (prevAchieved ? "bg-emerald-800/80 text-emerald-200" : "bg-amber-800/80 text-amber-200")
+                  : (prevAchieved ? "bg-emerald-500 text-white" : "bg-amber-500 text-white")
               )}>
                 達成率 {Math.round(prevPct)}%
               </Badge>
