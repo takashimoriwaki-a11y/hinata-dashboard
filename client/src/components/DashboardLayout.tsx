@@ -174,7 +174,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </nav>
 
       {/* ボトムアクション */}
-      <div className="border-t border-sidebar-border py-2">
+      <div className={cn("border-t border-sidebar-border py-2", mobile && "pb-[76px]")} >
         <button
           onClick={() => toast.info("通知設定は準備中です")}
           title={(collapsed && !mobile) ? "通知設定" : undefined}
@@ -259,13 +259,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* ========== モバイル用ドロワー ========== */}
       <aside
         className={cn(
-          "fixed top-0 left-0 h-full z-50 flex flex-col w-72",
-          "bg-sidebar text-sidebar-foreground border-r border-sidebar-border",
+          "fixed top-0 left-0 z-50 flex flex-col w-72",
+          "bg-sidebar text-sidebar-foreground border-r border-sidebar-border shadow-xl",
           "transition-transform duration-300 ease-in-out md:hidden",
+          "top-0 bottom-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
+        style={{ height: "100dvh" }}
       >
-        <SidebarContent mobile />
+        <div className="flex flex-col h-full overflow-hidden">
+          <div className="flex-1 overflow-y-auto">
+            <SidebarContent mobile />
+          </div>
+        </div>
       </aside>
 
       {/* ========== メインコンテンツエリア ========== */}
