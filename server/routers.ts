@@ -27,6 +27,7 @@ import {
   toggleTask,
   deleteTask as deleteTaskDb,
   getTaskById,
+  updateTask,
   getActiveMessages,
   createMessage,
   softDeleteMessage,
@@ -591,6 +592,30 @@ export const appRouter = router({
           throw new TRPCError({ code: "FORBIDDEN", message: "作成者のみ削除できます" });
         }
         await deleteTaskDb(input.id, ctx.user.id);
+        return { success: true };
+      }),
+
+    // タスクを更新（作成者のみ）
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          text: z.string().min(1).optional(),
+          dueDate: z.date().nullable().optional(),
+          assignType: z.enum(["all", "team", "personal"]).optional(),
+          assignTeam: z.enum(["身体", "天理", "郡山北部", "郡山南部"]).nullable().optional(),
+          assignUserId: z.number().nullable().optional(),
+          assignUserName: z.string().nullable().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const task = await getTaskById(input.id);
+        if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "タスクが見つかりません" });
+        if (task.createdBy !== ctx.user.id) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "作成者のみ編集できます" });
+        }
+        const { id, ...data } = input;
+        await updateTask(id, ctx.user.id, data);
         return { success: true };
       }),
 

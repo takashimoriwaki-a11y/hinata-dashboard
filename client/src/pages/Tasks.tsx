@@ -5,6 +5,7 @@
  * - 作成者名自動付与
  * - 個人指定 / チーム指定 / 全員 の3種類
  * - 自分に関係するタスクのみ表示
+ * - 作成者のみ編集・削除可能
  */
 import { useState, useMemo, useRef } from "react";
 import { trpc } from "@/lib/trpc";
@@ -23,6 +24,9 @@ import {
   Globe,
   ChevronDown,
   ChevronUp,
+  Pencil,
+  X,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -89,6 +93,21 @@ function AssignBadge({ task }: { task: { assignType: string; assignTeam?: string
   );
 }
 
+// 日付をinput[type=date]用の文字列に変換
+function toDateInputValue(date: Date | string | null | undefined): string {
+  if (!date) return "";
+  const d = new Date(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// 時刻をinput[type=time]用の文字列に変換
+function toTimeInputValue(date: Date | string | null | undefined): string {
+  if (!date) return "";
+  const d = new Date(date);
+  if (d.getHours() === 0 && d.getMinutes() === 0) return "";
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 export default function Tasks() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
@@ -105,7 +124,7 @@ export default function Tasks() {
   // 新規作成フォームの開閉
   const [showForm, setShowForm] = useState(false);
 
-  // フォームの状態
+  // フォームの状態（新規作成）
   const [newText, setNewText] = useState("");
   const [newDueDate, setNewDueDate] = useState("");
   const [newDueTime, setNewDueTime] = useState("");
@@ -114,7 +133,18 @@ export default function Tasks() {
   const [newAssignUserId, setNewAssignUserId] = useState<number | null>(null);
   const [newAssignUserName, setNewAssignUserName] = useState<string>("");
 
-  // 音声入力
+  // 編集中のタスクID
+  const [editingId, setEditingId] = useState<number | null>(null);
+  // 編集フォームの状態
+  const [editText, setEditText] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
+  const [editDueTime, setEditDueTime] = useState("");
+  const [editAssignType, setEditAssignType] = useState<AssignType>("all");
+  const [editAssignTeam, setEditAssignTeam] = useState<Team>("身体");
+  const [editAssignUserId, setEditAssignUserId] = useState<number | null>(null);
+  const [editAssignUserName, setEditAssignUserName] = useState<string>("");
+
+  // 音声入力（新規作成用）
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -201,6 +231,16 @@ export default function Tasks() {
     onError: (e) => toast.error(e.message),
   });
 
+  // タスク更新
+  const updateTask = trpc.tasks.update.useMutation({
+    onSuccess: () => {
+      utils.tasks.getMine.invalidate();
+      toast.success("タスクを更新しました");
+      setEditingId(null);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
   const handleAdd = () => {
     if (!newText.trim()) {
       toast.error("タスクの内容を入力してください");
@@ -220,6 +260,45 @@ export default function Tasks() {
       assignTeam: newAssignType === "team" ? newAssignTeam : undefined,
       assignUserId: newAssignType === "personal" && newAssignUserId ? newAssignUserId : undefined,
       assignUserName: newAssignType === "personal" ? newAssignUserName : undefined,
+    });
+  };
+
+  // 編集開始
+  const startEdit = (task: typeof tasks[number]) => {
+    setEditingId(task.id);
+    setEditText(task.text);
+    setEditDueDate(toDateInputValue(task.dueDate));
+    setEditDueTime(toTimeInputValue(task.dueDate));
+    setEditAssignType(task.assignType as AssignType);
+    setEditAssignTeam((task.assignTeam as Team) ?? "身体");
+    setEditAssignUserId(task.assignUserId ?? null);
+    setEditAssignUserName(task.assignUserName ?? "");
+  };
+
+  // 編集保存
+  const handleUpdate = () => {
+    if (!editingId) return;
+    if (!editText.trim()) {
+      toast.error("タスクの内容を入力してください");
+      return;
+    }
+
+    let dueDate: Date | null | undefined;
+    if (editDueDate) {
+      const dateTimeStr = editDueTime ? `${editDueDate}T${editDueTime}` : `${editDueDate}T00:00`;
+      dueDate = new Date(dateTimeStr);
+    } else {
+      dueDate = null; // 期日クリア
+    }
+
+    updateTask.mutate({
+      id: editingId,
+      text: editText.trim(),
+      dueDate,
+      assignType: editAssignType,
+      assignTeam: editAssignType === "team" ? editAssignTeam : null,
+      assignUserId: editAssignType === "personal" && editAssignUserId ? editAssignUserId : null,
+      assignUserName: editAssignType === "personal" ? editAssignUserName : null,
     });
   };
 
@@ -273,57 +352,192 @@ export default function Tasks() {
             </p>
           ) : (
             filtered.map((task) => (
-              <div
-                key={task.id}
-                className={cn(
-                  "flex items-start gap-2.5 p-2.5 rounded-lg group transition-colors",
-                  task.done ? "bg-muted/20" : "bg-white hover:bg-muted/30"
-                )}
-              >
-                {/* 完了チェック */}
-                <button
-                  onClick={() => toggleTask.mutate({ id: task.id, done: task.done === 0 })}
-                  className="flex-shrink-0 mt-0.5"
-                >
-                  {task.done ? (
-                    <CheckCircle2 className="w-5 h-5 text-primary" />
-                  ) : (
-                    <Circle className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                  )}
-                </button>
+              <div key={task.id}>
+                {editingId === task.id ? (
+                  /* ===== インライン編集フォーム ===== */
+                  <div className="p-3 rounded-lg border border-primary/30 bg-primary/5 space-y-3">
+                    {/* 内容 */}
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground mb-1 block">内容 *</label>
+                      <textarea
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        rows={2}
+                        className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                      />
+                    </div>
 
-                {/* タスク内容 */}
-                <div className="flex-1 min-w-0">
-                  <p className={cn("text-sm leading-snug", task.done && "line-through text-muted-foreground")}>
-                    {task.text}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
-                    {/* 期日 */}
-                    {task.dueDate && (
-                      <span className={cn("flex items-center gap-0.5 text-[11px]", getDueDateColor(task.dueDate))}>
-                        <Calendar className="w-3 h-3" />
-                        {formatDueDate(task.dueDate)}
-                      </span>
-                    )}
+                    {/* 期日・時刻 */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                          <Calendar className="w-3 h-3 inline mr-0.5" />期日（任意）
+                        </label>
+                        <input
+                          type="date"
+                          value={editDueDate}
+                          onChange={(e) => setEditDueDate(e.target.value)}
+                          className="w-full text-sm border border-border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">時刻（任意）</label>
+                        <input
+                          type="time"
+                          value={editDueTime}
+                          onChange={(e) => setEditDueTime(e.target.value)}
+                          disabled={!editDueDate}
+                          className="w-full text-sm border border-border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40"
+                        />
+                      </div>
+                    </div>
+
                     {/* 指定先 */}
-                    <AssignBadge task={task} />
-                    {/* 作成者 */}
-                    <span className="text-[10px] text-muted-foreground/70">
-                      作成: {task.createdByName}
-                    </span>
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground mb-1 block">指定先</label>
+                      <div className="flex gap-2 mb-2">
+                        {([
+                          { value: "all", label: "全員", icon: Globe },
+                          { value: "team", label: "チーム", icon: Users },
+                          { value: "personal", label: "個人", icon: User },
+                        ] as const).map(({ value, label, icon: Icon }) => (
+                          <button
+                            key={value}
+                            onClick={() => setEditAssignType(value)}
+                            className={cn(
+                              "flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border transition-colors flex-1 justify-center",
+                              editAssignType === value
+                                ? "bg-primary text-white border-primary"
+                                : "border-border text-muted-foreground hover:border-primary hover:text-primary"
+                            )}
+                          >
+                            <Icon className="w-3.5 h-3.5" />
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      {editAssignType === "team" && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {TEAMS.map((team) => (
+                            <button
+                              key={team}
+                              onClick={() => setEditAssignTeam(team)}
+                              className={cn(
+                                "text-xs px-2.5 py-1 rounded-full border transition-colors",
+                                editAssignTeam === team
+                                  ? "bg-blue-600 text-white border-blue-600"
+                                  : "border-border text-muted-foreground hover:border-blue-600 hover:text-blue-600"
+                              )}
+                            >
+                              {team}チーム
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {editAssignType === "personal" && (
+                        <select
+                          value={editAssignUserId ?? ""}
+                          onChange={(e) => {
+                            const id = Number(e.target.value);
+                            setEditAssignUserId(id || null);
+                            const found = staff.find((s) => s.id === id);
+                            setEditAssignUserName(found?.name ?? "");
+                          }}
+                          className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="">スタッフを選択...</option>
+                          {staff.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name ?? "名前なし"}{s.team ? ` (${s.team})` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
 
+                    {/* 保存・キャンセル */}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 h-8"
+                        onClick={() => setEditingId(null)}
+                      >
+                        <X className="w-3.5 h-3.5 mr-1" />キャンセル
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="flex-1 h-8"
+                        onClick={handleUpdate}
+                        disabled={updateTask.isPending || !editText.trim()}
+                      >
+                        <Check className="w-3.5 h-3.5 mr-1" />
+                        {updateTask.isPending ? "保存中..." : "保存"}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-
-                {/* 削除ボタン（作成者のみ） */}
-                {task.createdBy === user?.id && (
-                  <button
-                    onClick={() => deleteTask.mutate({ id: task.id })}
-                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all flex-shrink-0 mt-0.5"
-                    title="削除（作成者のみ）"
+                ) : (
+                  /* ===== 通常表示 ===== */
+                  <div
+                    className={cn(
+                      "flex items-start gap-2.5 p-2.5 rounded-lg group transition-colors",
+                      task.done ? "bg-muted/20" : "bg-white hover:bg-muted/30"
+                    )}
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                    {/* 完了チェック */}
+                    <button
+                      onClick={() => toggleTask.mutate({ id: task.id, done: task.done === 0 })}
+                      className="flex-shrink-0 mt-0.5"
+                    >
+                      {task.done ? (
+                        <CheckCircle2 className="w-5 h-5 text-primary" />
+                      ) : (
+                        <Circle className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                      )}
+                    </button>
+
+                    {/* タスク内容 */}
+                    <div className="flex-1 min-w-0">
+                      <p className={cn("text-sm leading-snug", task.done && "line-through text-muted-foreground")}>
+                        {task.text}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
+                        {/* 期日 */}
+                        {task.dueDate && (
+                          <span className={cn("flex items-center gap-0.5 text-[11px]", getDueDateColor(task.dueDate))}>
+                            <Calendar className="w-3 h-3" />
+                            {formatDueDate(task.dueDate)}
+                          </span>
+                        )}
+                        {/* 指定先 */}
+                        <AssignBadge task={task} />
+                        {/* 作成者 */}
+                        <span className="text-[10px] text-muted-foreground/70">
+                          作成: {task.createdByName}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 編集・削除ボタン（作成者のみ） */}
+                    {task.createdBy === user?.id && (
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 mt-0.5">
+                        <button
+                          onClick={() => startEdit(task)}
+                          className="text-muted-foreground hover:text-primary transition-colors"
+                          title="編集（作成者のみ）"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => deleteTask.mutate({ id: task.id })}
+                          className="text-muted-foreground hover:text-destructive transition-colors"
+                          title="削除（作成者のみ）"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             ))

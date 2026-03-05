@@ -62,6 +62,7 @@ vi.mock("./db", () => ({
     text: "テストタスク",
     done: 0,
   }),
+  updateTask: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe("タスク DB ヘルパー", () => {
@@ -108,6 +109,28 @@ describe("タスク DB ヘルパー", () => {
     expect(task).toBeDefined();
     expect(task?.id).toBe(1);
     expect(task?.createdBy).toBe(1);
+  });
+
+  it("updateTaskが正しく呼び出されること", async () => {
+    const { updateTask } = await import("./db");
+    await updateTask(1, 1, {
+      text: "更新後のタスク",
+      dueDate: new Date("2026-04-15"),
+      assignType: "team",
+      assignTeam: "身体",
+    });
+    expect(updateTask).toHaveBeenCalledWith(1, 1, {
+      text: "更新後のタスク",
+      dueDate: new Date("2026-04-15"),
+      assignType: "team",
+      assignTeam: "身体",
+    });
+  });
+
+  it("updateTaskで期日をnullにできること", async () => {
+    const { updateTask } = await import("./db");
+    await updateTask(1, 1, { dueDate: null });
+    expect(updateTask).toHaveBeenCalledWith(1, 1, { dueDate: null });
   });
 });
 

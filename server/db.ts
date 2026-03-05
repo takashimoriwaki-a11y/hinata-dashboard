@@ -341,6 +341,27 @@ export async function deleteTask(id: number, createdBy: number) {
     .where(and(eq(tasks.id, id), eq(tasks.createdBy, createdBy)));
 }
 
+/** タスクを更新する（作成者のみ） */
+export async function updateTask(
+  id: number,
+  createdBy: number,
+  data: {
+    text?: string;
+    dueDate?: Date | null;
+    assignType?: "all" | "team" | "personal";
+    assignTeam?: "身体" | "天理" | "郡山北部" | "郡山南部" | null;
+    assignUserId?: number | null;
+    assignUserName?: string | null;
+  }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(tasks)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(tasks.id, id), eq(tasks.createdBy, createdBy)));
+}
+
 /** タスクを取得する（ID指定） */
 export async function getTaskById(id: number) {
   const db = await getDb();
