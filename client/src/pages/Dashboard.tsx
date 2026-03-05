@@ -228,6 +228,14 @@ function VisitCountCard() {
   const prevPct = data.prevTotalTarget > 0 ? (data.prevTotalActual / data.prevTotalTarget) * 100 : 0;
   const prevAchieved = prevPct >= 100;
 
+  // 達成率に応じた色分け: 70%未満=赤, 70〜89%=オレンジ, 90〜99%=黄緑, 100%以上=緑
+  const getPctColor = (pct: number) => {
+    if (pct >= 100) return "text-emerald-600";
+    if (pct >= 90)  return "text-lime-500";
+    if (pct >= 70)  return "text-orange-500";
+    return "text-red-500";
+  };
+
   return (
     <Card className="fade-in-up stagger-1 shadow-sm">
       <CardHeader className="pb-1 pt-3 px-4">
@@ -265,7 +273,7 @@ function VisitCountCard() {
             <div className="flex items-center justify-between">
               <p className={cn(
                 "text-xs font-semibold",
-                mainPct >= 100 ? "text-emerald-600" : "text-primary"
+                data.mainDailyTargetCumul > 0 ? getPctColor(mainPct) : "text-muted-foreground"
               )}>{data.mainDailyTargetCumul > 0 ? `${Math.round(mainPct)}%` : "—"}</p>
               {data.mainTarget > 0 && (
                 <p className="text-[10px] text-muted-foreground/60">月目標 {data.mainTarget}</p>
@@ -283,7 +291,10 @@ function VisitCountCard() {
             </p>
             <Progress value={subPct} className="h-2" />
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-muted-foreground">
+              <p className={cn(
+                "text-xs font-semibold",
+                data.subDailyTargetCumul > 0 ? getPctColor(subPct) : "text-muted-foreground"
+              )}>
                 {data.subDailyTargetCumul > 0 ? `${Math.round(subPct)}%` : "—"}
               </p>
               {data.subTarget > 0 && (
@@ -304,7 +315,7 @@ function VisitCountCard() {
             <div className="flex items-center justify-between">
               <p className={cn(
                 "text-xs font-semibold",
-                totalPct >= 100 ? "text-emerald-600" : totalPct >= 80 ? "text-primary" : "text-muted-foreground"
+                getPctColor(totalPct)
               )}>{Math.round(totalPct)}%</p>
               {data.mainTarget > 0 && (
                 <p className="text-[10px] text-muted-foreground/60">月目標 {data.mainTarget}</p>
