@@ -160,6 +160,7 @@ type DayType = typeof DAYS[number];
 // ========== サブコンポーネント ==========
 
 function VisitCountCard() {
+  const { isNight } = useTheme();
   const { data: visitData, isLoading, refetch } = trpc.visits.getCurrent.useQuery(undefined, {
     refetchInterval: 5 * 60 * 1000, // 5分ごとに自動更新
     staleTime: 3 * 60 * 1000,
@@ -268,11 +269,11 @@ function VisitCountCard() {
       <CardContent className="space-y-3 px-4 pb-3">
         <div className="grid grid-cols-3 gap-2">
           {/* メイン */}
-          <div className="space-y-1.5 border border-border rounded-xl p-2.5 bg-muted/20">
-            <p className="text-xs text-muted-foreground font-medium">メイン</p>
+          <div className="space-y-1.5 border-2 border-orange-400 dark:border-orange-500 rounded-xl p-2.5 bg-orange-50/50 dark:bg-orange-950/30">
+            <p className="text-xs font-bold text-orange-600 dark:text-orange-400">メイン</p>
             <p className="text-2xl font-bold text-foreground tabular-nums">
               {data.mainActual}
-              <span className="text-sm font-normal text-muted-foreground ml-1">
+              <span className="text-sm font-semibold text-orange-500 dark:text-orange-400 ml-1">
                 / {data.mainDailyTargetCumul > 0 ? data.mainDailyTargetCumul : "—"}
               </span>
             </p>
@@ -280,27 +281,27 @@ function VisitCountCard() {
             <div className="flex items-center justify-between">
               <p className={cn(
                 "text-xs font-semibold",
-                data.mainDailyTargetCumul > 0 ? getPctColor(mainPct) : "text-muted-foreground"
+                data.mainDailyTargetCumul > 0 ? getPctColor(mainPct) : "text-orange-400"
               )}>{data.mainDailyTargetCumul > 0 ? `${Math.round(mainPct)}%` : "—"}</p>
               {data.mainTarget > 0 && (
-                <p className="text-[10px] text-muted-foreground/60">月目標 {data.mainTarget}</p>
+                <p className="text-[10px] font-medium text-orange-500/80 dark:text-orange-400/80">月目標 {data.mainTarget}</p>
               )}
             </div>
             {(() => {
               const diff = getDiffLabel(data.mainActual, data.mainDailyTargetCumul);
               return diff ? (
-                <p className={cn("text-[10px] font-medium", diff.over ? "text-emerald-600" : "text-muted-foreground")}>
+                <p className={cn("text-[10px] font-medium", diff.over ? "text-emerald-600" : "text-orange-500 dark:text-orange-400")}>
                   {diff.over ? `目標を${diff.text}` : `目標まで${diff.text}`}
                 </p>
               ) : null;
             })()}
           </div>
           {/* サブ */}
-          <div className="space-y-1.5 border border-border rounded-xl p-2.5 bg-muted/20">
-            <p className="text-xs text-muted-foreground font-medium">サブ</p>
+          <div className="space-y-1.5 border-2 border-sky-400 dark:border-sky-500 rounded-xl p-2.5 bg-sky-50/50 dark:bg-sky-950/30">
+            <p className="text-xs font-bold text-sky-600 dark:text-sky-400">サブ</p>
             <p className="text-2xl font-bold text-foreground tabular-nums">
               {data.subActual}
-              <span className="text-sm font-normal text-muted-foreground ml-1">
+              <span className="text-sm font-semibold text-sky-500 dark:text-sky-400 ml-1">
                 / {data.subDailyTargetCumul > 0 ? data.subDailyTargetCumul : "—"}
               </span>
             </p>
@@ -308,46 +309,46 @@ function VisitCountCard() {
             <div className="flex items-center justify-between">
               <p className={cn(
                 "text-xs font-semibold",
-                data.subDailyTargetCumul > 0 ? getPctColor(subPct) : "text-muted-foreground"
+                data.subDailyTargetCumul > 0 ? getPctColor(subPct) : "text-sky-400"
               )}>
                 {data.subDailyTargetCumul > 0 ? `${Math.round(subPct)}%` : "—"}
               </p>
               {data.subTarget > 0 && (
-                <p className="text-[10px] text-muted-foreground/60">月目標 {data.subTarget}</p>
+                <p className="text-[10px] font-medium text-sky-500/80 dark:text-sky-400/80">月目標 {data.subTarget}</p>
               )}
             </div>
             {(() => {
               const diff = getDiffLabel(data.subActual, data.subDailyTargetCumul);
               return diff ? (
-                <p className={cn("text-[10px] font-medium", diff.over ? "text-emerald-600" : "text-muted-foreground")}>
+                <p className={cn("text-[10px] font-medium", diff.over ? "text-emerald-600" : "text-sky-500 dark:text-sky-400")}>
                   {diff.over ? `目標を${diff.text}` : `目標まで${diff.text}`}
                 </p>
               ) : null;
             })()}
           </div>
           {/* 合計（メイン換算） */}
-          <div className="space-y-1.5 border border-border rounded-xl p-2.5 bg-muted/20">
-            <p className="text-xs text-muted-foreground font-medium">合計</p>
+          <div className="space-y-1.5 border-[3px] border-emerald-500 dark:border-emerald-400 rounded-xl p-2.5 bg-emerald-50/60 dark:bg-emerald-950/40 shadow-sm shadow-emerald-200 dark:shadow-emerald-900">
+            <p className="text-xs font-extrabold text-emerald-700 dark:text-emerald-300">合計</p>
             <p className="text-2xl font-bold text-foreground tabular-nums">
               {data.totalActualEquiv}
-              <span className="text-sm font-normal text-muted-foreground ml-1">
+              <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 ml-1">
                 / {data.totalTargetEquiv}
               </span>
             </p>
             <Progress value={totalPct} className="h-2" indicatorClassName={getPctBarColor(totalPct)} />
             <div className="flex items-center justify-between">
               <p className={cn(
-                "text-xs font-semibold",
+                "text-xs font-bold",
                 getPctColor(totalPct)
               )}>{Math.round(totalPct)}%</p>
               {data.mainTarget > 0 && (
-                <p className="text-[10px] text-muted-foreground/60">月目標 {data.mainTarget}</p>
+                <p className="text-[10px] font-medium text-emerald-600/80 dark:text-emerald-400/80">月目標 {data.mainTarget}</p>
               )}
             </div>
             {(() => {
               const diff = getDiffLabel(data.totalActualEquiv, data.totalTargetEquiv);
               return diff ? (
-                <p className={cn("text-[10px] font-medium", diff.over ? "text-emerald-600" : "text-muted-foreground")}>
+                <p className={cn("text-[10px] font-medium", diff.over ? "text-emerald-600 dark:text-emerald-400" : "text-emerald-600 dark:text-emerald-400")}>
                   {diff.over ? `目標を${diff.text}` : `目標まで${diff.text}`}
                 </p>
               ) : null;
@@ -360,19 +361,27 @@ function VisitCountCard() {
         {/* 先月実績 */}
         <div className={cn(
           "space-y-2 border rounded-xl p-3 transition-all duration-500",
-          prevAchieved
-            ? "border-emerald-300 bg-gradient-to-br from-emerald-50 to-green-50"
-            : "border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50"
+          isNight
+            ? (prevAchieved
+              ? "border-emerald-800/60 bg-gradient-to-br from-emerald-950/60 to-green-950/60"
+              : "border-amber-800/60 bg-gradient-to-br from-amber-950/60 to-orange-950/60")
+            : (prevAchieved
+              ? "border-emerald-300 bg-gradient-to-br from-emerald-50 to-green-50"
+              : "border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50")
         )}>
           <div className="flex items-center justify-between">
             <p className={cn(
               "text-xs font-semibold",
-              prevAchieved ? "text-emerald-700" : "text-amber-700"
+              isNight
+                ? (prevAchieved ? "text-emerald-400" : "text-amber-400")
+                : (prevAchieved ? "text-emerald-700" : "text-amber-700")
             )}>{data.prevMonth}実績</p>
             <div className="flex items-center gap-2">
               <Badge className={cn(
                 "border-0 text-xs",
-                prevAchieved ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                isNight
+                  ? (prevAchieved ? "bg-emerald-900/60 text-emerald-300" : "bg-amber-900/60 text-amber-300")
+                  : (prevAchieved ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700")
               )}>
                 達成率 {Math.round(prevPct)}%
               </Badge>
@@ -401,12 +410,12 @@ function VisitCountCard() {
           {prevAchieved ? (
             <div className="flex items-center gap-1.5 pt-0.5">
               <span className="text-base">🎉</span>
-              <p className="text-xs font-bold text-emerald-700">先月は目標達成！みんなで協力したおかげです！🌟</p>
+              <p className={cn("text-xs font-bold", isNight ? "text-emerald-400" : "text-emerald-700")}>先月は目標達成！みんなで協力したおかげです！🌟</p>
             </div>
           ) : (
             <div className="flex items-center gap-1.5 pt-0.5">
               <span className="text-base">💪</span>
-              <p className="text-xs font-bold text-amber-700">今月こそ達成しよう！あと{Math.round(data.prevTotalTarget - data.prevTotalActual).toLocaleString()}件だった！</p>
+              <p className={cn("text-xs font-bold", isNight ? "text-amber-400" : "text-amber-700")}>今月こそ達成しよう！あと{Math.round(data.prevTotalTarget - data.prevTotalActual).toLocaleString()}件だった！</p>
             </div>
           )}
         </div>
@@ -1566,14 +1575,14 @@ export default function Dashboard() {
       <div className="relative rounded-2xl overflow-hidden shadow-md fade-in-up" style={{background: bannerGradient}}>
         {/* 背景装飾 */}
         <div className="absolute inset-0 opacity-10" style={{backgroundImage: "radial-gradient(circle at 80% 20%, white 0%, transparent 60%)"}} />
-        <div className="relative px-4 py-2 md:px-5 md:py-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="relative px-4 py-2 md:px-5 md:py-2.5 flex flex-row items-center justify-between gap-2">
           {/* 挨拶メッセージ（名前とメッセージを縦并びに） */}
           <div className="flex flex-col">
             <p className="text-2xl md:text-3xl font-extrabold text-white leading-tight tracking-wide" style={{textShadow: '0 2px 8px rgba(0,0,0,0.2)'}}>{userName}<span className="text-xl md:text-2xl">さん</span></p>
             <p className="text-sm md:text-base font-bold text-white/90" style={{textShadow: '0 1px 4px rgba(0,0,0,0.2)'}}>{greeting}</p>
           </div>
           {/* 右端：ショートカットボタン */}
-          <div className="flex flex-row items-center gap-2 flex-shrink-0">
+          <div className="flex flex-row items-center gap-2 flex-shrink-0 justify-end">
             <a
               href="https://homecare.zest.jp/login"
               target="_blank"
