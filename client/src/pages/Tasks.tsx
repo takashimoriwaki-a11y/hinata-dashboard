@@ -33,8 +33,6 @@ type AssignType = "all" | "team" | "personal";
 const TEAMS = ["身体", "天理", "郡山北部", "郡山南部"] as const;
 type Team = typeof TEAMS[number];
 
-const CATEGORIES = ["看護", "事務", "人事", "教育", "その他"] as const;
-
 // 期日の表示フォーマット
 function formatDueDate(date: Date | string | null | undefined): string {
   if (!date) return "";
@@ -109,7 +107,6 @@ export default function Tasks() {
 
   // フォームの状態
   const [newText, setNewText] = useState("");
-  const [newCategory, setNewCategory] = useState<string>("その他");
   const [newDueDate, setNewDueDate] = useState("");
   const [newDueTime, setNewDueTime] = useState("");
   const [newAssignType, setNewAssignType] = useState<AssignType>("all");
@@ -171,7 +168,6 @@ export default function Tasks() {
 
     createTask.mutate({
       text: newText.trim(),
-      category: newCategory,
       dueDate,
       assignType: newAssignType,
       assignTeam: newAssignType === "team" ? newAssignTeam : undefined,
@@ -268,12 +264,7 @@ export default function Tasks() {
                     <span className="text-[10px] text-muted-foreground/70">
                       作成: {task.createdByName}
                     </span>
-                    {/* カテゴリ */}
-                    {task.category && task.category !== "その他" && (
-                      <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                        {task.category}
-                      </span>
-                    )}
+
                   </div>
                 </div>
 
@@ -346,27 +337,6 @@ export default function Tasks() {
                   disabled={!newDueDate}
                   className="w-full text-sm border border-border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40"
                 />
-              </div>
-            </div>
-
-            {/* カテゴリ */}
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">カテゴリ</label>
-              <div className="flex flex-wrap gap-1.5">
-                {CATEGORIES.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setNewCategory(cat)}
-                    className={cn(
-                      "text-xs px-2.5 py-1 rounded-full border transition-colors",
-                      newCategory === cat
-                        ? "bg-primary text-white border-primary"
-                        : "border-border text-muted-foreground hover:border-primary hover:text-primary"
-                    )}
-                  >
-                    {cat}
-                  </button>
-                ))}
               </div>
             </div>
 

@@ -544,7 +544,6 @@ export const appRouter = router({
       .input(
         z.object({
           text: z.string().min(1).max(500),
-          category: z.string().max(50).default("その他"),
           dueDate: z.date().optional(),
           assignType: z.enum(["all", "team", "personal"]).default("all"),
           assignTeam: z.enum(["身体", "天理", "郡山北部", "郡山南部"]).optional(),
@@ -555,7 +554,6 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const id = await createTask({
           text: input.text,
-          category: input.category,
           dueDate: input.dueDate,
           assignType: input.assignType,
           assignTeam: input.assignTeam,

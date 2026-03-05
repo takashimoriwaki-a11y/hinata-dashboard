@@ -115,8 +115,6 @@ export const tasks = mysqlTable("tasks", {
   text: text("text").notNull(),
   /** 完了フラグ */
   done: int("done").default(0).notNull(), // 0: 未完了, 1: 完了
-  /** カテゴリ */
-  category: varchar("category", { length: 50 }).default("その他").notNull(),
   /** 期日（任意） */
   dueDate: timestamp("dueDate"),
   /** 作成者のユーザーID */
