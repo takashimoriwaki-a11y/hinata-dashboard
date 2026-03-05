@@ -103,7 +103,7 @@ const externalLinks = [
   {
     label: "Gemini — Google AIチャット",
     desc: "GoogleのAIアシスタントで業務相談・文章作成に",
-    href: "https://gemini.google.com/",
+    href: "https://gemini.google.com/app",
     emoji: "✨",
   },
   {
@@ -211,6 +211,8 @@ function VisitCountCard() {
     totalActualEquiv: 0,
     mainTarget: 0,
     subTarget: 0,
+    mainDailyTargetCumul: 0,
+    subDailyTargetCumul: 0,
     totalTargetEquiv: 0,
     diff: 0,
     dailyTarget: 0,
@@ -220,8 +222,8 @@ function VisitCountCard() {
     prevDiff: 0,
   };
 
-  const mainPct = data.mainTarget > 0 ? (data.mainActual / data.mainTarget) * 100 : 0;
-  const subPct = data.subTarget > 0 ? (data.subActual / data.subTarget) * 100 : 0;
+  const mainPct = data.mainDailyTargetCumul > 0 ? (data.mainActual / data.mainDailyTargetCumul) * 100 : 0;
+  const subPct = data.subDailyTargetCumul > 0 ? (data.subActual / data.subDailyTargetCumul) * 100 : 0;
   const totalPct = data.totalTargetEquiv > 0 ? (data.totalActualEquiv / data.totalTargetEquiv) * 100 : 0;
   const prevPct = data.prevTotalTarget > 0 ? (data.prevTotalActual / data.prevTotalTarget) * 100 : 0;
   const prevAchieved = prevPct >= 100;
@@ -256,11 +258,14 @@ function VisitCountCard() {
             <p className="text-2xl font-bold text-foreground tabular-nums">
               {data.mainActual}
               <span className="text-sm font-normal text-muted-foreground ml-1">
-                / {data.mainTarget}
+                / {data.mainDailyTargetCumul > 0 ? data.mainDailyTargetCumul : "—"}
               </span>
             </p>
             <Progress value={mainPct} className="h-2" />
-            <p className="text-xs font-semibold text-primary">{Math.round(mainPct)}%</p>
+            <p className={cn(
+              "text-xs font-semibold",
+              mainPct >= 100 ? "text-emerald-600" : "text-primary"
+            )}>{data.mainDailyTargetCumul > 0 ? `${Math.round(mainPct)}%` : "—"}</p>
           </div>
           {/* サブ */}
           <div className="space-y-1.5 border border-border rounded-xl p-2.5 bg-muted/20">
@@ -268,12 +273,12 @@ function VisitCountCard() {
             <p className="text-2xl font-bold text-foreground tabular-nums">
               {data.subActual}
               <span className="text-sm font-normal text-muted-foreground ml-1">
-                / {data.subTarget > 0 ? data.subTarget : "—"}
+                / {data.subDailyTargetCumul > 0 ? data.subDailyTargetCumul : "—"}
               </span>
             </p>
             <Progress value={subPct} className="h-2" />
             <p className="text-xs font-semibold text-muted-foreground">
-              {data.subTarget > 0 ? `${Math.round(subPct)}%` : "—"}
+              {data.subDailyTargetCumul > 0 ? `${Math.round(subPct)}%` : "—"}
             </p>
           </div>
           {/* 合計（メイン換算） */}
@@ -1117,7 +1122,7 @@ export default function Dashboard() {
               ZEST
             </a>
             <a
-              href="https://gemini.google.com/"
+              href="https://gemini.google.com/app"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm" style={{backgroundColor: '#9b7fd4'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#8a6ec3')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#9b7fd4')}

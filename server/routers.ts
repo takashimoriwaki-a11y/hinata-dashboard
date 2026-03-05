@@ -90,6 +90,8 @@ interface VisitData {
   totalActualEquiv: number;       // 合計実績（メイン換算: メイン + サブ/2）
   mainTarget: number;             // メイン月間目標
   subTarget: number;              // サブ月間目標
+  mainDailyTargetCumul: number;   // その日のメイン目標累計（C列）
+  subDailyTargetCumul: number;    // その日のサブ目標累計（J列）
   totalTargetEquiv: number;       // 合計目標（メイン換算）
   diff: number;                   // 目標差
   dailyTarget: number;            // 1日目標
@@ -131,6 +133,8 @@ async function getVisitData(): Promise<VisitData> {
   let totalActualEquiv = 0;
   let totalTargetEquiv = 0;
   let diff = 0;
+  let mainDailyTargetCumul = 0;
+  let subDailyTargetCumul = 0;
 
   // 日別データは行8〜（index=7〜）
   for (let i = 7; i <= 37; i++) {
@@ -152,6 +156,11 @@ async function getVisitData(): Promise<VisitData> {
       mainActual = mainActualCumul;
       subActual = subActualCumul;
       totalActualEquiv = qVal;
+
+      // C列(2): メイン目標累計（その日までの累計目標）
+      mainDailyTargetCumul = parseNum(row[2]);
+      // J列(9): サブ目標累計（その日までの累計目標）
+      subDailyTargetCumul = parseNum(row[9]);
 
       // P列: 目標累計（メイン換算）
       const pVal = parseNum(row[15]);  // P列(15)
@@ -198,6 +207,8 @@ async function getVisitData(): Promise<VisitData> {
     totalActualEquiv: Math.round(totalActualEquiv * 10) / 10,
     mainTarget,
     subTarget,
+    mainDailyTargetCumul: Math.round(mainDailyTargetCumul * 10) / 10,
+    subDailyTargetCumul: Math.round(subDailyTargetCumul * 10) / 10,
     totalTargetEquiv: Math.round(totalTargetEquiv * 10) / 10,
     diff: Math.round(diff * 10) / 10,
     dailyTarget,
