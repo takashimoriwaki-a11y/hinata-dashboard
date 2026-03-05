@@ -403,7 +403,7 @@ function VisitCountCard() {
           {prevAchieved ? (
             <div className="flex items-center gap-1.5 pt-0.5">
               <span className="text-base">🎉</span>
-              <p className="text-xs font-bold text-emerald-700">先月は目標達成！チームのみなさん、お疲れ様でした！🌟</p>
+              <p className="text-xs font-bold text-emerald-700">先月は目標達成！みんなで協力したおかげです！🌟</p>
             </div>
           ) : (
             <div className="flex items-center gap-1.5 pt-0.5">
