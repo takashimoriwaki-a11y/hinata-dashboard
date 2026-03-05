@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1772683281671,
+      "tag": "0000_lovely_colonel_america",
+      "breakpoints": true
+    }
+  ]
+}

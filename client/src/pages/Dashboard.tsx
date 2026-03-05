@@ -5,6 +5,7 @@
  */
 
 import { useState, useRef, useCallback } from "react";
+import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -168,8 +169,62 @@ const DAYS = ["今日", "明日"] as const;
 // ========== サブコンポーネント ==========
 
 function VisitCountCard() {
-  const main = (currentMonthData.mainActual / currentMonthData.mainTarget) * 100;
-  const total = (currentMonthData.totalActual / currentMonthData.totalTarget) * 100;
+  const { data: visitData, isLoading, refetch } = trpc.visits.getCurrent.useQuery(undefined, {
+    refetchInterval: 5 * 60 * 1000, // 5分ごとに自動更新
+    staleTime: 3 * 60 * 1000,
+  });
+
+  // ローディング中はスケルトン表示
+  if (isLoading) {
+    return (
+      <Card className="fade-in-up stagger-1 shadow-sm">
+        <CardHeader className="pb-1 pt-3 px-4">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Activity className="w-4 h-4 text-primary" />
+              訪問件数
+            </CardTitle>
+          </div>
+          <p className="text-xs text-muted-foreground">読み込み中...</p>
+        </CardHeader>
+        <CardContent className="space-y-3 px-4 pb-3">
+          <div className="grid grid-cols-3 gap-2">
+            {["メイン", "サブ", "合計"].map((label) => (
+              <div key={label} className="space-y-1.5 border border-border rounded-xl p-2.5 bg-muted/20 animate-pulse">
+                <p className="text-xs text-muted-foreground font-medium">{label}</p>
+                <div className="h-8 bg-muted rounded" />
+                <div className="h-2 bg-muted rounded-full" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // データがない場合はフォールバック
+  const data = visitData ?? {
+    currentMonth: "3月",
+    lastUpdatedDate: "—",
+    mainActual: 0,
+    subActual: 0,
+    totalActualEquiv: 0,
+    mainTarget: 0,
+    subTarget: 0,
+    totalTargetEquiv: 0,
+    diff: 0,
+    dailyTarget: 0,
+    prevMonth: "2月",
+    prevTotalTarget: 0,
+    prevTotalActual: 0,
+    prevDiff: 0,
+  };
+
+  const mainPct = data.mainTarget > 0 ? (data.mainActual / data.mainTarget) * 100 : 0;
+  const subPct = data.subTarget > 0 ? (data.subActual / data.subTarget) * 100 : 0;
+  const totalPct = data.totalTargetEquiv > 0 ? (data.totalActualEquiv / data.totalTargetEquiv) * 100 : 0;
+  const prevPct = data.prevTotalTarget > 0 ? (data.prevTotalActual / data.prevTotalTarget) * 100 : 0;
+  const prevAchieved = prevPct >= 100;
 
   return (
     <Card className="fade-in-up stagger-1 shadow-sm">
@@ -179,12 +234,18 @@ function VisitCountCard() {
             <Activity className="w-4 h-4 text-primary" />
             訪問件数
           </CardTitle>
-          <Button variant="ghost" size="icon" className="w-7 h-7 text-muted-foreground">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-7 h-7 text-muted-foreground"
+            onClick={() => refetch()}
+            title="更新"
+          >
             <RefreshCw className="w-3.5 h-3.5" />
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          {currentMonthData.month}（3/3時点の累計）
+          {data.currentMonth}（{data.lastUpdatedDate}時点の累計）
         </p>
       </CardHeader>
       <CardContent className="space-y-3 px-4 pb-3">
@@ -193,37 +254,42 @@ function VisitCountCard() {
           <div className="space-y-1.5 border border-border rounded-xl p-2.5 bg-muted/20">
             <p className="text-xs text-muted-foreground font-medium">メイン</p>
             <p className="text-2xl font-bold text-foreground tabular-nums">
-              {currentMonthData.mainActual}
+              {data.mainActual}
               <span className="text-sm font-normal text-muted-foreground ml-1">
-                / {currentMonthData.mainTarget}
+                / {data.mainTarget}
               </span>
             </p>
-            <Progress value={main} className="h-2" />
-            <p className="text-xs font-semibold text-primary">{Math.round(main)}%</p>
+            <Progress value={mainPct} className="h-2" />
+            <p className="text-xs font-semibold text-primary">{Math.round(mainPct)}%</p>
           </div>
           {/* サブ */}
           <div className="space-y-1.5 border border-border rounded-xl p-2.5 bg-muted/20">
             <p className="text-xs text-muted-foreground font-medium">サブ</p>
             <p className="text-2xl font-bold text-foreground tabular-nums">
-              {currentMonthData.subActual}
+              {data.subActual}
               <span className="text-sm font-normal text-muted-foreground ml-1">
-                / {currentMonthData.subTarget || "—"}
+                / {data.subTarget > 0 ? data.subTarget : "—"}
               </span>
             </p>
-            <Progress value={0} className="h-2" />
-            <p className="text-xs font-semibold text-muted-foreground">—</p>
+            <Progress value={subPct} className="h-2" />
+            <p className="text-xs font-semibold text-muted-foreground">
+              {data.subTarget > 0 ? `${Math.round(subPct)}%` : "—"}
+            </p>
           </div>
-          {/* 合計 */}
+          {/* 合計（メイン換算） */}
           <div className="space-y-1.5 border border-border rounded-xl p-2.5 bg-muted/20">
             <p className="text-xs text-muted-foreground font-medium">合計</p>
             <p className="text-2xl font-bold text-foreground tabular-nums">
-              {currentMonthData.totalActual}
+              {data.totalActualEquiv}
               <span className="text-sm font-normal text-muted-foreground ml-1">
-                / {currentMonthData.totalTarget}
+                / {data.totalTargetEquiv}
               </span>
             </p>
-            <Progress value={total} className="h-2" />
-            <p className="text-xs font-semibold text-primary">{Math.round(total)}%</p>
+            <Progress value={totalPct} className="h-2" />
+            <p className={cn(
+              "text-xs font-semibold",
+              totalPct >= 100 ? "text-emerald-600" : totalPct >= 80 ? "text-primary" : "text-muted-foreground"
+            )}>{Math.round(totalPct)}%</p>
           </div>
         </div>
 
@@ -232,29 +298,34 @@ function VisitCountCard() {
         {/* 先月実績 */}
         <div className="space-y-2 border border-border rounded-xl p-3 bg-muted/10">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-muted-foreground">2月実績</p>
+            <p className="text-xs font-semibold text-muted-foreground">{data.prevMonth}実績</p>
             <div className="flex items-center gap-2">
-              <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">
-                達成率 {currentMonthData.lastMonthAchievement}%
+              <Badge className={cn(
+                "border-0 text-xs",
+                prevAchieved ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+              )}>
+                達成率 {Math.round(prevPct)}%
               </Badge>
-              <span className="text-xs text-emerald-600 font-semibold">🎉 達成！</span>
+              {prevAchieved && <span className="text-xs text-emerald-600 font-semibold">🎉 達成！</span>}
             </div>
           </div>
           <div className="flex items-center justify-between text-sm mb-1">
-            <span className="font-bold tabular-nums text-foreground">{currentMonthData.lastMonthActual.toLocaleString()} 件</span>
-            <span className="text-xs text-muted-foreground">目標 {currentMonthData.lastMonthTarget.toLocaleString()} 件</span>
+            <span className="font-bold tabular-nums text-foreground">{data.prevTotalActual.toLocaleString()} 件</span>
+            <span className="text-xs text-muted-foreground">目標 {data.prevTotalTarget.toLocaleString()} 件</span>
           </div>
           {/* 横棒グラフ */}
           <div className="relative h-5 rounded-full overflow-hidden bg-muted">
             <div
               className="absolute inset-y-0 left-0 rounded-full transition-all duration-700"
               style={{
-                width: `${Math.min((currentMonthData.lastMonthActual / currentMonthData.lastMonthTarget) * 100, 100)}%`,
-                background: 'linear-gradient(90deg, #10b981 0%, #34d399 100%)'
+                width: `${Math.min(prevPct, 100)}%`,
+                background: prevAchieved
+                  ? 'linear-gradient(90deg, #10b981 0%, #34d399 100%)'
+                  : 'linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)'
               }}
             />
             <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow">
-              {currentMonthData.lastMonthActual.toLocaleString()} / {currentMonthData.lastMonthTarget.toLocaleString()} 件
+              {data.prevTotalActual.toLocaleString()} / {data.prevTotalTarget.toLocaleString()} 件
             </span>
           </div>
         </div>

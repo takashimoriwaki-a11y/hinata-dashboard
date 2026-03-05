@@ -10,8 +10,8 @@ import PatientList from "./pages/PatientList";
 import Schedule from "./pages/Schedule";
 import Tasks from "./pages/Tasks";
 import DashboardLayout from "./components/DashboardLayout";
-
 function Router() {
+  // make sure to consider if you need authentication for certain routes
   return (
     <DashboardLayout>
       <Switch>
