@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import {
   ClipboardEdit, Mic, MicOff, Send, Search, Calendar,
-  User, ChevronDown, Loader2, FileSpreadsheet, CheckCircle2
+  User, ChevronDown, Loader2, FileSpreadsheet, CheckCircle2, ExternalLink
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
@@ -48,6 +48,9 @@ export default function RecordInput() {
   const [savedRecordId, setSavedRecordId] = useState<number | null>(null);
   const [exported, setExported] = useState(false);
 
+  // 転送先スプレッドシートURL（編集ボタン用）
+  const VISIT_RECORD_SHEET_URL = "https://docs.google.com/spreadsheets/d/1BGMdVGTQEkcVXioa5leetH_kPr859nNHMnhkwEMlWqA/edit";
+
   // 音声入力
   const [isRecordingPatient, setIsRecordingPatient] = useState(false);
   const [isRecordingNotes, setIsRecordingNotes] = useState(false);
@@ -75,6 +78,16 @@ export default function RecordInput() {
       setExported(true);
       toast.success("スプレッドシートへ転送しました！");
       utils.visitRecords.getMine.invalidate();
+      // 転送後に①の入力内容をリセット
+      setPatientId(null);
+      setPatientName("");
+      setSearchQuery("");
+      setNextVisitDate("");
+      setNextVisitTime("");
+      setNotifiedTo("");
+      setNotifiedToOther("");
+      setNotifyMethod("");
+      setNotifyMethodOther("");
     },
     onError: (err) => toast.error(`転送エラー: ${err.message}`),
   });
@@ -186,6 +199,8 @@ ${clinicalNotes}`);
       toast.error("クリップボードへのコピーに失敗しました");
     }
     window.open(GEMS_URL, "_blank", "noopener,noreferrer");
+    // Gem送信後に②の入力内容をリセット
+    setClinicalNotes("");
   };
 
   const handleReset = () => {
@@ -380,24 +395,37 @@ ${clinicalNotes}`);
 
       {/* スプレッドシート転送ボタン（①カードの下） */}
       {savedRecordId ? (
-        <div className="flex gap-2">
-          <Button
-            className="flex-1"
-            variant={exported ? "outline" : "default"}
-            onClick={handleExport}
-            disabled={exportToSheet.isPending || exported}
-          >
-            {exportToSheet.isPending ? (
-              <><Loader2 className="w-4 h-4 mr-2 animate-spin" />転送中...</>
-            ) : exported ? (
-              <><CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />転送済み</>
-            ) : (
-              <><FileSpreadsheet className="w-4 h-4 mr-2" />スプレッドシートへ転送</>
-            )}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs">
-            新規入力
-          </Button>
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <Button
+              className="flex-1"
+              variant={exported ? "outline" : "default"}
+              onClick={handleExport}
+              disabled={exportToSheet.isPending || exported}
+            >
+              {exportToSheet.isPending ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />転送中...</>
+              ) : exported ? (
+                <><CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />転送済み</>
+              ) : (
+                <><FileSpreadsheet className="w-4 h-4 mr-2" />スプレッドシートへ転送</>
+              )}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs">
+              新規入力
+            </Button>
+          </div>
+          {exported && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-xs border-emerald-400 text-emerald-700 hover:bg-emerald-50"
+              onClick={() => window.open(VISIT_RECORD_SHEET_URL, "_blank", "noopener,noreferrer")}
+            >
+              <ExternalLink className="w-3 h-3 mr-1" />
+              スプレッドシートを開いて確認・修正する
+            </Button>
+          )}
         </div>
       ) : (
         <Button
