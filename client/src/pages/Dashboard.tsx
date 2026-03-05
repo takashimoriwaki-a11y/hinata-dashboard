@@ -1576,13 +1576,13 @@ export default function Dashboard() {
         {/* 背景装飾 */}
         <div className="absolute inset-0 opacity-10" style={{backgroundImage: "radial-gradient(circle at 80% 20%, white 0%, transparent 60%)"}} />
         <div className="relative px-4 py-2 md:px-5 md:py-2.5 flex flex-col gap-2">
-          {/* 挨拶メッセージ */}
-          <div className="flex flex-col">
-            <p className="text-xl md:text-3xl font-extrabold text-white leading-tight tracking-wide" style={{textShadow: '0 2px 8px rgba(0,0,0,0.2)'}}>{userName}<span className="text-lg md:text-2xl">さん</span></p>
-            <p className="text-xs md:text-base font-bold text-white/90" style={{textShadow: '0 1px 4px rgba(0,0,0,0.2)'}}>{greeting}</p>
+          {/* 挨拶メッセージ（名前とメッセージを横並び） */}
+          <div className="flex flex-row items-baseline gap-2 flex-wrap">
+            <p className="text-xl md:text-3xl font-extrabold text-white leading-tight tracking-wide whitespace-nowrap" style={{textShadow: '0 2px 8px rgba(0,0,0,0.2)'}}>{userName}<span className="text-lg md:text-2xl">さん</span></p>
+            <p className="text-xl md:text-3xl font-extrabold text-white/90 whitespace-nowrap" style={{textShadow: '0 1px 4px rgba(0,0,0,0.2)'}}>{greeting}</p>
           </div>
-          {/* ショートカットボタン（左寄せ） */}
-          <div className="flex flex-row items-center gap-2 justify-start">
+          {/* ショートカットボタン（右寄せ） */}
+          <div className="flex flex-row items-center gap-2 justify-end">
             <a
               href="https://homecare.zest.jp/login"
               target="_blank"
