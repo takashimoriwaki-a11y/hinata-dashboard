@@ -271,18 +271,22 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* トップヘッダー */}
         <header className="flex items-center justify-between px-3 md:px-4 py-2.5 bg-white border-b border-border shadow-sm flex-shrink-0">
-          <div className="flex items-center gap-2 md:gap-3">
+          <div className="flex items-center gap-2 md:gap-3 min-w-0">
             {/* モバイル: ハンバーガーメニュー */}
             <button
-              className="md:hidden text-muted-foreground hover:text-primary p-1 -ml-1"
+              className="md:hidden text-muted-foreground hover:text-primary p-1 -ml-1 flex-shrink-0"
               onClick={() => setMobileOpen(true)}
             >
               <Menu className="w-5 h-5" />
             </button>
             {/* ロゴマーク */}
-            <img src={LOGO_MARK_URL} alt="ひなた" className="w-7 h-7 object-contain" />
-            <span className="text-xs md:text-sm text-muted-foreground font-medium">{dateStr}</span>
-            <span className="text-xs text-muted-foreground/70 font-medium border-l border-border pl-3">こころの訪問看護ステーションひなた</span>
+            <img src={LOGO_MARK_URL} alt="ひなた" className="w-7 h-7 object-contain flex-shrink-0" />
+            {/* 日付・ステーション名: スマホでは縦並び、PCでは横並び */}
+            <div className="flex flex-col md:flex-row md:items-center md:gap-3 min-w-0">
+              <span className="text-xs md:text-sm text-muted-foreground font-medium whitespace-nowrap">{dateStr}</span>
+              <span className="hidden md:block text-xs text-muted-foreground/70 font-medium border-l border-border pl-3 whitespace-nowrap">こころの訪問看護ステーションひなた</span>
+              <span className="md:hidden text-[10px] text-muted-foreground/60 font-medium leading-tight whitespace-nowrap">こころの訪問看護ステーションひなた</span>
+            </div>
           </div>
           <div className="flex items-center gap-1.5 md:gap-2">
             <Button variant="ghost" size="icon" className="relative text-muted-foreground w-8 h-8">
