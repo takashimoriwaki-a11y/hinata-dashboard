@@ -170,3 +170,4 @@
 - [x] railway.jsonビルド設定ファイルを追加する
 - [x] nixpacks.tomlを追加する
 - [x] README-RAILWAY.mdデプロイ手順書を作成する
+- [x] nixpacks.tomlのpnpm not foundエラーを修正（corepack enable使用）
