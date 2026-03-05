@@ -1,6 +1,6 @@
 import { and, eq, or, isNull, desc, lte, gte, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot, myLinks, InsertMyLink, spreadsheetLinks, InsertSpreadsheetLink, tasks, InsertTask, messages, InsertMessage, messageReactions, InsertMessageReaction, patients, InsertPatient, visitRecords, InsertVisitRecord } from "../drizzle/schema";
+import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot, myLinks, InsertMyLink, spreadsheetLinks, InsertSpreadsheetLink, tasks, InsertTask, messages, InsertMessage, messageReactions, InsertMessageReaction, patients, InsertPatient, visitRecords, InsertVisitRecord, appNotifications, InsertAppNotification } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -635,4 +635,72 @@ export async function markVisitRecordExported(id: number) {
   const db = await getDb();
   if (!db) return;
   await db.update(visitRecords).set({ exportedAt: new Date() }).where(eq(visitRecords.id, id));
+}
+
+// ========== アプリ内通知 ==========
+
+/** 通知を作成する */
+export async function createNotification(data: Omit<InsertAppNotification, "id" | "isRead" | "readAt" | "createdAt">) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(appNotifications).values({ ...data, isRead: 0 });
+}
+
+/** 未読通知一覧を取得する（新しい順） */
+export async function getUnreadNotifications() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(appNotifications)
+    .where(eq(appNotifications.isRead, 0))
+    .orderBy(desc(appNotifications.createdAt))
+    .limit(50);
+}
+
+/** 通知一覧を取得する（新しい順、最新100件） */
+export async function getAllNotifications() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(appNotifications)
+    .orderBy(desc(appNotifications.createdAt))
+    .limit(100);
+}
+
+/** 指定通知を既読にする */
+export async function markNotificationRead(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(appNotifications).set({ isRead: 1, readAt: new Date() }).where(eq(appNotifications.id, id));
+}
+
+/** 全通知を既読にする */
+export async function markAllNotificationsRead() {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(appNotifications).set({ isRead: 1, readAt: new Date() }).where(eq(appNotifications.isRead, 0));
+}
+
+/** 同じリソースの通知がすでに存在するか確認（重複防止） */
+export async function notificationExists(type: InsertAppNotification["type"], resourceId: number) {
+  const db = await getDb();
+  if (!db) return false;
+  const { and } = await import("drizzle-orm");
+  const result = await db
+    .select({ id: appNotifications.id })
+    .from(appNotifications)
+    .where(and(eq(appNotifications.type, type), eq(appNotifications.resourceId, resourceId)))
+    .limit(1);
+  return result.length > 0;
+}
+
+/** 不要な古い通知を削除（30日以上削除） */
+export async function cleanupOldNotifications() {
+  const db = await getDb();
+  if (!db) return;
+  const { lt } = await import("drizzle-orm");
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  await db.delete(appNotifications).where(lt(appNotifications.createdAt, thirtyDaysAgo));
 }

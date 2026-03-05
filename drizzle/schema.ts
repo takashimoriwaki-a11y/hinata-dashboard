@@ -250,3 +250,27 @@ export const visitRecords = mysqlTable("visit_records", {
 
 export type VisitRecord = typeof visitRecords.$inferSelect;
 export type InsertVisitRecord = typeof visitRecords.$inferInsert;
+
+/**
+ * アプリ内通知テーブル
+ * スケジュール更新・今日のタスク・新着メッセージの3種類の通知を管理する
+ */
+export const appNotifications = mysqlTable("app_notifications", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 通知の種類 */
+  type: mysqlEnum("type", ["schedule_updated", "task_today", "new_message"]).notNull(),
+  /** 通知のタイトル */
+  title: varchar("title", { length: 200 }).notNull(),
+  /** 通知の本文 */
+  body: text("body"),
+  /** 関連リソースのID（タスクID・メッセージID等） */
+  resourceId: int("resourceId"),
+  /** 既読フラグ（0=未読, 1=既読） */
+  isRead: int("isRead").default(0).notNull(),
+  /** 既読にした日時 */
+  readAt: timestamp("readAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AppNotification = typeof appNotifications.$inferSelect;
+export type InsertAppNotification = typeof appNotifications.$inferInsert;

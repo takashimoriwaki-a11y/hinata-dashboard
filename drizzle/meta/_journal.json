@@ -57,6 +57,13 @@
       "when": 1772719656657,
       "tag": "0007_flippant_the_executioner",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1772722800144,
+      "tag": "0008_powerful_songbird",
+      "breakpoints": true
     }
   ]
 }

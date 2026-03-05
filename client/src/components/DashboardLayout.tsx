@@ -28,6 +28,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import DailyMessageBar from "./DailyMessageBar";
+import { useTheme } from "@/contexts/ThemeContext";
+import NotificationDropdown from "./NotificationDropdown";
 
 // ロゴCDN URL
 const LOGO_MARK_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/hinata_logo_mark_bf1d0229.png";
@@ -63,6 +65,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [collapsed, setCollapsed] = useState(true);
   // モバイル用ドロワー開閉
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { isNight } = useTheme();
 
   // ページ遷移時にモバイルドロワーを閉じる
   useEffect(() => {
@@ -272,7 +275,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <DailyMessageBar />
 
         {/* トップヘッダー */}
-        <header className="flex items-center justify-between px-3 md:px-4 py-2.5 bg-white border-b border-border shadow-sm flex-shrink-0">
+        <header className={cn(
+          "flex items-center justify-between px-3 md:px-4 py-2.5 border-b border-border shadow-sm flex-shrink-0",
+          isNight ? "bg-[oklch(0.20_0.015_250)]" : "bg-white"
+        )}>
           <div className="flex items-center gap-2 md:gap-3 min-w-0">
             {/* モバイル: ハンバーガーメニュー */}
             <button
@@ -291,12 +297,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </div>
           <div className="flex items-center gap-1.5 md:gap-2">
-            <Button variant="ghost" size="icon" className="relative text-muted-foreground w-8 h-8">
-              <Bell className="w-4 h-4" />
-              <Badge className="absolute -top-0.5 -right-0.5 w-4 h-4 p-0 text-[9px] bg-primary text-white flex items-center justify-center">
-                3
-              </Badge>
-            </Button>
+            <NotificationDropdown />
             <Avatar className="w-8 h-8">
               <AvatarFallback className="bg-primary text-white text-xs font-bold">崇</AvatarFallback>
             </Avatar>
@@ -309,7 +310,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </main>
 
         {/* ========== ボトムナビゲーションバー（モバイル・PC共通） ========== */}
-        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border shadow-[0_-2px_12px_rgba(0,0,0,0.08)]">
+        <nav className={cn(
+          "fixed bottom-0 left-0 right-0 z-50 border-t border-border",
+          isNight
+            ? "bg-[oklch(0.20_0.015_250)] shadow-[0_-2px_12px_rgba(0,0,0,0.3)]"
+            : "bg-white shadow-[0_-2px_12px_rgba(0,0,0,0.08)]"
+        )}>
           <div className="flex items-stretch h-[60px] max-w-screen-sm mx-auto md:max-w-none">
             {bottomNavItems.map((item) => {
               const isActive = item.type === "internal" && location === item.href;

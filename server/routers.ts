@@ -44,6 +44,13 @@ import {
   getVisitRecords,
   getVisitRecordById,
   markVisitRecordExported,
+  createNotification,
+  getUnreadNotifications,
+  getAllNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+  notificationExists,
+  cleanupOldNotifications,
 } from "./db";
 import { storagePut } from "./storage";
 import { eq } from "drizzle-orm";
@@ -519,6 +526,13 @@ export const appRouter = router({
 
         // 古いS3ファイルは削除しない（URLが変わるため古いURLは無効になる）
 
+        // スケジュール更新通知を生成
+        await createNotification({
+          type: "schedule_updated",
+          title: `スケジュールが更新されました`,
+          body: `${ctx.user.name ?? "不明"}さんが${input.team}チームの${input.day}のスケジュールを更新しました`,
+        });
+
         return { success: true, url };
       }),
 
@@ -579,6 +593,17 @@ export const appRouter = router({
           createdBy: ctx.user.id,
           createdByName: ctx.user.name ?? "不明",
           done: 0,
+        });
+        // タスク追加通知を生成
+        const assignLabel =
+          input.assignType === "all" ? "全スタッフ" :
+          input.assignType === "team" ? `${input.assignTeam ?? ""}チーム` :
+          input.assignUserName ?? "個人指定";
+        await createNotification({
+          type: "task_today",
+          title: `新しいタスクが追加されました`,
+          body: `${ctx.user.name ?? "不明"}さんが「${input.text}」を${assignLabel}に追加しました`,
+          resourceId: id,
         });
         return { success: true, id };
       }),
@@ -677,6 +702,14 @@ export const appRouter = router({
           displayFrom: input.displayFrom,
           displayUntil: input.displayUntil,
           scheduledAt: input.scheduledAt,
+        });
+        // 新着メッセージ通知を生成
+        const preview = input.text.length > 40 ? input.text.slice(0, 40) + "…" : input.text;
+        await createNotification({
+          type: "new_message",
+          title: `新しいメッセージが追加されました`,
+          body: `${ctx.user.name ?? "不明"}さん：「${preview}」`,
+          resourceId: id,
         });
         return { success: true, id };
       }),
@@ -870,6 +903,33 @@ export const appRouter = router({
         await markVisitRecordExported(input.id);
         return { success: true };
       }),
+  }),
+
+  // ========== アプリ内通知 ==========
+  notifications: router({
+    // 未読通知一覧を取得
+    getUnread: protectedProcedure.query(async () => {
+      return getUnreadNotifications();
+    }),
+
+    // 全通知一覧を取得（最新100件）
+    getAll: protectedProcedure.query(async () => {
+      return getAllNotifications();
+    }),
+
+    // 指定通知を既読にする
+    markRead: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await markNotificationRead(input.id);
+        return { success: true };
+      }),
+
+    // 全通知を既読にする
+    markAllRead: protectedProcedure.mutation(async () => {
+      await markAllNotificationsRead();
+      return { success: true };
+    }),
   }),
 });
 export type AppRouter = typeof appRouter;
