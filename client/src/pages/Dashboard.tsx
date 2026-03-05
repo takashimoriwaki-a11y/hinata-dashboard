@@ -235,6 +235,13 @@ function VisitCountCard() {
     if (pct >= 70)  return "text-orange-500";
     return "text-red-500";
   };
+  // プログレスバー用（bg-*クラス）
+  const getPctBarColor = (pct: number) => {
+    if (pct >= 100) return "bg-emerald-500";
+    if (pct >= 90)  return "bg-lime-500";
+    if (pct >= 70)  return "bg-orange-500";
+    return "bg-red-500";
+  };
 
   return (
     <Card className="fade-in-up stagger-1 shadow-sm">
@@ -269,7 +276,7 @@ function VisitCountCard() {
                 / {data.mainDailyTargetCumul > 0 ? data.mainDailyTargetCumul : "—"}
               </span>
             </p>
-            <Progress value={mainPct} className="h-2" />
+            <Progress value={mainPct} className="h-2" indicatorClassName={data.mainDailyTargetCumul > 0 ? getPctBarColor(mainPct) : undefined} />
             <div className="flex items-center justify-between">
               <p className={cn(
                 "text-xs font-semibold",
@@ -289,7 +296,7 @@ function VisitCountCard() {
                 / {data.subDailyTargetCumul > 0 ? data.subDailyTargetCumul : "—"}
               </span>
             </p>
-            <Progress value={subPct} className="h-2" />
+            <Progress value={subPct} className="h-2" indicatorClassName={data.subDailyTargetCumul > 0 ? getPctBarColor(subPct) : undefined} />
             <div className="flex items-center justify-between">
               <p className={cn(
                 "text-xs font-semibold",
@@ -311,7 +318,7 @@ function VisitCountCard() {
                 / {data.totalTargetEquiv}
               </span>
             </p>
-            <Progress value={totalPct} className="h-2" />
+            <Progress value={totalPct} className="h-2" indicatorClassName={getPctBarColor(totalPct)} />
             <div className="flex items-center justify-between">
               <p className={cn(
                 "text-xs font-semibold",
