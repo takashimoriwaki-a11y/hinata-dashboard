@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard,
@@ -66,6 +67,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   // モバイル用ドロワー開閉
   const [mobileOpen, setMobileOpen] = useState(false);
   const { isNight } = useTheme();
+  const { logout } = useAuth({ redirectOnUnauthenticated: true });
+
+  const handleLogout = async () => {
+    try {
+      // サーバー側のCookieをクリア
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    } catch {}
+    await logout();
+    window.location.href = "/login";
+  };
 
   // ページ遷移時にモバイルドロワーを閉じる
   useEffect(() => {
@@ -202,7 +213,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </Link>
         <button
-          onClick={() => toast.info("ログアウト機能は準備中です")}
+          onClick={handleLogout}
           title={(collapsed && !mobile) ? "ログアウト" : undefined}
           className={cn(
             "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150",

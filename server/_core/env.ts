@@ -7,4 +7,6 @@ export const ENV = {
   isProduction: process.env.NODE_ENV === "production",
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
+  /** 初回セットアップ用の秘密キー（Railway環境変数 SETUP_KEY） */
+  setupKey: process.env.SETUP_KEY ?? "hinata-setup-2024",
 };

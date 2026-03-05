@@ -161,3 +161,12 @@
 - [x] サイドパネルの背景色を白色に変更する
 - [x] サイドパネルの「管理画面」メニューがボトムナビに被らないよう下部パディングを追加する
 - [x] 業務ツールクイックアクセスをタブ形式に変更（スプレッドシート・ドキュメント・フォーム・その他・マイリンクの5タブ）
+
+## Railway独立運用対応
+- [x] Manus OAuthをメール/パスワード認証に置き換える（login/setup画面追加）
+- [x] localAuth.ts実装（bcrypt+JWT、login/logout/setupエンドポイント）
+- [x] context.tsをローカル認証に切り替え（sdk.ts依存を削除）
+- [x] db.tsにgetUserByEmail関数追加、passwordHash対応
+- [x] railway.jsonビルド設定ファイルを追加する
+- [x] nixpacks.tomlを追加する
+- [x] README-RAILWAY.mdデプロイ手順書を作成する

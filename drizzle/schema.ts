@@ -22,6 +22,8 @@ export const users = mysqlTable("users", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
+  /** メール/パスワード認証用のハッシュ化されたパスワード */
+  passwordHash: text("passwordHash"),
 });
 
 export type User = typeof users.$inferSelect;
