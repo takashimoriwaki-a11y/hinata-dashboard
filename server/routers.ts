@@ -409,6 +409,36 @@ export const appRouter = router({
         await deleteSpreadsheetLink(input.id);
         return { success: true };
       }),
+    // 一括登録（管理者のみ）
+    batchUpsert: protectedProcedure
+      .input(
+        z.object({
+          yearMonth: z.string().regex(/^\d{4}-\d{2}$/, "年月はYYYY-MM形式で入力してください"),
+          links: z.array(
+            z.object({
+              linkKey: z.string().min(1).max(100),
+              label: z.string().min(1).max(100),
+              url: z.string().url({ message: "有効なURLを入力してください" }),
+              color: z.string().max(50).optional(),
+            })
+          ).min(1).max(20),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const results = await Promise.all(
+          input.links.map((link) =>
+            upsertSpreadsheetLink({
+              linkKey: link.linkKey,
+              label: link.label,
+              yearMonth: input.yearMonth,
+              url: link.url,
+              color: link.color ?? "text-emerald-600",
+              createdBy: ctx.user.id,
+            })
+          )
+        );
+        return { success: true, count: results.length };
+      }),
   }),
 
   // スケジュールスクリーンショット

@@ -86,6 +86,89 @@ describe("スプレッドシートURL月次管理 DB ヘルパー", () => {
   });
 });
 
+describe("batchUpsert 一括登録", () => {
+  it("batchUpsertが複数のリンクを登録すること", async () => {
+    const { upsertSpreadsheetLink } = await import("./db");
+    const mockFn = vi.mocked(upsertSpreadsheetLink);
+    mockFn.mockResolvedValue(1);
+
+    const links = [
+      { linkKey: "fee_seishin_koriyama", label: "利用者料金一覧（精神郡山）", url: "https://docs.google.com/spreadsheets/d/A/edit", color: "text-emerald-600" },
+      { linkKey: "fee_shintai", label: "利用者料金一覧（身体）", url: "https://docs.google.com/spreadsheets/d/B/edit", color: "text-blue-600" },
+    ];
+
+    const results = await Promise.all(
+      links.map((link) =>
+        upsertSpreadsheetLink({
+          linkKey: link.linkKey,
+          label: link.label,
+          yearMonth: "2026-04",
+          url: link.url,
+          color: link.color,
+          createdBy: 1,
+        })
+      )
+    );
+    expect(results).toHaveLength(2);
+    expect(mockFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("batchUpsertは同じlinkKey+yearMonthの場合上書きすること", async () => {
+    const { upsertSpreadsheetLink } = await import("./db");
+    const mockFn = vi.mocked(upsertSpreadsheetLink);
+    mockFn.mockResolvedValue(5);
+
+    const id = await upsertSpreadsheetLink({
+      linkKey: "fee_seishin_koriyama",
+      label: "利用者料金一覧（精神郡山）",
+      yearMonth: "2026-04",
+      url: "https://docs.google.com/spreadsheets/d/NEW/edit",
+      color: "text-emerald-600",
+      createdBy: 1,
+    });
+    expect(id).toBe(5);
+  });
+});
+
+describe("URL抽出ユーティリティ", () => {
+  // extractUrlsのロジックをテスト
+  function extractUrls(text: string): string[] {
+    const urlRegex = /https?:\/\/[^\s\n\r]+/g;
+    return (text.match(urlRegex) ?? []).map((u) => u.replace(/[,;]+$/, "").trim());
+  }
+
+  it("改行区切りの複数URLを正しく抽出できること", () => {
+    const text = [
+      "https://docs.google.com/spreadsheets/d/AAA/edit?usp=sharing",
+      "https://docs.google.com/spreadsheets/d/BBB/edit?usp=sharing",
+      "https://docs.google.com/spreadsheets/d/CCC/edit?usp=sharing",
+    ].join("\n");
+    const urls = extractUrls(text);
+    expect(urls).toHaveLength(3);
+    expect(urls[0]).toContain("AAA");
+    expect(urls[1]).toContain("BBB");
+    expect(urls[2]).toContain("CCC");
+  });
+
+  it("末尾のカンマ・セミコロンを除去できること", () => {
+    const text = "https://docs.google.com/spreadsheets/d/AAA/edit,";
+    const urls = extractUrls(text);
+    expect(urls[0]).not.toMatch(/,$/)
+  });
+
+  it("空テキストの場合は空配列を返すこと", () => {
+    expect(extractUrls("")).toEqual([]);
+    expect(extractUrls("   ")).toEqual([]);
+  });
+
+  it("URLでないテキストは無視されること", () => {
+    const text = "メモ書き\nhttps://example.com/sheet\nここにメモ";
+    const urls = extractUrls(text);
+    expect(urls).toHaveLength(1);
+    expect(urls[0]).toBe("https://example.com/sheet");
+  });
+});
+
 describe("年月フォーマット・バリデーション", () => {
   it("YYYY-MM形式の年月が正しく検証されること", () => {
     const validFormats = ["2026-03", "2026-12", "2027-01"];

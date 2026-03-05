@@ -1,6 +1,6 @@
 /**
  * Admin - 管理画面
- * スプレッドシートURLの月次管理（翌月分の事前登録・当月分の確認・削除）
+ * スプレッドシートURLの月次管理（翌月分の事前登録・一括インポート・当月分の確認・削除）
  */
 
 import { useState, useMemo } from "react";
@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2, ExternalLink, ChevronDown, ChevronUp, Settings } from "lucide-react";
+import { Plus, Trash2, ExternalLink, Settings, ClipboardPaste, CheckCircle2, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +34,182 @@ function toYearMonth(year: number, month: number) {
 function formatYearMonth(ym: string) {
   const [y, m] = ym.split("-");
   return `${y}年${Number(m)}月`;
+}
+
+// テキストからURLを抽出するユーティリティ
+function extractUrls(text: string): string[] {
+  const urlRegex = /https?:\/\/[^\s\n\r]+/g;
+  return (text.match(urlRegex) ?? []).map((u) => u.replace(/[,;]+$/, "").trim());
+}
+
+// 一括インポートパネルコンポーネント
+function BulkImportPanel({
+  selectedYearMonth,
+  onSuccess,
+}: {
+  selectedYearMonth: string;
+  onSuccess: () => void;
+}) {
+  const utils = trpc.useUtils();
+  const [pasteText, setPasteText] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+
+  // テキストから抽出したURLをリンク定義に自動マッピング
+  const parsedLinks = useMemo(() => {
+    const urls = extractUrls(pasteText);
+    return LINK_DEFINITIONS.map((def, idx) => ({
+      ...def,
+      url: urls[idx] ?? "",
+      valid: urls[idx] ? /^https?:\/\/.+/.test(urls[idx]) : false,
+    }));
+  }, [pasteText]);
+
+  const validCount = parsedLinks.filter((l) => l.valid).length;
+  const hasAnyUrl = parsedLinks.some((l) => l.url);
+
+  const batchUpsert = trpc.spreadsheetLinks.batchUpsert.useMutation({
+    onSuccess: (data) => {
+      utils.spreadsheetLinks.getAll.invalidate();
+      utils.spreadsheetLinks.getCurrent.invalidate();
+      toast.success(`${data.count}件のURLを一括登録しました`);
+      setPasteText("");
+      setIsOpen(false);
+      onSuccess();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleImport = () => {
+    const validLinks = parsedLinks.filter((l) => l.valid);
+    if (validLinks.length === 0) {
+      toast.error("有効なURLが見つかりませんでした");
+      return;
+    }
+    batchUpsert.mutate({
+      yearMonth: selectedYearMonth,
+      links: validLinks.map((l) => ({
+        linkKey: l.key,
+        label: l.label,
+        url: l.url,
+        color: l.color,
+      })),
+    });
+  };
+
+  return (
+    <Card className="shadow-sm border-primary/20 bg-primary/5">
+      <button
+        className="w-full text-left"
+        onClick={() => setIsOpen((v) => !v)}
+      >
+        <CardHeader className="pb-2 pt-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ClipboardPaste className="w-4 h-4 text-primary" />
+              <CardTitle className="text-base font-semibold text-primary">
+                一括インポート
+              </CardTitle>
+              <Badge className="text-[10px] bg-primary/10 text-primary border-0 px-1.5 py-0">
+                月末の更新に便利
+              </Badge>
+            </div>
+            {isOpen
+              ? <ChevronUp className="w-4 h-4 text-primary" />
+              : <ChevronDown className="w-4 h-4 text-primary" />
+            }
+          </div>
+          {!isOpen && (
+            <p className="text-xs text-muted-foreground mt-1">
+              6つのURLをまとめて貼り付けて一括登録できます
+            </p>
+          )}
+        </CardHeader>
+      </button>
+
+      {isOpen && (
+        <CardContent className="space-y-4 pt-0">
+          <div className="space-y-1.5">
+            <p className="text-xs text-muted-foreground">
+              スプレッドシートのURLを順番に貼り付けてください（上から順に自動割り当て）
+            </p>
+            <div className="bg-white/80 rounded-md p-2.5 text-[11px] text-muted-foreground space-y-0.5 border border-border">
+              {LINK_DEFINITIONS.map((def, i) => (
+                <p key={def.key}><span className="font-semibold text-foreground">{i + 1}.</span> {def.label}</p>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <textarea
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder={"https://docs.google.com/spreadsheets/d/AAAA...\nhttps://docs.google.com/spreadsheets/d/BBBB...\nhttps://docs.google.com/spreadsheets/d/CCCC...\nhttps://docs.google.com/spreadsheets/d/DDDD...\nhttps://docs.google.com/spreadsheets/d/EEEE...\nhttps://docs.google.com/spreadsheets/d/FFFF..."}
+              rows={6}
+              className="w-full text-xs border border-border rounded-md px-3 py-2 bg-white focus:outline-none focus:border-primary font-mono resize-none"
+              autoFocus
+            />
+          </div>
+
+          {/* プレビュー */}
+          {hasAnyUrl && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-foreground">プレビュー（登録内容の確認）</p>
+              <div className="space-y-1">
+                {parsedLinks.map((link) => (
+                  <div key={link.key} className="flex items-start gap-2 text-xs">
+                    {link.valid ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 flex-shrink-0" />
+                    ) : link.url ? (
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+                    ) : (
+                      <div className="w-3.5 h-3.5 rounded-full border border-muted-foreground/30 mt-0.5 flex-shrink-0" />
+                    )}
+                    <div className="min-w-0">
+                      <span className={cn("font-medium", link.color)}>{link.label}</span>
+                      {link.url ? (
+                        <p className="text-muted-foreground truncate font-mono">{link.url}</p>
+                      ) : (
+                        <p className="text-muted-foreground/50 italic">（未入力）</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <p className="text-xs text-muted-foreground">
+              {validCount > 0 ? (
+                <span className="text-emerald-600 font-medium">{validCount}件</span>
+              ) : (
+                <span>0件</span>
+              )}
+              {" "}のURLが登録されます
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => { setPasteText(""); setIsOpen(false); }}
+              >
+                キャンセル
+              </Button>
+              <Button
+                size="sm"
+                className="h-8 text-xs"
+                onClick={handleImport}
+                disabled={validCount === 0 || batchUpsert.isPending}
+              >
+                {batchUpsert.isPending ? "登録中..." : `${validCount}件を一括登録`}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      )}
+    </Card>
+  );
 }
 
 export default function Admin() {
@@ -172,19 +348,33 @@ export default function Admin() {
         </CardContent>
       </Card>
 
-      {/* リンク一覧・登録フォーム */}
+      {/* 一括インポートパネル */}
+      <BulkImportPanel
+        selectedYearMonth={selectedYearMonth}
+        onSuccess={() => {
+          setEditingKey(null);
+          setEditUrl("");
+        }}
+      />
+
+      {/* リンク一覧・個別登録フォーム */}
       <Card className="shadow-sm">
         <CardHeader className="pb-2 pt-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-semibold">
               {formatYearMonth(selectedYearMonth)} のスプレッドシートURL
             </CardTitle>
-            {selectedYearMonth === currentYearMonth && (
-              <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700">今月</Badge>
-            )}
-            {selectedYearMonth > currentYearMonth && (
-              <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">翌月以降</Badge>
-            )}
+            <div className="flex items-center gap-2">
+              {selectedYearMonth === currentYearMonth && (
+                <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700">今月</Badge>
+              )}
+              {selectedYearMonth > currentYearMonth && (
+                <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">翌月以降</Badge>
+              )}
+              <Badge variant="outline" className="text-xs">
+                {Object.keys(selectedLinks).length} / {LINK_DEFINITIONS.length} 件登録済み
+              </Badge>
+            </div>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
             URLを登録すると、{formatYearMonth(selectedYearMonth)}になった時点でダッシュボードに自動反映されます。
@@ -202,7 +392,14 @@ export default function Admin() {
                   {idx > 0 && <Separator className="my-2" />}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
-                      <p className={cn("text-sm font-medium", def.color)}>{def.label}</p>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {registered ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                        ) : (
+                          <div className="w-3.5 h-3.5 rounded-full border border-muted-foreground/30 flex-shrink-0" />
+                        )}
+                        <p className={cn("text-sm font-medium truncate", def.color)}>{def.label}</p>
+                      </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         {registered ? (
                           <>
@@ -259,14 +456,14 @@ export default function Admin() {
 
                     {/* 登録済みURL表示 */}
                     {registered && !isEditing && (
-                      <p className="text-xs text-muted-foreground truncate pl-1 font-mono">
+                      <p className="text-xs text-muted-foreground truncate pl-5 font-mono">
                         {registered.url}
                       </p>
                     )}
 
                     {/* 編集・新規登録フォーム */}
                     {isEditing && (
-                      <div className="flex gap-2 mt-1">
+                      <div className="flex gap-2 mt-1 pl-5">
                         <input
                           type="url"
                           placeholder="https://docs.google.com/spreadsheets/d/..."
@@ -304,6 +501,7 @@ export default function Admin() {
               {registeredMonths.map((ym) => {
                 const count = allLinks?.filter((l) => l.yearMonth === ym).length ?? 0;
                 const isCurrent = ym === currentYearMonth;
+                const isComplete = count === LINK_DEFINITIONS.length;
                 return (
                   <div
                     key={ym}
@@ -318,6 +516,10 @@ export default function Admin() {
                     }}
                   >
                     <div className="flex items-center gap-2">
+                      {isComplete
+                        ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                        : <div className="w-3.5 h-3.5 rounded-full border border-amber-400" />
+                      }
                       <span className="text-sm font-medium">{formatYearMonth(ym)}</span>
                       {isCurrent && (
                         <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0">今月</Badge>
@@ -326,7 +528,12 @@ export default function Admin() {
                         <Badge variant="secondary" className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0">翌月以降</Badge>
                       )}
                     </div>
-                    <span className="text-xs text-muted-foreground">{count} / {LINK_DEFINITIONS.length} 件登録</span>
+                    <span className={cn(
+                      "text-xs font-medium",
+                      isComplete ? "text-emerald-600" : "text-amber-600"
+                    )}>
+                      {count} / {LINK_DEFINITIONS.length} 件
+                    </span>
                   </div>
                 );
               })}
