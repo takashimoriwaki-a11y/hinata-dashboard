@@ -162,6 +162,32 @@ export default function RecordInput() {
     exportToSheet.mutate({ id: savedRecordId });
   };
 
+  const GEMS_URL = "https://gemini.google.com/gem/1qqbO6BLZLj9IXwsOjYuePdyQn0QGkifV?usp=sharing";
+
+  const handleCopyAndOpenGem = async () => {
+    // 病状の経過テキストを構築してコピー
+    const lines: string[] = [];
+    if (patientName) lines.push(`利用者：${patientName}`);
+    if (team) lines.push(`チーム：${team}`);
+    if (clinicalNotes) lines.push(`
+【病状の経過】
+${clinicalNotes}`);
+    const textToCopy = lines.join("\n");
+
+    if (!textToCopy.trim()) {
+      toast.error("コピーする内容がありません。病状の経過を入力してください");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      toast.success("記録をコピーしました。Gemで貼り付けてください");
+    } catch {
+      toast.error("クリップボードへのコピーに失敗しました");
+    }
+    window.open(GEMS_URL, "_blank", "noopener,noreferrer");
+  };
+
   const handleReset = () => {
     setPatientId(null);
     setPatientName("");
@@ -375,15 +401,14 @@ export default function RecordInput() {
         </div>
       ) : (
         <Button
-          className="w-full"
-          variant="outline"
+          className="w-full bg-orange-500 hover:bg-orange-600 text-white border-orange-500"
           onClick={handleSave}
           disabled={createRecord.isPending || !patientId}
         >
           {createRecord.isPending ? (
             <><Loader2 className="w-4 h-4 mr-2 animate-spin" />保存中...</>
           ) : (
-            <><FileSpreadsheet className="w-4 h-4 mr-2" />記録を保存してスプレッドシートへ転送</>
+            <><FileSpreadsheet className="w-4 h-4 mr-2" />次回訪問日時をスプレッドシートへ転送</>
           )}
         </Button>
       )}
@@ -419,14 +444,10 @@ export default function RecordInput() {
           </div>
           <Button
             className="w-full"
-            onClick={handleSave}
-            disabled={createRecord.isPending || !patientId}
+            onClick={handleCopyAndOpenGem}
+            disabled={!clinicalNotes.trim() && !patientName}
           >
-            {createRecord.isPending ? (
-              <><Loader2 className="w-4 h-4 mr-2 animate-spin" />保存中...</>
-            ) : (
-              <><Send className="w-4 h-4 mr-2" />記録を保存する</>
-            )}
+            <><Send className="w-4 h-4 mr-2" />記録をコピーしてGemへ</>
           </Button>
         </CardContent>
       </Card>
