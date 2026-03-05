@@ -8,6 +8,8 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { deleteAllTodayScreenshots, moveTomorrowToToday } from "../db";
+import multer from "multer";
+import { ENV } from "./env";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -36,6 +38,47 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
+
+  // 音声文字起こしエンドポイント /api/transcribe
+  const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 16 * 1024 * 1024 } });
+  app.post("/api/transcribe", upload.single("audio"), async (req, res) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "音声ファイルがありません" });
+        return;
+      }
+      const forgeApiUrl = ENV.forgeApiUrl;
+      const forgeApiKey = ENV.forgeApiKey;
+      if (!forgeApiUrl || !forgeApiKey) {
+        res.status(500).json({ error: "音声認識サービスが設定されていません" });
+        return;
+      }
+      const formData = new FormData();
+      const blob = new Blob([new Uint8Array(req.file.buffer)], { type: req.file.mimetype || "audio/webm" });
+      const ext = (req.file.mimetype || "audio/webm").split("/")[1] || "webm";
+      formData.append("file", blob, `recording.${ext}`);
+      formData.append("model", "whisper-1");
+      formData.append("response_format", "verbose_json");
+      formData.append("prompt", "診療所、診断名、薬剰名など医療・看護用語を正確に起こしてください");
+      const baseUrl = forgeApiUrl.endsWith("/") ? forgeApiUrl : `${forgeApiUrl}/`;
+      const whisperRes = await fetch(`${baseUrl}v1/audio/transcriptions`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${forgeApiKey}`, "Accept-Encoding": "identity" },
+        body: formData,
+      });
+      if (!whisperRes.ok) {
+        const errText = await whisperRes.text().catch(() => "");
+        res.status(500).json({ error: `文字起こし失敗: ${errText}` });
+        return;
+      }
+      const result = await whisperRes.json() as { text: string };
+      res.json({ text: result.text });
+    } catch (e) {
+      console.error("[transcribe] error:", e);
+      res.status(500).json({ error: "内部エラー" });
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

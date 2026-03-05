@@ -5,6 +5,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -120,12 +121,8 @@ const externalLinks = [
   },
 ];
 
-// 初期タスク
-const initialTasks = [
-  { id: 1, text: "月次報告書の作成", done: false, priority: "high" as const },
-  { id: 2, text: "スタッフ面談（山田）", done: false, priority: "medium" as const },
-  { id: 3, text: "利用者ケアプラン更新（3名）", done: true, priority: "high" as const },
-];
+// 初期タスク（サンプルなし）
+const initialTasks: { id: number; text: string; done: boolean; priority: "high" | "medium" | "low" }[] = [];
 
 // メッセージ型
 type MessageItem = {
@@ -1250,70 +1247,283 @@ function TasksCard() {
   );
 }
 
-function MessageBoard({ title, type }: { title: string; type: "notice" | "message" }) {
-  const [messages, setMessages] = useState<MessageItem[]>(
-    type === "notice" ? initialMessages : []
-  );
-  const [newMsg, setNewMsg] = useState("");
+const REACTION_EMOJIS = ["❤️", "👍", "🙏", "✅", "👀"];
 
-  const postMessage = () => {
-    if (!newMsg.trim()) return;
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        author: "森脇崇",
-        time: new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" }),
-        text: newMsg,
-        type,
-      },
-    ]);
-    setNewMsg("");
-    toast.success("投稿しました");
+function MessageBoard({ title }: { title: string }) {
+  const utils = trpc.useUtils();
+  const { user } = useAuth();
+
+  // DBからメッセージ取得
+  const { data: messages = [], isLoading } = trpc.messages.getActive.useQuery(undefined, {
+    refetchInterval: 30000, // 30秒ごとに自動更新
+  });
+
+  const [newMsg, setNewMsg] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [displayFrom, setDisplayFrom] = useState("");
+  const [displayUntil, setDisplayUntil] = useState("");
+  const [scheduledAt, setScheduledAt] = useState("");
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  // メッセージ作成
+  const createMsg = trpc.messages.create.useMutation({
+    onSuccess: () => {
+      utils.messages.getActive.invalidate();
+      toast.success("投稿しました");
+      setNewMsg("");
+      setDisplayFrom("");
+      setDisplayUntil("");
+      setScheduledAt("");
+      setShowForm(false);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  // メッセージ削除
+  const deleteMsg = trpc.messages.delete.useMutation({
+    onMutate: async ({ id }) => {
+      await utils.messages.getActive.cancel();
+      const prev = utils.messages.getActive.getData();
+      utils.messages.getActive.setData(undefined, (old) => old?.filter((m) => m.id !== id));
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) utils.messages.getActive.setData(undefined, ctx.prev);
+      toast.error("削除に失敗しました");
+    },
+    onSettled: () => utils.messages.getActive.invalidate(),
+  });
+
+  // リアクショントグル
+  const toggleReaction = trpc.messages.toggleReaction.useMutation({
+    onSuccess: () => utils.messages.getActive.invalidate(),
+    onError: (e) => toast.error(e.message),
+  });
+
+  // 音声入力
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      chunksRef.current = [];
+      mr.ondataavailable = (e) => chunksRef.current.push(e.data);
+      mr.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        if (blob.size > 16 * 1024 * 1024) {
+          toast.error("音声ファイルが大きすぎます（16MB以下）");
+          return;
+        }
+        toast.info("文字起こし中...");
+        try {
+          const formData = new FormData();
+          formData.append("audio", blob, "recording.webm");
+          const res = await fetch("/api/transcribe", { method: "POST", body: formData, credentials: "include" });
+          const data = await res.json();
+          if (data.text) {
+            setNewMsg((prev) => prev + (prev ? " " : "") + data.text);
+            toast.success("音声入力完了");
+          } else {
+            toast.error("文字起こしに失敗しました");
+          }
+        } catch {
+          toast.error("音声入力エラー");
+        }
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+      setIsRecording(true);
+    } catch {
+      toast.error("マイクのアクセスが許可されていません");
+    }
+  };
+
+  const stopRecording = () => {
+    mediaRecorderRef.current?.stop();
+    setIsRecording(false);
+  };
+
+  const handlePost = () => {
+    if (!newMsg.trim()) {
+      toast.error("メッセージを入力してください");
+      return;
+    }
+    createMsg.mutate({
+      text: newMsg.trim(),
+      displayFrom: displayFrom ? new Date(displayFrom) : undefined,
+      displayUntil: displayUntil ? new Date(displayUntil) : undefined,
+      scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
+    });
+  };
+
+  // リアクション集計ヘルパー
+  const getReactionCounts = (reactions: { emoji: string; userId: number }[]) => {
+    const counts: Record<string, { count: number; hasMe: boolean }> = {};
+    for (const r of reactions) {
+      if (!counts[r.emoji]) counts[r.emoji] = { count: 0, hasMe: false };
+      counts[r.emoji].count++;
+      if (r.userId === user?.id) counts[r.emoji].hasMe = true;
+    }
+    return counts;
   };
 
   return (
     <Card className="fade-in-up stagger-4 shadow-sm">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base font-semibold flex items-center gap-2">
-          <MessageSquare className="w-4 h-4 text-primary" />
-          {title}
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-primary" />
+            {title}
+          </CardTitle>
+          <button
+            onClick={() => setShowForm((v) => !v)}
+            className="text-xs text-primary hover:underline flex items-center gap-0.5"
+          >
+            <Plus className="w-3.5 h-3.5" />投稿
+          </button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-2">
-        {messages.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-3">
-            {title}はまだありません
-          </p>
-        ) : (
-          <div className="space-y-2 max-h-40 overflow-y-auto">
-            {messages.map((msg) => (
-              <div key={msg.id} className="flex gap-2 p-2 bg-muted/30 rounded-lg">
-                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
-                  {msg.author[0]}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="text-[11px] font-semibold text-foreground">{msg.author}</span>
-                    <span className="text-[10px] text-muted-foreground">{msg.time}</span>
-                  </div>
-                  <p className="text-xs text-foreground/80 leading-relaxed">{msg.text}</p>
-                </div>
+        {/* 投稿フォーム */}
+        {showForm && (
+          <div className="border border-primary/20 rounded-xl p-3 space-y-2 bg-primary/5">
+            <div className="flex gap-1.5">
+              <Textarea
+                placeholder="メッセージを入力..."
+                value={newMsg}
+                onChange={(e) => setNewMsg(e.target.value)}
+                className="text-xs min-h-[60px] resize-none flex-1"
+              />
+              <button
+                onMouseDown={startRecording}
+                onMouseUp={stopRecording}
+                onTouchStart={startRecording}
+                onTouchEnd={stopRecording}
+                className={cn(
+                  "flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors self-end",
+                  isRecording
+                    ? "bg-red-500 text-white animate-pulse"
+                    : "bg-muted text-muted-foreground hover:bg-primary/20"
+                )}
+                title="押して話す"
+              >
+                🎤
+              </button>
+            </div>
+            {isRecording && (
+              <p className="text-[10px] text-red-500 font-medium animate-pulse">● 録音中...指を離すと停止</p>
+            )}
+            {/* 表示期間・予約 */}
+            <div className="grid grid-cols-2 gap-1.5">
+              <div>
+                <label className="text-[10px] text-muted-foreground block mb-0.5">表示開始（任意）</label>
+                <input type="datetime-local" value={displayFrom} onChange={(e) => setDisplayFrom(e.target.value)}
+                  className="w-full text-[11px] border border-border rounded px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-primary" />
               </div>
-            ))}
+              <div>
+                <label className="text-[10px] text-muted-foreground block mb-0.5">表示終了（任意）</label>
+                <input type="datetime-local" value={displayUntil} onChange={(e) => setDisplayUntil(e.target.value)}
+                  className="w-full text-[11px] border border-border rounded px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-primary" />
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] text-muted-foreground block mb-0.5">予約送信（任意）</label>
+              <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)}
+                className="w-full text-[11px] border border-border rounded px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-primary" />
+            </div>
+            <div className="flex gap-1.5">
+              <Button variant="outline" size="sm" className="flex-1 h-7 text-xs" onClick={() => setShowForm(false)}>キャンセル</Button>
+              <Button size="sm" className="flex-1 h-7 text-xs" onClick={handlePost} disabled={createMsg.isPending || !newMsg.trim()}>
+                {scheduledAt ? "予約送信" : "投稿"}
+              </Button>
+            </div>
           </div>
         )}
-        <div className="flex gap-1.5">
-          <Textarea
-            placeholder="投稿する..."
-            value={newMsg}
-            onChange={(e) => setNewMsg(e.target.value)}
-            className="text-xs min-h-[60px] resize-none"
-          />
-          <Button size="sm" className="h-auto px-2 self-end" onClick={postMessage}>
-            <Send className="w-3.5 h-3.5" />
-          </Button>
-        </div>
+
+        {/* メッセージ一覧 */}
+        {isLoading ? (
+          <p className="text-xs text-muted-foreground text-center py-3">読み込み中...</p>
+        ) : messages.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-3">メッセージはまだありません</p>
+        ) : (
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {messages.map((msg) => {
+              const reactionCounts = getReactionCounts(msg.reactions ?? []);
+              return (
+                <div key={msg.id} className="p-2.5 bg-muted/30 rounded-xl group">
+                  <div className="flex gap-2">
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
+                      {(msg.createdByName ?? "不明")[0]}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-[11px] font-semibold text-foreground">{msg.createdByName}</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {new Date(msg.createdAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                        {msg.displayUntil && (
+                          <span className="text-[9px] text-amber-600 bg-amber-50 px-1 rounded">
+                            → {new Date(msg.displayUntil).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}まで
+                          </span>
+                        )}
+                        {msg.scheduledAt && new Date(msg.scheduledAt) > new Date() && (
+                          <span className="text-[9px] text-blue-600 bg-blue-50 px-1 rounded">予約</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                    </div>
+                    {/* 削除ボタン（作成者のみ） */}
+                    {msg.createdBy === user?.id && (
+                      <button
+                        onClick={() => deleteMsg.mutate({ id: msg.id })}
+                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 text-muted-foreground hover:text-destructive transition-all"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  {/* リアクション */}
+                  <div className="flex flex-wrap gap-1 mt-1.5 ml-8">
+                    {/* 既存リアクション */}
+                    {Object.entries(reactionCounts).map(([emoji, { count, hasMe }]) => (
+                      <button
+                        key={emoji}
+                        onClick={() => toggleReaction.mutate({ messageId: msg.id, emoji })}
+                        className={cn(
+                          "flex items-center gap-0.5 text-[11px] px-1.5 py-0.5 rounded-full border transition-colors",
+                          hasMe
+                            ? "bg-primary/10 border-primary/30 text-primary"
+                            : "bg-white border-border text-muted-foreground hover:border-primary/30"
+                        )}
+                      >
+                        {emoji} {count}
+                      </button>
+                    ))}
+                    {/* リアクション追加パレット */}
+                    <div className="relative group/react">
+                      <button className="text-[11px] px-1.5 py-0.5 rounded-full border border-dashed border-border text-muted-foreground hover:border-primary/30 hover:text-primary transition-colors">
+                        +
+                      </button>
+                      <div className="absolute bottom-full left-0 mb-1 hidden group-hover/react:flex gap-1 bg-white border border-border rounded-xl shadow-lg p-1.5 z-10">
+                        {REACTION_EMOJIS.map((e) => (
+                          <button
+                            key={e}
+                            onClick={() => toggleReaction.mutate({ messageId: msg.id, emoji: e })}
+                            className="text-base hover:scale-125 transition-transform"
+                          >
+                            {e}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -1397,8 +1607,7 @@ export default function Dashboard() {
         <div className="space-y-3 md:space-y-4">
           <ToolsCard />
           <TasksCard />
-          <MessageBoard title="申し送り" type="notice" />
-          <MessageBoard title="メッセージ" type="message" />
+          <MessageBoard title="メッセージ" />
           <QuickLinksCard />
         </div>
       </div>

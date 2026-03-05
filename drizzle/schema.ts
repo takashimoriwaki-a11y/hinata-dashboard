@@ -139,3 +139,56 @@ export const tasks = mysqlTable("tasks", {
 
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = typeof tasks.$inferInsert;
+
+/**
+ * メッセージテーブル
+ * チーム向けメッセージを管理する
+ * - 作成者名自動付与
+ * - 表示期間（displayFrom〜displayUntil）設定可能
+ * - displayUntilを過ぎたら自動非表示（論理削除）
+ * - 予約送信（scheduledAt）設定可能
+ * - 手動削除（deletedAt）
+ */
+export const messages = mysqlTable("messages", {
+  id: int("id").autoincrement().primaryKey(),
+  /** メッセージ本文 */
+  text: text("text").notNull(),
+  /** 作成者のユーザーID */
+  createdBy: int("createdBy").notNull(),
+  /** 作成者の名前（表示用キャッシュ） */
+  createdByName: text("createdByName").notNull(),
+  /** 表示開始日時（nullの場合は即時表示） */
+  displayFrom: timestamp("displayFrom"),
+  /** 表示終了日時（nullの場合は無期限） */
+  displayUntil: timestamp("displayUntil"),
+  /** 予約送信日時（nullの場合は即時送信） */
+  scheduledAt: timestamp("scheduledAt"),
+  /** 手動削除日時（nullの場合は削除されていない） */
+  deletedAt: timestamp("deletedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = typeof messages.$inferInsert;
+
+/**
+ * メッセージリアクションテーブル
+ * 各ユーザーが各メッセージに付けた絵文字リアクションを管理する
+ * 同じユーザーが同じ絵文字を再度押すとトグル（削除）される
+ */
+export const messageReactions = mysqlTable("message_reactions", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 対象メッセージID */
+  messageId: int("messageId").notNull(),
+  /** リアクションしたユーザーID */
+  userId: int("userId").notNull(),
+  /** ユーザー名（表示用キャッシュ） */
+  userName: text("userName").notNull(),
+  /** 絵文字 */
+  emoji: varchar("emoji", { length: 10 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type MessageReaction = typeof messageReactions.$inferSelect;
+export type InsertMessageReaction = typeof messageReactions.$inferInsert;

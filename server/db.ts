@@ -1,6 +1,6 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, or, isNull, desc, lte, gte, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot, myLinks, InsertMyLink, spreadsheetLinks, InsertSpreadsheetLink } from "../drizzle/schema";
+import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot, myLinks, InsertMyLink, spreadsheetLinks, InsertSpreadsheetLink, tasks, InsertTask, messages, InsertMessage, messageReactions, InsertMessageReaction } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -271,9 +271,6 @@ export async function deleteSpreadsheetLink(id: number) {
 
 // ========== タスク ==========
 
-import { tasks, InsertTask } from "../drizzle/schema";
-import { or, isNull, desc } from "drizzle-orm";
-
 /**
  * 自分に関係するタスクを取得する
  * 条件: 以下のいずれかを満たすもの
@@ -350,4 +347,129 @@ export async function getTaskById(id: number) {
   if (!db) return undefined;
   const result = await db.select().from(tasks).where(eq(tasks.id, id)).limit(1);
   return result.length > 0 ? result[0] : undefined;
+}
+
+// ========== メッセージ ==========
+
+
+
+/**
+ * 現在表示すべきメッセージ一覧を取得する
+ * 条件:
+ *   - deletedAt IS NULL（手動削除されていない）
+ *   - scheduledAt IS NULL OR scheduledAt <= now（予約送信済み or 即時）
+ *   - displayFrom IS NULL OR displayFrom <= now（表示開始済み）
+ *   - displayUntil IS NULL OR displayUntil > now（表示期限内）
+ */
+export async function getActiveMessages() {
+  const db = await getDb();
+  if (!db) return [];
+  const now = new Date();
+  return db
+    .select()
+    .from(messages)
+    .where(
+      and(
+        isNull(messages.deletedAt),
+        or(isNull(messages.scheduledAt), lte(messages.scheduledAt, now)),
+        or(isNull(messages.displayFrom), lte(messages.displayFrom, now)),
+        or(isNull(messages.displayUntil), gte(messages.displayUntil, now))
+      )
+    )
+    .orderBy(desc(messages.createdAt));
+}
+
+/** メッセージを作成する */
+export async function createMessage(data: InsertMessage) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(messages).values(data);
+  return (result as any)[0]?.insertId ?? 0;
+}
+
+/** メッセージを手動削除する（作成者のみ） */
+export async function softDeleteMessage(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(messages)
+    .set({ deletedAt: new Date() })
+    .where(and(eq(messages.id, id), eq(messages.createdBy, userId)));
+}
+
+/** 期限切れメッセージを自動削除（論理削除）する */
+export async function expireMessages() {
+  const db = await getDb();
+  if (!db) return 0;
+  const now = new Date();
+  const result = await db
+    .update(messages)
+    .set({ deletedAt: now })
+    .where(
+      and(
+        isNull(messages.deletedAt),
+        lt(messages.displayUntil, now)
+      )
+    );
+  return (result as any)[0]?.affectedRows ?? 0;
+}
+
+/** メッセージIDで取得する */
+export async function getMessageById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(messages).where(eq(messages.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+// ========== メッセージリアクション ==========
+
+/** 指定メッセージのリアクション一覧を取得する */
+export async function getReactionsByMessageId(messageId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(messageReactions)
+    .where(eq(messageReactions.messageId, messageId));
+}
+
+/** 複数メッセージのリアクションを一括取得する */
+export async function getReactionsByMessageIds(messageIds: number[]) {
+  if (messageIds.length === 0) return [];
+  const db = await getDb();
+  if (!db) return [];
+  const { inArray } = await import("drizzle-orm");
+  return db
+    .select()
+    .from(messageReactions)
+    .where(inArray(messageReactions.messageId, messageIds));
+}
+
+/** リアクションをトグルする（同じユーザー・同じ絵文字なら削除、なければ追加） */
+export async function toggleReaction(messageId: number, userId: number, userName: string, emoji: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const existing = await db
+    .select()
+    .from(messageReactions)
+    .where(
+      and(
+        eq(messageReactions.messageId, messageId),
+        eq(messageReactions.userId, userId),
+        eq(messageReactions.emoji, emoji)
+      )
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    // 削除（トグルオフ）
+    await db.delete(messageReactions).where(eq(messageReactions.id, existing[0].id));
+    return { action: "removed" as const };
+  } else {
+    // 追加（トグルオン）
+    await db.insert(messageReactions).values({ messageId, userId, userName, emoji });
+    return { action: "added" as const };
+  }
 }

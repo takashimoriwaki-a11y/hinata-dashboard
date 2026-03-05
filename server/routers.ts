@@ -27,6 +27,13 @@ import {
   toggleTask,
   deleteTask as deleteTaskDb,
   getTaskById,
+  getActiveMessages,
+  createMessage,
+  softDeleteMessage,
+  getMessageById,
+  toggleReaction,
+  getReactionsByMessageIds,
+  expireMessages,
 } from "./db";
 import { storagePut } from "./storage";
 import { eq } from "drizzle-orm";
@@ -601,7 +608,70 @@ export const appRouter = router({
       return allUsers;
     }),
   }),
+
+  // ========== メッセージ ==========
+  messages: router({
+    // 現在表示すべきメッセージ一覧（リアクション付き）
+    getActive: protectedProcedure.query(async () => {
+      // 期限切れを先に自動削除
+      await expireMessages();
+      const msgs = await getActiveMessages();
+      if (msgs.length === 0) return [];
+      const ids = msgs.map((m) => m.id);
+      const reactions = await getReactionsByMessageIds(ids);
+      return msgs.map((m) => ({
+        ...m,
+        reactions: reactions.filter((r) => r.messageId === m.id),
+      }));
+    }),
+
+    // メッセージを作成する
+    create: protectedProcedure
+      .input(
+        z.object({
+          text: z.string().min(1).max(1000),
+          displayFrom: z.date().optional(),
+          displayUntil: z.date().optional(),
+          scheduledAt: z.date().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const id = await createMessage({
+          text: input.text,
+          createdBy: ctx.user.id,
+          createdByName: ctx.user.name ?? "不明",
+          displayFrom: input.displayFrom,
+          displayUntil: input.displayUntil,
+          scheduledAt: input.scheduledAt,
+        });
+        return { success: true, id };
+      }),
+
+    // メッセージを手動削除する（作成者のみ）
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const msg = await getMessageById(input.id);
+        if (!msg) throw new TRPCError({ code: "NOT_FOUND", message: "メッセージが見つかりません" });
+        if (msg.createdBy !== ctx.user.id) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "作成者のみ削除できます" });
+        }
+        await softDeleteMessage(input.id, ctx.user.id);
+        return { success: true };
+      }),
+
+    // リアクションをトグルする
+    toggleReaction: protectedProcedure
+      .input(z.object({ messageId: z.number(), emoji: z.string().max(10) }))
+      .mutation(async ({ ctx, input }) => {
+        const result = await toggleReaction(
+          input.messageId,
+          ctx.user.id,
+          ctx.user.name ?? "不明",
+          input.emoji
+        );
+        return result;
+      }),
+  }),
 });
-
 export type AppRouter = typeof appRouter;
-
