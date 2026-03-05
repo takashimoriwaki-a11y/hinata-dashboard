@@ -886,24 +886,59 @@ function PatientTrendChart() {
 }
 
 function ToolsCard() {
-  const [myLinks, setMyLinks] = useState<{ id: number; label: string; href: string }[]>([]);
+  // マイリンク（tRPC + DB）
+  const utils = trpc.useUtils();
+  const { data: myLinksData, isLoading: linksLoading } = trpc.myLinks.list.useQuery(undefined, {
+    retry: false,
+  });
+  const createLink = trpc.myLinks.create.useMutation({
+    onSuccess: () => { utils.myLinks.list.invalidate(); toast.success("リンクを追加しました"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const updateLink = trpc.myLinks.update.useMutation({
+    onSuccess: () => { utils.myLinks.list.invalidate(); setEditingId(null); toast.success("リンクを更新しました"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const deleteLink = trpc.myLinks.delete.useMutation({
+    onSuccess: () => { utils.myLinks.list.invalidate(); toast.success("リンクを削除しました"); },
+    onError: (e) => toast.error(e.message),
+  });
+
   const [showAddForm, setShowAddForm] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [newHref, setNewHref] = useState("");
+  const [newEmoji, setNewEmoji] = useState("🔗");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+  const [editHref, setEditHref] = useState("");
+  const [editEmoji, setEditEmoji] = useState("");
 
   const addLink = () => {
     if (!newLabel.trim() || !newHref.trim()) {
       toast.error("ラベルとURLを入力してください");
       return;
     }
-    setMyLinks((prev) => [
-      ...prev,
-      { id: Date.now(), label: newLabel, href: newHref },
-    ]);
+    createLink.mutate({ label: newLabel.trim(), url: newHref.trim(), emoji: newEmoji || "🔗" });
     setNewLabel("");
     setNewHref("");
+    setNewEmoji("🔗");
     setShowAddForm(false);
-    toast.success("リンクを追加しました");
+  };
+
+  const startEdit = (link: { id: number; label: string; url: string; emoji: string | null }) => {
+    setEditingId(link.id);
+    setEditLabel(link.label);
+    setEditHref(link.url);
+    setEditEmoji(link.emoji ?? "🔗");
+  };
+
+  const saveEdit = () => {
+    if (editingId === null) return;
+    if (!editLabel.trim() || !editHref.trim()) {
+      toast.error("ラベルとURLを入力してください");
+      return;
+    }
+    updateLink.mutate({ id: editingId, label: editLabel.trim(), url: editHref.trim(), emoji: editEmoji || "🔗" });
   };
 
   return (
@@ -957,13 +992,22 @@ function ToolsCard() {
           </div>
           {showAddForm && (
             <div className="space-y-1.5 mb-2 p-2 bg-muted/30 rounded-lg">
-              <input
-                type="text"
-                placeholder="ラベル名"
-                value={newLabel}
-                onChange={(e) => setNewLabel(e.target.value)}
-                className="w-full text-xs border border-border rounded px-2 py-1 bg-white"
-              />
+              <div className="flex gap-1">
+                <input
+                  type="text"
+                  placeholder="🔗"
+                  value={newEmoji}
+                  onChange={(e) => setNewEmoji(e.target.value)}
+                  className="w-10 text-xs border border-border rounded px-1 py-1 bg-white text-center"
+                />
+                <input
+                  type="text"
+                  placeholder="ラベル名"
+                  value={newLabel}
+                  onChange={(e) => setNewLabel(e.target.value)}
+                  className="flex-1 text-xs border border-border rounded px-2 py-1 bg-white"
+                />
+              </div>
               <input
                 type="url"
                 placeholder="https://..."
@@ -972,34 +1016,79 @@ function ToolsCard() {
                 className="w-full text-xs border border-border rounded px-2 py-1 bg-white"
               />
               <div className="flex gap-1">
-                <Button size="sm" className="h-6 text-xs flex-1" onClick={addLink}>追加</Button>
+                <Button size="sm" className="h-6 text-xs flex-1" onClick={addLink} disabled={createLink.isPending}>追加</Button>
                 <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setShowAddForm(false)}>キャンセル</Button>
               </div>
             </div>
           )}
-          {myLinks.length === 0 ? (
+          {linksLoading ? (
+            <p className="text-xs text-muted-foreground text-center py-2">読み込み中...</p>
+          ) : !myLinksData || myLinksData.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-2">
-              「追加」ボタンからリンクを登録できます
+              『追加』ボタンからリンクを登録できます
             </p>
           ) : (
             <div className="space-y-1">
-              {myLinks.map((link) => (
-                <div key={link.id} className="flex items-center gap-1.5">
-                  <a
-                    href={link.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 flex items-center gap-1.5 text-xs py-1.5 px-2 rounded-md bg-muted/50 hover:bg-muted text-primary transition-colors truncate"
-                  >
-                    <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                    <span className="truncate">{link.label}</span>
-                  </a>
-                  <button
-                    onClick={() => setMyLinks((prev) => prev.filter((l) => l.id !== link.id))}
-                    className="text-muted-foreground hover:text-destructive p-1"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
+              {myLinksData.map((link) => (
+                <div key={link.id}>
+                  {editingId === link.id ? (
+                    // 編集フォーム
+                    <div className="space-y-1 p-2 bg-muted/30 rounded-lg">
+                      <div className="flex gap-1">
+                        <input
+                          type="text"
+                          placeholder="絵文字"
+                          value={editEmoji}
+                          onChange={(e) => setEditEmoji(e.target.value)}
+                          className="w-10 text-xs border border-border rounded px-1 py-1 bg-white text-center"
+                        />
+                        <input
+                          type="text"
+                          placeholder="ラベル名"
+                          value={editLabel}
+                          onChange={(e) => setEditLabel(e.target.value)}
+                          className="flex-1 text-xs border border-border rounded px-2 py-1 bg-white"
+                        />
+                      </div>
+                      <input
+                        type="url"
+                        placeholder="https://..."
+                        value={editHref}
+                        onChange={(e) => setEditHref(e.target.value)}
+                        className="w-full text-xs border border-border rounded px-2 py-1 bg-white"
+                      />
+                      <div className="flex gap-1">
+                        <Button size="sm" className="h-6 text-xs flex-1" onClick={saveEdit} disabled={updateLink.isPending}>保存</Button>
+                        <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setEditingId(null)}>キャンセル</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 flex items-center gap-1.5 text-xs py-1.5 px-2 rounded-md bg-muted/50 hover:bg-muted text-primary transition-colors min-w-0"
+                      >
+                        <span className="flex-shrink-0">{link.emoji ?? "🔗"}</span>
+                        <span className="truncate">{link.label}</span>
+                      </a>
+                      <button
+                        onClick={() => startEdit({ id: link.id, label: link.label, url: link.url, emoji: link.emoji ?? "🔗" })}
+                        className="text-muted-foreground hover:text-primary p-1 flex-shrink-0"
+                        title="編集"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                      <button
+                        onClick={() => deleteLink.mutate({ id: link.id })}
+                        className="text-muted-foreground hover:text-destructive p-1 flex-shrink-0"
+                        title="削除"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

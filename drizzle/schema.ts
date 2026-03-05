@@ -51,3 +51,28 @@ export const scheduleScreenshots = mysqlTable("schedule_screenshots", {
 
 export type ScheduleScreenshot = typeof scheduleScreenshots.$inferSelect;
 export type InsertScheduleScreenshot = typeof scheduleScreenshots.$inferInsert;
+
+/**
+ * マイリンクテーブル
+ * 各ユーザーが業務でよく使うツールのリンクを登録・編集・削除できる
+ */
+export const myLinks = mysqlTable("my_links", {
+  id: int("id").autoincrement().primaryKey(),
+  /** リンクを登録したユーザーID */
+  userId: int("userId").notNull(),
+  /** 表示ラベル */
+  label: varchar("label", { length: 100 }).notNull(),
+  /** URL */
+  url: text("url").notNull(),
+  /** 絵文字アイコン（任意） */
+  emoji: varchar("emoji", { length: 10 }).default("🔗"),
+  /** 説明（任意） */
+  description: varchar("description", { length: 200 }),
+  /** 表示順序 */
+  sortOrder: int("sortOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MyLink = typeof myLinks.$inferSelect;
+export type InsertMyLink = typeof myLinks.$inferInsert;

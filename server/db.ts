@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot } from "../drizzle/schema";
+import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot, myLinks, InsertMyLink } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -174,4 +174,40 @@ export async function moveTomorrowToToday() {
     .update(scheduleScreenshots)
     .set({ day: "今日", updatedAt: new Date() })
     .where(eq(scheduleScreenshots.day, "明日"));
+}
+
+// ========== マイリンク ==========
+
+export async function getMyLinks(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(myLinks)
+    .where(eq(myLinks.userId, userId))
+    .orderBy(myLinks.sortOrder, myLinks.createdAt);
+}
+
+export async function createMyLink(data: InsertMyLink) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(myLinks).values(data);
+  return (result as any)[0]?.insertId ?? 0;
+}
+
+export async function updateMyLink(id: number, userId: number, data: Partial<Pick<InsertMyLink, "label" | "url" | "emoji" | "description" | "sortOrder">>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(myLinks)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(myLinks.id, id), eq(myLinks.userId, userId)));
+}
+
+export async function deleteMyLink(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .delete(myLinks)
+    .where(and(eq(myLinks.id, id), eq(myLinks.userId, userId)));
 }

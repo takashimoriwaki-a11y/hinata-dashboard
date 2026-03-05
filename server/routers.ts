@@ -13,6 +13,10 @@ import {
   moveTomorrowToToday,
   updateUserTeam,
   getDb,
+  getMyLinks,
+  createMyLink,
+  updateMyLink,
+  deleteMyLink,
 } from "./db";
 import { storagePut } from "./storage";
 import { eq } from "drizzle-orm";
@@ -305,6 +309,61 @@ export const appRouter = router({
       }),
   }),
 
+  // マイリンク
+  myLinks: router({
+    // 自分のリンク一覧を取得
+    list: protectedProcedure.query(async ({ ctx }) => {
+      return getMyLinks(ctx.user.id);
+    }),
+    // リンクを追加
+    create: protectedProcedure
+      .input(
+        z.object({
+          label: z.string().min(1).max(100),
+          url: z.string().url({ message: "有効なURLを入力してください" }),
+          emoji: z.string().max(10).default("🔗"),
+          description: z.string().max(200).optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const links = await getMyLinks(ctx.user.id);
+        const sortOrder = links.length;
+        const id = await createMyLink({
+          userId: ctx.user.id,
+          label: input.label,
+          url: input.url,
+          emoji: input.emoji,
+          description: input.description,
+          sortOrder,
+        });
+        return { success: true, id };
+      }),
+    // リンクを更新
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          label: z.string().min(1).max(100).optional(),
+          url: z.string().url({ message: "有効なURLを入力してください" }).optional(),
+          emoji: z.string().max(10).optional(),
+          description: z.string().max(200).optional(),
+          sortOrder: z.number().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const { id, ...data } = input;
+        await updateMyLink(id, ctx.user.id, data);
+        return { success: true };
+      }),
+    // リンクを削除
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        await deleteMyLink(input.id, ctx.user.id);
+        return { success: true };
+      }),
+  }),
+
   // スケジュールスクリーンショット
   schedule: router({
     // 全チーム・全日程のスクショ一覧を取得
@@ -386,3 +445,4 @@ export const appRouter = router({
 });
 
 export type AppRouter = typeof appRouter;
+
