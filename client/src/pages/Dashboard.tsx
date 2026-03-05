@@ -4,7 +4,7 @@
  * 機能: 訪問件数表示、ZESTスクリーンショット、業務ツールクイックアクセス、タスク、申し送り、訪問推移グラフ
  */
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -154,17 +154,10 @@ const initialMessages: MessageItem[] = [
   },
 ];
 
-// ========== スケジュールスクリーンショット型 ==========
-type ScheduleImage = {
-  id: number;
-  team: string;
-  day: string;
-  dataUrl: string;
-  uploadedAt: string;
-};
-
 const TEAMS = ["身体", "天理", "郡山北部", "郡山南部"] as const;
 const DAYS = ["今日", "明日"] as const;
+type TeamType = typeof TEAMS[number];
+type DayType = typeof DAYS[number];
 
 // ========== サブコンポーネント ==========
 
@@ -424,18 +417,61 @@ function VisitCountCard() {
   );
 }
 
-// ========== ZESTスクリーンショットカード ==========
+// ========== ZESTスクリーンショットカード（tRPC+S3+DB版）==========
 
 function ScheduleScreenshotCard() {
-  const [images, setImages] = useState<ScheduleImage[]>([]);
-  const [selectedTeam, setSelectedTeam] = useState<string>("身体");
-  const [selectedDay, setSelectedDay] = useState<string>("今日");
+  const { user } = { user: null as null | { id: number; name: string | null; team: string | null } }; // useAuthは後で使う
+  const [selectedTeam, setSelectedTeam] = useState<TeamType>("身体");
+  const [selectedDay, setSelectedDay] = useState<DayType>("今日");
   const [isDragging, setIsDragging] = useState(false);
-  const [viewImage, setViewImage] = useState<ScheduleImage | null>(null);
+  const [viewUrl, setViewUrl] = useState<string | null>(null);
+  const [viewMeta, setViewMeta] = useState<{ team: string; day: string; uploadedByName: string | null; updatedAt: Date } | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const utils = trpc.useUtils();
 
-  const currentImage = images.find(
-    (img) => img.team === selectedTeam && img.day === selectedDay
+  // ユーザーのデフォルトチームを取得
+  const { data: myTeamData } = trpc.userSettings.getMyTeam.useQuery();
+  const setMyTeamMutation = trpc.userSettings.setMyTeam.useMutation({
+    onSuccess: () => utils.userSettings.getMyTeam.invalidate(),
+  });
+
+  // ユーザーのチームが取得できたらデフォルト選択を更新
+  useEffect(() => {
+    if (myTeamData?.team) {
+      setSelectedTeam(myTeamData.team as TeamType);
+    }
+  }, [myTeamData?.team]);
+
+  // 全スクショ一覧を取得（30秒ごとに自動更新）
+  const { data: screenshots, isLoading: screenshotsLoading } = trpc.schedule.getAll.useQuery(undefined, {
+    refetchInterval: 30 * 1000,
+    staleTime: 15 * 1000,
+  });
+
+  const uploadMutation = trpc.schedule.upload.useMutation({
+    onSuccess: () => {
+      utils.schedule.getAll.invalidate();
+      toast.success(`${selectedTeam} / ${selectedDay} のスクリーンショットを登録しました`);
+      setIsUploading(false);
+    },
+    onError: (e) => {
+      toast.error(`アップロード失敗: ${e.message}`);
+      setIsUploading(false);
+    },
+  });
+
+  const deleteMutation = trpc.schedule.delete.useMutation({
+    onSuccess: () => {
+      utils.schedule.getAll.invalidate();
+      toast.success("削除しました");
+    },
+    onError: (e) => toast.error(`削除失敗: ${e.message}`),
+  });
+
+  // 現在選択中のスクショ
+  const currentScreenshot = screenshots?.find(
+    (s) => s.team === selectedTeam && s.day === selectedDay
   );
 
   const processFile = useCallback(
@@ -448,36 +484,20 @@ function ScheduleScreenshotCard() {
         toast.error("ファイルサイズは10MB以下にしてください");
         return;
       }
+      setIsUploading(true);
       const reader = new FileReader();
       reader.onload = (e) => {
         const dataUrl = e.target?.result as string;
-        const now = new Date();
-        const timeStr = now.toLocaleString("ja-JP", {
-          month: "numeric",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
+        uploadMutation.mutate({
+          team: selectedTeam,
+          day: selectedDay,
+          imageDataUrl: dataUrl,
+          mimeType: file.type,
         });
-        setImages((prev) => {
-          const filtered = prev.filter(
-            (img) => !(img.team === selectedTeam && img.day === selectedDay)
-          );
-          return [
-            ...filtered,
-            {
-              id: Date.now(),
-              team: selectedTeam,
-              day: selectedDay,
-              dataUrl,
-              uploadedAt: timeStr,
-            },
-          ];
-        });
-        toast.success(`${selectedTeam} / ${selectedDay} のスクリーンショットを登録しました`);
       };
       reader.readAsDataURL(file);
     },
-    [selectedTeam, selectedDay]
+    [selectedTeam, selectedDay, uploadMutation]
   );
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -500,13 +520,14 @@ function ScheduleScreenshotCard() {
 
   const handleDragLeave = () => setIsDragging(false);
 
-  const deleteImage = () => {
-    setImages((prev) =>
-      prev.filter(
-        (img) => !(img.team === selectedTeam && img.day === selectedDay)
-      )
-    );
-    toast.success("削除しました");
+  const handleDelete = () => {
+    deleteMutation.mutate({ team: selectedTeam, day: selectedDay });
+  };
+
+  const handleTeamChange = (t: TeamType) => {
+    setSelectedTeam(t);
+    // チームをデフォルトとして保存
+    setMyTeamMutation.mutate({ team: t });
   };
 
   return (
@@ -535,7 +556,7 @@ function ScheduleScreenshotCard() {
               {TEAMS.map((t) => (
                 <button
                   key={t}
-                  onClick={() => setSelectedTeam(t)}
+                  onClick={() => handleTeamChange(t)}
                   className={cn(
                     "text-xs px-2.5 py-1 rounded-md border transition-colors",
                     selectedTeam === t
@@ -567,45 +588,51 @@ function ScheduleScreenshotCard() {
         </CardHeader>
 
         <CardContent className="space-y-3">
-          {currentImage ? (
+          {screenshotsLoading ? (
+            <div className="border rounded-xl p-8 flex items-center justify-center bg-muted/20 animate-pulse">
+              <p className="text-xs text-muted-foreground">読み込み中...</p>
+            </div>
+          ) : currentScreenshot ? (
             /* 登録済み画像表示 */
             <div className="space-y-2">
-              <div className="relative group rounded-lg overflow-hidden border border-border">
+              <div className="relative rounded-lg overflow-hidden border border-border">
                 <img
-                  src={currentImage.dataUrl}
+                  src={currentScreenshot.imageUrl}
                   alt={`${selectedTeam}チーム ${selectedDay}のスケジュール`}
                   className="w-full object-contain max-h-72 cursor-pointer"
-                  onClick={() => setViewImage(currentImage)}
+                  onClick={() => {
+                    setViewUrl(currentScreenshot.imageUrl);
+                    setViewMeta({
+                      team: currentScreenshot.team,
+                      day: currentScreenshot.day,
+                      uploadedByName: currentScreenshot.uploadedByName,
+                      updatedAt: currentScreenshot.updatedAt,
+                    });
+                  }}
                 />
-                {/* ホバーオーバーレイ */}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                  <button
-                    onClick={() => setViewImage(currentImage)}
-                    className="bg-white/90 text-foreground text-xs px-3 py-1.5 rounded-full font-medium shadow"
-                  >
-                    拡大表示
-                  </button>
-                </div>
+                {/* 削除ボタン（右上・画像に被らない位置）*/}
+                <button
+                  onClick={handleDelete}
+                  disabled={deleteMutation.isPending}
+                  className="absolute top-2 right-2 bg-white/90 hover:bg-red-50 text-destructive border border-destructive/30 rounded-full p-1.5 shadow-sm transition-colors"
+                  title="削除"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </div>
               <div className="flex items-center justify-between">
                 <p className="text-[10px] text-muted-foreground">
-                  {selectedTeam}チーム / {selectedDay} · {currentImage.uploadedAt} 登録
+                  {selectedTeam}チーム / {selectedDay}
+                  {currentScreenshot.uploadedByName && ` · ${currentScreenshot.uploadedByName}`}
+                  {" · "}{new Date(currentScreenshot.updatedAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} 登録
                 </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="text-xs text-primary hover:underline"
-                  >
-                    更新
-                  </button>
-                  <span className="text-muted-foreground text-xs">·</span>
-                  <button
-                    onClick={deleteImage}
-                    className="text-xs text-destructive hover:underline"
-                  >
-                    削除
-                  </button>
-                </div>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="text-xs text-primary hover:underline"
+                >
+                  {isUploading ? "更新中..." : "更新"}
+                </button>
               </div>
             </div>
           ) : (
@@ -614,9 +641,10 @@ function ScheduleScreenshotCard() {
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => !isUploading && fileInputRef.current?.click()}
               className={cn(
                 "border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all",
+                isUploading ? "border-primary bg-primary/5 opacity-70 cursor-wait" :
                 isDragging
                   ? "border-primary bg-primary/5 scale-[1.01]"
                   : "border-border hover:border-primary/50 hover:bg-muted/30"
@@ -638,7 +666,7 @@ function ScheduleScreenshotCard() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-foreground">
-                    {isDragging ? "ここにドロップ" : "クリックまたはドラッグ＆ドロップ"}
+                    {isUploading ? "アップロード中..." : isDragging ? "ここにドロップ" : "クリックまたはドラッグ＆ドロップ"}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     ZESTのスクリーンショットを登録
@@ -663,27 +691,27 @@ function ScheduleScreenshotCard() {
           />
 
           {/* 登録済みサムネイル一覧 */}
-          {images.length > 0 && (
+          {screenshots && screenshots.length > 0 && (
             <div>
               <p className="text-[10px] text-muted-foreground mb-1.5">登録済みスクリーンショット</p>
               <div className="flex flex-wrap gap-1.5">
-                {images.map((img) => (
+                {screenshots.map((s) => (
                   <button
-                    key={img.id}
+                    key={s.id}
                     onClick={() => {
-                      setSelectedTeam(img.team);
-                      setSelectedDay(img.day);
+                      setSelectedTeam(s.team as TeamType);
+                      setSelectedDay(s.day as DayType);
                     }}
                     className={cn(
                       "relative w-16 h-11 rounded overflow-hidden border-2 transition-all",
-                      img.team === selectedTeam && img.day === selectedDay
+                      s.team === selectedTeam && s.day === selectedDay
                         ? "border-primary shadow-sm"
                         : "border-border hover:border-primary/50"
                     )}
                   >
-                    <img src={img.dataUrl} alt="" className="w-full h-full object-cover" />
+                    <img src={s.imageUrl} alt="" className="w-full h-full object-cover" />
                     <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[8px] text-center py-0.5 leading-tight">
-                      {img.team}/{img.day}
+                      {s.team}/{s.day}
                     </div>
                   </button>
                 ))}
@@ -694,10 +722,10 @@ function ScheduleScreenshotCard() {
       </Card>
 
       {/* 拡大モーダル */}
-      {viewImage && (
+      {viewUrl && viewMeta && (
         <div
           className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
-          onClick={() => setViewImage(null)}
+          onClick={() => { setViewUrl(null); setViewMeta(null); }}
         >
           <div
             className="relative max-w-4xl w-full bg-white rounded-xl overflow-hidden shadow-2xl"
@@ -708,12 +736,17 @@ function ScheduleScreenshotCard() {
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-primary" />
                 <span className="text-sm font-semibold">
-                  {viewImage.team}チーム / {viewImage.day}
+                  {viewMeta.team}チーム / {viewMeta.day}
                 </span>
-                <span className="text-xs text-muted-foreground">· {viewImage.uploadedAt} 登録</span>
+                {viewMeta.uploadedByName && (
+                  <span className="text-xs text-muted-foreground">· {viewMeta.uploadedByName}</span>
+                )}
+                <span className="text-xs text-muted-foreground">
+                  · {new Date(viewMeta.updatedAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} 登録
+                </span>
               </div>
               <button
-                onClick={() => setViewImage(null)}
+                onClick={() => { setViewUrl(null); setViewMeta(null); }}
                 className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted"
               >
                 <X className="w-5 h-5" />
@@ -723,8 +756,8 @@ function ScheduleScreenshotCard() {
             {/* 画像 */}
             <div className="overflow-auto max-h-[75vh] bg-muted/20">
               <img
-                src={viewImage.dataUrl}
-                alt={`${viewImage.team}チーム ${viewImage.day}のスケジュール`}
+                src={viewUrl}
+                alt={`${viewMeta.team}チーム ${viewMeta.day}のスケジュール`}
                 className="w-full object-contain"
               />
             </div>
@@ -736,15 +769,17 @@ function ScheduleScreenshotCard() {
                   <button
                     key={t}
                     onClick={() => {
-                      const found = images.find(
-                        (img) => img.team === t && img.day === viewImage.day
+                      const found = screenshots?.find(
+                        (s) => s.team === t && s.day === viewMeta.day
                       );
-                      if (found) setViewImage(found);
-                      else toast.info(`${t}チームの${viewImage.day}のスクリーンショットは未登録です`);
+                      if (found) {
+                        setViewUrl(found.imageUrl);
+                        setViewMeta({ team: found.team, day: found.day, uploadedByName: found.uploadedByName, updatedAt: found.updatedAt });
+                      } else toast.info(`${t}チームの${viewMeta.day}のスクリーンショットは未登録です`);
                     }}
                     className={cn(
                       "text-xs px-2.5 py-1 rounded border transition-colors",
-                      viewImage.team === t
+                      viewMeta.team === t
                         ? "bg-primary text-white border-primary"
                         : "border-border text-muted-foreground hover:bg-muted"
                     )}
@@ -758,15 +793,17 @@ function ScheduleScreenshotCard() {
                   <button
                     key={d}
                     onClick={() => {
-                      const found = images.find(
-                        (img) => img.team === viewImage.team && img.day === d
+                      const found = screenshots?.find(
+                        (s) => s.team === viewMeta.team && s.day === d
                       );
-                      if (found) setViewImage(found);
-                      else toast.info(`${viewImage.team}チームの${d}のスクリーンショットは未登録です`);
+                      if (found) {
+                        setViewUrl(found.imageUrl);
+                        setViewMeta({ team: found.team, day: found.day, uploadedByName: found.uploadedByName, updatedAt: found.updatedAt });
+                      } else toast.info(`${viewMeta.team}チームの${d}のスクリーンショットは未登録です`);
                     }}
                     className={cn(
                       "text-xs px-2.5 py-1 rounded border transition-colors",
-                      viewImage.day === d
+                      viewMeta.day === d
                         ? "bg-primary text-white border-primary"
                         : "border-border text-muted-foreground hover:bg-muted"
                     )}
@@ -969,29 +1006,39 @@ function ToolsCard() {
           )}
         </div>
 
-        <Separator />
+      </CardContent>
+    </Card>
+  );
+}
 
-        {/* 外部リンク */}
-        <div className="space-y-1.5">
-          {externalLinks.map((link) => (
-            <a
-              key={link.label}
-              href={link.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-start gap-2.5 p-2.5 rounded-lg bg-muted/30 hover:bg-muted transition-colors group"
-            >
-              <span className="text-base flex-shrink-0 mt-0.5">{link.emoji}</span>
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-foreground group-hover:text-primary transition-colors truncate">
-                  {link.label}
-                </p>
-                <p className="text-[10px] text-muted-foreground truncate">{link.desc}</p>
-              </div>
-              <ExternalLink className="w-3 h-3 text-muted-foreground flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </a>
-          ))}
-        </div>
+function QuickLinksCard() {
+  return (
+    <Card className="fade-in-up stagger-4 shadow-sm">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <ExternalLink className="w-4 h-4 text-primary" />
+          AIツール・外部リンク
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-1.5">
+        {externalLinks.map((link) => (
+          <a
+            key={link.label}
+            href={link.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-start gap-2.5 p-2.5 rounded-lg bg-muted/30 hover:bg-muted transition-colors group"
+          >
+            <span className="text-base flex-shrink-0 mt-0.5">{link.emoji}</span>
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                {link.label}
+              </p>
+              <p className="text-[10px] text-muted-foreground truncate">{link.desc}</p>
+            </div>
+            <ExternalLink className="w-3 h-3 text-muted-foreground flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </a>
+        ))}
       </CardContent>
     </Card>
   );
@@ -1239,6 +1286,7 @@ export default function Dashboard() {
           <TasksCard />
           <MessageBoard title="申し送り" type="notice" />
           <MessageBoard title="メッセージ" type="message" />
+          <QuickLinksCard />
         </div>
       </div>
     </div>

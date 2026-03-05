@@ -1,8 +1,24 @@
-import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { GoogleAuth } from "google-auth-library";
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import {
+  getAllScreenshots,
+  getScreenshot,
+  upsertScreenshot,
+  deleteScreenshot,
+  deleteAllTodayScreenshots,
+  moveTomorrowToToday,
+  updateUserTeam,
+  getDb,
+} from "./db";
+import { storagePut } from "./storage";
+import { eq } from "drizzle-orm";
+import { users } from "../drizzle/schema";
+
+const COOKIE_NAME = "session";
 
 // Google Sheets API設定
 const SPREADSHEET_ID = "1rS_ZMccLCy-XcRxbxlhTfNwhaCesdX7DBSZggjQUH58";
@@ -241,6 +257,11 @@ async function getVisitData(): Promise<VisitData> {
   };
 }
 
+// ランダムサフィックス生成
+function randomSuffix(): string {
+  return Math.random().toString(36).substring(2, 10);
+}
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -263,6 +284,103 @@ export const appRouter = router({
         console.error("[Visits] Failed to fetch sheet data:", error);
         return null;
       }
+    }),
+  }),
+
+  // ユーザー設定
+  userSettings: router({
+    // 現在のユーザー情報（チーム含む）を取得
+    getMyTeam: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return { team: "身体" as const };
+      const result = await db.select({ team: users.team }).from(users).where(eq(users.id, ctx.user.id)).limit(1);
+      return { team: result[0]?.team ?? "身体" };
+    }),
+    // チームを更新
+    setMyTeam: protectedProcedure
+      .input(z.object({ team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]) }))
+      .mutation(async ({ ctx, input }) => {
+        await updateUserTeam(ctx.user.id, input.team);
+        return { success: true };
+      }),
+  }),
+
+  // スケジュールスクリーンショット
+  schedule: router({
+    // 全チーム・全日程のスクショ一覧を取得
+    getAll: publicProcedure.query(async () => {
+      const screenshots = await getAllScreenshots();
+      return screenshots.map((s) => ({
+        id: s.id,
+        team: s.team,
+        day: s.day,
+        imageUrl: s.imageUrl,
+        uploadedByName: s.uploadedByName,
+        updatedAt: s.updatedAt,
+      }));
+    }),
+
+    // スクショをアップロード（S3に保存してDBに記録）
+    upload: protectedProcedure
+      .input(
+        z.object({
+          team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]),
+          day: z.enum(["今日", "明日"]),
+          // base64エンコードされた画像データ（data:image/xxx;base64,... 形式）
+          imageDataUrl: z.string().max(20 * 1024 * 1024), // 最大20MB（base64）
+          mimeType: z.string().default("image/png"),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        // base64デコード
+        const base64Data = input.imageDataUrl.replace(/^data:image\/\w+;base64,/, "");
+        const buffer = Buffer.from(base64Data, "base64");
+
+        if (buffer.length > 10 * 1024 * 1024) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "ファイルサイズは10MB以下にしてください" });
+        }
+
+        // S3にアップロード
+        const ext = input.mimeType.split("/")[1] ?? "png";
+        const key = `schedule-screenshots/${input.team}-${input.day}-${randomSuffix()}.${ext}`;
+        const { url } = await storagePut(key, buffer, input.mimeType);
+
+        // 既存スクショのS3キーを取得（削除のため）
+        const existing = await getScreenshot(input.team, input.day);
+
+        // DBにアップサート
+        await upsertScreenshot({
+          team: input.team,
+          day: input.day,
+          imageUrl: url,
+          imageKey: key,
+          uploadedBy: ctx.user.id,
+          uploadedByName: ctx.user.name ?? "不明",
+        });
+
+        // 古いS3ファイルは削除しない（URLが変わるため古いURLは無効になる）
+
+        return { success: true, url };
+      }),
+
+    // スクショを削除
+    delete: protectedProcedure
+      .input(
+        z.object({
+          team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]),
+          day: z.enum(["今日", "明日"]),
+        })
+      )
+      .mutation(async ({ input }) => {
+        await deleteScreenshot(input.team, input.day);
+        return { success: true };
+      }),
+
+    // 23:59に実行: 今日を削除し、明日を今日に移動（管理者のみ、またはcronから呼び出し）
+    rotateDailyScreenshots: protectedProcedure.mutation(async () => {
+      await deleteAllTodayScreenshots();
+      await moveTomorrowToToday();
+      return { success: true };
     }),
   }),
 });

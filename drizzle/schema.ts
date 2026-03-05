@@ -17,6 +17,8 @@ export const users = mysqlTable("users", {
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  /** ユーザーが所属するチーム（デフォルト選択に使用） */
+  team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部"]).default("身体"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -25,4 +27,27 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+/**
+ * 訪問スケジュールスクリーンショットテーブル
+ * 各チーム・今日/明日のスクショをS3に保存し、そのURLをDBで管理する
+ */
+export const scheduleScreenshots = mysqlTable("schedule_screenshots", {
+  id: int("id").autoincrement().primaryKey(),
+  /** チーム名 */
+  team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部"]).notNull(),
+  /** 今日 or 明日 */
+  day: mysqlEnum("day", ["今日", "明日"]).notNull(),
+  /** S3に保存した画像のURL */
+  imageUrl: text("imageUrl").notNull(),
+  /** S3のキー（削除に使用） */
+  imageKey: varchar("imageKey", { length: 512 }).notNull(),
+  /** アップロードしたユーザーID */
+  uploadedBy: int("uploadedBy"),
+  /** アップロードしたユーザー名 */
+  uploadedByName: text("uploadedByName"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ScheduleScreenshot = typeof scheduleScreenshots.$inferSelect;
+export type InsertScheduleScreenshot = typeof scheduleScreenshots.$inferInsert;

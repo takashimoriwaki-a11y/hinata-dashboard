@@ -7,6 +7,7 @@ import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { deleteAllTodayScreenshots, moveTomorrowToToday } from "../db";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -63,3 +64,35 @@ async function startServer() {
 }
 
 startServer().catch(console.error);
+
+// ========== 毎日23:59に訪問スケジュールスクショをローテーション ==========
+// 「今日」のスクショを削除し、「明日」のスクショを「今日」に移動する
+function scheduleDailyRotation() {
+  const checkInterval = 60 * 1000; // 1分ごとにチェック
+  let lastRotatedDate = "";
+
+  setInterval(async () => {
+    const now = new Date();
+    const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000); // UTC+9（JST）
+    const h = jstNow.getUTCHours();
+    const m = jstNow.getUTCMinutes();
+    const dateStr = jstNow.toISOString().slice(0, 10);
+
+    // 23:59〜23:59（1分間）に実行（同じ日に1回だけ）
+    if (h === 23 && m === 59 && lastRotatedDate !== dateStr) {
+      lastRotatedDate = dateStr;
+      try {
+        console.log(`[ScheduleRotation] ${dateStr} 23:59 - 今日のスクショを削除し、明日を今日に移動します`);
+        await deleteAllTodayScreenshots();
+        await moveTomorrowToToday();
+        console.log(`[ScheduleRotation] 完了`);
+      } catch (e) {
+        console.error(`[ScheduleRotation] エラー:`, e);
+      }
+    }
+  }, checkInterval);
+
+  console.log("[ScheduleRotation] 毎日23:59のスクショローテーションスケジューラーを開始しました");
+}
+
+scheduleDailyRotation();
