@@ -82,3 +82,5 @@
   - [x] tRPC tasks.update ルーター追加
   - [x] Tasks.tsxにインライン編集UI追加
   - [x] テスト作成（16件合格）
+
+- [x] ダッシュボードリンクURL更新（NotebookLM・GeminiGems・Instagram）

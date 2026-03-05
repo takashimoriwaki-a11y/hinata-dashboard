@@ -98,7 +98,7 @@ const externalLinks = [
   {
     label: "NotebookLM — 就業規則・社内マニュアル",
     desc: "AIに質問して就業規則や社内ルールをすぐに確認できます",
-    href: "https://notebooklm.google.com/",
+    href: "https://notebooklm.google.com/notebook/4781c6de-6e18-456d-b557-a202c3b03747",
     emoji: "📓",
   },
   {
@@ -110,7 +110,7 @@ const externalLinks = [
   {
     label: "Gemini Gems — MSE看護記録作成サポーター",
     desc: "MSE形式の看護記録作成をAIがサポートします",
-    href: "https://gemini.google.com/gems",
+    href: "https://gemini.google.com/gem/1qqbO6BLZLj9IXwsOjYuePdyQn0QGkifV?usp=sharing",
     emoji: "💎",
   },
   {
