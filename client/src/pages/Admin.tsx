@@ -1,6 +1,6 @@
 /**
  * Admin - 管理画面
- * スプレッドシートURLの月次管理（翌月分の事前登録・一括インポート・当月分の確認・削除）
+ * スプレッドシートURLの月次管理 + 利用者マスタ管理
  */
 
 import { useState, useMemo } from "react";
@@ -9,11 +9,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2, ExternalLink, Settings, ClipboardPaste, CheckCircle2, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Plus, Trash2, ExternalLink, Settings, ClipboardPaste,
+  CheckCircle2, AlertCircle, ChevronDown, ChevronUp,
+  Users, Pencil, X, ChevronRight,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-// リンクの定義（linkKey・ラベル・色は固定）
+// ============================
+// スプレッドシートURL管理
+// ============================
+
 const LINK_DEFINITIONS = [
   { key: "fee_seishin_koriyama", label: "利用者料金一覧（精神郡山）", color: "text-emerald-600" },
   { key: "fee_shintai",          label: "利用者料金一覧（身体）",     color: "text-blue-600"    },
@@ -25,24 +32,24 @@ const LINK_DEFINITIONS = [
 
 type LinkKey = typeof LINK_DEFINITIONS[number]["key"];
 
-// YYYY-MM形式の年月文字列を生成するユーティリティ
+const TEAMS = ["身体", "天理", "郡山北部", "郡山南部"] as const;
+type Team = typeof TEAMS[number];
+
 function toYearMonth(year: number, month: number) {
   return `${year}-${String(month).padStart(2, "0")}`;
 }
 
-// 年月文字列を日本語表示に変換
 function formatYearMonth(ym: string) {
   const [y, m] = ym.split("-");
   return `${y}年${Number(m)}月`;
 }
 
-// テキストからURLを抽出するユーティリティ
 function extractUrls(text: string): string[] {
   const urlRegex = /https?:\/\/[^\s\n\r]+/g;
   return (text.match(urlRegex) ?? []).map((u) => u.replace(/[,;]+$/, "").trim());
 }
 
-// 一括インポートパネルコンポーネント
+// 一括インポートパネル
 function BulkImportPanel({
   selectedYearMonth,
   onSuccess,
@@ -54,7 +61,6 @@ function BulkImportPanel({
   const [pasteText, setPasteText] = useState("");
   const [isOpen, setIsOpen] = useState(false);
 
-  // テキストから抽出したURLをリンク定義に自動マッピング
   const parsedLinks = useMemo(() => {
     const urls = extractUrls(pasteText);
     return LINK_DEFINITIONS.map((def, idx) => ({
@@ -81,47 +87,27 @@ function BulkImportPanel({
 
   const handleImport = () => {
     const validLinks = parsedLinks.filter((l) => l.valid);
-    if (validLinks.length === 0) {
-      toast.error("有効なURLが見つかりませんでした");
-      return;
-    }
+    if (validLinks.length === 0) { toast.error("有効なURLが見つかりませんでした"); return; }
     batchUpsert.mutate({
       yearMonth: selectedYearMonth,
-      links: validLinks.map((l) => ({
-        linkKey: l.key,
-        label: l.label,
-        url: l.url,
-        color: l.color,
-      })),
+      links: validLinks.map((l) => ({ linkKey: l.key, label: l.label, url: l.url, color: l.color })),
     });
   };
 
   return (
     <Card className="shadow-sm border-primary/20 bg-primary/5">
-      <button
-        className="w-full text-left"
-        onClick={() => setIsOpen((v) => !v)}
-      >
+      <button className="w-full text-left" onClick={() => setIsOpen((v) => !v)}>
         <CardHeader className="pb-2 pt-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <ClipboardPaste className="w-4 h-4 text-primary" />
-              <CardTitle className="text-base font-semibold text-primary">
-                一括インポート
-              </CardTitle>
-              <Badge className="text-[10px] bg-primary/10 text-primary border-0 px-1.5 py-0">
-                月末の更新に便利
-              </Badge>
+              <CardTitle className="text-base font-semibold text-primary">一括インポート</CardTitle>
+              <Badge className="text-[10px] bg-primary/10 text-primary border-0 px-1.5 py-0">月末の更新に便利</Badge>
             </div>
-            {isOpen
-              ? <ChevronUp className="w-4 h-4 text-primary" />
-              : <ChevronDown className="w-4 h-4 text-primary" />
-            }
+            {isOpen ? <ChevronUp className="w-4 h-4 text-primary" /> : <ChevronDown className="w-4 h-4 text-primary" />}
           </div>
           {!isOpen && (
-            <p className="text-xs text-muted-foreground mt-1">
-              6つのURLをまとめて貼り付けて一括登録できます
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">6つのURLをまとめて貼り付けて一括登録できます</p>
           )}
         </CardHeader>
       </button>
@@ -129,31 +115,24 @@ function BulkImportPanel({
       {isOpen && (
         <CardContent className="space-y-4 pt-0">
           <div className="space-y-1.5">
-            <p className="text-xs text-muted-foreground">
-              スプレッドシートのURLを順番に貼り付けてください（上から順に自動割り当て）
-            </p>
+            <p className="text-xs text-muted-foreground">スプレッドシートのURLを順番に貼り付けてください（上から順に自動割り当て）</p>
             <div className="bg-white/80 rounded-md p-2.5 text-[11px] text-muted-foreground space-y-0.5 border border-border">
               {LINK_DEFINITIONS.map((def, i) => (
                 <p key={def.key}><span className="font-semibold text-foreground">{i + 1}.</span> {def.label}</p>
               ))}
             </div>
           </div>
-
-          <div>
-            <textarea
-              value={pasteText}
-              onChange={(e) => setPasteText(e.target.value)}
-              placeholder={"https://docs.google.com/spreadsheets/d/AAAA...\nhttps://docs.google.com/spreadsheets/d/BBBB...\nhttps://docs.google.com/spreadsheets/d/CCCC...\nhttps://docs.google.com/spreadsheets/d/DDDD...\nhttps://docs.google.com/spreadsheets/d/EEEE...\nhttps://docs.google.com/spreadsheets/d/FFFF..."}
-              rows={6}
-              className="w-full text-xs border border-border rounded-md px-3 py-2 bg-white focus:outline-none focus:border-primary font-mono resize-none"
-              autoFocus
-            />
-          </div>
-
-          {/* プレビュー */}
+          <textarea
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            placeholder={"https://docs.google.com/spreadsheets/d/AAAA...\nhttps://docs.google.com/spreadsheets/d/BBBB...\nhttps://docs.google.com/spreadsheets/d/CCCC...\nhttps://docs.google.com/spreadsheets/d/DDDD...\nhttps://docs.google.com/spreadsheets/d/EEEE...\nhttps://docs.google.com/spreadsheets/d/FFFF..."}
+            rows={6}
+            className="w-full text-xs border border-border rounded-md px-3 py-2 bg-white focus:outline-none focus:border-primary font-mono resize-none"
+            autoFocus
+          />
           {hasAnyUrl && (
             <div className="space-y-1.5">
-              <p className="text-xs font-semibold text-foreground">プレビュー（登録内容の確認）</p>
+              <p className="text-xs font-semibold text-foreground">プレビュー</p>
               <div className="space-y-1">
                 {parsedLinks.map((link) => (
                   <div key={link.key} className="flex items-start gap-2 text-xs">
@@ -177,31 +156,14 @@ function BulkImportPanel({
               </div>
             </div>
           )}
-
           <div className="flex items-center justify-between gap-3 pt-1">
             <p className="text-xs text-muted-foreground">
-              {validCount > 0 ? (
-                <span className="text-emerald-600 font-medium">{validCount}件</span>
-              ) : (
-                <span>0件</span>
-              )}
+              {validCount > 0 ? <span className="text-emerald-600 font-medium">{validCount}件</span> : <span>0件</span>}
               {" "}のURLが登録されます
             </p>
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs"
-                onClick={() => { setPasteText(""); setIsOpen(false); }}
-              >
-                キャンセル
-              </Button>
-              <Button
-                size="sm"
-                className="h-8 text-xs"
-                onClick={handleImport}
-                disabled={validCount === 0 || batchUpsert.isPending}
-              >
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setPasteText(""); setIsOpen(false); }}>キャンセル</Button>
+              <Button size="sm" className="h-8 text-xs" onClick={handleImport} disabled={validCount === 0 || batchUpsert.isPending}>
                 {batchUpsert.isPending ? "登録中..." : `${validCount}件を一括登録`}
               </Button>
             </div>
@@ -212,13 +174,399 @@ function BulkImportPanel({
   );
 }
 
+// ============================
+// 利用者マスタ管理パネル
+// ============================
+
+function PatientMasterPanel() {
+  const utils = trpc.useUtils();
+
+  // 全利用者取得
+  const { data: allPatients, isLoading } = trpc.patients.list.useQuery({});
+
+  // フィルター
+  const [filterTeam, setFilterTeam] = useState<Team | "全て">("全て");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // 個別追加フォーム
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [addName, setAddName] = useState("");
+  const [addKana, setAddKana] = useState("");
+  const [addTeam, setAddTeam] = useState<Team>("身体");
+
+  // 一括登録パネル
+  const [showBulkPanel, setShowBulkPanel] = useState(false);
+  const [bulkText, setBulkText] = useState("");
+  const [bulkTeam, setBulkTeam] = useState<Team>("身体");
+
+  // 編集中
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editKana, setEditKana] = useState("");
+  const [editTeam, setEditTeam] = useState<Team>("身体");
+
+  // 一括登録のパース（1行1名前）
+  const bulkParsed = useMemo(() => {
+    return bulkText
+      .split(/[\n,、，]/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0 && s.length <= 100);
+  }, [bulkText]);
+
+  // フィルター済みリスト
+  const filteredPatients = useMemo(() => {
+    if (!allPatients) return [];
+    return allPatients.filter((p) => {
+      const teamOk = filterTeam === "全て" || p.team === filterTeam;
+      const nameOk = !searchQuery || p.name.includes(searchQuery) || (p.nameKana ?? "").includes(searchQuery);
+      return teamOk && nameOk;
+    });
+  }, [allPatients, filterTeam, searchQuery]);
+
+  // チーム別件数
+  const teamCounts = useMemo(() => {
+    if (!allPatients) return {} as Record<string, number>;
+    const counts: Record<string, number> = { 全て: allPatients.length };
+    for (const t of TEAMS) counts[t] = allPatients.filter((p) => p.team === t).length;
+    return counts;
+  }, [allPatients]);
+
+  // Mutations
+  const createPatient = trpc.patients.create.useMutation({
+    onSuccess: () => {
+      utils.patients.list.invalidate();
+      toast.success("利用者を追加しました");
+      setAddName(""); setAddKana(""); setShowAddForm(false);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const batchCreate = trpc.patients.batchCreate.useMutation({
+    onSuccess: (data) => {
+      utils.patients.list.invalidate();
+      toast.success(`${data.count}名の利用者を一括登録しました`);
+      setBulkText(""); setShowBulkPanel(false);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const updatePatient = trpc.patients.update.useMutation({
+    onSuccess: () => {
+      utils.patients.list.invalidate();
+      toast.success("利用者情報を更新しました");
+      setEditingId(null);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const deactivatePatient = trpc.patients.deactivate.useMutation({
+    onSuccess: () => {
+      utils.patients.list.invalidate();
+      toast.success("利用者を削除しました");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleAdd = () => {
+    if (!addName.trim()) { toast.error("名前を入力してください"); return; }
+    createPatient.mutate({ name: addName.trim(), nameKana: addKana.trim() || undefined, team: addTeam });
+  };
+
+  const handleBatchCreate = () => {
+    if (bulkParsed.length === 0) { toast.error("名前を入力してください"); return; }
+    batchCreate.mutate({ patients: bulkParsed.map((name) => ({ name, team: bulkTeam })) });
+  };
+
+  const handleEditStart = (p: { id: number; name: string; nameKana?: string | null; team: string }) => {
+    setEditingId(p.id);
+    setEditName(p.name);
+    setEditKana(p.nameKana ?? "");
+    setEditTeam(p.team as Team);
+  };
+
+  const handleEditSave = () => {
+    if (!editName.trim() || editingId === null) return;
+    updatePatient.mutate({ id: editingId, name: editName.trim(), nameKana: editKana.trim() || undefined, team: editTeam });
+  };
+
+  return (
+    <Card className="shadow-sm">
+      <CardHeader className="pb-2 pt-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-primary" />
+            <CardTitle className="text-base font-semibold">利用者マスタ管理</CardTitle>
+            <Badge variant="outline" className="text-xs">{allPatients?.length ?? 0}名</Badge>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1"
+              onClick={() => { setShowBulkPanel((v) => !v); setShowAddForm(false); }}
+            >
+              <ClipboardPaste className="w-3.5 h-3.5" />
+              一括登録
+            </Button>
+            <Button
+              size="sm"
+              className="h-8 text-xs gap-1"
+              onClick={() => { setShowAddForm((v) => !v); setShowBulkPanel(false); }}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              追加
+            </Button>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          記録入力時に選択できる利用者の一覧を管理します。
+        </p>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {/* 一括登録パネル */}
+        {showBulkPanel && (
+          <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-primary">一括登録</p>
+              <button onClick={() => setShowBulkPanel(false)}><X className="w-4 h-4 text-muted-foreground" /></button>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-foreground">チーム</label>
+              <div className="flex flex-wrap gap-1.5">
+                {TEAMS.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setBulkTeam(t)}
+                    className={cn(
+                      "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
+                      bulkTeam === t ? "bg-primary text-white border-primary" : "bg-white text-foreground border-border hover:border-primary"
+                    )}
+                  >{t}</button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground">
+                利用者名（1行1名、またはカンマ区切り）
+              </label>
+              <textarea
+                value={bulkText}
+                onChange={(e) => setBulkText(e.target.value)}
+                placeholder={"田中 花子\n鈴木 一郎\n佐藤 美咲\n山田 太郎"}
+                rows={6}
+                className="w-full text-sm border border-border rounded-md px-3 py-2 bg-white focus:outline-none focus:border-primary resize-none"
+                autoFocus
+              />
+              {bulkParsed.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  <span className="text-emerald-600 font-medium">{bulkParsed.length}名</span>を登録します
+                </p>
+              )}
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setBulkText(""); setShowBulkPanel(false); }}>キャンセル</Button>
+              <Button size="sm" className="h-8 text-xs" onClick={handleBatchCreate} disabled={bulkParsed.length === 0 || batchCreate.isPending}>
+                {batchCreate.isPending ? "登録中..." : `${bulkParsed.length}名を一括登録`}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* 個別追加フォーム */}
+        {showAddForm && (
+          <div className="bg-muted/30 border border-border rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold">利用者を追加</p>
+              <button onClick={() => setShowAddForm(false)}><X className="w-4 h-4 text-muted-foreground" /></button>
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-foreground">名前 <span className="text-destructive">*</span></label>
+                <input
+                  type="text"
+                  value={addName}
+                  onChange={(e) => setAddName(e.target.value)}
+                  placeholder="田中 花子"
+                  className="w-full text-sm border border-border rounded-md px-3 py-1.5 bg-white focus:outline-none focus:border-primary"
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-foreground">ふりがな（任意）</label>
+                <input
+                  type="text"
+                  value={addKana}
+                  onChange={(e) => setAddKana(e.target.value)}
+                  placeholder="たなか はなこ"
+                  className="w-full text-sm border border-border rounded-md px-3 py-1.5 bg-white focus:outline-none focus:border-primary"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-foreground">チーム <span className="text-destructive">*</span></label>
+                <div className="flex flex-wrap gap-1.5">
+                  {TEAMS.map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setAddTeam(t)}
+                      className={cn(
+                        "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
+                        addTeam === t ? "bg-primary text-white border-primary" : "bg-white text-foreground border-border hover:border-primary"
+                      )}
+                    >{t}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setAddName(""); setAddKana(""); setShowAddForm(false); }}>キャンセル</Button>
+              <Button size="sm" className="h-8 text-xs" onClick={handleAdd} disabled={!addName.trim() || createPatient.isPending}>
+                {createPatient.isPending ? "追加中..." : "追加"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* チームフィルター */}
+        <div className="flex flex-wrap gap-1.5">
+          {(["全て", ...TEAMS] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setFilterTeam(t)}
+              className={cn(
+                "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
+                filterTeam === t
+                  ? "bg-primary text-white border-primary"
+                  : "bg-white text-foreground border-border hover:border-primary hover:text-primary"
+              )}
+            >
+              {t}
+              <span className="ml-1 opacity-70">({teamCounts[t] ?? 0})</span>
+            </button>
+          ))}
+        </div>
+
+        {/* 名前検索 */}
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="名前で検索..."
+          className="w-full text-sm border border-border rounded-md px-3 py-1.5 bg-white focus:outline-none focus:border-primary"
+        />
+
+        {/* 利用者リスト */}
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground text-center py-4">読み込み中...</p>
+        ) : filteredPatients.length === 0 ? (
+          <div className="text-center py-8 space-y-2">
+            <Users className="w-8 h-8 text-muted-foreground/40 mx-auto" />
+            <p className="text-sm text-muted-foreground">
+              {allPatients?.length === 0 ? "利用者が登録されていません" : "該当する利用者がいません"}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {filteredPatients.map((p, idx) => {
+              const isEditing = editingId === p.id;
+              return (
+                <div key={p.id}>
+                  {idx > 0 && <Separator className="my-1" />}
+                  {isEditing ? (
+                    // 編集フォーム
+                    <div className="bg-muted/30 rounded-lg p-3 space-y-2">
+                      <div className="grid grid-cols-1 gap-2">
+                        <input
+                          type="text"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          className="text-sm border border-border rounded-md px-3 py-1.5 bg-white focus:outline-none focus:border-primary"
+                          autoFocus
+                        />
+                        <input
+                          type="text"
+                          value={editKana}
+                          onChange={(e) => setEditKana(e.target.value)}
+                          placeholder="ふりがな（任意）"
+                          className="text-sm border border-border rounded-md px-3 py-1.5 bg-white focus:outline-none focus:border-primary"
+                        />
+                        <div className="flex flex-wrap gap-1.5">
+                          {TEAMS.map((t) => (
+                            <button
+                              key={t}
+                              onClick={() => setEditTeam(t)}
+                              className={cn(
+                                "px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors",
+                                editTeam === t ? "bg-primary text-white border-primary" : "bg-white text-foreground border-border hover:border-primary"
+                              )}
+                            >{t}</button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setEditingId(null)}>キャンセル</Button>
+                        <Button size="sm" className="h-7 text-xs" onClick={handleEditSave} disabled={!editName.trim() || updatePatient.isPending}>
+                          {updatePatient.isPending ? "保存中..." : "保存"}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    // 通常表示
+                    <div className="flex items-center justify-between py-1.5 px-1 rounded-lg hover:bg-muted/30 group transition-colors">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{p.name}</p>
+                        {p.nameKana && (
+                          <p className="text-xs text-muted-foreground">{p.nameKana}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Badge variant="outline" className={cn(
+                          "text-[10px] px-1.5 py-0",
+                          p.team === "身体" && "border-blue-300 text-blue-600",
+                          p.team === "天理" && "border-purple-300 text-purple-600",
+                          p.team === "郡山北部" && "border-emerald-300 text-emerald-600",
+                          p.team === "郡山南部" && "border-orange-300 text-orange-600",
+                        )}>{p.team}</Badge>
+                        <button
+                          onClick={() => handleEditStart(p)}
+                          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary transition-opacity p-1"
+                          title="編集"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm(`「${p.name}」を削除しますか？`)) {
+                              deactivatePatient.mutate({ id: p.id });
+                            }
+                          }}
+                          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity p-1"
+                          title="削除"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============================
+// メイン管理画面
+// ============================
+
 export default function Admin() {
   const utils = trpc.useUtils();
 
-  // 全リンクを取得
   const { data: allLinks, isLoading } = trpc.spreadsheetLinks.getAll.useQuery();
 
-  // upsert mutation
   const upsertLink = trpc.spreadsheetLinks.upsert.useMutation({
     onSuccess: () => {
       utils.spreadsheetLinks.getAll.invalidate();
@@ -230,7 +578,6 @@ export default function Admin() {
     onError: (e) => toast.error(e.message),
   });
 
-  // delete mutation
   const deleteLink = trpc.spreadsheetLinks.delete.useMutation({
     onSuccess: () => {
       utils.spreadsheetLinks.getAll.invalidate();
@@ -240,53 +587,34 @@ export default function Admin() {
     onError: (e) => toast.error(e.message),
   });
 
-  // 編集中のリンクキーとURL
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editUrl, setEditUrl] = useState("");
 
-  // 登録フォームの年月（デフォルト: 翌月）
   const now = new Date();
   const nextMonthYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
   const nextMonthMonth = now.getMonth() === 11 ? 1 : now.getMonth() + 2;
   const [selectedYear, setSelectedYear] = useState(nextMonthYear);
   const [selectedMonth, setSelectedMonth] = useState(nextMonthMonth);
   const selectedYearMonth = toYearMonth(selectedYear, selectedMonth);
-
-  // 現在の年月
   const currentYearMonth = toYearMonth(now.getFullYear(), now.getMonth() + 1);
 
-  // 選択中年月のリンクをlinkKeyでマップ化
   const selectedLinks = useMemo(() => {
     if (!allLinks) return {} as Record<string, { id: number; url: string }>;
     return Object.fromEntries(
-      allLinks
-        .filter((l) => l.yearMonth === selectedYearMonth)
-        .map((l) => [l.linkKey, { id: l.id, url: l.url }])
+      allLinks.filter((l) => l.yearMonth === selectedYearMonth).map((l) => [l.linkKey, { id: l.id, url: l.url }])
     );
   }, [allLinks, selectedYearMonth]);
 
-  // 登録済み年月の一覧（管理済み月一覧表示用）
   const registeredMonths = useMemo(() => {
     if (!allLinks) return [];
-    const months = Array.from(new Set(allLinks.map((l) => l.yearMonth))).sort().reverse();
-    return months;
+    return Array.from(new Set(allLinks.map((l) => l.yearMonth))).sort().reverse();
   }, [allLinks]);
 
   const handleSave = (linkKey: string, label: string, color: string) => {
-    if (!editUrl.trim()) {
-      toast.error("URLを入力してください");
-      return;
-    }
-    upsertLink.mutate({
-      linkKey,
-      label,
-      yearMonth: selectedYearMonth,
-      url: editUrl.trim(),
-      color,
-    });
+    if (!editUrl.trim()) { toast.error("URLを入力してください"); return; }
+    upsertLink.mutate({ linkKey, label, yearMonth: selectedYearMonth, url: editUrl.trim(), color });
   };
 
-  // 年月選択用の選択肢（現在月〜12ヶ月先）
   const monthOptions = useMemo(() => {
     const opts = [];
     for (let i = 0; i <= 12; i++) {
@@ -302,6 +630,9 @@ export default function Admin() {
     return opts;
   }, []);
 
+  // セクション切り替え
+  const [activeSection, setActiveSection] = useState<"sheets" | "patients">("sheets");
+
   return (
     <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6">
       {/* ページヘッダー */}
@@ -311,236 +642,219 @@ export default function Admin() {
         </div>
         <div>
           <h1 className="text-xl font-bold text-foreground">管理画面</h1>
-          <p className="text-sm text-muted-foreground">スプレッドシートURLの月次管理</p>
+          <p className="text-sm text-muted-foreground">スプレッドシートURL管理・利用者マスタ管理</p>
         </div>
       </div>
 
-      {/* 月選択 */}
-      <Card className="shadow-sm">
-        <CardHeader className="pb-2 pt-4">
-          <CardTitle className="text-base font-semibold">対象月を選択</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {monthOptions.map((opt) => (
-              <button
-                key={opt.ym}
-                onClick={() => {
-                  setSelectedYear(opt.year);
-                  setSelectedMonth(opt.month);
-                  setEditingKey(null);
-                  setEditUrl("");
-                }}
-                className={cn(
-                  "px-3 py-1.5 rounded-full text-sm font-medium border transition-colors",
-                  selectedYearMonth === opt.ym
-                    ? "bg-primary text-white border-primary"
-                    : "bg-white text-foreground border-border hover:border-primary hover:text-primary"
-                )}
-              >
-                {opt.label}
-                {opt.isCurrent && (
-                  <span className="ml-1 text-[10px] opacity-70">（今月）</span>
-                )}
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 一括インポートパネル */}
-      <BulkImportPanel
-        selectedYearMonth={selectedYearMonth}
-        onSuccess={() => {
-          setEditingKey(null);
-          setEditUrl("");
-        }}
-      />
-
-      {/* リンク一覧・個別登録フォーム */}
-      <Card className="shadow-sm">
-        <CardHeader className="pb-2 pt-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold">
-              {formatYearMonth(selectedYearMonth)} のスプレッドシートURL
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              {selectedYearMonth === currentYearMonth && (
-                <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700">今月</Badge>
-              )}
-              {selectedYearMonth > currentYearMonth && (
-                <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">翌月以降</Badge>
-              )}
-              <Badge variant="outline" className="text-xs">
-                {Object.keys(selectedLinks).length} / {LINK_DEFINITIONS.length} 件登録済み
-              </Badge>
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            URLを登録すると、{formatYearMonth(selectedYearMonth)}になった時点でダッシュボードに自動反映されます。
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">読み込み中...</p>
-          ) : (
-            LINK_DEFINITIONS.map((def, idx) => {
-              const registered = selectedLinks[def.key];
-              const isEditing = editingKey === `${def.key}-${selectedYearMonth}`;
-              return (
-                <div key={def.key}>
-                  {idx > 0 && <Separator className="my-2" />}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        {registered ? (
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                        ) : (
-                          <div className="w-3.5 h-3.5 rounded-full border border-muted-foreground/30 flex-shrink-0" />
-                        )}
-                        <p className={cn("text-sm font-medium truncate", def.color)}>{def.label}</p>
-                      </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        {registered ? (
-                          <>
-                            <a
-                              href={registered.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-muted-foreground hover:text-primary flex items-center gap-0.5"
-                              title="開く"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                            </a>
-                            <button
-                              onClick={() => {
-                                if (isEditing) {
-                                  setEditingKey(null);
-                                  setEditUrl("");
-                                } else {
-                                  setEditingKey(`${def.key}-${selectedYearMonth}`);
-                                  setEditUrl(registered.url);
-                                }
-                              }}
-                              className="text-xs text-muted-foreground hover:text-primary px-1.5 py-0.5 rounded border border-border hover:border-primary transition-colors"
-                            >
-                              {isEditing ? "閉じる" : "編集"}
-                            </button>
-                            <button
-                              onClick={() => deleteLink.mutate({ id: registered.id })}
-                              className="text-muted-foreground hover:text-destructive p-1"
-                              title="削除"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              if (isEditing) {
-                                setEditingKey(null);
-                                setEditUrl("");
-                              } else {
-                                setEditingKey(`${def.key}-${selectedYearMonth}`);
-                                setEditUrl("");
-                              }
-                            }}
-                            className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 px-2 py-0.5 rounded border border-primary/30 hover:border-primary transition-colors"
-                          >
-                            <Plus className="w-3 h-3" />
-                            URL登録
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* 登録済みURL表示 */}
-                    {registered && !isEditing && (
-                      <p className="text-xs text-muted-foreground truncate pl-5 font-mono">
-                        {registered.url}
-                      </p>
-                    )}
-
-                    {/* 編集・新規登録フォーム */}
-                    {isEditing && (
-                      <div className="flex gap-2 mt-1 pl-5">
-                        <input
-                          type="url"
-                          placeholder="https://docs.google.com/spreadsheets/d/..."
-                          value={editUrl}
-                          onChange={(e) => setEditUrl(e.target.value)}
-                          className="flex-1 text-xs border border-border rounded px-2 py-1.5 bg-white focus:outline-none focus:border-primary"
-                          autoFocus
-                        />
-                        <Button
-                          size="sm"
-                          className="h-7 text-xs px-3 flex-shrink-0"
-                          onClick={() => handleSave(def.key, def.label, def.color)}
-                          disabled={upsertLink.isPending}
-                        >
-                          保存
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })
+      {/* セクションタブ */}
+      <div className="flex gap-2 border-b border-border">
+        <button
+          onClick={() => setActiveSection("sheets")}
+          className={cn(
+            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
+            activeSection === "sheets"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
           )}
-        </CardContent>
-      </Card>
+        >
+          スプレッドシートURL
+        </button>
+        <button
+          onClick={() => setActiveSection("patients")}
+          className={cn(
+            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
+            activeSection === "patients"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          )}
+        >
+          利用者マスタ
+        </button>
+      </div>
 
-      {/* 登録済み月の概要 */}
-      {registeredMonths.length > 0 && (
-        <Card className="shadow-sm">
-          <CardHeader className="pb-2 pt-4">
-            <CardTitle className="text-base font-semibold">登録済み月の一覧</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              {registeredMonths.map((ym) => {
-                const count = allLinks?.filter((l) => l.yearMonth === ym).length ?? 0;
-                const isCurrent = ym === currentYearMonth;
-                const isComplete = count === LINK_DEFINITIONS.length;
-                return (
-                  <div
-                    key={ym}
-                    className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                    onClick={() => {
-                      const [y, m] = ym.split("-").map(Number);
-                      setSelectedYear(y);
-                      setSelectedMonth(m);
-                      setEditingKey(null);
-                      setEditUrl("");
-                      window.scrollTo({ top: 0, behavior: "smooth" });
-                    }}
+      {/* スプレッドシートURLセクション */}
+      {activeSection === "sheets" && (
+        <>
+          {/* 月選択 */}
+          <Card className="shadow-sm">
+            <CardHeader className="pb-2 pt-4">
+              <CardTitle className="text-base font-semibold">対象月を選択</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {monthOptions.map((opt) => (
+                  <button
+                    key={opt.ym}
+                    onClick={() => { setSelectedYear(opt.year); setSelectedMonth(opt.month); setEditingKey(null); setEditUrl(""); }}
+                    className={cn(
+                      "px-3 py-1.5 rounded-full text-sm font-medium border transition-colors",
+                      selectedYearMonth === opt.ym
+                        ? "bg-primary text-white border-primary"
+                        : "bg-white text-foreground border-border hover:border-primary hover:text-primary"
+                    )}
                   >
-                    <div className="flex items-center gap-2">
-                      {isComplete
-                        ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                        : <div className="w-3.5 h-3.5 rounded-full border border-amber-400" />
-                      }
-                      <span className="text-sm font-medium">{formatYearMonth(ym)}</span>
-                      {isCurrent && (
-                        <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0">今月</Badge>
-                      )}
-                      {ym > currentYearMonth && (
-                        <Badge variant="secondary" className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0">翌月以降</Badge>
-                      )}
+                    {opt.label}
+                    {opt.isCurrent && <span className="ml-1 text-[10px] opacity-70">（今月）</span>}
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 一括インポートパネル */}
+          <BulkImportPanel
+            selectedYearMonth={selectedYearMonth}
+            onSuccess={() => { setEditingKey(null); setEditUrl(""); }}
+          />
+
+          {/* リンク一覧・個別登録フォーム */}
+          <Card className="shadow-sm">
+            <CardHeader className="pb-2 pt-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold">
+                  {formatYearMonth(selectedYearMonth)} のスプレッドシートURL
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  {selectedYearMonth === currentYearMonth && (
+                    <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700">今月</Badge>
+                  )}
+                  {selectedYearMonth > currentYearMonth && (
+                    <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">翌月以降</Badge>
+                  )}
+                  <Badge variant="outline" className="text-xs">
+                    {Object.keys(selectedLinks).length} / {LINK_DEFINITIONS.length} 件登録済み
+                  </Badge>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                URLを登録すると、{formatYearMonth(selectedYearMonth)}になった時点でダッシュボードに自動反映されます。
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {isLoading ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">読み込み中...</p>
+              ) : (
+                LINK_DEFINITIONS.map((def, idx) => {
+                  const registered = selectedLinks[def.key];
+                  const isEditing = editingKey === `${def.key}-${selectedYearMonth}`;
+                  return (
+                    <div key={def.key}>
+                      {idx > 0 && <Separator className="my-2" />}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {registered ? (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                            ) : (
+                              <div className="w-3.5 h-3.5 rounded-full border border-muted-foreground/30 flex-shrink-0" />
+                            )}
+                            <p className={cn("text-sm font-medium truncate", def.color)}>{def.label}</p>
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            {registered ? (
+                              <>
+                                <a href={registered.url} target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-primary flex items-center gap-0.5" title="開く">
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                </a>
+                                <button
+                                  onClick={() => {
+                                    if (isEditing) { setEditingKey(null); setEditUrl(""); }
+                                    else { setEditingKey(`${def.key}-${selectedYearMonth}`); setEditUrl(registered.url); }
+                                  }}
+                                  className="text-xs text-muted-foreground hover:text-primary px-1.5 py-0.5 rounded border border-border hover:border-primary transition-colors"
+                                >
+                                  {isEditing ? "閉じる" : "編集"}
+                                </button>
+                                <button onClick={() => deleteLink.mutate({ id: registered.id })} className="text-muted-foreground hover:text-destructive p-1" title="削除">
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  if (isEditing) { setEditingKey(null); setEditUrl(""); }
+                                  else { setEditingKey(`${def.key}-${selectedYearMonth}`); setEditUrl(""); }
+                                }}
+                                className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 px-2 py-0.5 rounded border border-primary/30 hover:border-primary transition-colors"
+                              >
+                                <Plus className="w-3 h-3" />
+                                URL登録
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        {registered && !isEditing && (
+                          <p className="text-xs text-muted-foreground truncate pl-5 font-mono">{registered.url}</p>
+                        )}
+                        {isEditing && (
+                          <div className="flex gap-2 mt-1 pl-5">
+                            <input
+                              type="url"
+                              placeholder="https://docs.google.com/spreadsheets/d/..."
+                              value={editUrl}
+                              onChange={(e) => setEditUrl(e.target.value)}
+                              className="flex-1 text-xs border border-border rounded px-2 py-1.5 bg-white focus:outline-none focus:border-primary"
+                              autoFocus
+                            />
+                            <Button size="sm" className="h-7 text-xs px-3 flex-shrink-0" onClick={() => handleSave(def.key, def.label, def.color)} disabled={upsertLink.isPending}>
+                              保存
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <span className={cn(
-                      "text-xs font-medium",
-                      isComplete ? "text-emerald-600" : "text-amber-600"
-                    )}>
-                      {count} / {LINK_DEFINITIONS.length} 件
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+                  );
+                })
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 登録済み月の概要 */}
+          {registeredMonths.length > 0 && (
+            <Card className="shadow-sm">
+              <CardHeader className="pb-2 pt-4">
+                <CardTitle className="text-base font-semibold">登録済み月の一覧</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1">
+                  {registeredMonths.map((ym) => {
+                    const count = allLinks?.filter((l) => l.yearMonth === ym).length ?? 0;
+                    const isCurrent = ym === currentYearMonth;
+                    const isComplete = count === LINK_DEFINITIONS.length;
+                    return (
+                      <div
+                        key={ym}
+                        className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                        onClick={() => {
+                          const [y, m] = ym.split("-").map(Number);
+                          setSelectedYear(y); setSelectedMonth(m); setEditingKey(null); setEditUrl("");
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }}
+                      >
+                        <div className="flex items-center gap-2">
+                          {isComplete
+                            ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                            : <div className="w-3.5 h-3.5 rounded-full border border-amber-400" />
+                          }
+                          <span className="text-sm font-medium">{formatYearMonth(ym)}</span>
+                          {isCurrent && <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0">今月</Badge>}
+                          {ym > currentYearMonth && <Badge variant="secondary" className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0">翌月以降</Badge>}
+                        </div>
+                        <span className={cn("text-xs font-medium", isComplete ? "text-emerald-600" : "text-amber-600")}>
+                          {count} / {LINK_DEFINITIONS.length} 件
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
+
+      {/* 利用者マスタセクション */}
+      {activeSection === "patients" && <PatientMasterPanel />}
     </div>
   );
 }

@@ -756,6 +756,22 @@ export const appRouter = router({
         await deactivatePatient(input.id);
         return { success: true };
       }),
+
+    // 利用者を一括登録
+    batchCreate: protectedProcedure
+      .input(z.object({
+        patients: z.array(z.object({
+          name: z.string().min(1).max(100),
+          nameKana: z.string().max(100).optional(),
+          team: z.enum(["\u8eab\u4f53", "\u5929\u7406", "\u90e1\u5c71\u5317\u90e8", "\u90e1\u5c71\u5357\u90e8"]),
+        })).min(1).max(100),
+      }))
+      .mutation(async ({ input }) => {
+        const results = await Promise.all(
+          input.patients.map(p => createPatient({ name: p.name, nameKana: p.nameKana, team: p.team, active: 1 }))
+        );
+        return { success: true, count: results.length };
+      }),
   }),
 
   // ========== 訪問記録 ==========
