@@ -92,7 +92,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         {(!collapsed || mobile) && (
           <div className="overflow-hidden flex flex-col gap-0.5">
             <p className="text-[9px] text-sidebar-foreground/50 leading-tight">こころの訪問看護ステーション</p>
-            <img src={LOGO_TEXT_URL} alt="ひなた" className="h-5 object-contain object-left" />
+            <span className="text-base font-bold text-sidebar-foreground leading-tight tracking-wide">ひなた</span>
           </div>
         )}
         {mobile && (
