@@ -1,6 +1,6 @@
 import { and, eq, or, isNull, desc, lte, gte, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot, myLinks, InsertMyLink, spreadsheetLinks, InsertSpreadsheetLink, tasks, InsertTask, messages, InsertMessage, messageReactions, InsertMessageReaction } from "../drizzle/schema";
+import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot, myLinks, InsertMyLink, spreadsheetLinks, InsertSpreadsheetLink, tasks, InsertTask, messages, InsertMessage, messageReactions, InsertMessageReaction, patients, InsertPatient, visitRecords, InsertVisitRecord } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -533,4 +533,106 @@ export async function getTodayDueTasks() {
       )
     )
     .orderBy(tasks.dueDate);
+}
+
+// ========== 利用者（患者）管理 ==========
+
+/** 全利用者を取得する（有効なもののみ） */
+export async function getPatients(team?: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(patients.active, 1)];
+  if (team) {
+    conditions.push(eq(patients.team, team as any));
+  }
+  return db
+    .select()
+    .from(patients)
+    .where(and(...conditions))
+    .orderBy(patients.team, patients.name);
+}
+
+/** 利用者を名前で検索する */
+export async function searchPatients(query: string, team?: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const { like } = await import("drizzle-orm");
+  const conditions: any[] = [eq(patients.active, 1)];
+  if (team) conditions.push(eq(patients.team, team as any));
+  if (query) {
+    conditions.push(
+      or(
+        like(patients.name, `%${query}%`),
+        like(patients.nameKana, `%${query}%`)
+      )
+    );
+  }
+  return db
+    .select()
+    .from(patients)
+    .where(and(...conditions))
+    .orderBy(patients.team, patients.name)
+    .limit(20);
+}
+
+/** 利用者を追加する */
+export async function createPatient(data: InsertPatient) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(patients).values(data);
+  return (result as any)[0]?.insertId ?? 0;
+}
+
+/** 利用者を更新する */
+export async function updatePatient(id: number, data: Partial<Pick<InsertPatient, "name" | "nameKana" | "team" | "active">>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(patients).set({ ...data, updatedAt: new Date() }).where(eq(patients.id, id));
+}
+
+/** 利用者を削除する（論理削除） */
+export async function deactivatePatient(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(patients).set({ active: 0, updatedAt: new Date() }).where(eq(patients.id, id));
+}
+
+// ========== 訪問記録 ==========
+
+/** 訪問記録を作成する */
+export async function createVisitRecord(data: InsertVisitRecord) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(visitRecords).values(data);
+  return (result as any)[0]?.insertId ?? 0;
+}
+
+/** 訪問記録一覧を取得する */
+export async function getVisitRecords(userId?: number, patientId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions: any[] = [];
+  if (userId) conditions.push(eq(visitRecords.createdBy, userId));
+  if (patientId) conditions.push(eq(visitRecords.patientId, patientId));
+  return db
+    .select()
+    .from(visitRecords)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(visitRecords.createdAt))
+    .limit(50);
+}
+
+/** 訪問記録をIDで取得する */
+export async function getVisitRecordById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(visitRecords).where(eq(visitRecords.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+/** スプレッドシート転送済みフラグを更新する */
+export async function markVisitRecordExported(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(visitRecords).set({ exportedAt: new Date() }).where(eq(visitRecords.id, id));
 }

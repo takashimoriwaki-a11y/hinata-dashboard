@@ -35,6 +35,15 @@ import {
   toggleReaction,
   getReactionsByMessageIds,
   expireMessages,
+  getPatients,
+  searchPatients,
+  createPatient,
+  updatePatient,
+  deactivatePatient,
+  createVisitRecord,
+  getVisitRecords,
+  getVisitRecordById,
+  markVisitRecordExported,
 } from "./db";
 import { storagePut } from "./storage";
 import { eq } from "drizzle-orm";
@@ -696,6 +705,154 @@ export const appRouter = router({
           input.emoji
         );
         return result;
+      }),
+  }),
+  // ========== 利用者管理 ==========
+  patients: router({
+    // 利用者一覧を取得（チーム絞り込み可）
+    list: protectedProcedure
+      .input(z.object({ team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]).optional() }))
+      .query(async ({ input }) => {
+        return getPatients(input.team);
+      }),
+
+    // 利用者を名前で検索
+    search: protectedProcedure
+      .input(z.object({ query: z.string(), team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]).optional() }))
+      .query(async ({ input }) => {
+        return searchPatients(input.query, input.team);
+      }),
+
+    // 利用者を追加（管理者のみ）
+    create: protectedProcedure
+      .input(z.object({
+        name: z.string().min(1).max(100),
+        nameKana: z.string().max(100).optional(),
+        team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]),
+      }))
+      .mutation(async ({ input }) => {
+        const id = await createPatient({ name: input.name, nameKana: input.nameKana, team: input.team, active: 1 });
+        return { success: true, id };
+      }),
+
+    // 利用者を更新
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().min(1).max(100).optional(),
+        nameKana: z.string().max(100).optional(),
+        team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        await updatePatient(id, data);
+        return { success: true };
+      }),
+
+    // 利用者を無効化（退所等）
+    deactivate: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await deactivatePatient(input.id);
+        return { success: true };
+      }),
+  }),
+
+  // ========== 訪問記録 ==========
+  visitRecords: router({
+    // 訪問記録を作成する
+    create: protectedProcedure
+      .input(z.object({
+        patientId: z.number(),
+        patientName: z.string(),
+        team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]),
+        clinicalNotes: z.string().optional(),
+        nextVisitAt: z.date().optional(),
+        notifiedTo: z.enum(["本人", "家族", "その他"]).optional(),
+        notifiedToOther: z.string().optional(),
+        notifyMethod: z.enum(["口頭", "カレンダー記入", "付箋", "電話", "その他"]).optional(),
+        notifyMethodOther: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const id = await createVisitRecord({
+          ...input,
+          createdBy: ctx.user.id,
+          createdByName: ctx.user.name ?? "不明",
+        });
+        return { success: true, id };
+      }),
+
+    // 自分の訪問記録一覧を取得
+    getMine: protectedProcedure.query(async ({ ctx }) => {
+      return getVisitRecords(ctx.user.id);
+    }),
+
+    // スプレッドシート転送済みフラグを更新
+    markExported: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await markVisitRecordExported(input.id);
+        return { success: true };
+      }),
+
+    // スプレッドシートに転送する
+    exportToSheet: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const record = await getVisitRecordById(input.id);
+        if (!record) throw new TRPCError({ code: "NOT_FOUND", message: "記録が見つかりません" });
+
+        const VISIT_RECORD_SHEET_ID = "1BGMdVGTQEkcVXioa5leetH_kPr859nNHMnhkwEMlWqA";
+        const SHEET_NAME = "シート1";
+
+        // サービスアカウント認証
+        const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+        const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+        if (!email || !privateKey) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "サービスアカウント設定がありません" });
+
+        const { GoogleAuth } = await import("google-auth-library");
+        const auth = new GoogleAuth({
+          credentials: { client_email: email, private_key: privateKey.replace(/\\n/g, "\n") },
+          scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+        });
+        const client = await auth.getClient();
+        const token = await client.getAccessToken();
+        if (!token.token) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "認証トークン取得失敗" });
+
+        // 日時フォーマット
+        const formatDate = (val: Date | number | null | undefined) => {
+          if (!val) return "";
+          const d = val instanceof Date ? val : new Date(val);
+          return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+        };
+
+        const row = [
+          formatDate(record.createdAt),
+          record.createdByName ?? "",
+          record.team ?? "",
+          record.patientName ?? "",
+          formatDate(record.nextVisitAt),
+          record.notifiedTo ?? "",
+          record.notifiedToOther ?? "",
+          record.notifyMethod ?? "",
+          record.notifyMethodOther ?? "",
+          record.clinicalNotes ?? "",
+        ];
+
+        const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A:J")}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+        const res = await fetch(appendUrl, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ values: [row] }),
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Sheets API error: ${text}` });
+        }
+
+        // 転送済みフラグを立てる
+        await markVisitRecordExported(input.id);
+        return { success: true };
       }),
   }),
 });

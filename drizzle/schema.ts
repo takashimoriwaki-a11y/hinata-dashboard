@@ -192,3 +192,61 @@ export const messageReactions = mysqlTable("message_reactions", {
 
 export type MessageReaction = typeof messageReactions.$inferSelect;
 export type InsertMessageReaction = typeof messageReactions.$inferInsert;
+
+/**
+ * 利用者テーブル
+ * チームごとの利用者情報を管理する
+ */
+export const patients = mysqlTable("patients", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 利用者の氏名 */
+  name: varchar("name", { length: 100 }).notNull(),
+  /** 所属チーム */
+  team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部"]).notNull(),
+  /** ふりがな（検索用） */
+  nameKana: varchar("nameKana", { length: 100 }),
+  /** 有効フラグ（退所等で非表示にする場合） */
+  active: int("active").default(1).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Patient = typeof patients.$inferSelect;
+export type InsertPatient = typeof patients.$inferInsert;
+
+/**
+ * 訪問記録テーブル
+ * 訪問時の記録・次回訪問日時・伝達方法を管理する
+ */
+export const visitRecords = mysqlTable("visit_records", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 記録した利用者ID */
+  patientId: int("patientId").notNull(),
+  /** 利用者名（表示用キャッシュ） */
+  patientName: text("patientName").notNull(),
+  /** チーム名 */
+  team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部"]).notNull(),
+  /** 記録者のユーザーID */
+  createdBy: int("createdBy").notNull(),
+  /** 記録者の名前（表示用キャッシュ） */
+  createdByName: text("createdByName").notNull(),
+  /** ②病状の経過（本日観察・収集した情報） */
+  clinicalNotes: text("clinicalNotes"),
+  /** 次回訪問日時 */
+  nextVisitAt: timestamp("nextVisitAt"),
+  /** 次回訪問日時の伝達先: 本人/家族/その他 */
+  notifiedTo: mysqlEnum("notifiedTo", ["本人", "家族", "その他"]),
+  /** 伝達先その他の自由記述 */
+  notifiedToOther: text("notifiedToOther"),
+  /** 伝達方法: 口頭/カレンダー記入/付箋/電話/その他 */
+  notifyMethod: mysqlEnum("notifyMethod", ["口頭", "カレンダー記入", "付箋", "電話", "その他"]),
+  /** 伝達方法その他の自由記述 */
+  notifyMethodOther: text("notifyMethodOther"),
+  /** スプレッドシート転送済みフラグ */
+  exportedAt: timestamp("exportedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type VisitRecord = typeof visitRecords.$inferSelect;
+export type InsertVisitRecord = typeof visitRecords.$inferInsert;
