@@ -221,7 +221,7 @@ export type InsertPatient = typeof patients.$inferInsert;
 export const visitRecords = mysqlTable("visit_records", {
   id: int("id").autoincrement().primaryKey(),
   /** 記録した利用者ID */
-  patientId: int("patientId").notNull(),
+  patientId: int("patientId"),
   /** 利用者名（表示用キャッシュ） */
   patientName: text("patientName").notNull(),
   /** チーム名 */

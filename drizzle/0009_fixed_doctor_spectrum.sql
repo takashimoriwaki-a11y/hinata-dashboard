@@ -1,0 +1,1 @@
+ALTER TABLE `visit_records` MODIFY COLUMN `patientId` int;

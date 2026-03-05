@@ -64,6 +64,13 @@
       "when": 1772722800144,
       "tag": "0008_powerful_songbird",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1772726797814,
+      "tag": "0009_fixed_doctor_spectrum",
+      "breakpoints": true
     }
   ]
 }

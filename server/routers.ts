@@ -812,7 +812,7 @@ export const appRouter = router({
     // 訪問記録を作成する
     create: protectedProcedure
       .input(z.object({
-        patientId: z.number(),
+        patientId: z.number().optional(),
         patientName: z.string(),
         team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]),
         clinicalNotes: z.string().optional(),

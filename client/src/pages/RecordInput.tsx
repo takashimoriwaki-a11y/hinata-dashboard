@@ -142,10 +142,6 @@ export default function RecordInput() {
   };
 
   const handleSave = () => {
-    if (!patientId || !patientName) {
-      toast.error("利用者を選択してください");
-      return;
-    }
     if (!team) {
       toast.error("チームを選択してください");
       return;
@@ -158,8 +154,8 @@ export default function RecordInput() {
     }
 
     createRecord.mutate({
-      patientId,
-      patientName,
+      patientId: patientId ?? undefined,
+      patientName: patientName || "未選択",
       team: team as Team,
       clinicalNotes: clinicalNotes || undefined,
       nextVisitAt,
@@ -431,7 +427,7 @@ ${clinicalNotes}`);
         <Button
           className="w-full bg-orange-500 hover:bg-orange-600 text-white border-orange-500"
           onClick={handleSave}
-          disabled={createRecord.isPending || !patientId}
+          disabled={createRecord.isPending || !team}
         >
           {createRecord.isPending ? (
             <><Loader2 className="w-4 h-4 mr-2 animate-spin" />保存中...</>
