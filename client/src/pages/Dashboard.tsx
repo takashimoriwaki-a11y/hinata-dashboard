@@ -366,9 +366,17 @@ function VisitCountCard() {
         <Separator />
 
         {/* 先月実績 */}
-        <div className="space-y-2 border border-border rounded-xl p-3 bg-muted/10">
+        <div className={cn(
+          "space-y-2 border rounded-xl p-3 transition-all duration-500",
+          prevAchieved
+            ? "border-emerald-300 bg-gradient-to-br from-emerald-50 to-green-50"
+            : "border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50"
+        )}>
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-muted-foreground">{data.prevMonth}実績</p>
+            <p className={cn(
+              "text-xs font-semibold",
+              prevAchieved ? "text-emerald-700" : "text-amber-700"
+            )}>{data.prevMonth}実績</p>
             <div className="flex items-center gap-2">
               <Badge className={cn(
                 "border-0 text-xs",
@@ -376,7 +384,6 @@ function VisitCountCard() {
               )}>
                 達成率 {Math.round(prevPct)}%
               </Badge>
-              {prevAchieved && <span className="text-xs text-emerald-600 font-semibold">🎉 達成！</span>}
             </div>
           </div>
           <div className="flex items-center justify-between text-sm mb-1">
@@ -398,6 +405,18 @@ function VisitCountCard() {
               {data.prevTotalActual.toLocaleString()} / {data.prevTotalTarget.toLocaleString()} 件
             </span>
           </div>
+          {/* 達成・未達成メッセージ */}
+          {prevAchieved ? (
+            <div className="flex items-center gap-1.5 pt-0.5">
+              <span className="text-base">🎉</span>
+              <p className="text-xs font-bold text-emerald-700">先月は目標達成！チームのみなさん、お疲れ様でした！🌟</p>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 pt-0.5">
+              <span className="text-base">💪</span>
+              <p className="text-xs font-bold text-amber-700">今月こそ達成しよう！あと{Math.round(data.prevTotalTarget - data.prevTotalActual).toLocaleString()}件だった！</p>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
