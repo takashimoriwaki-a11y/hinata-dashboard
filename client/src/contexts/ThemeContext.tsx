@@ -2,14 +2,16 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 
 type Theme = "light" | "dark";
 
-// 5:00〜19:00 は昼モード、19:01〜4:59 は夜モード
+// 5:00～19:00 は昼モード、19:01～4:59 は夜モード
+// 一時的に昼モード固定（テスト用）
 function isNightTime(): boolean {
-  const now = new Date();
-  const hour = now.getHours();
-  const minute = now.getMinutes();
-  const totalMinutes = hour * 60 + minute;
-  // 昼: 5:00 (300分) 〜 19:00 (1140分)
-  return totalMinutes < 300 || totalMinutes >= 1141;
+  return false; // 一時的に昼モード固定
+  // 元のロジック（後で元に戻す）:
+  // const now = new Date();
+  // const hour = now.getHours();
+  // const minute = now.getMinutes();
+  // const totalMinutes = hour * 60 + minute;
+  // return totalMinutes < 300 || totalMinutes >= 1141;
 }
 
 interface ThemeContextType {

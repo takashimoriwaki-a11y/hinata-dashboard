@@ -292,8 +292,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             {/* 日付・ステーション名: スマホでは縦並び、PCでは横並び */}
             <div className="flex flex-col md:flex-row md:items-center md:gap-3 min-w-0">
               <span className={cn("text-xs md:text-sm font-medium whitespace-nowrap", isNight ? "text-slate-200" : "text-muted-foreground")}>{dateStr}</span>
-              <span className={cn("hidden md:block text-xs font-medium border-l border-border pl-3 whitespace-nowrap", isNight ? "text-slate-300" : "text-muted-foreground/70")}>こころの訪問看護ステーションひなた</span>
-              <span className={cn("md:hidden text-[10px] font-medium leading-tight whitespace-nowrap", isNight ? "text-slate-300" : "text-muted-foreground/60")}>こころの訪問看護ステーションひなた</span>
+              <span className={cn("hidden md:block text-xs font-medium border-l border-border pl-3 whitespace-nowrap", isNight ? "text-slate-300" : "text-foreground/75")}>こころの訪問看護ステーションひなた</span>
+              <span className={cn("md:hidden text-[10px] font-semibold leading-tight whitespace-nowrap", isNight ? "text-slate-300" : "text-foreground/70")}>こころの訪問看護ステーションひなた</span>
             </div>
           </div>
           <div className="flex items-center gap-1.5 md:gap-2">

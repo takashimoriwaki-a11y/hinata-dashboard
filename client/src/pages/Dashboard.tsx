@@ -1577,12 +1577,12 @@ export default function Dashboard() {
         <div className="absolute inset-0 opacity-10" style={{backgroundImage: "radial-gradient(circle at 80% 20%, white 0%, transparent 60%)"}} />
         <div className="relative px-4 py-2 md:px-5 md:py-2.5 flex flex-col gap-2">
           {/* 挨拶メッセージ（名前とメッセージを横並び） */}
-          <div className="flex flex-row items-baseline gap-2 flex-wrap">
+          <div className="flex flex-row items-baseline gap-2 flex-wrap justify-center md:justify-start">
             <p className="text-xl md:text-3xl font-extrabold text-white leading-tight tracking-wide whitespace-nowrap" style={{textShadow: '0 2px 8px rgba(0,0,0,0.2)'}}>{userName}<span className="text-lg md:text-2xl">さん</span></p>
             <p className="text-xl md:text-3xl font-extrabold text-white/90 whitespace-nowrap" style={{textShadow: '0 1px 4px rgba(0,0,0,0.2)'}}>{greeting}</p>
           </div>
-          {/* ショートカットボタン（右寄せ） */}
-          <div className="flex flex-row items-center gap-2 justify-end">
+          {/* ショートカットボタン（モバイル中央・PC右寄せ） */}
+          <div className="flex flex-row items-center gap-2 justify-center md:justify-end">
             <a
               href="https://homecare.zest.jp/login"
               target="_blank"
@@ -1611,11 +1611,13 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* 訪問件数カード（ウェルカムバナー直下） */}
+      <VisitCountCard />
+
       {/* メインコンテンツ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
         {/* 左カラム */}
         <div className="lg:col-span-2 space-y-3 md:space-y-4">
-          <VisitCountCard />
           <ScheduleScreenshotCard />
         </div>
 
