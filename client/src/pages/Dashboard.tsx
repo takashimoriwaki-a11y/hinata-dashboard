@@ -603,24 +603,31 @@ function ScheduleScreenshotCard() {
           ) : currentScreenshot ? (
             /* 登録済み画像表示 */
             <div className="space-y-2">
-              <div className="relative rounded-lg overflow-hidden border border-border">
+              <div
+                className="relative rounded-lg overflow-hidden border border-border cursor-pointer group"
+                onClick={() => {
+                  setViewUrl(currentScreenshot.imageUrl);
+                  setViewMeta({
+                    team: currentScreenshot.team,
+                    day: currentScreenshot.day,
+                    uploadedByName: currentScreenshot.uploadedByName,
+                    updatedAt: currentScreenshot.updatedAt,
+                  });
+                }}
+              >
                 <img
                   src={currentScreenshot.imageUrl}
                   alt={`${selectedTeam}チーム ${selectedDay}のスケジュール`}
-                  className="w-full object-contain max-h-72 cursor-pointer"
-                  onClick={() => {
-                    setViewUrl(currentScreenshot.imageUrl);
-                    setViewMeta({
-                      team: currentScreenshot.team,
-                      day: currentScreenshot.day,
-                      uploadedByName: currentScreenshot.uploadedByName,
-                      updatedAt: currentScreenshot.updatedAt,
-                    });
-                  }}
+                  className="w-full object-contain max-h-72"
                 />
+                {/* タップで拡大ヒント */}
+                <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded-full flex items-center gap-1 pointer-events-none">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" /></svg>
+                  タップで拡大
+                </div>
                 {/* 削除ボタン（右上・画像に被らない位置）*/}
                 <button
-                  onClick={handleDelete}
+                  onClick={(e) => { e.stopPropagation(); handleDelete(); }}
                   disabled={deleteMutation.isPending}
                   className="absolute top-2 right-2 bg-white/90 hover:bg-red-50 text-destructive border border-destructive/30 rounded-full p-1.5 shadow-sm transition-colors"
                   title="削除"
@@ -732,11 +739,11 @@ function ScheduleScreenshotCard() {
       {/* 拡大モーダル */}
       {viewUrl && viewMeta && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/80 flex items-start justify-center p-4 pb-[80px] overflow-y-auto"
           onClick={() => { setViewUrl(null); setViewMeta(null); }}
         >
           <div
-            className="relative max-w-4xl w-full bg-white rounded-xl overflow-hidden shadow-2xl"
+            className="relative max-w-4xl w-full bg-white rounded-xl overflow-hidden shadow-2xl mt-2"
             onClick={(e) => e.stopPropagation()}
           >
             {/* モーダルヘッダー */}
@@ -762,7 +769,7 @@ function ScheduleScreenshotCard() {
             </div>
 
             {/* 画像 */}
-            <div className="overflow-auto max-h-[75vh] bg-muted/20">
+            <div className="overflow-auto max-h-[65vh] bg-muted/20">
               <img
                 src={viewUrl}
                 alt={`${viewMeta.team}チーム ${viewMeta.day}のスケジュール`}
