@@ -327,12 +327,19 @@ ${clinicalNotes}`);
                 value={nextVisitDate}
                 onChange={(e) => setNextVisitDate(e.target.value)}
               />
-              <Input
-                type="time"
-                className="text-sm w-28"
-                value={nextVisitTime}
-                onChange={(e) => setNextVisitTime(e.target.value)}
-              />
+              <Select value={nextVisitTime} onValueChange={setNextVisitTime}>
+                <SelectTrigger className="text-sm w-28">
+                  <SelectValue placeholder="時刻" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {Array.from({ length: 24 * 6 }, (_, i) => {
+                    const h = Math.floor(i / 6);
+                    const m = (i % 6) * 10;
+                    const val = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+                    return <SelectItem key={val} value={val}>{val}</SelectItem>;
+                  })}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
