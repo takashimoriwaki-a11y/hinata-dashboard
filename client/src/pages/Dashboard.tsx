@@ -79,12 +79,12 @@ const currentMonthData = {
 
 // 業務ツール
 const spreadsheetLinks = [
-  { label: "利用者料金一覧（精神郡山）", href: "#", color: "text-emerald-600" },
-  { label: "利用者料金一覧（身体）", href: "#", color: "text-blue-600" },
-  { label: "利用者料金一覧（天理）", href: "#", color: "text-purple-600" },
-  { label: "業務日報", href: "#", color: "text-orange-600" },
-  { label: "ひなた勤怠", href: "#", color: "text-rose-600" },
-  { label: "退勤時チェックリスト", href: "#", color: "text-amber-600" },
+  { label: "利用者料金一覧（精神郡山）", href: "https://docs.google.com/spreadsheets/d/1YBK1YOFOhJDnry1b0zQjI5jAU91RnBfLOE-bGve3b5M/edit?usp=sharing", color: "text-emerald-600" },
+  { label: "利用者料金一覧（身体）", href: "https://docs.google.com/spreadsheets/d/1W4QLGnhg0wuZqcY96M8kIttrqAO00JxFFaJgUb7YOxA/edit?usp=sharing", color: "text-blue-600" },
+  { label: "利用者料金一覧（天理）", href: "https://docs.google.com/spreadsheets/d/15BWxn2MHSLcpcKaMa5q9QcIQiccfjiHhAfMKcCnvsVE/edit?usp=sharing", color: "text-purple-600" },
+  { label: "業務日報", href: "https://docs.google.com/spreadsheets/d/10Leb7UR6ARVlCGbf5pBa5yxsgm5WAV9m-ETyYrzfBCs/edit?usp=sharing", color: "text-orange-600" },
+  { label: "ひなた勤怠", href: "https://docs.google.com/spreadsheets/d/1e5xvZHvqSneNZIsO1g8h68-Ue9QnoYXCdCPkt-pIwsQ/edit?usp=sharing", color: "text-rose-600" },
+  { label: "退勤時チェックリスト", href: "https://docs.google.com/spreadsheets/d/1g_wTtoQCxiHQupPlEmZVMWWxgzG0ZGH23j-xj1AzdUE/edit?usp=sharing", color: "text-amber-600" },
 ];
 
 const externalLinks = [
