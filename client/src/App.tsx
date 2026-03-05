@@ -9,6 +9,7 @@ import RecordInput from "./pages/RecordInput";
 import PatientList from "./pages/PatientList";
 import Schedule from "./pages/Schedule";
 import Tasks from "./pages/Tasks";
+import Admin from "./pages/Admin";
 import DashboardLayout from "./components/DashboardLayout";
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -20,6 +21,7 @@ function Router() {
         <Route path={"/patients"} component={PatientList} />
         <Route path={"/schedule"} component={Schedule} />
         <Route path={"/tasks"} component={Tasks} />
+        <Route path={"/admin"} component={Admin} />
         <Route path={"/404"} component={NotFound} />
         <Route component={NotFound} />
       </Switch>

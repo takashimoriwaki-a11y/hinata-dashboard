@@ -184,18 +184,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <Bell className="w-4 h-4 flex-shrink-0" />
           {(!collapsed || mobile) && <span>通知設定</span>}
         </button>
-        <button
-          onClick={() => toast.info("管理画面は準備中です")}
-          title={(collapsed && !mobile) ? "管理画面" : undefined}
-          className={cn(
-            "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150",
-            "text-sm text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-            (collapsed && !mobile) ? "justify-center px-0" : "px-3"
-          )}
-        >
-          <Settings className="w-4 h-4 flex-shrink-0" />
-          {(!collapsed || mobile) && <span>管理画面</span>}
-        </button>
+        <Link href="/admin">
+          <div
+            title={(collapsed && !mobile) ? "管理画面" : undefined}
+            className={cn(
+              "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150",
+              "text-sm text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+              (collapsed && !mobile) ? "justify-center px-0" : "px-3",
+              location === "/admin" && "bg-primary text-white"
+            )}
+          >
+            <Settings className="w-4 h-4 flex-shrink-0" />
+            {(!collapsed || mobile) && <span>管理画面</span>}
+          </div>
+        </Link>
         <button
           onClick={() => toast.info("ログアウト機能は準備中です")}
           title={(collapsed && !mobile) ? "ログアウト" : undefined}

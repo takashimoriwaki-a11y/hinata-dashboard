@@ -886,6 +886,9 @@ function PatientTrendChart() {
 }
 
 function ToolsCard() {
+  // 当月スプレッドシートリンク（tRPC + DB）
+  const { data: sheetLinks } = trpc.spreadsheetLinks.getCurrent.useQuery();
+
   // マイリンク（tRPC + DB）
   const utils = trpc.useUtils();
   const { data: myLinksData, isLoading: linksLoading } = trpc.myLinks.list.useQuery(undefined, {
@@ -956,21 +959,42 @@ function ToolsCard() {
             📊 スプレッドシート
           </p>
           <div className="flex flex-col gap-1.5">
-            {spreadsheetLinks.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                onClick={(e) => { e.preventDefault(); toast.info("スプレッドシートのリンクを設定してください"); }}
-                className={cn(
-                  "flex items-center gap-1.5 text-xs py-1.5 px-2 rounded-md",
-                  "bg-muted/50 hover:bg-muted transition-colors",
-                  link.color
-                )}
-              >
-                <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                <span className="truncate">{link.label}</span>
-              </a>
-            ))}
+            {sheetLinks && sheetLinks.length > 0 ? (
+              sheetLinks.map((link) => (
+                <a
+                  key={link.id}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(
+                    "flex items-center gap-1.5 text-xs py-1.5 px-2 rounded-md",
+                    "bg-muted/50 hover:bg-muted transition-colors",
+                    link.color ?? "text-emerald-600"
+                  )}
+                >
+                  <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate">{link.label}</span>
+                </a>
+              ))
+            ) : (
+              // DB未登録時は静的データをフォールバック表示
+              spreadsheetLinks.map((link) => (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(
+                    "flex items-center gap-1.5 text-xs py-1.5 px-2 rounded-md",
+                    "bg-muted/50 hover:bg-muted transition-colors",
+                    link.color
+                  )}
+                >
+                  <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate">{link.label}</span>
+                </a>
+              ))
+            )}
           </div>
         </div>
 

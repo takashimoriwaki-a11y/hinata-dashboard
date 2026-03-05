@@ -76,3 +76,28 @@ export const myLinks = mysqlTable("my_links", {
 
 export type MyLink = typeof myLinks.$inferSelect;
 export type InsertMyLink = typeof myLinks.$inferInsert;
+
+/**
+ * 業務ツールリンク（スプレッドシートURL月次管理）
+ * 管理者が月ごとに登録し、当月分が自動表示される
+ */
+export const spreadsheetLinks = mysqlTable("spreadsheet_links", {
+  id: int("id").autoincrement().primaryKey(),
+  /** リンクの識別キー（固定値：利用者料金一覧_精神郡山 など） */
+  linkKey: varchar("linkKey", { length: 100 }).notNull(),
+  /** 表示ラベル */
+  label: varchar("label", { length: 100 }).notNull(),
+  /** 対象年月（YYYY-MM形式） */
+  yearMonth: varchar("yearMonth", { length: 7 }).notNull(),
+  /** GoogleスプレッドシートURL */
+  url: text("url").notNull(),
+  /** 登録したユーザーID */
+  createdBy: int("createdBy"),
+  /** 色クラス（表示用） */
+  color: varchar("color", { length: 50 }).default("text-emerald-600"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SpreadsheetLink = typeof spreadsheetLinks.$inferSelect;
+export type InsertSpreadsheetLink = typeof spreadsheetLinks.$inferInsert;

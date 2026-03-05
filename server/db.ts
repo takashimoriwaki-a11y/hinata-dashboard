@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot, myLinks, InsertMyLink } from "../drizzle/schema";
+import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot, myLinks, InsertMyLink, spreadsheetLinks, InsertSpreadsheetLink } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -210,4 +210,61 @@ export async function deleteMyLink(id: number, userId: number) {
   await db
     .delete(myLinks)
     .where(and(eq(myLinks.id, id), eq(myLinks.userId, userId)));
+}
+
+// ========== スプレッドシートURL月次管理 ==========
+
+/** 指定年月（YYYY-MM）のリンク一覧を取得 */
+export async function getSpreadsheetLinks(yearMonth: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(spreadsheetLinks)
+    .where(eq(spreadsheetLinks.yearMonth, yearMonth))
+    .orderBy(spreadsheetLinks.id);
+}
+
+/** 全年月のリンク一覧を取得（管理画面用） */
+export async function getAllSpreadsheetLinks() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(spreadsheetLinks)
+    .orderBy(spreadsheetLinks.yearMonth, spreadsheetLinks.id);
+}
+
+/** リンクを登録または更新（同じlinkKey+yearMonthがあれば上書き） */
+export async function upsertSpreadsheetLink(data: InsertSpreadsheetLink) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // 同じlinkKey+yearMonthがあれば更新
+  const existing = await db
+    .select()
+    .from(spreadsheetLinks)
+    .where(
+      and(
+        eq(spreadsheetLinks.linkKey, data.linkKey),
+        eq(spreadsheetLinks.yearMonth, data.yearMonth)
+      )
+    )
+    .limit(1);
+  if (existing.length > 0) {
+    await db
+      .update(spreadsheetLinks)
+      .set({ url: data.url, label: data.label, color: data.color, updatedAt: new Date() })
+      .where(eq(spreadsheetLinks.id, existing[0].id));
+    return existing[0].id;
+  } else {
+    const result = await db.insert(spreadsheetLinks).values(data);
+    return (result as any)[0]?.insertId ?? 0;
+  }
+}
+
+/** リンクを削除 */
+export async function deleteSpreadsheetLink(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(spreadsheetLinks).where(eq(spreadsheetLinks.id, id));
 }

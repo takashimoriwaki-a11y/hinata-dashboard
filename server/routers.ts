@@ -17,6 +17,10 @@ import {
   createMyLink,
   updateMyLink,
   deleteMyLink,
+  getSpreadsheetLinks,
+  getAllSpreadsheetLinks,
+  upsertSpreadsheetLink,
+  deleteSpreadsheetLink,
 } from "./db";
 import { storagePut } from "./storage";
 import { eq } from "drizzle-orm";
@@ -360,6 +364,49 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         await deleteMyLink(input.id, ctx.user.id);
+        return { success: true };
+      }),
+  }),
+
+  // スプレッドシートURL月次管理
+  spreadsheetLinks: router({
+    // 当月分のリンク一覧を取得（公開）
+    getCurrent: publicProcedure.query(async () => {
+      const now = new Date();
+      const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      return getSpreadsheetLinks(yearMonth);
+    }),
+    // 全年月のリンク一覧を取得（管理者用）
+    getAll: protectedProcedure.query(async () => {
+      return getAllSpreadsheetLinks();
+    }),
+    // リンクを登録または更新（管理者のみ）
+    upsert: protectedProcedure
+      .input(
+        z.object({
+          linkKey: z.string().min(1).max(100),
+          label: z.string().min(1).max(100),
+          yearMonth: z.string().regex(/^\d{4}-\d{2}$/, "年月はYYYY-MM形式で入力してください"),
+          url: z.string().url({ message: "有効なURLを入力してください" }),
+          color: z.string().max(50).optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const id = await upsertSpreadsheetLink({
+          linkKey: input.linkKey,
+          label: input.label,
+          yearMonth: input.yearMonth,
+          url: input.url,
+          color: input.color ?? "text-emerald-600",
+          createdBy: ctx.user.id,
+        });
+        return { success: true, id };
+      }),
+    // リンクを削除（管理者のみ）
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await deleteSpreadsheetLink(input.id);
         return { success: true };
       }),
   }),
