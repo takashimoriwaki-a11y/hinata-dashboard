@@ -39,6 +39,7 @@ import {
   Trash2,
   MessageSquare,
   ClipboardList,
+  ClipboardEdit,
   Upload,
   Calendar,
   X,
@@ -1584,6 +1585,15 @@ export default function Dashboard() {
           {/* ショートカットボタン（モバイル中央・PC右寄せ） */}
           <div className="flex flex-row items-center gap-2 justify-center md:justify-end">
             <a
+              href="https://gemini.google.com/app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm" style={{backgroundColor: '#9b7fd4'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#8a6ec3')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#9b7fd4')}
+            >
+              <span className="text-sm leading-none">✨</span>
+              Gemini
+            </a>
+            <a
               href="https://homecare.zest.jp/login"
               target="_blank"
               rel="noopener noreferrer"
@@ -1593,17 +1603,17 @@ export default function Dashboard() {
               ZEST
             </a>
             <a
-              href="https://gemini.google.com/app"
+              href="https://login.ibowservice.jp/?action=logout"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm" style={{backgroundColor: '#9b7fd4'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#8a6ec3')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#9b7fd4')}
+              className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm" style={{backgroundColor: '#4a90d9'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#3a7fc8')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#4a90d9')}
             >
-              <span className="text-sm leading-none">✨</span>
-              Gemini
+              <ClipboardList className="w-3.5 h-3.5" />
+              iBow
             </a>
             <Link href="/record">
               <span className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm cursor-pointer" style={{backgroundColor: '#e06060'}}>
-                <ClipboardList className="w-3.5 h-3.5" />
+                <ClipboardEdit className="w-3.5 h-3.5" />
                 記録
               </span>
             </Link>
