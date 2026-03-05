@@ -262,10 +262,15 @@ function VisitCountCard() {
               </span>
             </p>
             <Progress value={mainPct} className="h-2" />
-            <p className={cn(
-              "text-xs font-semibold",
-              mainPct >= 100 ? "text-emerald-600" : "text-primary"
-            )}>{data.mainDailyTargetCumul > 0 ? `${Math.round(mainPct)}%` : "—"}</p>
+            <div className="flex items-center justify-between">
+              <p className={cn(
+                "text-xs font-semibold",
+                mainPct >= 100 ? "text-emerald-600" : "text-primary"
+              )}>{data.mainDailyTargetCumul > 0 ? `${Math.round(mainPct)}%` : "—"}</p>
+              {data.mainTarget > 0 && (
+                <p className="text-[10px] text-muted-foreground/60">月目標 {data.mainTarget}</p>
+              )}
+            </div>
           </div>
           {/* サブ */}
           <div className="space-y-1.5 border border-border rounded-xl p-2.5 bg-muted/20">
@@ -277,9 +282,14 @@ function VisitCountCard() {
               </span>
             </p>
             <Progress value={subPct} className="h-2" />
-            <p className="text-xs font-semibold text-muted-foreground">
-              {data.subDailyTargetCumul > 0 ? `${Math.round(subPct)}%` : "—"}
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-muted-foreground">
+                {data.subDailyTargetCumul > 0 ? `${Math.round(subPct)}%` : "—"}
+              </p>
+              {data.subTarget > 0 && (
+                <p className="text-[10px] text-muted-foreground/60">月目標 {data.subTarget}</p>
+              )}
+            </div>
           </div>
           {/* 合計（メイン換算） */}
           <div className="space-y-1.5 border border-border rounded-xl p-2.5 bg-muted/20">
@@ -291,10 +301,15 @@ function VisitCountCard() {
               </span>
             </p>
             <Progress value={totalPct} className="h-2" />
-            <p className={cn(
-              "text-xs font-semibold",
-              totalPct >= 100 ? "text-emerald-600" : totalPct >= 80 ? "text-primary" : "text-muted-foreground"
-            )}>{Math.round(totalPct)}%</p>
+            <div className="flex items-center justify-between">
+              <p className={cn(
+                "text-xs font-semibold",
+                totalPct >= 100 ? "text-emerald-600" : totalPct >= 80 ? "text-primary" : "text-muted-foreground"
+              )}>{Math.round(totalPct)}%</p>
+              {data.mainTarget > 0 && (
+                <p className="text-[10px] text-muted-foreground/60">月目標 {data.mainTarget}</p>
+              )}
+            </div>
           </div>
         </div>
 
