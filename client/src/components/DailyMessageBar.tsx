@@ -10,6 +10,7 @@ import { useState, useEffect } from "react";
 import { Pencil, X, Plus, Trash2, Lock, CheckCircle, GripVertical, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useTheme } from "@/contexts/ThemeContext";
 
 // ========== デフォルトメッセージ ==========
 const DEFAULT_MESSAGES = [
@@ -155,6 +156,11 @@ export default function DailyMessageBar() {
     setIsAuthenticated(false);
     toast.info("編集モードを終了しました");
   };
+
+  const { isNight } = useTheme();
+
+  // 夜モード中は非表示
+  if (isNight) return null;
 
   return (
     <div className="flex-shrink-0">
