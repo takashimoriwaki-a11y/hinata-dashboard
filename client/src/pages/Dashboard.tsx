@@ -91,7 +91,7 @@ const externalLinks = [
   {
     label: "ZEST — 訪問スケジュール管理",
     desc: "スケジュールの確認・変更はZESTで行います",
-    href: "https://zest.jp/",
+    href: "https://homecare.zest.jp/login",
     emoji: "📅",
   },
   {
@@ -429,7 +429,7 @@ function ScheduleScreenshotCard() {
               訪問スケジュール
             </CardTitle>
             <a
-              href="https://zest.jp/"
+              href="https://homecare.zest.jp/login"
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-primary hover:underline flex items-center gap-1"
@@ -1108,7 +1108,7 @@ export default function Dashboard() {
           {/* 右端：ショートカットボタン */}
           <div className="flex flex-row items-center gap-2 flex-shrink-0">
             <a
-              href="https://zest.jp/"
+              href="https://homecare.zest.jp/login"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm" style={{backgroundColor: '#00b5a3'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#009e8e')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#00b5a3')}
