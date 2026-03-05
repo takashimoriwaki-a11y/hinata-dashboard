@@ -216,6 +216,7 @@ function VisitCountCard() {
     totalTargetEquiv: 0,
     diff: 0,
     dailyTarget: 0,
+    dailyPoints: [],
     prevMonth: "2月",
     prevTotalTarget: 0,
     prevTotalActual: 0,
@@ -362,6 +363,73 @@ function VisitCountCard() {
             })()}
           </div>
         </div>
+
+        {/* 日別進捗折れ線グラフ */}
+        {data.dailyPoints.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-[11px] font-semibold text-muted-foreground">当月日別進捗（目標累計 vs 実績累計）</p>
+            <ResponsiveContainer width="100%" height={140}>
+              <LineChart data={data.dailyPoints} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                  interval="preserveStartEnd"
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={48}
+                  tickFormatter={(v: number) => v >= 1000 ? `${(v/1000).toFixed(1)}k` : `${v}`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    fontSize: 11,
+                    background: "hsl(var(--popover))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: 8,
+                    color: "hsl(var(--popover-foreground))",
+                  }}
+                  formatter={(value: unknown, name: string) => [
+                    value != null ? `${value}件` : "未入力",
+                    name === "target" ? "目標累計" : "実績累計",
+                  ]}
+                  labelFormatter={(label) => `${label}`}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="target"
+                  stroke="hsl(var(--muted-foreground))"
+                  strokeWidth={1.5}
+                  strokeDasharray="4 2"
+                  dot={false}
+                  name="target"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="actual"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
+                  dot={{ r: 2.5, fill: "hsl(var(--primary))", strokeWidth: 0 }}
+                  connectNulls={false}
+                  name="actual"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+            <div className="flex items-center gap-3 justify-end">
+              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                <span className="inline-block w-5 border-t border-dashed border-muted-foreground" />
+                目標累計
+              </span>
+              <span className="flex items-center gap-1 text-[10px] text-primary">
+                <span className="inline-block w-5 border-t-2 border-primary" />
+                実績累計
+              </span>
+            </div>
+          </div>
+        )}
 
         <Separator />
 

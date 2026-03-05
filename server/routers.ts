@@ -82,6 +82,13 @@ function parseNum(val: string | undefined): number {
   return isNaN(n) ? 0 : n;
 }
 
+interface DailyPoint {
+  day: number;          // 日（1〜31）
+  label: string;        // 表示ラベル（例: "3/1"）
+  target: number;       // 目標累計（P列）
+  actual: number | null; // 実績累計（Q列）、未入力はnull
+}
+
 interface VisitData {
   currentMonth: string;           // 今月表示（例: "3月"）
   lastUpdatedDate: string;        // 直近の実績更新日（例: "3/3"）
@@ -95,6 +102,7 @@ interface VisitData {
   totalTargetEquiv: number;       // 合計目標（メイン換算）
   diff: number;                   // 目標差
   dailyTarget: number;            // 1日目標
+  dailyPoints: DailyPoint[];      // 日別データ（グラフ用）
   // 前月実績
   prevMonth: string;              // 前月表示（例: "2月"）
   prevTotalTarget: number;        // 前月 P列最終値（目標累計メイン換算）
@@ -135,8 +143,9 @@ async function getVisitData(): Promise<VisitData> {
   let diff = 0;
   let mainDailyTargetCumul = 0;
   let subDailyTargetCumul = 0;
+  const dailyPoints: DailyPoint[] = [];
 
-  // 日別データは行8〜（index=7〜）
+  // 日別データは行8～（index=7～）
   for (let i = 7; i <= 37; i++) {
     const row = currentValues[i];
     if (!row || row.length < 2) continue;
@@ -149,6 +158,19 @@ async function getVisitData(): Promise<VisitData> {
 
     // Q列の実績累計が0でなければ実績あり
     const qVal = parseNum(row[16]);  // Q列(16): 実績累計（メイン換算）
+    const pVal = parseNum(row[15]);  // P列(15): 目標累計（メイン換算）
+
+    // 日別データを追加（P列に目標がある日のみ）
+    if (pVal > 0) {
+      // 日付ラベルから日番号を抽出（例: "3/1" → 1）
+      const dayNum = parseInt(dateLabel.split("/")[1] ?? dateLabel, 10);
+      dailyPoints.push({
+        day: isNaN(dayNum) ? i - 6 : dayNum,
+        label: dateLabel,
+        target: Math.round(pVal * 10) / 10,
+        actual: qVal > 0 ? Math.round(qVal * 10) / 10 : null,
+      });
+    }
 
     // 実績が入力されている行を記録（最後に値がある行が直近更新日）
     if (qVal > 0) {
@@ -163,7 +185,6 @@ async function getVisitData(): Promise<VisitData> {
       subDailyTargetCumul = parseNum(row[9]);
 
       // P列: 目標累計（メイン換算）
-      const pVal = parseNum(row[15]);  // P列(15)
       totalTargetEquiv = pVal;
 
       // R列: 目標差
@@ -212,6 +233,7 @@ async function getVisitData(): Promise<VisitData> {
     totalTargetEquiv: Math.round(totalTargetEquiv * 10) / 10,
     diff: Math.round(diff * 10) / 10,
     dailyTarget,
+    dailyPoints,
     prevMonth,
     prevTotalTarget: Math.round(prevTotalTarget * 10) / 10,
     prevTotalActual: Math.round(prevTotalActual * 10) / 10,
