@@ -473,3 +473,43 @@ export async function toggleReaction(messageId: number, userId: number, userName
     return { action: "added" as const };
   }
 }
+
+// ========== タスクリマインダー ==========
+
+/**
+ * 今日が期日の未完了タスクをすべて取得する（リマインダー通知用）
+ * - dueDate が今日の00:00:00 〜 23:59:59（JST）の範囲
+ * - done = 0（未完了）
+ */
+export async function getTodayDueTasks() {
+  const db = await getDb();
+  if (!db) return [];
+
+  // JSTの今日の開始・終了をUTCに変換（JST = UTC+9）
+  const nowUtc = new Date();
+  const jstOffsetMs = 9 * 60 * 60 * 1000;
+  const jstNow = new Date(nowUtc.getTime() + jstOffsetMs);
+
+  // JSTの今日の0:00と23:59:59をUTCに変換
+  const jstTodayStart = new Date(
+    Date.UTC(jstNow.getUTCFullYear(), jstNow.getUTCMonth(), jstNow.getUTCDate(), 0, 0, 0)
+  );
+  const jstTodayEnd = new Date(
+    Date.UTC(jstNow.getUTCFullYear(), jstNow.getUTCMonth(), jstNow.getUTCDate(), 23, 59, 59)
+  );
+  // UTCに戻す（JSTオフセット分を引く）
+  const utcStart = new Date(jstTodayStart.getTime() - jstOffsetMs);
+  const utcEnd = new Date(jstTodayEnd.getTime() - jstOffsetMs);
+
+  return db
+    .select()
+    .from(tasks)
+    .where(
+      and(
+        eq(tasks.done, 0),
+        gte(tasks.dueDate, utcStart),
+        lte(tasks.dueDate, utcEnd)
+      )
+    )
+    .orderBy(tasks.dueDate);
+}

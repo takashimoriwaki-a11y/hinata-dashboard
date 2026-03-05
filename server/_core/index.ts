@@ -7,7 +7,8 @@ import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
-import { deleteAllTodayScreenshots, moveTomorrowToToday } from "../db";
+import { deleteAllTodayScreenshots, moveTomorrowToToday, getTodayDueTasks } from "../db";
+import { notifyOwner } from "./notification";
 import multer from "multer";
 import { ENV } from "./env";
 
@@ -139,3 +140,60 @@ function scheduleDailyRotation() {
 }
 
 scheduleDailyRotation();
+
+// ========== 毎朝5:00（JST）にタスク期日リマインダーを通知 ==========
+function scheduleTaskReminder() {
+  const checkInterval = 60 * 1000; // 1分ごとにチェック
+  let lastReminderDate = "";
+
+  setInterval(async () => {
+    const now = new Date();
+    const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000); // UTC+9（JST）
+    const h = jstNow.getUTCHours();
+    const m = jstNow.getUTCMinutes();
+    const dateStr = jstNow.toISOString().slice(0, 10);
+
+    // 毎朝5:00（JST）に1回だけ実行
+    if (h === 5 && m === 0 && lastReminderDate !== dateStr) {
+      lastReminderDate = dateStr;
+      try {
+        console.log(`[TaskReminder] ${dateStr} 05:00 - 今日が期日のタスクを確認します`);
+        const todayTasks = await getTodayDueTasks();
+
+        if (todayTasks.length === 0) {
+          console.log(`[TaskReminder] 今日が期日のタスクはありません`);
+          return;
+        }
+
+        // 通知内容を組み立てる
+        const taskLines = todayTasks.map((t, i) => {
+          const timeStr = t.dueDate
+            ? ` (${new Date(t.dueDate).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" })})`
+            : "";
+          const assignStr = t.assignType === "all"
+            ? "全員"
+            : t.assignType === "team"
+            ? `${t.assignTeam}チーム`
+            : t.assignUserName ?? "個人";
+          return `${i + 1}. ${t.text}${timeStr} [${assignStr}] (作成: ${t.createdByName})`;
+        }).join("\n");
+
+        const title = `📋 本日期日のタスク ${todayTasks.length}件`;
+        const content = `${dateStr} に期日を迎えるタスクがあります。\n\n${taskLines}\n\nダッシュボードで確認してください。`;
+
+        const success = await notifyOwner({ title, content });
+        if (success) {
+          console.log(`[TaskReminder] ${todayTasks.length}件のタスクリマインダーを送信しました`);
+        } else {
+          console.warn(`[TaskReminder] 通知の送信に失敗しました`);
+        }
+      } catch (e) {
+        console.error(`[TaskReminder] エラー:`, e);
+      }
+    }
+  }, checkInterval);
+
+  console.log("[TaskReminder] 毎朝5:00のタスクリマインダースケジューラーを開始しました");
+}
+
+scheduleTaskReminder();
