@@ -5,8 +5,9 @@ RUN npm install -g pnpm@10.4.1
 
 WORKDIR /app
 
-# 依存関係のインストール
+# 依存関係のインストール（patchesディレクトリも必要）
 COPY package.json pnpm-lock.yaml ./
+COPY patches/ ./patches/
 RUN pnpm install --frozen-lockfile
 
 # ソースコードのコピーとビルド
