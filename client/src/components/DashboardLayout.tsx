@@ -291,9 +291,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <img src={LOGO_MARK_URL} alt="ひなた" className="w-7 h-7 object-contain flex-shrink-0" />
             {/* 日付・ステーション名: スマホでは縦並び、PCでは横並び */}
             <div className="flex flex-col md:flex-row md:items-center md:gap-3 min-w-0">
-              <span className="text-xs md:text-sm text-muted-foreground font-medium whitespace-nowrap">{dateStr}</span>
-              <span className="hidden md:block text-xs text-muted-foreground/70 font-medium border-l border-border pl-3 whitespace-nowrap">こころの訪問看護ステーションひなた</span>
-              <span className="md:hidden text-[10px] text-muted-foreground/60 font-medium leading-tight whitespace-nowrap">こころの訪問看護ステーションひなた</span>
+              <span className={cn("text-xs md:text-sm font-medium whitespace-nowrap", isNight ? "text-slate-200" : "text-muted-foreground")}>{dateStr}</span>
+              <span className={cn("hidden md:block text-xs font-medium border-l border-border pl-3 whitespace-nowrap", isNight ? "text-slate-300" : "text-muted-foreground/70")}>こころの訪問看護ステーションひなた</span>
+              <span className={cn("md:hidden text-[10px] font-medium leading-tight whitespace-nowrap", isNight ? "text-slate-300" : "text-muted-foreground/60")}>こころの訪問看護ステーションひなた</span>
             </div>
           </div>
           <div className="flex items-center gap-1.5 md:gap-2">
@@ -329,7 +329,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     rel="noopener noreferrer"
                     className={cn(
                       "flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors",
-                      "text-muted-foreground hover:text-primary active:scale-95"
+                      isNight ? "text-slate-300 hover:text-primary active:scale-95" : "text-muted-foreground hover:text-primary active:scale-95"
                     )}
                   >
                     <item.icon className="w-5 h-5" />
@@ -343,7 +343,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   <div
                     className={cn(
                       "flex flex-col items-center justify-center gap-0.5 transition-all h-full w-full active:scale-95",
-                      isActive ? "text-primary" : "text-muted-foreground hover:text-primary"
+                      isActive ? "text-primary" : isNight ? "text-slate-300 hover:text-primary" : "text-muted-foreground hover:text-primary"
                     )}
                   >
                     <div className="relative">
