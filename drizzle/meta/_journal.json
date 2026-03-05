@@ -29,6 +29,13 @@
       "when": 1772715553696,
       "tag": "0003_curly_metal_master",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1772716476634,
+      "tag": "0004_smooth_infant_terrible",
+      "breakpoints": true
     }
   ]
 }

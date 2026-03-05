@@ -268,3 +268,86 @@ export async function deleteSpreadsheetLink(id: number) {
   if (!db) return;
   await db.delete(spreadsheetLinks).where(eq(spreadsheetLinks.id, id));
 }
+
+// ========== タスク ==========
+
+import { tasks, InsertTask } from "../drizzle/schema";
+import { or, isNull, desc } from "drizzle-orm";
+
+/**
+ * 自分に関係するタスクを取得する
+ * 条件: 以下のいずれかを満たすもの
+ *   1. assignType = "all"（全員対象）
+ *   2. assignType = "team" かつ assignTeam = ユーザーのチーム
+ *   3. assignType = "personal" かつ assignUserId = ユーザーのID
+ *   4. createdBy = ユーザーのID（自分が作成したタスク）
+ */
+export async function getMyTasks(userId: number, userTeam: string | null) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const conditions = [
+    eq(tasks.assignType, "all"),
+    eq(tasks.createdBy, userId),
+    and(eq(tasks.assignType, "personal"), eq(tasks.assignUserId, userId)),
+  ];
+
+  if (userTeam) {
+    conditions.push(
+      and(eq(tasks.assignType, "team"), eq(tasks.assignTeam, userTeam as any)) as any
+    );
+  }
+
+  return db
+    .select()
+    .from(tasks)
+    .where(or(...conditions))
+    .orderBy(desc(tasks.createdAt));
+}
+
+/** 全タスクを取得（管理者用） */
+export async function getAllTasks() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(tasks).orderBy(desc(tasks.createdAt));
+}
+
+/** タスクを作成する */
+export async function createTask(data: InsertTask) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(tasks).values(data);
+  return (result as any)[0]?.insertId ?? 0;
+}
+
+/** タスクの完了状態を切り替える */
+export async function toggleTask(id: number, done: boolean, completedBy?: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(tasks)
+    .set({
+      done: done ? 1 : 0,
+      completedBy: done ? completedBy : null,
+      completedAt: done ? new Date() : null,
+      updatedAt: new Date(),
+    })
+    .where(eq(tasks.id, id));
+}
+
+/** タスクを削除する（作成者のみ） */
+export async function deleteTask(id: number, createdBy: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .delete(tasks)
+    .where(and(eq(tasks.id, id), eq(tasks.createdBy, createdBy)));
+}
+
+/** タスクを取得する（ID指定） */
+export async function getTaskById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(tasks).where(eq(tasks.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}

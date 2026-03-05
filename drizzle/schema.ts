@@ -101,3 +101,43 @@ export const spreadsheetLinks = mysqlTable("spreadsheet_links", {
 
 export type SpreadsheetLink = typeof spreadsheetLinks.$inferSelect;
 export type InsertSpreadsheetLink = typeof spreadsheetLinks.$inferInsert;
+
+/**
+ * タスクテーブル
+ * チームまたは個人に割り当てられるタスクを管理する
+ * - assignType: "team" の場合は assignTeam で対象チームを指定
+ * - assignType: "personal" の場合は assignUserId で対象ユーザーを指定
+ * - assignType: "all" の場合は全スタッフ対象
+ */
+export const tasks = mysqlTable("tasks", {
+  id: int("id").autoincrement().primaryKey(),
+  /** タスクの内容 */
+  text: text("text").notNull(),
+  /** 完了フラグ */
+  done: int("done").default(0).notNull(), // 0: 未完了, 1: 完了
+  /** カテゴリ */
+  category: varchar("category", { length: 50 }).default("その他").notNull(),
+  /** 期日（任意） */
+  dueDate: timestamp("dueDate"),
+  /** 作成者のユーザーID */
+  createdBy: int("createdBy").notNull(),
+  /** 作成者の名前（表示用キャッシュ） */
+  createdByName: text("createdByName").notNull(),
+  /** 指定先タイプ: all=全員, team=チーム指定, personal=個人指定 */
+  assignType: mysqlEnum("assignType", ["all", "team", "personal"]).default("all").notNull(),
+  /** チーム指定の場合のチーム名 */
+  assignTeam: mysqlEnum("assignTeam", ["身体", "天理", "郡山北部", "郡山南部"]),
+  /** 個人指定の場合の対象ユーザーID */
+  assignUserId: int("assignUserId"),
+  /** 個人指定の場合の対象ユーザー名（表示用キャッシュ） */
+  assignUserName: text("assignUserName"),
+  /** 完了したユーザーID */
+  completedBy: int("completedBy"),
+  /** 完了日時 */
+  completedAt: timestamp("completedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Task = typeof tasks.$inferSelect;
+export type InsertTask = typeof tasks.$inferInsert;

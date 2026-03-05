@@ -1,75 +1,199 @@
 /**
- * Tasks - タスク管理ページ
+ * Tasks - タスク管理ページ（DB連携版）
+ * - 重要度なし
+ * - 期日（日時）設定あり
+ * - 作成者名自動付与
+ * - 個人指定 / チーム指定 / 全員 の3種類
+ * - 自分に関係するタスクのみ表示
  */
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckSquare, Plus, Circle, CheckCircle2, Trash2 } from "lucide-react";
+import {
+  CheckSquare,
+  Plus,
+  Circle,
+  CheckCircle2,
+  Trash2,
+  Calendar,
+  User,
+  Users,
+  Globe,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/_core/hooks/useAuth";
 
-type Priority = "high" | "medium" | "low";
+type AssignType = "all" | "team" | "personal";
 
-interface Task {
-  id: number;
-  text: string;
-  done: boolean;
-  priority: Priority;
-  category: string;
-  dueDate?: string;
+const TEAMS = ["身体", "天理", "郡山北部", "郡山南部"] as const;
+type Team = typeof TEAMS[number];
+
+const CATEGORIES = ["看護", "事務", "人事", "教育", "その他"] as const;
+
+// 期日の表示フォーマット
+function formatDueDate(date: Date | string | null | undefined): string {
+  if (!date) return "";
+  const d = new Date(date);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diff = Math.floor((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
+  const timeStr = d.getHours() !== 0 || d.getMinutes() !== 0
+    ? ` ${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`
+    : "";
+
+  if (diff < 0) return `${dateStr}${timeStr}（期限切れ）`;
+  if (diff === 0) return `今日${timeStr}`;
+  if (diff === 1) return `明日${timeStr}`;
+  return `${dateStr}${timeStr}`;
 }
 
-const initialTasks: Task[] = [
-  { id: 1, text: "月次報告書の作成", done: false, priority: "high", category: "事務", dueDate: "2026-03-10" },
-  { id: 2, text: "スタッフ面談（山田）", done: false, priority: "medium", category: "人事", dueDate: "2026-03-07" },
-  { id: 3, text: "利用者ケアプラン更新（3名）", done: true, priority: "high", category: "看護", dueDate: "2026-03-05" },
-  { id: 4, text: "研修資料の準備", done: false, priority: "low", category: "教育", dueDate: "2026-03-15" },
-  { id: 5, text: "医療安全会議の議事録作成", done: false, priority: "medium", category: "事務", dueDate: "2026-03-08" },
-];
+function getDueDateColor(date: Date | string | null | undefined): string {
+  if (!date) return "text-muted-foreground";
+  const d = new Date(date);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diff = Math.floor((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  if (diff < 0) return "text-red-600 font-semibold";
+  if (diff === 0) return "text-orange-600 font-semibold";
+  if (diff <= 2) return "text-amber-600";
+  return "text-muted-foreground";
+}
 
-const priorityConfig: Record<Priority, { label: string; className: string }> = {
-  high: { label: "急", className: "bg-red-100 text-red-700" },
-  medium: { label: "中", className: "bg-amber-100 text-amber-700" },
-  low: { label: "低", className: "bg-gray-100 text-gray-600" },
-};
+// 指定先バッジ
+function AssignBadge({ task }: { task: { assignType: string; assignTeam?: string | null; assignUserName?: string | null } }) {
+  if (task.assignType === "all") {
+    return (
+      <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+        <Globe className="w-3 h-3" />全員
+      </span>
+    );
+  }
+  if (task.assignType === "team") {
+    return (
+      <span className="flex items-center gap-0.5 text-[10px] text-blue-600">
+        <Users className="w-3 h-3" />{task.assignTeam}チーム
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-0.5 text-[10px] text-purple-600">
+      <User className="w-3 h-3" />{task.assignUserName ?? "個人"}
+    </span>
+  );
+}
 
 export default function Tasks() {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const { user } = useAuth();
+  const utils = trpc.useUtils();
+
+  // タスク一覧取得
+  const { data: tasks = [], isLoading } = trpc.tasks.getMine.useQuery();
+
+  // スタッフ一覧（個人指定用）
+  const { data: staff = [] } = trpc.tasks.getStaff.useQuery();
+
+  // フィルター
+  const [filter, setFilter] = useState<"all" | "active" | "done">("active");
+
+  // 新規作成フォームの開閉
+  const [showForm, setShowForm] = useState(false);
+
+  // フォームの状態
   const [newText, setNewText] = useState("");
-  const [newPriority, setNewPriority] = useState<Priority>("medium");
-  const [filter, setFilter] = useState<"all" | "active" | "done">("all");
+  const [newCategory, setNewCategory] = useState<string>("その他");
+  const [newDueDate, setNewDueDate] = useState("");
+  const [newDueTime, setNewDueTime] = useState("");
+  const [newAssignType, setNewAssignType] = useState<AssignType>("all");
+  const [newAssignTeam, setNewAssignTeam] = useState<Team>("身体");
+  const [newAssignUserId, setNewAssignUserId] = useState<number | null>(null);
+  const [newAssignUserName, setNewAssignUserName] = useState<string>("");
 
-  const toggleTask = (id: number) => {
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
-  };
-
-  const deleteTask = (id: number) => {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
-    toast.success("タスクを削除しました");
-  };
-
-  const addTask = () => {
-    if (!newText.trim()) return;
-    setTasks((prev) => [
-      ...prev,
-      { id: Date.now(), text: newText, done: false, priority: newPriority, category: "その他" },
-    ]);
-    setNewText("");
-    toast.success("タスクを追加しました");
-  };
-
-  const filtered = tasks.filter((t) => {
-    if (filter === "active") return !t.done;
-    if (filter === "done") return t.done;
-    return true;
+  // タスク作成
+  const createTask = trpc.tasks.create.useMutation({
+    onSuccess: () => {
+      utils.tasks.getMine.invalidate();
+      toast.success("タスクを追加しました");
+      setNewText("");
+      setNewDueDate("");
+      setNewDueTime("");
+      setNewAssignType("all");
+      setShowForm(false);
+    },
+    onError: (e) => toast.error(e.message),
   });
 
-  const activeCount = tasks.filter((t) => !t.done).length;
-  const doneCount = tasks.filter((t) => t.done).length;
+  // タスク完了切り替え
+  const toggleTask = trpc.tasks.toggle.useMutation({
+    onMutate: async ({ id, done }) => {
+      await utils.tasks.getMine.cancel();
+      const prev = utils.tasks.getMine.getData();
+      utils.tasks.getMine.setData(undefined, (old) =>
+        old?.map((t) => t.id === id ? { ...t, done: done ? 1 : 0 } : t)
+      );
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) utils.tasks.getMine.setData(undefined, ctx.prev);
+      toast.error("更新に失敗しました");
+    },
+    onSettled: () => utils.tasks.getMine.invalidate(),
+  });
+
+  // タスク削除
+  const deleteTask = trpc.tasks.delete.useMutation({
+    onSuccess: () => {
+      utils.tasks.getMine.invalidate();
+      toast.success("タスクを削除しました");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleAdd = () => {
+    if (!newText.trim()) {
+      toast.error("タスクの内容を入力してください");
+      return;
+    }
+
+    let dueDate: Date | undefined;
+    if (newDueDate) {
+      const dateTimeStr = newDueTime ? `${newDueDate}T${newDueTime}` : `${newDueDate}T00:00`;
+      dueDate = new Date(dateTimeStr);
+    }
+
+    createTask.mutate({
+      text: newText.trim(),
+      category: newCategory,
+      dueDate,
+      assignType: newAssignType,
+      assignTeam: newAssignType === "team" ? newAssignTeam : undefined,
+      assignUserId: newAssignType === "personal" && newAssignUserId ? newAssignUserId : undefined,
+      assignUserName: newAssignType === "personal" ? newAssignUserName : undefined,
+    });
+  };
+
+  const filtered = useMemo(() => {
+    return tasks.filter((t) => {
+      if (filter === "active") return t.done === 0;
+      if (filter === "done") return t.done === 1;
+      return true;
+    });
+  }, [tasks, filter]);
+
+  const activeCount = tasks.filter((t) => t.done === 0).length;
+  const doneCount = tasks.filter((t) => t.done === 1).length;
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto">
+      {/* ヘッダー */}
       <div className="flex items-center gap-2 mb-2">
         <CheckSquare className="w-5 h-5 text-primary" />
         <h1 className="text-lg font-bold">タスク管理</h1>
@@ -78,7 +202,7 @@ export default function Tasks() {
 
       {/* フィルター */}
       <div className="flex gap-2">
-        {(["all", "active", "done"] as const).map((f) => (
+        {(["active", "all", "done"] as const).map((f) => (
           <Button
             key={f}
             size="sm"
@@ -86,7 +210,11 @@ export default function Tasks() {
             className="h-7 text-xs px-3"
             onClick={() => setFilter(f)}
           >
-            {f === "all" ? `すべて (${tasks.length})` : f === "active" ? `未完了 (${activeCount})` : `完了 (${doneCount})`}
+            {f === "all"
+              ? `すべて (${tasks.length})`
+              : f === "active"
+              ? `未完了 (${activeCount})`
+              : `完了 (${doneCount})`}
           </Button>
         ))}
       </div>
@@ -94,87 +222,248 @@ export default function Tasks() {
       {/* タスク一覧 */}
       <Card className="shadow-sm">
         <CardContent className="p-3 space-y-1.5">
-          {filtered.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">タスクはありません</p>
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground text-center py-6">読み込み中...</p>
+          ) : filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              {filter === "active" ? "未完了のタスクはありません" : "タスクはありません"}
+            </p>
           ) : (
             filtered.map((task) => (
               <div
                 key={task.id}
                 className={cn(
-                  "flex items-center gap-2.5 p-2.5 rounded-lg group transition-colors",
+                  "flex items-start gap-2.5 p-2.5 rounded-lg group transition-colors",
                   task.done ? "bg-muted/20" : "bg-white hover:bg-muted/30"
                 )}
               >
-                <button onClick={() => toggleTask(task.id)} className="flex-shrink-0">
+                {/* 完了チェック */}
+                <button
+                  onClick={() => toggleTask.mutate({ id: task.id, done: task.done === 0 })}
+                  className="flex-shrink-0 mt-0.5"
+                >
                   {task.done ? (
                     <CheckCircle2 className="w-5 h-5 text-primary" />
                   ) : (
                     <Circle className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
                   )}
                 </button>
+
+                {/* タスク内容 */}
                 <div className="flex-1 min-w-0">
-                  <p className={cn("text-sm", task.done && "line-through text-muted-foreground")}>
+                  <p className={cn("text-sm leading-snug", task.done && "line-through text-muted-foreground")}>
                     {task.text}
                   </p>
-                  {task.dueDate && (
-                    <p className="text-[10px] text-muted-foreground mt-0.5">期限: {task.dueDate}</p>
-                  )}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
+                    {/* 期日 */}
+                    {task.dueDate && (
+                      <span className={cn("flex items-center gap-0.5 text-[11px]", getDueDateColor(task.dueDate))}>
+                        <Calendar className="w-3 h-3" />
+                        {formatDueDate(task.dueDate)}
+                      </span>
+                    )}
+                    {/* 指定先 */}
+                    <AssignBadge task={task} />
+                    {/* 作成者 */}
+                    <span className="text-[10px] text-muted-foreground/70">
+                      作成: {task.createdByName}
+                    </span>
+                    {/* カテゴリ */}
+                    {task.category && task.category !== "その他" && (
+                      <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                        {task.category}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <Badge className={cn("text-[10px] h-4 px-1.5 border-0 flex-shrink-0", priorityConfig[task.priority].className)}>
-                  {priorityConfig[task.priority].label}
-                </Badge>
-                <button
-                  onClick={() => deleteTask(task.id)}
-                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all flex-shrink-0"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+
+                {/* 削除ボタン（作成者のみ） */}
+                {task.createdBy === user?.id && (
+                  <button
+                    onClick={() => deleteTask.mutate({ id: task.id })}
+                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all flex-shrink-0 mt-0.5"
+                    title="削除（作成者のみ）"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             ))
           )}
         </CardContent>
       </Card>
 
-      {/* 新規追加 */}
-      <Card className="shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold flex items-center gap-1">
-            <Plus className="w-4 h-4" />
-            新しいタスクを追加
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <input
-            type="text"
-            placeholder="タスクの内容を入力..."
-            value={newText}
-            onChange={(e) => setNewText(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addTask()}
-            className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-          <div className="flex gap-2">
-            <div className="flex gap-1">
-              {(["high", "medium", "low"] as Priority[]).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setNewPriority(p)}
-                  className={cn(
-                    "text-xs px-2.5 py-1 rounded-md border transition-colors",
-                    newPriority === p
-                      ? `${priorityConfig[p].className} border-transparent`
-                      : "border-border text-muted-foreground hover:bg-muted"
-                  )}
-                >
-                  {priorityConfig[p].label}
-                </button>
-              ))}
+      {/* 新規追加ボタン */}
+      <button
+        onClick={() => setShowForm((v) => !v)}
+        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-primary/30 text-primary hover:border-primary hover:bg-primary/5 transition-colors text-sm font-medium"
+      >
+        {showForm ? <ChevronUp className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+        {showForm ? "フォームを閉じる" : "新しいタスクを追加"}
+      </button>
+
+      {/* 新規追加フォーム */}
+      {showForm && (
+        <Card className="shadow-sm border-primary/20">
+          <CardHeader className="pb-2 pt-4">
+            <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+              <Plus className="w-4 h-4 text-primary" />
+              タスクを追加
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {/* タスク内容 */}
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">内容 *</label>
+              <textarea
+                placeholder="タスクの内容を入力..."
+                value={newText}
+                onChange={(e) => setNewText(e.target.value)}
+                rows={2}
+                className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+              />
             </div>
-            <Button size="sm" className="ml-auto" onClick={addTask}>
-              追加
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+
+            {/* 期日・時刻 */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                  <Calendar className="w-3 h-3 inline mr-0.5" />期日（任意）
+                </label>
+                <input
+                  type="date"
+                  value={newDueDate}
+                  onChange={(e) => setNewDueDate(e.target.value)}
+                  className="w-full text-sm border border-border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">時刻（任意）</label>
+                <input
+                  type="time"
+                  value={newDueTime}
+                  onChange={(e) => setNewDueTime(e.target.value)}
+                  disabled={!newDueDate}
+                  className="w-full text-sm border border-border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40"
+                />
+              </div>
+            </div>
+
+            {/* カテゴリ */}
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">カテゴリ</label>
+              <div className="flex flex-wrap gap-1.5">
+                {CATEGORIES.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setNewCategory(cat)}
+                    className={cn(
+                      "text-xs px-2.5 py-1 rounded-full border transition-colors",
+                      newCategory === cat
+                        ? "bg-primary text-white border-primary"
+                        : "border-border text-muted-foreground hover:border-primary hover:text-primary"
+                    )}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 指定先 */}
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">指定先</label>
+              <div className="flex gap-2 mb-2">
+                {([
+                  { value: "all", label: "全員", icon: Globe },
+                  { value: "team", label: "チーム", icon: Users },
+                  { value: "personal", label: "個人", icon: User },
+                ] as const).map(({ value, label, icon: Icon }) => (
+                  <button
+                    key={value}
+                    onClick={() => setNewAssignType(value)}
+                    className={cn(
+                      "flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border transition-colors flex-1 justify-center",
+                      newAssignType === value
+                        ? "bg-primary text-white border-primary"
+                        : "border-border text-muted-foreground hover:border-primary hover:text-primary"
+                    )}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* チーム選択 */}
+              {newAssignType === "team" && (
+                <div className="flex flex-wrap gap-1.5">
+                  {TEAMS.map((team) => (
+                    <button
+                      key={team}
+                      onClick={() => setNewAssignTeam(team)}
+                      className={cn(
+                        "text-xs px-2.5 py-1 rounded-full border transition-colors",
+                        newAssignTeam === team
+                          ? "bg-blue-600 text-white border-blue-600"
+                          : "border-border text-muted-foreground hover:border-blue-600 hover:text-blue-600"
+                      )}
+                    >
+                      {team}チーム
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* 個人選択 */}
+              {newAssignType === "personal" && (
+                <select
+                  value={newAssignUserId ?? ""}
+                  onChange={(e) => {
+                    const id = Number(e.target.value);
+                    setNewAssignUserId(id || null);
+                    const found = staff.find((s) => s.id === id);
+                    setNewAssignUserName(found?.name ?? "");
+                  }}
+                  className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">スタッフを選択...</option>
+                  {staff.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name ?? "名前なし"}{s.team ? ` (${s.team})` : ""}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {/* 作成者（自動） */}
+            <p className="text-xs text-muted-foreground">
+              作成者: <span className="font-medium text-foreground">{user?.name ?? "あなた"}</span>（自動付与）
+            </p>
+
+            {/* 追加ボタン */}
+            <div className="flex gap-2 pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => setShowForm(false)}
+              >
+                キャンセル
+              </Button>
+              <Button
+                size="sm"
+                className="flex-1"
+                onClick={handleAdd}
+                disabled={createTask.isPending || !newText.trim()}
+              >
+                {createTask.isPending ? "追加中..." : "タスクを追加"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -21,6 +21,12 @@ import {
   getAllSpreadsheetLinks,
   upsertSpreadsheetLink,
   deleteSpreadsheetLink,
+  getMyTasks,
+  getAllTasks,
+  createTask,
+  toggleTask,
+  deleteTask as deleteTaskDb,
+  getTaskById,
 } from "./db";
 import { storagePut } from "./storage";
 import { eq } from "drizzle-orm";
@@ -517,6 +523,84 @@ export const appRouter = router({
       await deleteAllTodayScreenshots();
       await moveTomorrowToToday();
       return { success: true };
+    }),
+  }),
+
+  // ========== タスク ==========
+  tasks: router({
+    // 自分に関係するタスクを取得
+    getMine: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return [];
+      const { eq } = await import("drizzle-orm");
+      const { users } = await import("../drizzle/schema");
+      const userRows = await db.select().from(users).where(eq(users.id, ctx.user.id)).limit(1);
+      const userTeam = userRows[0]?.team ?? null;
+      return getMyTasks(ctx.user.id, userTeam);
+    }),
+
+    // タスクを作成する
+    create: protectedProcedure
+      .input(
+        z.object({
+          text: z.string().min(1).max(500),
+          category: z.string().max(50).default("その他"),
+          dueDate: z.date().optional(),
+          assignType: z.enum(["all", "team", "personal"]).default("all"),
+          assignTeam: z.enum(["身体", "天理", "郡山北部", "郡山南部"]).optional(),
+          assignUserId: z.number().optional(),
+          assignUserName: z.string().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const id = await createTask({
+          text: input.text,
+          category: input.category,
+          dueDate: input.dueDate,
+          assignType: input.assignType,
+          assignTeam: input.assignTeam,
+          assignUserId: input.assignUserId,
+          assignUserName: input.assignUserName,
+          createdBy: ctx.user.id,
+          createdByName: ctx.user.name ?? "不明",
+          done: 0,
+        });
+        return { success: true, id };
+      }),
+
+    // タスクの完了状態を切り替える
+    toggle: protectedProcedure
+      .input(z.object({ id: z.number(), done: z.boolean() }))
+      .mutation(async ({ ctx, input }) => {
+        await toggleTask(input.id, input.done, ctx.user.id);
+        return { success: true };
+      }),
+
+    // タスクを削除する（作成者のみ）
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const task = await getTaskById(input.id);
+        if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "タスクが見つかりません" });
+        if (task.createdBy !== ctx.user.id) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "作成者のみ削除できます" });
+        }
+        await deleteTaskDb(input.id, ctx.user.id);
+        return { success: true };
+      }),
+
+    // スタッフ一覧を取得（個人指定用）
+    getStaff: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return [];
+      const { eq } = await import("drizzle-orm");
+      const { users } = await import("../drizzle/schema");
+      const allUsers = await db.select({
+        id: users.id,
+        name: users.name,
+        team: users.team,
+      }).from(users);
+      return allUsers;
     }),
   }),
 });
