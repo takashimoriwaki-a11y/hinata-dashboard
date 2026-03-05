@@ -92,8 +92,8 @@ const spreadsheetLinks = [
 ];
 
 // 業務ツール - ドキュメント
-const documentLinks = [
-  { label: "NotebookLM — 就業規則・社内マニュアル", href: "https://notebooklm.google.com/notebook/4781c6de-6e18-456d-b557-a202c3b03747", color: "text-blue-600" },
+const documentLinks: { label: string; href: string; color: string }[] = [
+  // ドキュメントリンクをここに追加できます
 ];
 
 // 業務ツール - フォーム
@@ -103,6 +103,7 @@ const formLinks: { label: string; href: string; color: string }[] = [
 
 // 業務ツール - その他
 const otherLinks = [
+  { label: "NotebookLM — 就業規則・社内マニュアル", href: "https://notebooklm.google.com/notebook/4781c6de-6e18-456d-b557-a202c3b03747", color: "text-blue-600" },
   { label: "Gemini — Google AIチャット", href: "https://gemini.google.com/app", color: "text-violet-600" },
   { label: "Gemini Gems — MSE看護記録作成サポーター", href: "https://gemini.google.com/gem/1qqbO6BLZLj9IXwsOjYuePdyQn0QGkifV?usp=sharing", color: "text-purple-600" },
   { label: "ひなた 公式 Instagram", href: "https://www.instagram.com/kokoronohinata/", color: "text-pink-600" },
