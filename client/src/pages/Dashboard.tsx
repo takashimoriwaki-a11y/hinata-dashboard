@@ -228,6 +228,14 @@ function VisitCountCard() {
   const prevPct = data.prevTotalTarget > 0 ? (data.prevTotalActual / data.prevTotalTarget) * 100 : 0;
   const prevAchieved = prevPct >= 100;
 
+  // 目標差分ラベル: プラスは超過、マイナスは不足
+  const getDiffLabel = (actual: number, target: number) => {
+    if (target <= 0) return null;
+    const diff = Math.round((actual - target) * 10) / 10;
+    if (diff >= 0) return { text: `${diff}件超過`, over: true };
+    return { text: `あと${Math.abs(diff)}件`, over: false };
+  };
+
   // 達成率に応じた色分け: 70%未満=赤, 70〜89%=オレンジ, 90〜99%=黄緑, 100%以上=緑
   const getPctColor = (pct: number) => {
     if (pct >= 100) return "text-emerald-600";
@@ -286,6 +294,14 @@ function VisitCountCard() {
                 <p className="text-[10px] text-muted-foreground/60">月目標 {data.mainTarget}</p>
               )}
             </div>
+            {(() => {
+              const diff = getDiffLabel(data.mainActual, data.mainDailyTargetCumul);
+              return diff ? (
+                <p className={cn("text-[10px] font-medium", diff.over ? "text-emerald-600" : "text-muted-foreground")}>
+                  {diff.over ? `目標を${diff.text}` : `目標まで${diff.text}`}
+                </p>
+              ) : null;
+            })()}
           </div>
           {/* サブ */}
           <div className="space-y-1.5 border border-border rounded-xl p-2.5 bg-muted/20">
@@ -308,6 +324,14 @@ function VisitCountCard() {
                 <p className="text-[10px] text-muted-foreground/60">月目標 {data.subTarget}</p>
               )}
             </div>
+            {(() => {
+              const diff = getDiffLabel(data.subActual, data.subDailyTargetCumul);
+              return diff ? (
+                <p className={cn("text-[10px] font-medium", diff.over ? "text-emerald-600" : "text-muted-foreground")}>
+                  {diff.over ? `目標を${diff.text}` : `目標まで${diff.text}`}
+                </p>
+              ) : null;
+            })()}
           </div>
           {/* 合計（メイン換算） */}
           <div className="space-y-1.5 border border-border rounded-xl p-2.5 bg-muted/20">
@@ -328,6 +352,14 @@ function VisitCountCard() {
                 <p className="text-[10px] text-muted-foreground/60">月目標 {data.mainTarget}</p>
               )}
             </div>
+            {(() => {
+              const diff = getDiffLabel(data.totalActualEquiv, data.totalTargetEquiv);
+              return diff ? (
+                <p className={cn("text-[10px] font-medium", diff.over ? "text-emerald-600" : "text-muted-foreground")}>
+                  {diff.over ? `目標を${diff.text}` : `目標まで${diff.text}`}
+                </p>
+              ) : null;
+            })()}
           </div>
         </div>
 
