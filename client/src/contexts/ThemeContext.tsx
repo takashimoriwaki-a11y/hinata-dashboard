@@ -2,8 +2,19 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 
 type Theme = "light" | "dark";
 
+// 5:00〜19:00 は昼モード、19:01〜4:59 は夜モード
+function isNightTime(): boolean {
+  const now = new Date();
+  const hour = now.getHours();
+  const minute = now.getMinutes();
+  const totalMinutes = hour * 60 + minute;
+  // 昼: 5:00 (300分) 〜 19:00 (1140分)
+  return totalMinutes < 300 || totalMinutes >= 1141;
+}
+
 interface ThemeContextType {
   theme: Theme;
+  isNight: boolean;
   toggleTheme?: () => void;
   switchable: boolean;
 }
@@ -21,7 +32,12 @@ export function ThemeProvider({
   defaultTheme = "light",
   switchable = false,
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(() => {
+  const [isNight, setIsNight] = useState<boolean>(() => isNightTime());
+
+  // 時間帯に基づいたテーマ（switchable=falseのとき自動）
+  const autoTheme: Theme = isNight ? "dark" : "light";
+
+  const [manualTheme, setManualTheme] = useState<Theme>(() => {
     if (switchable) {
       const stored = localStorage.getItem("theme");
       return (stored as Theme) || defaultTheme;
@@ -29,27 +45,53 @@ export function ThemeProvider({
     return defaultTheme;
   });
 
+  const theme: Theme = switchable ? manualTheme : autoTheme;
+
+  // 毎分チェックして時刻をまたいだ際に自動切替
+  useEffect(() => {
+    const tick = () => {
+      setIsNight(isNightTime());
+    };
+    // 次の分の頭に合わせて起動
+    const now = new Date();
+    const msToNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+    const timeout = setTimeout(() => {
+      tick();
+      const interval = setInterval(tick, 60_000);
+      return () => clearInterval(interval);
+    }, msToNextMinute);
+
+    return () => clearTimeout(timeout);
+  }, []);
+
+  // <html> に .night クラスを付け外し（CSS変数の切替）
+  // また dark クラスも同期（shadcn/ui の dark: ユーティリティ用）
   useEffect(() => {
     const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
+    if (isNight && !switchable) {
+      root.classList.add("night", "dark");
+      root.classList.remove("light");
+    } else if (switchable && manualTheme === "dark") {
+      root.classList.add("night", "dark");
+      root.classList.remove("light");
     } else {
-      root.classList.remove("dark");
+      root.classList.remove("night", "dark");
+      root.classList.add("light");
     }
 
     if (switchable) {
-      localStorage.setItem("theme", theme);
+      localStorage.setItem("theme", manualTheme);
     }
-  }, [theme, switchable]);
+  }, [isNight, switchable, manualTheme]);
 
   const toggleTheme = switchable
     ? () => {
-        setTheme(prev => (prev === "light" ? "dark" : "light"));
+        setManualTheme(prev => (prev === "light" ? "dark" : "light"));
       }
     : undefined;
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, switchable }}>
+    <ThemeContext.Provider value={{ theme, isNight, toggleTheme, switchable }}>
       {children}
     </ThemeContext.Provider>
   );

@@ -46,6 +46,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
+import { useTheme } from "@/contexts/ThemeContext";
 
 // ========== データ定義 ==========
 
@@ -1552,11 +1553,17 @@ const LOGO_TEXT = "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP4
 export default function Dashboard() {
   const greeting = getGreeting();
   const userName = "崇";
+  const { isNight } = useTheme();
+
+  // 時間帯によるウェルカムバナーのグラデーション
+  const bannerGradient = isNight
+    ? "linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)"
+    : "linear-gradient(135deg, #f97316 0%, #fb923c 50%, #fbbf24 100%)";
 
   return (
     <div className="p-3 md:p-4 space-y-3 md:space-y-4 max-w-screen-xl mx-auto">
       {/* ウェルカムバナー */}
-      <div className="relative rounded-2xl overflow-hidden shadow-md fade-in-up" style={{background: "linear-gradient(135deg, #f97316 0%, #fb923c 50%, #fbbf24 100%)"}}>
+      <div className="relative rounded-2xl overflow-hidden shadow-md fade-in-up" style={{background: bannerGradient}}>
         {/* 背景装飾 */}
         <div className="absolute inset-0 opacity-10" style={{backgroundImage: "radial-gradient(circle at 80% 20%, white 0%, transparent 60%)"}} />
         <div className="relative px-4 py-2 md:px-5 md:py-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
