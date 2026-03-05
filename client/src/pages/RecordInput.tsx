@@ -7,7 +7,7 @@
  * - ①カードの下にスプレッドシート転送ボタン
  * - ②病状の経過
  */
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,6 +40,27 @@ export default function RecordInput() {
   const [notifiedToOther, setNotifiedToOther] = useState("");
   const [notifyMethod, setNotifyMethod] = useState<typeof NOTIFY_METHOD_OPTIONS[number] | "">("");
   const [notifyMethodOther, setNotifyMethodOther] = useState("");
+
+  // 時間セレクト用
+  const [timeDropdownOpen, setTimeDropdownOpen] = useState(false);
+  const timeListRef = useRef<HTMLDivElement>(null);
+  const timeSlots = useMemo(() => Array.from({ length: 24 * 6 }, (_, i) => {
+    const h = Math.floor(i / 6);
+    const m = (i % 6) * 10;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  }), []);
+
+  // ドロップダウンを開いたとき現在時刻に近い選択肢へスクロール
+  useEffect(() => {
+    if (!timeDropdownOpen || !timeListRef.current) return;
+    const now = new Date();
+    const roundedMin = Math.round(now.getMinutes() / 10) * 10;
+    const h = roundedMin === 60 ? (now.getHours() + 1) % 24 : now.getHours();
+    const m = roundedMin === 60 ? 0 : roundedMin;
+    const target = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    const el = timeListRef.current.querySelector(`[data-val="${target}"]`) as HTMLElement | null;
+    if (el) el.scrollIntoView({ block: "center" });
+  }, [timeDropdownOpen]);
 
   // ② 病状の経過
   const [clinicalNotes, setClinicalNotes] = useState("");
@@ -327,19 +348,36 @@ ${clinicalNotes}`);
                 value={nextVisitDate}
                 onChange={(e) => setNextVisitDate(e.target.value)}
               />
-              <Select value={nextVisitTime} onValueChange={setNextVisitTime}>
-                <SelectTrigger className="text-sm w-28">
-                  <SelectValue placeholder="時刻" />
-                </SelectTrigger>
-                <SelectContent className="max-h-60">
-                  {Array.from({ length: 24 * 6 }, (_, i) => {
-                    const h = Math.floor(i / 6);
-                    const m = (i % 6) * 10;
-                    const val = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-                    return <SelectItem key={val} value={val}>{val}</SelectItem>;
-                  })}
-                </SelectContent>
-              </Select>
+              <div className="relative w-28">
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between border rounded-md px-3 py-2 text-sm bg-background hover:bg-muted transition-colors"
+                  onClick={() => setTimeDropdownOpen((o) => !o)}
+                >
+                  <span className={nextVisitTime ? "" : "text-muted-foreground"}>{nextVisitTime || "時刻"}</span>
+                  <ChevronDown className="w-3 h-3 ml-1 text-muted-foreground" />
+                </button>
+                {timeDropdownOpen && (
+                  <div
+                    ref={timeListRef}
+                    className="absolute z-50 top-full mt-1 w-full border rounded-md bg-background shadow-md max-h-60 overflow-y-auto"
+                  >
+                    {timeSlots.map((val) => (
+                      <button
+                        key={val}
+                        data-val={val}
+                        type="button"
+                        className={`w-full text-left px-3 py-1.5 text-sm hover:bg-muted transition-colors ${
+                          nextVisitTime === val ? "bg-primary text-primary-foreground hover:bg-primary" : ""
+                        }`}
+                        onClick={() => { setNextVisitTime(val); setTimeDropdownOpen(false); }}
+                      >
+                        {val}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
