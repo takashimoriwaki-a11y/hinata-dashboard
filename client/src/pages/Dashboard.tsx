@@ -2390,20 +2390,24 @@ export default function Dashboard() {
       </div>
 
       {/* メインコンテンツ */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
-        {/* 左カラム */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 items-start">
+        {/* 左カラム: スケジュールスクリーンショット */}
         <div className="lg:col-span-2 space-y-3 md:space-y-4">
           <ScheduleScreenshotCard />
         </div>
 
-        {/* 右カラム */}
+        {/* 右カラム: ツール・タスク */}
         <div className="space-y-3 md:space-y-4">
           <ToolsCard />
           <TasksCard />
-          <MessageBoard title="メッセージ" />
-          <VisitCountCard />
-          <QuickLinksCard />
         </div>
+      </div>
+
+      {/* 下段: メッセージ・訪問件数・クイックリンクを横並び（PC版） */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 items-start">
+        <MessageBoard title="メッセージ" />
+        <VisitCountCard />
+        <QuickLinksCard />
       </div>
     </div>
   );
