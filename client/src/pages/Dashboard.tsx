@@ -1226,11 +1226,11 @@ function TasksCard() {
               未完了のタスクはありません ✓
             </p>
           ) : (
-            incomplete.slice(0, 5).map((task) => (
-              <div key={task.id} className="flex items-center gap-2 group">
+              incomplete.slice(0, 5).map((task) => (
+              <div key={task.id} className="flex items-start gap-2 group">
                 <button
                   onClick={() => toggleTask.mutate({ id: task.id, done: task.done === 0 })}
-                  className="flex-shrink-0"
+                  className="flex-shrink-0 mt-0.5"
                 >
                   {task.done ? (
                     <CheckCircle2 className="w-4 h-4 text-primary" />
@@ -1238,9 +1238,45 @@ function TasksCard() {
                     <Circle className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                   )}
                 </button>
-                <span className={cn("flex-1 text-sm", task.done ? "line-through text-muted-foreground" : "text-foreground")}>
-                  {task.text}
-                </span>
+                <div className="flex-1 min-w-0">
+                  <span className={cn("text-sm block", task.done ? "line-through text-muted-foreground" : "text-foreground")}>
+                    {task.text}
+                  </span>
+                  {task.dueDate && (
+                    <span className={cn(
+                      "flex items-center gap-0.5 text-[11px] mt-0.5",
+                      (() => {
+                        const d = new Date(task.dueDate);
+                        const now = new Date();
+                        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                        const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+                        const diff = Math.floor((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                        if (diff < 0) return "text-red-600 font-semibold";
+                        if (diff === 0) return "text-orange-600 font-semibold";
+                        if (diff <= 2) return "text-amber-600";
+                        return "text-muted-foreground";
+                      })()
+                    )}>
+                      <Calendar className="w-3 h-3" />
+                      {(() => {
+                        const WDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+                        const d = new Date(task.dueDate);
+                        const now = new Date();
+                        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                        const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+                        const diff = Math.floor((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                        const wday = WDAYS[d.getDay()];
+                        const timeStr = d.getHours() !== 0 || d.getMinutes() !== 0
+                          ? ` ${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`
+                          : "";
+                        if (diff < 0) return `${d.getMonth()+1}月${d.getDate()}日（${wday}）${timeStr}（期限切れ）`;
+                        if (diff === 0) return `今日（${wday}）${timeStr}`;
+                        if (diff === 1) return `明日（${wday}）${timeStr}`;
+                        return `${d.getMonth()+1}月${d.getDate()}日（${wday}）${timeStr}`;
+                      })()}
+                    </span>
+                  )}
+                </div>
               </div>
             ))
           )}
