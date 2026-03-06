@@ -1856,7 +1856,12 @@ function MessageBoard({ title }: { title: string }) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-0.5">
-                        <span className="text-sm font-semibold text-foreground">{msg.createdByName}</span>
+                        <span className="text-xs font-semibold text-foreground">
+                          {(() => {
+                            const parts = (msg.createdByName ?? "不明").trim().split(/\s+/);
+                            return parts.length >= 2 ? `${parts[parts.length - 1]} ${parts.slice(0, -1).join(" ")}` : (msg.createdByName ?? "不明");
+                          })()}
+                        </span>
                         <span className="text-xs text-muted-foreground">
                           {new Date(msg.createdAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                         </span>
