@@ -2,6 +2,7 @@ import { and, eq, or, isNull, desc, lte, gte, lt, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot, myLinks, InsertMyLink, spreadsheetLinks, InsertSpreadsheetLink, tasks, InsertTask, messages, InsertMessage, messageReactions, InsertMessageReaction, patients, InsertPatient, visitRecords, InsertVisitRecord, appNotifications, InsertAppNotification } from "../drizzle/schema";
 import { screenshotUploadLogs, InsertScreenshotUploadLog, appSettings } from "../drizzle/schema";
+import { scheduleComments, InsertScheduleComment } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -1020,4 +1021,39 @@ export async function updateStaffEmail(userId: number, email: string) {
     throw new Error("このメールアドレスはすでに使用されています");
   }
   await db.update(users).set({ email }).where(eq(users.id, userId));
+}
+
+// ========== スケジュールコメント ==========
+
+/** 指定チーム・日のコメント一覧を取得（新しい順） */
+export async function getScheduleComments(team: string, day: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(scheduleComments)
+    .where(
+      and(
+        eq(scheduleComments.team, team as any),
+        eq(scheduleComments.day, day as any)
+      )
+    )
+    .orderBy(desc(scheduleComments.createdAt));
+}
+
+/** コメントを投稿する */
+export async function addScheduleComment(data: InsertScheduleComment) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(scheduleComments).values(data);
+  return (result as any)[0]?.insertId ?? 0;
+}
+
+/** コメントを削除する（自分のコメントのみ） */
+export async function deleteScheduleComment(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .delete(scheduleComments)
+    .where(and(eq(scheduleComments.id, id), eq(scheduleComments.userId, userId)));
 }

@@ -351,3 +351,26 @@ export const appSettings = mysqlTable("app_settings", {
 });
 export type AppSetting = typeof appSettings.$inferSelect;
 export type InsertAppSetting = typeof appSettings.$inferInsert;
+
+/**
+ * 訪問スケジュールコメントテーブル
+ * 各チーム・今日/明日のスクリーンショットに対するコメント・申し送り事項を管理する
+ */
+export const scheduleComments = mysqlTable("schedule_comments", {
+  id: int("id").autoincrement().primaryKey(),
+  /** チーム名 */
+  team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部"]).notNull(),
+  /** 今日 or 明日 */
+  day: mysqlEnum("day", ["今日", "明日"]).notNull(),
+  /** コメント本文 */
+  content: text("content").notNull(),
+  /** 投稿したユーザーID */
+  userId: int("userId").notNull(),
+  /** 投稿したユーザー名（表示用キャッシュ） */
+  userName: text("userName").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ScheduleComment = typeof scheduleComments.$inferSelect;
+export type InsertScheduleComment = typeof scheduleComments.$inferInsert;

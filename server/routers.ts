@@ -67,6 +67,9 @@ import {
   getRecentScreenshotUploadLogs,
   getSetting,
   setSetting,
+  getScheduleComments,
+  addScheduleComment,
+  deleteScheduleComment,
 } from "./db";
 import { storagePut } from "./storage";
 import { eq } from "drizzle-orm";
@@ -624,14 +627,47 @@ export const appRouter = router({
         const logs = await getRecentScreenshotUploadLogs(input?.limit ?? 20);
         return logs.map((l) => ({
           id: l.id,
-          team: l.team,
+           team: l.team,
           day: l.day,
           uploadedByName: l.uploadedByName,
           createdAt: l.createdAt,
         }));
       }),
-  }),
 
+    // ========== コメント・申し送り ==========
+    getComments: publicProcedure
+      .input(z.object({
+        team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]),
+        day: z.enum(["今日", "明日"]),
+      }))
+      .query(async ({ input }) => {
+        return getScheduleComments(input.team, input.day);
+      }),
+
+    addComment: protectedProcedure
+      .input(z.object({
+        team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]),
+        day: z.enum(["今日", "明日"]),
+        content: z.string().min(1).max(500),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const id = await addScheduleComment({
+          team: input.team,
+          day: input.day,
+          content: input.content,
+          userId: ctx.user.id,
+          userName: ctx.user.name ?? "名前未設定",
+        });
+        return { id };
+      }),
+
+    deleteComment: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        await deleteScheduleComment(input.id, ctx.user.id);
+        return { success: true };
+      }),
+  }),
   // ========== タスク ==========
   tasks: router({
     // 自分に関係するタスクを取得
