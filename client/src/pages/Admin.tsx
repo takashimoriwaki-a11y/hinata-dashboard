@@ -790,10 +790,10 @@ export default function Admin() {
                 </CardTitle>
                 <div className="flex items-center gap-2">
                   {selectedYearMonth === currentYearMonth && (
-                    <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700">今月</Badge>
+                    <Badge variant="secondary" className="text-xs bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400">今月</Badge>
                   )}
                   {selectedYearMonth > currentYearMonth && (
-                    <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">翌月以降</Badge>
+                    <Badge variant="secondary" className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400">琉月以降</Badge>
                   )}
                   <Badge variant="outline" className="text-xs">
                     {Object.keys(selectedLinks).length} / {LINK_DEFINITIONS.length} 件登録済み
@@ -911,10 +911,10 @@ export default function Admin() {
                             : <div className="w-3.5 h-3.5 rounded-full border border-amber-400" />
                           }
                           <span className="text-sm font-medium">{formatYearMonth(ym)}</span>
-                          {isCurrent && <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0">今月</Badge>}
-                          {ym > currentYearMonth && <Badge variant="secondary" className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0">翌月以降</Badge>}
+                          {isCurrent && <Badge variant="secondary" className="text-[10px] bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 px-1.5 py-0">今月</Badge>}
+                          {ym > currentYearMonth && <Badge variant="secondary" className="text-[10px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 px-1.5 py-0">琉月以降</Badge>}
                         </div>
-                        <span className={cn("text-xs font-medium", isComplete ? "text-emerald-600" : "text-amber-600")}>
+                        <span className={cn("text-xs font-medium", isComplete ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")}>
                           {count} / {LINK_DEFINITIONS.length} 件
                         </span>
                       </div>
@@ -1189,13 +1189,13 @@ function StaffManagementPanel() {
                         variant="outline"
                         className={cn(
                           "text-[10px] px-1.5 py-0",
-                          staff.role === "admin" ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-blue-50 text-blue-600 border-blue-200"
+                          staff.role === "admin" ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-700" : "bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-700"
                         )}
                       >
                         {staff.role === "admin" ? "管理者" : "スタッフ"}
                       </Badge>
                       {staff.team && (
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-gray-50">{staff.team}</Badge>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-gray-50 dark:bg-gray-800 dark:text-gray-300">{staff.team}</Badge>
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">{staff.email ?? "メール未設定"}</p>
@@ -1235,8 +1235,8 @@ function StaffManagementPanel() {
 
                 {/* パスワードリセットフォーム */}
                 {resetUserId === staff.id && (
-                  <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
-                    <p className="text-xs font-medium text-amber-700">{staff.name}のパスワードリセット</p>
+                  <div className="mt-2 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg p-3 space-y-2">
+                    <p className="text-xs font-medium text-amber-700 dark:text-amber-400">{staff.name}のパスワードリセット</p>
                     <input
                       type="password"
                       value={resetPassword}

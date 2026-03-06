@@ -1028,6 +1028,9 @@ type ToolsTabId = typeof TOOLS_TABS[number]["id"];
 
 // リンク行コンポーネント
 function LinkRow({ href, label, color, emoji }: { href: string; label: string; color?: string; emoji?: string }) {
+  const { isNight } = useTheme();
+  // 夜間モード時は-600番台を-400番台に変換して視認性を上げる
+  const nightColor = color ? color.replace(/-600$/, "-400").replace(/-700$/, "-300") : "text-foreground";
   return (
     <a
       href={href}
@@ -1036,7 +1039,7 @@ function LinkRow({ href, label, color, emoji }: { href: string; label: string; c
       className={cn(
         "flex items-center gap-2 text-sm py-2.5 px-3 rounded-md",
         "bg-muted/50 hover:bg-muted transition-colors font-medium",
-        color ?? "text-foreground"
+        isNight ? nightColor : (color ?? "text-foreground")
       )}
     >
       {emoji ? <span className="flex-shrink-0">{emoji}</span> : <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />}
@@ -1282,6 +1285,7 @@ function QuickLinksCard() {
 
 function TasksCard() {
   const utils = trpc.useUtils();
+  const { isNight } = useTheme();
   const [showForm, setShowForm] = useState(false);
 
   // DBから未完了タスクを取得
@@ -1348,9 +1352,9 @@ function TasksCard() {
                         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                         const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
                         const diff = Math.floor((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                        if (diff < 0) return "text-red-600 font-semibold";
-                        if (diff === 0) return "text-orange-600 font-semibold";
-                        if (diff <= 2) return "text-amber-600";
+                        if (diff < 0) return isNight ? "text-red-400 font-semibold" : "text-red-600 font-semibold";
+                        if (diff === 0) return isNight ? "text-orange-400 font-semibold" : "text-orange-600 font-semibold";
+                        if (diff <= 2) return isNight ? "text-amber-400" : "text-amber-600";
                         return "text-muted-foreground";
                       })()
                     )}>
@@ -1408,6 +1412,7 @@ const REACTION_EMOJIS = ["❤️", "👍", "🙏", "✅", "👀"];
 function MessageBoard({ title }: { title: string }) {
   const utils = trpc.useUtils();
   const { user } = useAuth();
+  const { isNight } = useTheme();
 
   // DBからメッセージ取得
   const { data: messages = [], isLoading } = trpc.messages.getActive.useQuery(undefined, {
@@ -1660,12 +1665,12 @@ function MessageBoard({ title }: { title: string }) {
                           {new Date(msg.createdAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                         </span>
                         {msg.displayUntil && (
-                          <span className="text-[10px] text-amber-600 bg-amber-50 px-1 rounded">
+                          <span className={cn("text-[10px] px-1 rounded", isNight ? "text-amber-400 bg-amber-900/40" : "text-amber-600 bg-amber-50")}>
                             → {new Date(msg.displayUntil).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}まで
                           </span>
                         )}
                         {msg.scheduledAt && new Date(msg.scheduledAt) > new Date() && (
-                          <span className="text-[10px] text-blue-600 bg-blue-50 px-1 rounded">予約</span>
+                          <span className={cn("text-[10px] px-1 rounded", isNight ? "text-blue-400 bg-blue-900/40" : "text-blue-600 bg-blue-50")}>予約</span>
                         )}
                       </div>
                       <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{msg.text}</p>

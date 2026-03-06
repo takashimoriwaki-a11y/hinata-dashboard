@@ -430,7 +430,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="space-y-4 py-2">
             {/* 現在の状態表示 */}
             {isSubscribed && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 rounded-lg text-sm text-emerald-700">
+              <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg text-sm text-emerald-700 dark:text-emerald-400">
                 <Bell className="w-4 h-4 fill-emerald-500" />
                 通知は現在オンになっています
               </div>
