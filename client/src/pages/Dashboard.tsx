@@ -459,6 +459,9 @@ function ScheduleScreenshotCard() {
   const [isDragging, setIsDragging] = useState(false);
   const [viewUrl, setViewUrl] = useState<string | null>(null);
   const [viewMeta, setViewMeta] = useState<{ team: string; day: string; uploadedByName: string | null; updatedAt: Date } | null>(null);
+  const [modalSlideIndex, setModalSlideIndex] = useState(0);
+  const modalTouchStartX = useRef<number | null>(null);
+  const modalTouchStartY = useRef<number | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const utils = trpc.useUtils();
@@ -738,6 +741,7 @@ function ScheduleScreenshotCard() {
                               uploadedByName: screenshot.uploadedByName,
                               updatedAt: screenshot.updatedAt,
                             });
+                            setModalSlideIndex(slideIdx);
                           }}
                         >
                           <img
@@ -875,7 +879,22 @@ function ScheduleScreenshotCard() {
       </Card>
 
       {/* 拡大モーダル */}
-      {viewUrl && viewMeta && (
+      {viewUrl && viewMeta && (() => {
+        // モーダル内スワイプ用ヘルパー
+        const modalSlide = swipeSlides[modalSlideIndex];
+        const goModalSlide = (idx: number) => {
+          const clamped = Math.max(0, Math.min(swipeSlides.length - 1, idx));
+          const slide = swipeSlides[clamped];
+          if (slide.screenshot) {
+            setViewUrl(slide.screenshot.imageUrl);
+            setViewMeta({ team: slide.screenshot.team, day: slide.screenshot.day, uploadedByName: slide.screenshot.uploadedByName, updatedAt: slide.screenshot.updatedAt });
+          } else {
+            setViewUrl(null);
+            setViewMeta({ team: slide.team, day: slide.day, uploadedByName: null, updatedAt: new Date() });
+          }
+          setModalSlideIndex(clamped);
+        };
+        return (
         <div
           className="fixed inset-0 z-50 bg-black/80 flex items-start justify-center p-4 pb-[80px] overflow-y-auto"
           onClick={() => { setViewUrl(null); setViewMeta(null); }}
@@ -894,9 +913,11 @@ function ScheduleScreenshotCard() {
                 {viewMeta.uploadedByName && (
                   <span className="text-xs text-muted-foreground">· {viewMeta.uploadedByName}</span>
                 )}
-                <span className="text-xs text-muted-foreground">
-                  · {new Date(viewMeta.updatedAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} 登録
-                </span>
+                {viewMeta.updatedAt && (
+                  <span className="text-xs text-muted-foreground">
+                    · {new Date(viewMeta.updatedAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} 登録
+                  </span>
+                )}
               </div>
               <button
                 onClick={() => { setViewUrl(null); setViewMeta(null); }}
@@ -906,69 +927,77 @@ function ScheduleScreenshotCard() {
               </button>
             </div>
 
-            {/* 画像 */}
-            <div className="overflow-auto max-h-[65vh] bg-muted/20">
-              <img
-                src={viewUrl}
-                alt={`${viewMeta.team}チーム ${viewMeta.day}のスケジュール`}
-                className="w-full object-contain"
-              />
+            {/* 画像（スワイプ対応） */}
+            <div
+              className="relative overflow-hidden bg-muted/20"
+              onTouchStart={(e) => { modalTouchStartX.current = e.touches[0].clientX; modalTouchStartY.current = e.touches[0].clientY; }}
+              onTouchEnd={(e) => {
+                if (modalTouchStartX.current === null || modalTouchStartY.current === null) return;
+                const dx = e.changedTouches[0].clientX - modalTouchStartX.current;
+                const dy = e.changedTouches[0].clientY - modalTouchStartY.current;
+                modalTouchStartX.current = null;
+                modalTouchStartY.current = null;
+                if (Math.abs(dx) < 30 || Math.abs(dy) > Math.abs(dx)) return;
+                if (dx < 0) goModalSlide(modalSlideIndex + 1);
+                else goModalSlide(modalSlideIndex - 1);
+              }}
+            >
+              {viewUrl ? (
+                <img
+                  src={viewUrl}
+                  alt={`${viewMeta.team}チーム ${viewMeta.day}のスケジュール`}
+                  className="w-full object-contain max-h-[65vh]"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
+                  {viewMeta.team}チーム / {viewMeta.day} は未登録です
+                </div>
+              )}
+              {/* チーム・日付ラベル */}
+              <div className="absolute top-2 left-2 bg-black/65 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full pointer-events-none">
+                {viewMeta.team} / {viewMeta.day}
+              </div>
+              {/* 左矢印 */}
+              {modalSlideIndex > 0 && (
+                <button
+                  onClick={() => goModalSlide(modalSlideIndex - 1)}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full w-9 h-9 flex items-center justify-center transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+              )}
+              {/* 右矢印 */}
+              {modalSlideIndex < swipeSlides.length - 1 && (
+                <button
+                  onClick={() => goModalSlide(modalSlideIndex + 1)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full w-9 h-9 flex items-center justify-center transition-colors"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              )}
             </div>
 
-            {/* チーム・日付切り替えボタン */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-muted/20">
-              <div className="flex gap-1.5">
-                {TEAMS.map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => {
-                      const found = screenshots?.find(
-                        (s) => s.team === t && s.day === viewMeta.day
-                      );
-                      if (found) {
-                        setViewUrl(found.imageUrl);
-                        setViewMeta({ team: found.team, day: found.day, uploadedByName: found.uploadedByName, updatedAt: found.updatedAt });
-                      } else toast.info(`${t}チームの${viewMeta.day}のスクリーンショットは未登録です`);
-                    }}
-                    className={cn(
-                      "text-xs px-2.5 py-1 rounded border transition-colors",
-                      viewMeta.team === t
-                        ? "bg-primary text-white border-primary"
-                        : "border-border text-muted-foreground hover:bg-muted"
-                    )}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-              <div className="flex gap-1.5">
-                {DAYS.map((d) => (
-                  <button
-                    key={d}
-                    onClick={() => {
-                      const found = screenshots?.find(
-                        (s) => s.team === viewMeta.team && s.day === d
-                      );
-                      if (found) {
-                        setViewUrl(found.imageUrl);
-                        setViewMeta({ team: found.team, day: found.day, uploadedByName: found.uploadedByName, updatedAt: found.updatedAt });
-                      } else toast.info(`${viewMeta.team}チームの${d}のスクリーンショットは未登録です`);
-                    }}
-                    className={cn(
-                      "text-xs px-2.5 py-1 rounded border transition-colors",
-                      viewMeta.day === d
-                        ? "bg-primary text-white border-primary"
-                        : "border-border text-muted-foreground hover:bg-muted"
-                    )}
-                  >
-                    {d}
-                  </button>
-                ))}
-              </div>
+            {/* ドットインジケーター */}
+            <div className="flex items-center justify-center gap-1.5 py-2.5 border-t border-border bg-muted/20">
+              {swipeSlides.map(({ team, day }, idx) => (
+                <button
+                  key={`${team}-${day}`}
+                  onClick={() => goModalSlide(idx)}
+                  title={`${team} / ${day}`}
+                  className={cn(
+                    "rounded-full transition-all",
+                    idx === modalSlideIndex
+                      ? "bg-primary w-5 h-2"
+                      : "bg-muted-foreground/40 hover:bg-muted-foreground/70 w-2 h-2"
+                  )}
+                />
+              ))}
             </div>
+
           </div>
         </div>
-      )}
+        );
+      })()}
     </>
   );
 }
