@@ -1284,8 +1284,11 @@ function MessageBoard({ title }: { title: string }) {
   const [newMsg, setNewMsg] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [displayFrom, setDisplayFrom] = useState("");
+  const [displayFromTime, setDisplayFromTime] = useState("");
   const [displayUntil, setDisplayUntil] = useState("");
+  const [displayUntilTime, setDisplayUntilTime] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
+  const [scheduledAtTime, setScheduledAtTime] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -1296,9 +1299,9 @@ function MessageBoard({ title }: { title: string }) {
       utils.messages.getActive.invalidate();
       toast.success("投稿しました");
       setNewMsg("");
-      setDisplayFrom("");
-      setDisplayUntil("");
-      setScheduledAt("");
+      setDisplayFrom(""); setDisplayFromTime("");
+      setDisplayUntil(""); setDisplayUntilTime("");
+      setScheduledAt(""); setScheduledAtTime("");
       setShowForm(false);
     },
     onError: (e) => toast.error(e.message),
@@ -1368,6 +1371,12 @@ function MessageBoard({ title }: { title: string }) {
     setIsRecording(false);
   };
 
+  const buildDateTime = (date: string, time: string): Date | undefined => {
+    if (!date) return undefined;
+    const t = time || "00:00";
+    return new Date(`${date}T${t}:00`);
+  };
+
   const handlePost = () => {
     if (!newMsg.trim()) {
       toast.error("メッセージを入力してください");
@@ -1375,9 +1384,9 @@ function MessageBoard({ title }: { title: string }) {
     }
     createMsg.mutate({
       text: newMsg.trim(),
-      displayFrom: displayFrom ? new Date(displayFrom) : undefined,
-      displayUntil: displayUntil ? new Date(displayUntil) : undefined,
-      scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
+      displayFrom: buildDateTime(displayFrom, displayFromTime),
+      displayUntil: buildDateTime(displayUntil, displayUntilTime),
+      scheduledAt: buildDateTime(scheduledAt, scheduledAtTime),
     });
   };
 
@@ -1439,23 +1448,54 @@ function MessageBoard({ title }: { title: string }) {
               <p className="text-[10px] text-red-500 font-medium animate-pulse">● 録音中...指を離すと停止</p>
             )}
             {/* 表示期間・予約 */}
-            <div className="grid grid-cols-2 gap-1.5">
-              <div>
-                <label className="text-[10px] text-muted-foreground block mb-0.5">表示開始（任意）</label>
-                <input type="datetime-local" value={displayFrom} onChange={(e) => setDisplayFrom(e.target.value)}
-                  className="w-full text-[11px] border border-border rounded px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-primary" />
-              </div>
-              <div>
-                <label className="text-[10px] text-muted-foreground block mb-0.5">表示終了（任意）</label>
-                <input type="datetime-local" value={displayUntil} onChange={(e) => setDisplayUntil(e.target.value)}
-                  className="w-full text-[11px] border border-border rounded px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-primary" />
-              </div>
-            </div>
-            <div>
-              <label className="text-[10px] text-muted-foreground block mb-0.5">予約送信（任意）</label>
-              <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)}
-                className="w-full text-[11px] border border-border rounded px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-primary" />
-            </div>
+            {(() => {
+              const timeOptions = Array.from({ length: 24 * 6 }, (_, i) => {
+                const h = Math.floor(i / 6);
+                const m = (i % 6) * 10;
+                return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+              });
+              return (
+                <>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <div>
+                      <label className="text-[10px] text-muted-foreground block mb-0.5">表示開始（任意）</label>
+                      <input type="date" value={displayFrom} onChange={(e) => setDisplayFrom(e.target.value)}
+                        className="w-full text-[11px] border border-border rounded px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-primary" />
+                      <select value={displayFromTime} onChange={(e) => setDisplayFromTime(e.target.value)}
+                        disabled={!displayFrom}
+                        className="w-full mt-1 text-[11px] border border-border rounded px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40">
+                        <option value="">時刻選択...</option>
+                        {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-muted-foreground block mb-0.5">表示終了（任意）</label>
+                      <input type="date" value={displayUntil} onChange={(e) => setDisplayUntil(e.target.value)}
+                        className="w-full text-[11px] border border-border rounded px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-primary" />
+                      <select value={displayUntilTime} onChange={(e) => setDisplayUntilTime(e.target.value)}
+                        disabled={!displayUntil}
+                        className="w-full mt-1 text-[11px] border border-border rounded px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40">
+                        <option value="">時刻選択...</option>
+                        {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted-foreground block mb-0.5">予約送信（任意）</label>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <input type="date" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)}
+                        className="w-full text-[11px] border border-border rounded px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-primary" />
+                      <select value={scheduledAtTime} onChange={(e) => setScheduledAtTime(e.target.value)}
+                        disabled={!scheduledAt}
+                        className="w-full text-[11px] border border-border rounded px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40">
+                        <option value="">時刻選択...</option>
+                        {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
             <div className="flex gap-1.5">
               <Button variant="outline" size="sm" className="flex-1 h-7 text-xs" onClick={() => setShowForm(false)}>キャンセル</Button>
               <Button size="sm" className="flex-1 h-7 text-xs" onClick={handlePost} disabled={createMsg.isPending || !newMsg.trim()}>
@@ -1482,20 +1522,20 @@ function MessageBoard({ title }: { title: string }) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-0.5">
-                        <span className="text-[11px] font-semibold text-foreground">{msg.createdByName}</span>
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-sm font-semibold text-foreground">{msg.createdByName}</span>
+                        <span className="text-xs text-muted-foreground">
                           {new Date(msg.createdAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                         </span>
                         {msg.displayUntil && (
-                          <span className="text-[9px] text-amber-600 bg-amber-50 px-1 rounded">
+                          <span className="text-[10px] text-amber-600 bg-amber-50 px-1 rounded">
                             → {new Date(msg.displayUntil).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}まで
                           </span>
                         )}
                         {msg.scheduledAt && new Date(msg.scheduledAt) > new Date() && (
-                          <span className="text-[9px] text-blue-600 bg-blue-50 px-1 rounded">予約</span>
+                          <span className="text-[10px] text-blue-600 bg-blue-50 px-1 rounded">予約</span>
                         )}
                       </div>
-                      <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                      <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{msg.text}</p>
                     </div>
                     {/* 削除ボタン（作成者のみ） */}
                     {msg.createdBy === user?.id && (

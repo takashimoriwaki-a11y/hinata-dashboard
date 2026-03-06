@@ -724,3 +724,73 @@ export async function cleanupOldNotifications() {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   await db.delete(appNotifications).where(lt(appNotifications.createdAt, thirtyDaysAgo));
 }
+
+// ========== スタッフアカウント管理 ==========
+
+/** 全スタッフ一覧を取得する（管理者用） */
+export async function getAllStaff() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      role: users.role,
+      team: users.team,
+      createdAt: users.createdAt,
+      lastSignedIn: users.lastSignedIn,
+    })
+    .from(users)
+    .orderBy(users.createdAt);
+}
+
+/** スタッフアカウントを新規作成する */
+export async function createStaffAccount(data: {
+  name: string;
+  email: string;
+  passwordHash: string;
+  role: "user" | "admin";
+  team: "身体" | "天理" | "郡山北部" | "郡山南部";
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // メールアドレスの重複チェック
+  const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, data.email)).limit(1);
+  if (existing.length > 0) {
+    throw new Error("このメールアドレスはすでに使用されています");
+  }
+  const openId = `local-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+  await db.insert(users).values({
+    openId,
+    name: data.name,
+    email: data.email,
+    passwordHash: data.passwordHash,
+    role: data.role,
+    team: data.team,
+    loginMethod: "local",
+    lastSignedIn: new Date(),
+  });
+  return { success: true };
+}
+
+/** スタッフのパスワードをリセットする（管理者用） */
+export async function resetStaffPassword(userId: number, newPasswordHash: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(users).set({ passwordHash: newPasswordHash }).where(eq(users.id, userId));
+}
+
+/** スタッフアカウントを削除する（管理者用） */
+export async function deleteStaffAccount(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(users).where(eq(users.id, userId));
+}
+
+/** スタッフのロールを変更する（管理者用） */
+export async function updateStaffRole(userId: number, role: "user" | "admin") {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(users).set({ role }).where(eq(users.id, userId));
+}

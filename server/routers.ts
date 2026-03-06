@@ -51,6 +51,11 @@ import {
   markAllNotificationsRead,
   notificationExists,
   cleanupOldNotifications,
+  getAllStaff,
+  createStaffAccount,
+  resetStaffPassword,
+  deleteStaffAccount,
+  updateStaffRole,
 } from "./db";
 import { storagePut } from "./storage";
 import { eq } from "drizzle-orm";
@@ -942,6 +947,90 @@ export const appRouter = router({
       await markAllNotificationsRead();
       return { success: true };
     }),
+  }),
+
+  // ========== スタッフ管理（管理者専用） ==========
+  staff: router({
+    // スタッフ一覧を取得（管理者のみ）
+    getAll: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
+      }
+      return getAllStaff();
+    }),
+
+    // スタッフアカウントを新規作成（管理者のみ）
+    create: protectedProcedure
+      .input(z.object({
+        name: z.string().min(1).max(50),
+        email: z.string().email(),
+        password: z.string().min(6).max(100),
+        role: z.enum(["user", "admin"]).default("user"),
+        team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]).default("身体"),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
+        }
+        const bcrypt = await import("bcryptjs");
+        const passwordHash = await bcrypt.hash(input.password, 12);
+        try {
+          await createStaffAccount({
+            name: input.name,
+            email: input.email,
+            passwordHash,
+            role: input.role,
+            team: input.team,
+          });
+          return { success: true };
+        } catch (err: any) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: err.message ?? "アカウント作成に失敗しました" });
+        }
+      }),
+
+    // スタッフのパスワードをリセット（管理者のみ）
+    resetPassword: protectedProcedure
+      .input(z.object({
+        userId: z.number(),
+        newPassword: z.string().min(6).max(100),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
+        }
+        const bcrypt = await import("bcryptjs");
+        const newPasswordHash = await bcrypt.hash(input.newPassword, 12);
+        await resetStaffPassword(input.userId, newPasswordHash);
+        return { success: true };
+      }),
+
+    // スタッフアカウントを削除（管理者のみ）
+    delete: protectedProcedure
+      .input(z.object({ userId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
+        }
+        if (input.userId === ctx.user.id) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "自分自身のアカウントは削除できません" });
+        }
+        await deleteStaffAccount(input.userId);
+        return { success: true };
+      }),
+
+    // スタッフのロールを変更（管理者のみ）
+    updateRole: protectedProcedure
+      .input(z.object({
+        userId: z.number(),
+        role: z.enum(["user", "admin"]),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
+        }
+        await updateStaffRole(input.userId, input.role);
+        return { success: true };
+      }),
   }),
 });
 export type AppRouter = typeof appRouter;

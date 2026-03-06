@@ -175,13 +175,25 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">時刻（任意）</label>
-            <input
-              type="time"
+            <select
               value={newDueTime}
               onChange={(e) => setNewDueTime(e.target.value)}
               disabled={!newDueDate}
               className="w-full text-sm border border-border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40"
-            />
+            >
+              <option value="">時刻を選択...</option>
+              {Array.from({ length: 24 * 6 }, (_, i) => {
+                const h = Math.floor(i / 6);
+                const m = (i % 6) * 10;
+                const hh = String(h).padStart(2, "0");
+                const mm = String(m).padStart(2, "0");
+                return (
+                  <option key={`${hh}:${mm}`} value={`${hh}:${mm}`}>
+                    {hh}:{mm}
+                  </option>
+                );
+              })}
+            </select>
           </div>
         </div>
 

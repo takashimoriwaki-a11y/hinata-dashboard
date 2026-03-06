@@ -5,6 +5,7 @@
 
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Plus, Trash2, ExternalLink, Settings, ClipboardPaste,
   CheckCircle2, AlertCircle, ChevronDown, ChevronUp,
-  Users, Pencil, X, ChevronRight,
+  Users, Pencil, X, ChevronRight, UserPlus, Key, Shield, ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -631,7 +632,8 @@ export default function Admin() {
   }, []);
 
   // セクション切り替え
-  const [activeSection, setActiveSection] = useState<"sheets" | "patients">("sheets");
+  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff">("sheets");
+  const { user: currentUser } = useAuth();
 
   return (
     <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6">
@@ -642,7 +644,7 @@ export default function Admin() {
         </div>
         <div>
           <h1 className="text-xl font-bold text-foreground">管理画面</h1>
-          <p className="text-sm text-muted-foreground">スプレッドシートURL管理・利用者マスタ管理</p>
+          <p className="text-sm text-muted-foreground">スプレッドシートURL管理・利用者マスタ管理・スタッフ管理</p>
         </div>
       </div>
 
@@ -670,6 +672,19 @@ export default function Admin() {
         >
           利用者マスタ
         </button>
+        {currentUser?.role === "admin" && (
+          <button
+            onClick={() => setActiveSection("staff")}
+            className={cn(
+              "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
+              activeSection === "staff"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            スタッフ管理
+          </button>
+        )}
       </div>
 
       {/* スプレッドシートURLセクション */}
@@ -855,6 +870,281 @@ export default function Admin() {
 
       {/* 利用者マスタセクション */}
       {activeSection === "patients" && <PatientMasterPanel />}
+
+      {/* スタッフ管理セクション */}
+      {activeSection === "staff" && <StaffManagementPanel />}
     </div>
+  );
+}
+
+// ============================
+// スタッフ管理パネル
+// ============================
+
+const TEAMS_STAFF = ["身体", "天理", "郡山北部", "郡山南部"] as const;
+type TeamStaff = typeof TEAMS_STAFF[number];
+
+function StaffManagementPanel() {
+  const utils = trpc.useUtils();
+  const { data: staffList, isLoading } = trpc.staff.getAll.useQuery();
+
+  // 新規作成フォーム
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newRole, setNewRole] = useState<"user" | "admin">("user");
+  const [newTeam, setNewTeam] = useState<TeamStaff>("身体");
+
+  // パスワードリセット
+  const [resetUserId, setResetUserId] = useState<number | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+
+  const createStaff = trpc.staff.create.useMutation({
+    onSuccess: () => {
+      utils.staff.getAll.invalidate();
+      toast.success("スタッフアカウントを作成しました");
+      setNewName(""); setNewEmail(""); setNewPassword(""); setNewRole("user"); setNewTeam("身体"); setShowAddForm(false);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const deleteStaff = trpc.staff.delete.useMutation({
+    onSuccess: () => {
+      utils.staff.getAll.invalidate();
+      toast.success("スタッフアカウントを削除しました");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const resetPasswordMutation = trpc.staff.resetPassword.useMutation({
+    onSuccess: () => {
+      toast.success("パスワードをリセットしました");
+      setResetUserId(null); setResetPassword("");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const updateRole = trpc.staff.updateRole.useMutation({
+    onSuccess: () => {
+      utils.staff.getAll.invalidate();
+      toast.success("権限を変更しました");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleCreate = () => {
+    if (!newName.trim()) { toast.error("名前を入力してください"); return; }
+    if (!newEmail.trim()) { toast.error("メールアドレスを入力してください"); return; }
+    if (newPassword.length < 6) { toast.error("パスワードは6文字以上で入力してください"); return; }
+    createStaff.mutate({ name: newName.trim(), email: newEmail.trim(), password: newPassword, role: newRole, team: newTeam });
+  };
+
+  return (
+    <Card className="shadow-sm">
+      <CardHeader className="pb-2 pt-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-primary" />
+            <CardTitle className="text-base font-semibold">スタッフアカウント管理</CardTitle>
+            <Badge variant="outline" className="text-xs">{staffList?.length ?? 0}名</Badge>
+          </div>
+          <Button size="sm" className="h-8 text-xs gap-1" onClick={() => setShowAddForm((v) => !v)}>
+            <UserPlus className="w-3.5 h-3.5" />
+            新規追加
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">スタッフのログインアカウントを管理します。</p>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {/* 新規作成フォーム */}
+        {showAddForm && (
+          <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-primary">新規スタッフ追加</p>
+              <button onClick={() => setShowAddForm(false)}><X className="w-4 h-4 text-muted-foreground" /></button>
+            </div>
+            <div className="grid grid-cols-1 gap-3">
+              <div>
+                <label className="text-xs font-medium text-foreground block mb-1">氏名 *</label>
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="例：山田 花子"
+                  className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-foreground block mb-1">メールアドレス *</label>
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="例：hanako@kokoronohinata.com"
+                  className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-foreground block mb-1">初期パスワード * （6文字以上）</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="パスワードを入力"
+                  className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-foreground block mb-1">チーム</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {TEAMS_STAFF.map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setNewTeam(t)}
+                      className={cn(
+                        "text-xs px-2.5 py-1 rounded-full border transition-colors",
+                        newTeam === t ? "bg-blue-600 text-white border-blue-600" : "border-border text-muted-foreground hover:border-blue-600 hover:text-blue-600"
+                      )}
+                    >
+                      {t}チーム
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-foreground block mb-1">権限</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setNewRole("user")}
+                    className={cn(
+                      "flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors",
+                      newRole === "user" ? "bg-primary text-white border-primary" : "border-border text-muted-foreground hover:border-primary"
+                    )}
+                  >
+                    <Shield className="w-3.5 h-3.5" />
+                    一般スタッフ
+                  </button>
+                  <button
+                    onClick={() => setNewRole("admin")}
+                    className={cn(
+                      "flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors",
+                      newRole === "admin" ? "bg-amber-500 text-white border-amber-500" : "border-border text-muted-foreground hover:border-amber-500"
+                    )}
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    管理者
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowAddForm(false)}>キャンセル</Button>
+              <Button size="sm" className="h-8 text-xs" onClick={handleCreate} disabled={createStaff.isPending}>
+                {createStaff.isPending ? "作成中..." : "アカウント作成"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* スタッフ一覧 */}
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">読み込み中...</p>
+        ) : !staffList || staffList.length === 0 ? (
+          <div className="py-8 text-center">
+            <Users className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">スタッフがいません</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {staffList.map((staff, idx) => (
+              <div key={staff.id}>
+                {idx > 0 && <Separator className="my-2" />}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium text-foreground">{staff.name ?? "名前未設定"}</span>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-[10px] px-1.5 py-0",
+                          staff.role === "admin" ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-blue-50 text-blue-600 border-blue-200"
+                        )}
+                      >
+                        {staff.role === "admin" ? "管理者" : "スタッフ"}
+                      </Badge>
+                      {staff.team && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-gray-50">{staff.team}</Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{staff.email ?? "メール未設定"}</p>
+                    <p className="text-xs text-muted-foreground">最終ログイン: {staff.lastSignedIn ? new Date(staff.lastSignedIn).toLocaleDateString("ja-JP") : "未ログイン"}</p>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {/* パスワードリセット */}
+                    <button
+                      onClick={() => { setResetUserId(staff.id); setResetPassword(""); }}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                      title="パスワードリセット"
+                    >
+                      <Key className="w-3.5 h-3.5" />
+                    </button>
+                    {/* 権限切り替え */}
+                    <button
+                      onClick={() => updateRole.mutate({ userId: staff.id, role: staff.role === "admin" ? "user" : "admin" })}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                      title={staff.role === "admin" ? "一般スタッフに変更" : "管理者に変更"}
+                    >
+                      {staff.role === "admin" ? <Shield className="w-3.5 h-3.5" /> : <ShieldCheck className="w-3.5 h-3.5" />}
+                    </button>
+                    {/* 削除 */}
+                    <button
+                      onClick={() => {
+                        if (confirm(`${staff.name ?? "このスタッフ"}のアカウントを削除しますか？`)) {
+                          deleteStaff.mutate({ userId: staff.id });
+                        }
+                      }}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors"
+                      title="アカウントを削除"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* パスワードリセットフォーム */}
+                {resetUserId === staff.id && (
+                  <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+                    <p className="text-xs font-medium text-amber-700">{staff.name}のパスワードリセット</p>
+                    <input
+                      type="password"
+                      value={resetPassword}
+                      onChange={(e) => setResetPassword(e.target.value)}
+                      placeholder="新しいパスワード（6文字以上）"
+                      className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setResetUserId(null); setResetPassword(""); }}>キャンセル</Button>
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs bg-amber-500 hover:bg-amber-600"
+                        onClick={() => {
+                          if (resetPassword.length < 6) { toast.error("パスワードは6文字以上で入力してください"); return; }
+                          resetPasswordMutation.mutate({ userId: staff.id, newPassword: resetPassword });
+                        }}
+                        disabled={resetPasswordMutation.isPending}
+                      >
+                        {resetPasswordMutation.isPending ? "更新中..." : "パスワードを変更"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

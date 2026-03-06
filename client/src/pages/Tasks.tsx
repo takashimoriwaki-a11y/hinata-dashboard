@@ -38,6 +38,7 @@ const TEAMS = ["身体", "天理", "郡山北部", "郡山南部"] as const;
 type Team = typeof TEAMS[number];
 
 // 期日の表示フォーマット
+const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 function formatDueDate(date: Date | string | null | undefined): string {
   if (!date) return "";
   const d = new Date(date);
@@ -46,14 +47,15 @@ function formatDueDate(date: Date | string | null | undefined): string {
   const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const diff = Math.floor((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-  const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
+  const wday = WEEKDAYS[d.getDay()];
+  const dateStr = `${d.getMonth() + 1}月${d.getDate()}日（${wday}）`;
   const timeStr = d.getHours() !== 0 || d.getMinutes() !== 0
     ? ` ${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`
     : "";
 
   if (diff < 0) return `${dateStr}${timeStr}（期限切れ）`;
-  if (diff === 0) return `今日${timeStr}`;
-  if (diff === 1) return `明日${timeStr}`;
+  if (diff === 0) return `今日（${wday}）${timeStr}`;
+  if (diff === 1) return `明日（${wday}）${timeStr}`;
   return `${dateStr}${timeStr}`;
 }
 
