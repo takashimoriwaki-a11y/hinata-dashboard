@@ -1205,6 +1205,14 @@ export const appRouter = router({
           const dataRows = rows.slice(1);
 
           const patientsToCreate: Array<{ name: string; nameKana?: string; team: ValidTeam; active: number }> = [];
+          const patientsToUpdate: Array<{ id: number; nameKana?: string; team: ValidTeam; active: number }> = [];
+
+          // 既存利用者を全件取得（重複チェック用）
+          const { getPatients } = await import("./db");
+          const existingPatients = await getPatients(); // active=1のみ取得
+          const existingMap = new Map(
+            existingPatients.map((p) => [`${p.name}__${p.team}`, p.id])
+          );
 
           for (let i = 0; i < dataRows.length; i++) {
             const row = dataRows[i];
@@ -1214,7 +1222,7 @@ export const appRouter = router({
             const activeRaw = String(row[3] ?? "").trim();
 
             // 空行・記入例（グレー行）はスキップ
-            if (!name || name === "山田 花子" || name === "鈴木 一郎" || name === "田中 美咲") {
+            if (!name || name === "山田 花子" || name === "鈴木 一郎" || name === "田中 美咏") {
               if (!name) continue;
               result.patients.skipped++;
               continue;
@@ -1227,21 +1235,47 @@ export const appRouter = router({
             }
 
             const active = activeRaw.startsWith("0") ? 0 : 1;
+            const dupKey = `${name}__${teamRaw}`;
 
-            patientsToCreate.push({
-              name,
-              nameKana: nameKana || undefined,
-              team: teamRaw as ValidTeam,
-              active,
-            });
+            if (existingMap.has(dupKey)) {
+              // 既存利用者：ふりがな・有効フラグを更新
+              patientsToUpdate.push({
+                id: existingMap.get(dupKey)!,
+                nameKana: nameKana || undefined,
+                team: teamRaw as ValidTeam,
+                active,
+              });
+            } else {
+              // 新規登録
+              patientsToCreate.push({
+                name,
+                nameKana: nameKana || undefined,
+                team: teamRaw as ValidTeam,
+                active,
+              });
+            }
           }
 
+          // 新規登録
           if (patientsToCreate.length > 0) {
             try {
               await batchCreatePatients(patientsToCreate);
-              result.patients.success = patientsToCreate.length;
+              result.patients.success += patientsToCreate.length;
             } catch (e: any) {
               result.patients.errors.push(`利用者一括登録エラー: ${e.message}`);
+            }
+          }
+
+          // 既存更新
+          if (patientsToUpdate.length > 0) {
+            const { updatePatient } = await import("./db");
+            for (const p of patientsToUpdate) {
+              try {
+                await updatePatient(p.id, { nameKana: p.nameKana, team: p.team, active: p.active });
+                result.patients.success++;
+              } catch (e: any) {
+                result.patients.errors.push(`利用者更新エラー (id=${p.id}): ${e.message}`);
+              }
             }
           }
         }
