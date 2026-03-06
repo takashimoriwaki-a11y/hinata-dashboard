@@ -461,6 +461,9 @@ function ScheduleScreenshotCard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const utils = trpc.useUtils();
 
+  // 全チームモード
+  const [showAllTeams, setShowAllTeams] = useState(false);
+
   // スワイプ用state
   const [swipeIndex, setSwipeIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
@@ -510,19 +513,40 @@ function ScheduleScreenshotCard() {
     (s) => s.team === selectedTeam && s.day === selectedDay
   );
 
-  // スワイプ用：選択中チームの「今日」「明日」の画像をスライド一覧に並べる
-  const swipeSlides = DAYS.map((day) => ({
-    day,
-    screenshot: screenshots?.find((s) => s.team === selectedTeam && s.day === day) ?? null,
-  }));
+  // スワイプ用：全チームモードは全チーム×全日程を並べる、単一チームモードは選択中チームの「今日」「明日」
+  const swipeSlides = showAllTeams
+    ? TEAMS.flatMap((team) =>
+        DAYS.map((day) => ({
+          team,
+          day,
+          screenshot: screenshots?.find((s) => s.team === team && s.day === day) ?? null,
+        }))
+      )
+    : DAYS.map((day) => ({
+        team: selectedTeam,
+        day,
+        screenshot: screenshots?.find((s) => s.team === selectedTeam && s.day === day) ?? null,
+      }));
 
-  // スワイプインデックスを選択日に同期
-  const currentSlideIndex = DAYS.indexOf(selectedDay);
+  // スワイプインデックスを選択日に同期（全チームモードでは先頭から開始）
+  const currentSlideIndex = showAllTeams
+    ? swipeIndex
+    : DAYS.indexOf(selectedDay);
 
   const goToSlide = (idx: number) => {
-    const clamped = Math.max(0, Math.min(DAYS.length - 1, idx));
+    const maxIdx = swipeSlides.length - 1;
+    const clamped = Math.max(0, Math.min(maxIdx, idx));
     setSwipeIndex(clamped);
-    setSelectedDay(DAYS[clamped]);
+    if (!showAllTeams) {
+      setSelectedDay(DAYS[clamped]);
+    } else {
+      // 全チームモードでは選択中スライドのチーム・日に同期
+      const slide = swipeSlides[clamped];
+      if (slide) {
+        setSelectedTeam(slide.team as TeamType);
+        setSelectedDay(slide.day as DayType);
+      }
+    }
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -621,14 +645,33 @@ function ScheduleScreenshotCard() {
 
           {/* チーム・日付セレクター */}
           <div className="flex flex-wrap gap-2 mt-2">
-            <div className="flex gap-1">
+            <div className="flex gap-1 flex-wrap">
+              {/* 全チームボタン */}
+              <button
+                onClick={() => {
+                  setShowAllTeams(true);
+                  setSwipeIndex(0);
+                }}
+                className={cn(
+                  "text-xs px-2.5 py-1 rounded-md border transition-colors font-medium",
+                  showAllTeams
+                    ? "bg-primary text-white border-primary"
+                    : "border-border text-muted-foreground hover:bg-muted"
+                )}
+              >
+                全チーム
+              </button>
               {TEAMS.map((t) => (
                 <button
                   key={t}
-                  onClick={() => handleTeamChange(t)}
+                  onClick={() => {
+                    setShowAllTeams(false);
+                    setSwipeIndex(DAYS.indexOf(selectedDay));
+                    handleTeamChange(t);
+                  }}
                   className={cn(
                     "text-xs px-2.5 py-1 rounded-md border transition-colors",
-                    selectedTeam === t
+                    !showAllTeams && selectedTeam === t
                       ? "bg-primary text-white border-primary"
                       : "border-border text-muted-foreground hover:bg-muted"
                   )}
@@ -637,22 +680,28 @@ function ScheduleScreenshotCard() {
                 </button>
               ))}
             </div>
-            <div className="flex gap-1 ml-auto">
-              {DAYS.map((d) => (
-                <button
-                  key={d}
-                  onClick={() => setSelectedDay(d)}
-                  className={cn(
-                    "text-xs px-2.5 py-1 rounded-md border transition-colors",
-                    selectedDay === d
-                      ? "bg-primary text-white border-primary"
-                      : "border-border text-muted-foreground hover:bg-muted"
-                  )}
-                >
-                  {d}
-                </button>
-              ))}
-            </div>
+            {/* 単一チームモードのみ日付ボタンを表示 */}
+            {!showAllTeams && (
+              <div className="flex gap-1 ml-auto">
+                {DAYS.map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => {
+                      setSelectedDay(d);
+                      setSwipeIndex(DAYS.indexOf(d));
+                    }}
+                    className={cn(
+                      "text-xs px-2.5 py-1 rounded-md border transition-colors",
+                      selectedDay === d
+                        ? "bg-primary text-white border-primary"
+                        : "border-border text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </CardHeader>
 
@@ -674,8 +723,8 @@ function ScheduleScreenshotCard() {
                   className="flex transition-transform duration-300 ease-in-out"
                   style={{ transform: `translateX(-${currentSlideIndex * 100}%)` }}
                 >
-                  {swipeSlides.map(({ day, screenshot }) => (
-                    <div key={day} className="w-full flex-shrink-0">
+                  {swipeSlides.map(({ team, day, screenshot }, slideIdx) => (
+                    <div key={`${team}-${day}`} className="w-full flex-shrink-0">
                       {screenshot ? (
                         <div
                           className="relative cursor-pointer group"
@@ -691,9 +740,15 @@ function ScheduleScreenshotCard() {
                         >
                           <img
                             src={screenshot.imageUrl}
-                            alt={`${selectedTeam}チーム ${day}のスケジュール`}
+                            alt={`${team}チーム ${day}のスケジュール`}
                             className="w-full object-contain max-h-72"
                           />
+                          {/* チーム・日付ラベル（全チームモード時は常時表示） */}
+                          {showAllTeams && (
+                            <div className="absolute top-2 left-2 bg-black/65 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full pointer-events-none">
+                              {team} / {day}
+                            </div>
+                          )}
                           {/* タップで拡大ヒント */}
                           <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded-full flex items-center gap-1 pointer-events-none">
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" /></svg>
@@ -703,7 +758,7 @@ function ScheduleScreenshotCard() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              deleteMutation.mutate({ team: selectedTeam, day });
+                              deleteMutation.mutate({ team, day });
                             }}
                             disabled={deleteMutation.isPending}
                             className="absolute top-2 right-2 bg-card/90 hover:bg-red-50 text-destructive border border-destructive/30 rounded-full p-1.5 shadow-sm transition-colors"
@@ -713,34 +768,41 @@ function ScheduleScreenshotCard() {
                           </button>
                         </div>
                       ) : (
-                        /* ドロップゾーン */
-                        <div
-                          onDrop={handleDrop}
-                          onDragOver={handleDragOver}
-                          onDragLeave={handleDragLeave}
-                          onClick={() => !isUploading && fileInputRef.current?.click()}
-                          className={cn(
-                            "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all",
-                            isUploading ? "border-primary bg-primary/5 opacity-70 cursor-wait" :
-                            isDragging
-                              ? "border-primary bg-primary/5 scale-[1.01]"
-                              : "border-border hover:border-primary/50 hover:bg-muted/30"
-                          )}
-                        >
-                          <div className="flex flex-col items-center gap-2.5">
-                            <div className={cn("w-12 h-12 rounded-full flex items-center justify-center transition-colors", isDragging ? "bg-primary/20" : "bg-muted")}>
-                              <Upload className={cn("w-6 h-6 transition-colors", isDragging ? "text-primary" : "text-muted-foreground")} />
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-foreground">
-                                {isUploading ? "アップロード中..." : isDragging ? "ここにドロップ" : "クリックまたはドラッグ＆ドロップ"}
-                              </p>
-                              <p className="text-xs text-muted-foreground mt-0.5">ZESTのスクリーンショットを登録</p>
-                              <p className="text-[11px] text-primary font-medium mt-1.5">{selectedTeam}チーム / {day}</p>
-                              <p className="text-[10px] text-muted-foreground mt-0.5">PNG・JPG・WEBP対応 / 最大10MB</p>
+                        /* 未登録プレースホルダー（全チームモードではコンパクトな表示、単一チームモードではドロップゾーン） */
+                        showAllTeams ? (
+                          <div className="flex flex-col items-center justify-center gap-2 py-10 bg-muted/20 rounded-lg">
+                            <div className="text-sm font-semibold text-foreground">{team}チーム / {day}</div>
+                            <p className="text-xs text-muted-foreground">未登録</p>
+                          </div>
+                        ) : (
+                          <div
+                            onDrop={handleDrop}
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onClick={() => !isUploading && fileInputRef.current?.click()}
+                            className={cn(
+                              "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all",
+                              isUploading ? "border-primary bg-primary/5 opacity-70 cursor-wait" :
+                              isDragging
+                                ? "border-primary bg-primary/5 scale-[1.01]"
+                                : "border-border hover:border-primary/50 hover:bg-muted/30"
+                            )}
+                          >
+                            <div className="flex flex-col items-center gap-2.5">
+                              <div className={cn("w-12 h-12 rounded-full flex items-center justify-center transition-colors", isDragging ? "bg-primary/20" : "bg-muted")}>
+                                <Upload className={cn("w-6 h-6 transition-colors", isDragging ? "text-primary" : "text-muted-foreground")} />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-foreground">
+                                  {isUploading ? "アップロード中..." : isDragging ? "ここにドロップ" : "クリックまたはドラッグ＆ドロップ"}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-0.5">ZESTのスクリーンショットを登録</p>
+                                <p className="text-[11px] text-primary font-medium mt-1.5">{team}チーム / {day}</p>
+                                <p className="text-[10px] text-muted-foreground mt-0.5">PNG・JPG・WEBP対応 / 最大10MB</p>
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        )
                       )}
                     </div>
                   ))}
@@ -755,7 +817,7 @@ function ScheduleScreenshotCard() {
                     <ChevronLeft className="w-4 h-4" />
                   </button>
                 )}
-                {currentSlideIndex < DAYS.length - 1 && (
+                {currentSlideIndex < swipeSlides.length - 1 && (
                   <button
                     onClick={() => goToSlide(currentSlideIndex + 1)}
                     className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1.5 transition-colors z-10"
@@ -766,10 +828,10 @@ function ScheduleScreenshotCard() {
               </div>
 
               {/* ページインジケーター（ドット） */}
-              <div className="flex items-center justify-center gap-2">
-                {swipeSlides.map(({ day }, idx) => (
+              <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                {swipeSlides.map(({ team, day }, idx) => (
                   <button
-                    key={day}
+                    key={`${team}-${day}`}
                     onClick={() => goToSlide(idx)}
                     className={cn(
                       "transition-all rounded-full",
@@ -777,7 +839,7 @@ function ScheduleScreenshotCard() {
                         ? "w-6 h-2 bg-primary"
                         : "w-2 h-2 bg-muted-foreground/40 hover:bg-muted-foreground/70"
                     )}
-                    title={day}
+                    title={showAllTeams ? `${team} / ${day}` : day}
                   />
                 ))}
               </div>
