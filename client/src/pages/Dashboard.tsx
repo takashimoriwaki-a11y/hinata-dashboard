@@ -571,10 +571,12 @@ function ScheduleCommentSection({ team, day }: { team: string; day: string }) {
   const utils = trpc.useUtils();
   const [commentText, setCommentText] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
 
   const { data: comments, isLoading } = trpc.schedule.getComments.useQuery(
     { team: team as any, day: day as any },
-    { enabled: isExpanded, staleTime: 30 * 1000 }
+    { staleTime: 30 * 1000 }
   );
 
   const addMutation = trpc.schedule.addComment.useMutation({
@@ -594,11 +596,35 @@ function ScheduleCommentSection({ team, day }: { team: string; day: string }) {
     onError: (e) => toast.error(`削除失敗: ${e.message}`),
   });
 
+  const updateMutation = trpc.schedule.updateComment.useMutation({
+    onSuccess: () => {
+      setEditingId(null);
+      setEditText("");
+      utils.schedule.getComments.invalidate({ team: team as any, day: day as any });
+      toast.success("編集しました");
+    },
+    onError: (e) => toast.error(`編集失敗: ${e.message}`),
+  });
+
   const handleSubmit = () => {
     const trimmed = commentText.trim();
     if (!trimmed) return;
     addMutation.mutate({ team: team as any, day: day as any, content: trimmed });
   };
+
+  const handleEditStart = (id: number, content: string) => {
+    setEditingId(id);
+    setEditText(content);
+  };
+
+  const handleEditSave = () => {
+    if (!editingId) return;
+    const trimmed = editText.trim();
+    if (!trimmed) return;
+    updateMutation.mutate({ id: editingId, content: trimmed });
+  };
+
+  const commentCount = comments?.length ?? 0;
 
   return (
     <div className="border-t border-border/50 bg-muted/10">
@@ -610,6 +636,11 @@ function ScheduleCommentSection({ team, day }: { team: string; day: string }) {
         <div className="flex items-center gap-1.5">
           <MessageSquare className="w-3.5 h-3.5" />
           <span className="font-medium">申し送り・コメント</span>
+          {commentCount > 0 && (
+            <span className="inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-primary text-primary-foreground">
+              {commentCount > 9 ? "9+" : commentCount}
+            </span>
+          )}
         </div>
         {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
       </button>
@@ -652,16 +683,49 @@ function ScheduleCommentSection({ team, day }: { team: string; day: string }) {
                         {new Date(c.createdAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                       </span>
                     </div>
-                    <p className="text-xs text-foreground whitespace-pre-wrap break-words">{c.content}</p>
+                    {editingId === c.id ? (
+                      <div className="flex gap-2 mt-1">
+                        <Textarea
+                          value={editText}
+                          onChange={(e) => setEditText(e.target.value)}
+                          className="text-xs min-h-[50px] resize-none flex-1"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleEditSave();
+                            if (e.key === "Escape") { setEditingId(null); setEditText(""); }
+                          }}
+                        />
+                        <div className="flex flex-col gap-1">
+                          <Button size="sm" onClick={handleEditSave} disabled={!editText.trim() || updateMutation.isPending} className="h-7 px-2">
+                            <Send className="w-3 h-3" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => { setEditingId(null); setEditText(""); }} className="h-7 px-2">
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-foreground whitespace-pre-wrap break-words">{c.content}</p>
+                    )}
                   </div>
-                  {user && user.id === c.userId && (
-                    <button
-                      onClick={() => deleteMutation.mutate({ id: c.id })}
-                      className="text-muted-foreground/50 hover:text-destructive transition-colors flex-shrink-0 mt-0.5"
-                      disabled={deleteMutation.isPending}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
+                  {user && user.id === c.userId && editingId !== c.id && (
+                    <div className="flex gap-1 flex-shrink-0 mt-0.5">
+                      <button
+                        onClick={() => handleEditStart(c.id, c.content)}
+                        className="text-muted-foreground/50 hover:text-primary transition-colors"
+                        title="編集"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => deleteMutation.mutate({ id: c.id })}
+                        className="text-muted-foreground/50 hover:text-destructive transition-colors"
+                        disabled={deleteMutation.isPending}
+                        title="削除"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
                   )}
                 </div>
               ))}

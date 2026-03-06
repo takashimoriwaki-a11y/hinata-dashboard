@@ -70,6 +70,8 @@ import {
   getScheduleComments,
   addScheduleComment,
   deleteScheduleComment,
+  updateScheduleComment,
+  getScheduleCommentCounts,
 } from "./db";
 import { storagePut } from "./storage";
 import { eq } from "drizzle-orm";
@@ -658,6 +660,21 @@ export const appRouter = router({
           userId: ctx.user.id,
           userName: ctx.user.name ?? "名前未設定",
         });
+        // プッシュ通知を送信（非同期・エラーは無視）
+        try {
+          const { sendPushToAll } = await import("./pushNotification");
+          const preview = input.content.length > 40 ? input.content.slice(0, 40) + "…" : input.content;
+          await sendPushToAll(
+            {
+              title: `📋 ${input.team}チーム（${input.day}）に申し送りが届きました`,
+              body: `${ctx.user.name ?? "スタッフ"}: ${preview}`,
+              url: "/",
+            },
+            input.team
+          );
+        } catch (e) {
+          console.warn("[Comment Push] 通知送信失敗:", e);
+        }
         return { id };
       }),
 
@@ -666,6 +683,22 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         await deleteScheduleComment(input.id, ctx.user.id);
         return { success: true };
+      }),
+    updateComment: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        content: z.string().min(1).max(500),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await updateScheduleComment(input.id, ctx.user.id, input.content);
+        return { success: true };
+      }),
+    getCommentCounts: publicProcedure
+      .input(z.object({
+        day: z.enum(["今日", "明日"]),
+      }))
+      .query(async ({ input }) => {
+        return getScheduleCommentCounts(input.day);
       }),
   }),
   // ========== タスク ==========

@@ -1057,3 +1057,26 @@ export async function deleteScheduleComment(id: number, userId: number) {
     .delete(scheduleComments)
     .where(and(eq(scheduleComments.id, id), eq(scheduleComments.userId, userId)));
 }
+
+/** コメントを編集する（自分のコメントのみ） */
+export async function updateScheduleComment(id: number, userId: number, content: string) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(scheduleComments)
+    .set({ content })
+    .where(and(eq(scheduleComments.id, id), eq(scheduleComments.userId, userId)));
+}
+
+/** 今日・明日のコメント件数を全チームまとめて取得する */
+export async function getScheduleCommentCounts(day: string) {
+  const db = await getDb();
+  if (!db) return [] as { team: string; count: number }[];
+  const { count } = await import("drizzle-orm");
+  const rows = await db
+    .select({ team: scheduleComments.team, count: count() })
+    .from(scheduleComments)
+    .where(eq(scheduleComments.day, day as any))
+    .groupBy(scheduleComments.team);
+  return rows.map((r) => ({ team: r.team, count: Number(r.count) }));
+}
