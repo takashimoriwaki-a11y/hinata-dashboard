@@ -64,6 +64,8 @@ import {
   batchCreateStaff,
   createScreenshotUploadLog,
   getRecentScreenshotUploadLogs,
+  getSetting,
+  setSetting,
 } from "./db";
 import { storagePut } from "./storage";
 import { eq } from "drizzle-orm";
@@ -1434,6 +1436,25 @@ export const appRouter = router({
         }
 
         return result;
+      }),
+  }),
+
+  // ========== アプリ設定 ==========
+  settings: router({
+    /** スプレッドシート自動削除の保持期間（日数）を取得 */
+    getSheetCleanupDays: protectedProcedure.query(async () => {
+      const value = await getSetting("sheet_cleanup_days", "7");
+      return { days: parseInt(value, 10) };
+    }),
+    /** スプレッドシート自動削除の保持期間（日数）を更新（adminのみ） */
+    setSheetCleanupDays: protectedProcedure
+      .input(z.object({ days: z.number().int().min(1).max(90) }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
+        }
+        await setSetting("sheet_cleanup_days", String(input.days));
+        return { success: true, days: input.days };
       }),
   }),
 });

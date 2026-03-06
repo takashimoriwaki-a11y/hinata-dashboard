@@ -1,7 +1,7 @@
 import { and, eq, or, isNull, desc, lte, gte, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot, myLinks, InsertMyLink, spreadsheetLinks, InsertSpreadsheetLink, tasks, InsertTask, messages, InsertMessage, messageReactions, InsertMessageReaction, patients, InsertPatient, visitRecords, InsertVisitRecord, appNotifications, InsertAppNotification } from "../drizzle/schema";
-import { screenshotUploadLogs, InsertScreenshotUploadLog } from "../drizzle/schema";
+import { screenshotUploadLogs, InsertScreenshotUploadLog, appSettings } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -987,4 +987,21 @@ export async function updateMessage(
       scheduledAt: data.scheduledAt ?? null,
     })
     .where(and(eq(messages.id, id), eq(messages.createdBy, userId)));
+}
+
+// ========== アプリ設定 ==========
+
+/** 設定値を取得（存在しない場合はdefaultValueを返す） */
+export async function getSetting(key: string, defaultValue: string): Promise<string> {
+  const db = await getDb();
+  if (!db) return defaultValue;
+  const result = await db.select().from(appSettings).where(eq(appSettings.key, key)).limit(1);
+  return result.length > 0 ? result[0].value : defaultValue;
+}
+
+/** 設定値を保存（存在すれば更新、なければ挿入） */
+export async function setSetting(key: string, value: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(appSettings).values({ key, value }).onDuplicateKeyUpdate({ set: { value } });
 }

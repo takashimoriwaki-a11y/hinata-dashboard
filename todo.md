@@ -421,3 +421,13 @@
 - [x] スプレッドシートの全行を取得し、次回訪問日時（E列）が7日以上前の行を削除するdeleteExpiredSheetRows関数を実装
 - [x] 削除処理はbatchUpdateのdeleteimensionで行単位削除（下から順に削除してインデックスずれを防ぐ）
 - [x] TypeScriptコンパイルエラー 0件を確認
+
+## スプレッドシート自動削除の保持期間変更機能（2026-03-07）
+
+- [x] drizzle/schema.tsにapp_settingsテーブルを追加（key/value形式）
+- [x] pnpm db:pushでマイグレーション実行（成功）
+- [x] server/db.tsにgetSetting/setSetting関数を追加
+- [x] routers.tsにsettings.getSheetCleanupDays/setSheetCleanupDaysプロシージャを追加（admin限定）
+- [x] deleteExpiredSheetRows()でDBから保持期間を取得して使用
+- [x] 管理画面（Admin.tsx）に「システム設定」タブとSystemSettingsPanelを追加（adminのみ表示）
+- [x] TypeScriptコンパイルエラー 0件を確認

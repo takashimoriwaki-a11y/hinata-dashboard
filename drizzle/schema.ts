@@ -336,3 +336,18 @@ export const screenshotUploadLogs = mysqlTable("screenshot_upload_logs", {
 
 export type ScreenshotUploadLog = typeof screenshotUploadLogs.$inferSelect;
 export type InsertScreenshotUploadLog = typeof screenshotUploadLogs.$inferInsert;
+
+/**
+ * アプリ設定テーブル（key/value形式）
+ * スプレッドシート自動削除の保持期間などのシステム設定を保存
+ */
+export const appSettings = mysqlTable("app_settings", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 設定キー（例: "sheet_cleanup_days"） */
+  key: varchar("key", { length: 100 }).notNull().unique(),
+  /** 設定値（文字列として保存） */
+  value: text("value").notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type AppSetting = typeof appSettings.$inferSelect;
+export type InsertAppSetting = typeof appSettings.$inferInsert;

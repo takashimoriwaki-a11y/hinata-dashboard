@@ -402,6 +402,12 @@ async function deleteExpiredSheetRows() {
   const VISIT_RECORD_SHEET_ID = "1WOZQ5rI0Fu57nWaiGwComPS_DdEwPgNR6zeOmyrqKpo"; // ひなた_次回訪問日時
   const SHEET_NAME = "シート1";
 
+  // DBから保持期間（日数）を取得（デフォルト7日）
+  const { getSetting } = await import("../db");
+  const retentionDaysStr = await getSetting("sheet_cleanup_days", "7");
+  const retentionDays = parseInt(retentionDaysStr, 10) || 7;
+  console.log(`[SheetCleanup] 保持期間: ${retentionDays}日`);
+
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
   const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
   if (!email || !privateKey) {
@@ -452,9 +458,9 @@ async function deleteExpiredSheetRows() {
   const meta = await metaRes.json() as { sheets?: Array<{ properties?: { sheetId?: number } }> };
   const sheetId = meta.sheets?.[0]?.properties?.sheetId ?? 0;
 
-  // 現在時刻（JST）から7日前のタイムスタンプ
+  // 現在時刻から保持期間日前のタイムスタンプ
   const now = new Date();
-  const cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const cutoff = new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000);
 
   // 削除対象の行インデックスを収集（1行目はヘッダーなのでスキップ）
   // E列（インデックス4）が次回訪問日時。形式: "YYYY/MM/DD HH:MM"

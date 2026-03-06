@@ -3,7 +3,7 @@
  * スプレッドシートURLの月次管理 + 利用者マスタ管理
  */
 
-import { useState, useMemo, useRef, useCallback } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -759,7 +759,7 @@ export default function Admin() {
   }, []);
 
   // セクション切り替え
-  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import">("sheets");
+  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings">("sheets");
   const { user: currentUser } = useAuth();
 
   return (
@@ -823,6 +823,19 @@ export default function Admin() {
             )}
           >
             一括インポート
+          </button>
+        )}
+        {currentUser?.role === "admin" && (
+          <button
+            onClick={() => setActiveSection("settings")}
+            className={cn(
+              "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
+              activeSection === "settings"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            システム設定
           </button>
         )}
       </div>
@@ -1016,6 +1029,9 @@ export default function Admin() {
 
       {/* 一括インポートセクション */}
       {activeSection === "import" && <BulkExcelImportPanel />}
+
+      {/* システム設定セクション */}
+      {activeSection === "settings" && <SystemSettingsPanel />}
     </div>
   );
 }
@@ -1610,6 +1626,98 @@ function BulkExcelImportPanel() {
               インポート後は利用者マスタ・スタッフ管理タブで内容を確認してください
             </li>
           </ul>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ============================
+// システム設定パネル
+// ============================
+
+function SystemSettingsPanel() {
+  const { data: cleanupDaysData, isLoading } = trpc.settings.getSheetCleanupDays.useQuery();
+  const utils = trpc.useUtils();
+  const setCleanupDaysMutation = trpc.settings.setSheetCleanupDays.useMutation({
+    onSuccess: () => {
+      utils.settings.getSheetCleanupDays.invalidate();
+      toast.success("保持期間を更新しました");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const [selectedDays, setSelectedDays] = useState<number>(7);
+
+  // データ取得後にセレクトの初期値を設定
+  useEffect(() => {
+    if (cleanupDaysData?.days) {
+      setSelectedDays(cleanupDaysData.days);
+    }
+  }, [cleanupDaysData?.days]);
+
+  const RETENTION_OPTIONS = [
+    { value: 3, label: "3日" },
+    { value: 7, label: "7日（デフォルト）" },
+    { value: 14, label: "14日" },
+    { value: 30, label: "30日" },
+    { value: 60, label: "60日" },
+    { value: 90, label: "90日" },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <Card className="shadow-sm">
+        <CardHeader className="pb-2 pt-4">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <Settings className="w-4 h-4 text-primary" />
+            スプレッドシート自動削除設定
+          </CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            「次回訪問日時」スプレッドシートの行を自動削除するまでの保持期間を設定します。
+            毎日0:00（日本時間）に、次回訪問日時から設定した日数を過ぎた行が自動的に削除されます。
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <label className="text-sm font-medium text-foreground block mb-1.5">
+                保持期間
+              </label>
+              {isLoading ? (
+                <div className="h-9 bg-muted animate-pulse rounded-md" />
+              ) : (
+                <select
+                  value={selectedDays}
+                  onChange={(e) => setSelectedDays(Number(e.target.value))}
+                  className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  {RETENTION_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <div className="pt-6">
+              <Button
+                size="sm"
+                onClick={() => setCleanupDaysMutation.mutate({ days: selectedDays })}
+                disabled={setCleanupDaysMutation.isPending || isLoading}
+              >
+                {setCleanupDaysMutation.isPending ? "保存中..." : "保存"}
+              </Button>
+            </div>
+          </div>
+
+          <div className="rounded-lg bg-muted/50 border border-border p-3 text-sm text-muted-foreground space-y-1">
+            <p className="font-medium text-foreground text-xs">動作の仕組み</p>
+            <p>・毎日0:00（日本時間）に自動実行されます</p>
+            <p>・「次回訪問日時」列の日時から設定した日数が経過した行を削除します</p>
+            <p>・例：保持期間7日の場合、3月1日13:00の行は3月8日0:00に削除されます</p>
+            <p>・次回訪問日時が空欄の行は削除されません</p>
+          </div>
         </CardContent>
       </Card>
     </div>
