@@ -784,8 +784,8 @@ export const appRouter = router({
   }),  // ========== Web Push通知 ==========
   push: router({
     // VAPID公開鍵を返す
-    getVapidPublicKey: publicProcedure.query(() => {
-      const { ENV } = require("./_core/env");
+    getVapidPublicKey: publicProcedure.query(async () => {
+      const { ENV } = await import("./_core/env");
       return { publicKey: ENV.vapidPublicKey ?? "" };
     }),
     // サブスクリプションを登録
