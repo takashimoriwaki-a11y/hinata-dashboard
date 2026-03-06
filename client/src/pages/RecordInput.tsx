@@ -534,17 +534,22 @@ ${clinicalNotes}`);
                   "border transition-all duration-200 select-none touch-manipulation",
                   "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                   notesVoice.isRecording
-                    ? "bg-red-500 border-red-400 text-white shadow-md shadow-red-500/40"
+                    ? (notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
+                        ? "bg-orange-500 border-orange-400 text-white shadow-md shadow-orange-500/40"
+                        : "bg-red-500 border-red-400 text-white shadow-md shadow-red-500/40")
                     : "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 active:scale-95"
                 )}
                 aria-label={notesVoice.isRecording ? "録音停止" : "音声入力開始"}
+                title={notesVoice.isRecording && notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5 ? `あと${notesVoice.silenceCountdown}秒で自動停止` : undefined}
               >
                 {notesVoice.isRecording && (
                   <span className="absolute inset-0 rounded-[inherit] overflow-hidden pointer-events-none">
-                    <span className="absolute inset-0 animate-ping rounded-[inherit] bg-red-400 opacity-25" />
+                    <span className={cn("absolute inset-0 animate-ping rounded-[inherit] opacity-25", notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5 ? "bg-orange-400" : "bg-red-400")} />
                   </span>
                 )}
-                {notesVoice.isRecording ? (
+                {notesVoice.isRecording && notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5 ? (
+                  <span className="text-[9px] font-bold leading-none">{notesVoice.silenceCountdown}</span>
+                ) : notesVoice.isRecording ? (
                   <span className="flex items-end justify-center gap-px h-3">
                     {[0,1,2,3].map((i) => (
                       <span key={i} className="w-0.5 bg-white rounded-full" style={{ height: "60%", animation: "voiceBar 0.5s ease-in-out infinite alternate", animationDelay: `${i * 0.12}s` }} />
@@ -564,10 +569,19 @@ ${clinicalNotes}`);
               />
               {/* 音声認識中の暫定テキストプレビュー */}
               {notesVoice.isRecording && (
-                <div className="mt-1.5 px-2 py-1.5 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 min-h-[32px]">
+                <div className={cn(
+                  "mt-1.5 px-2 py-1.5 rounded-md border min-h-[32px]",
+                  notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
+                    ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
+                    : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
+                )}>
                   {notesVoice.interimText ? (
                     <p className="text-xs text-red-600 dark:text-red-400 italic leading-relaxed">
                       🎤 {notesVoice.interimText}
+                    </p>
+                  ) : notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5 ? (
+                    <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+                      あと{notesVoice.silenceCountdown}秒で自動停止します
                     </p>
                   ) : (
                     <p className="text-xs text-muted-foreground italic">話してください...</p>

@@ -341,3 +341,9 @@
 - [x] useVoiceInputにinterimTextを追加（interimResults: true）
 - [x] VoiceMicButtonにinterimTextプレビューオーバーレイを追加
 - [x] 各入力箇所（RecordInput・Dashboard・TaskCreateForm）にプレビュー表示を適用
+
+## 音声入力30秒無音自動停止タイマー（2026-03-06）
+
+- [x] useVoiceInputに30秒無音タイマーを追加（音声検出のたびにリセット）
+- [x] 自動停止時にトースト通知を表示（　30秒間無音のため停止しました」）
+- [x] Web Speech API・MediaRecorder両方に対応

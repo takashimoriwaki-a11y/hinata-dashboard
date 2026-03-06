@@ -5,6 +5,12 @@
  * 非対応環境では MediaRecorder + Whisper API にフォールバックする
  * 共通音声入力カスタムフック。
  *
+ * 機能:
+ * - Web Speech API によるリアルタイム音声認識
+ * - 非対応環境では MediaRecorder + Whisper API にフォールバック
+ * - 30秒間無音が続いた場合に自動停止（タイマーは発話のたびにリセット）
+ * - interimText: 認識中の暫定テキストをリアルタイムで返す
+ *
  * 使い方:
  *   const { isRecording, startVoice, stopVoice, isProcessing, interimText } = useVoiceInput({
  *     onResult: (text) => setMyText(prev => prev + text),
@@ -14,11 +20,19 @@
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
+/** 無音自動停止までの秒数 */
+const SILENCE_TIMEOUT_MS = 30_000;
+
 interface UseVoiceInputOptions {
   /** 認識結果テキストを受け取るコールバック */
   onResult: (text: string) => void;
   /** 言語（デフォルト: ja-JP） */
   lang?: string;
+  /**
+   * 無音自動停止までのミリ秒（デフォルト: 30000ms = 30秒）
+   * 0 を指定すると自動停止を無効化
+   */
+  silenceTimeoutMs?: number;
 }
 
 interface UseVoiceInputReturn {
@@ -34,15 +48,11 @@ interface UseVoiceInputReturn {
   toggleVoice: () => void;
   /** 認識中の暫定テキスト（確定前のリアルタイムプレビュー用） */
   interimText: string;
+  /** 無音タイマーの残り秒数（録音中のみ更新、0=タイムアウト直前） */
+  silenceCountdown: number | null;
 }
 
 // SpeechRecognition の型定義（ブラウザ互換）
-type SpeechRecognitionType = typeof globalThis extends { SpeechRecognition: infer T }
-  ? T
-  : typeof globalThis extends { webkitSpeechRecognition: infer T }
-  ? T
-  : never;
-
 interface SpeechRecognitionInstance extends EventTarget {
   lang: string;
   continuous: boolean;
@@ -101,10 +111,12 @@ function getSpeechRecognitionClass(): SpeechRecognitionConstructor | null {
 export function useVoiceInput({
   onResult,
   lang = "ja-JP",
+  silenceTimeoutMs = SILENCE_TIMEOUT_MS,
 }: UseVoiceInputOptions): UseVoiceInputReturn {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [interimText, setInterimText] = useState("");
+  const [silenceCountdown, setSilenceCountdown] = useState<number | null>(null);
 
   // Web Speech API 用
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
@@ -113,6 +125,57 @@ export function useVoiceInput({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+
+  // 無音タイマー用
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // 自動停止フラグ（onend内でトースト内容を切り替えるため）
+  const autoStoppedRef = useRef(false);
+
+  // ---- 無音タイマー管理 ----
+  const clearSilenceTimer = useCallback(() => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    setSilenceCountdown(null);
+  }, []);
+
+  /**
+   * 無音タイマーをリセット（発話検出のたびに呼ぶ）
+   * silenceTimeoutMs が 0 の場合は何もしない
+   */
+  const resetSilenceTimer = useCallback((stopFn: () => void) => {
+    if (!silenceTimeoutMs) return;
+
+    // 既存タイマーをクリア
+    clearSilenceTimer();
+
+    // カウントダウン表示を初期化
+    const totalSec = Math.ceil(silenceTimeoutMs / 1000);
+    setSilenceCountdown(totalSec);
+
+    // 1秒ごとにカウントダウンを更新
+    countdownIntervalRef.current = setInterval(() => {
+      setSilenceCountdown((prev) => {
+        if (prev === null || prev <= 1) return null;
+        return prev - 1;
+      });
+    }, 1000);
+
+    // 30秒後に自動停止
+    silenceTimerRef.current = setTimeout(() => {
+      autoStoppedRef.current = true;
+      clearInterval(countdownIntervalRef.current!);
+      countdownIntervalRef.current = null;
+      setSilenceCountdown(null);
+      stopFn();
+    }, silenceTimeoutMs);
+  }, [silenceTimeoutMs, clearSilenceTimer]);
 
   // ---- Web Speech API 実装 ----
   const startSpeechRecognition = useCallback((): boolean => {
@@ -127,6 +190,14 @@ export function useVoiceInput({
       recognition.maxAlternatives = 1;
 
       let accumulatedFinalText = "";
+      autoStoppedRef.current = false;
+
+      // 停止関数（タイマーから呼ぶ用）
+      const stopFromTimer = () => {
+        if (recognitionRef.current) {
+          recognitionRef.current.stop();
+        }
+      };
 
       recognition.onresult = (event: SpeechRecognitionEvent) => {
         let currentInterim = "";
@@ -134,33 +205,42 @@ export function useVoiceInput({
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
-            // 確定テキストを蓄積
             accumulatedFinalText += transcript;
-            // 確定したら暫定テキストをクリア
             currentInterim = "";
           } else {
-            // 未確定テキストをプレビュー用に保持
             currentInterim += transcript;
           }
         }
 
-        // 暫定テキストを更新（確定テキスト + 現在の未確定テキスト）
         setInterimText(currentInterim);
+
+        // 発話を検出したらタイマーをリセット
+        resetSilenceTimer(stopFromTimer);
       };
 
       recognition.onend = () => {
+        clearSilenceTimer();
         setIsRecording(false);
         setInterimText("");
         if (accumulatedFinalText.trim()) {
           onResult(accumulatedFinalText.trim());
-          toast.success("音声入力完了");
+          if (autoStoppedRef.current) {
+            toast.info("30秒間無音のため自動停止しました", { duration: 4000 });
+          } else {
+            toast.success("音声入力完了");
+          }
+        } else if (autoStoppedRef.current) {
+          toast.info("30秒間無音のため自動停止しました", { duration: 4000 });
         }
+        autoStoppedRef.current = false;
         recognitionRef.current = null;
       };
 
       recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+        clearSilenceTimer();
         setIsRecording(false);
         setInterimText("");
+        autoStoppedRef.current = false;
         recognitionRef.current = null;
         if (event.error === "not-allowed") {
           toast.error("マイクのアクセスが許可されていません。ブラウザの設定を確認してください。");
@@ -176,20 +256,25 @@ export function useVoiceInput({
       recognition.start();
       recognitionRef.current = recognition;
       setIsRecording(true);
+
+      // 録音開始直後からタイマーをスタート（最初の発話がなくても30秒で停止）
+      resetSilenceTimer(stopFromTimer);
+
       return true;
     } catch {
       return false;
     }
-  }, [lang, onResult]);
+  }, [lang, onResult, resetSilenceTimer, clearSilenceTimer]);
 
   const stopSpeechRecognition = useCallback(() => {
+    clearSilenceTimer();
     if (recognitionRef.current) {
       recognitionRef.current.stop();
       recognitionRef.current = null;
     }
     setIsRecording(false);
     setInterimText("");
-  }, []);
+  }, [clearSilenceTimer]);
 
   // ---- MediaRecorder + Whisper フォールバック実装 ----
   const startMediaRecorder = useCallback(async () => {
@@ -209,13 +294,28 @@ export function useVoiceInput({
       const options = mimeType ? { mimeType } : {};
       const recorder = new MediaRecorder(stream, options);
       chunksRef.current = [];
+      autoStoppedRef.current = false;
+
+      // MediaRecorder の停止関数（タイマーから呼ぶ用）
+      const stopFromTimer = () => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+          autoStoppedRef.current = true;
+          mediaRecorderRef.current.stop();
+          mediaRecorderRef.current = null;
+          setIsRecording(false);
+        }
+      };
 
       recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+          // データ受信 = 音声あり → タイマーリセット
+          resetSilenceTimer(stopFromTimer);
+        }
       };
 
       recorder.onstop = async () => {
-        // ストリームを停止
+        clearSilenceTimer();
         streamRef.current?.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
 
@@ -224,7 +324,12 @@ export function useVoiceInput({
         });
 
         if (blob.size === 0) {
-          toast.error("録音データが空です。もう一度お試しください。");
+          if (autoStoppedRef.current) {
+            toast.info("30秒間無音のため自動停止しました", { duration: 4000 });
+          } else {
+            toast.error("録音データが空です。もう一度お試しください。");
+          }
+          autoStoppedRef.current = false;
           setIsProcessing(false);
           return;
         }
@@ -236,7 +341,12 @@ export function useVoiceInput({
         }
 
         setIsProcessing(true);
-        toast.info("文字起こし中...");
+        if (autoStoppedRef.current) {
+          toast.info("30秒間無音のため自動停止しました。文字起こし中...", { duration: 4000 });
+        } else {
+          toast.info("文字起こし中...");
+        }
+        autoStoppedRef.current = false;
 
         try {
           const formData = new FormData();
@@ -274,6 +384,9 @@ export function useVoiceInput({
       recorder.start(250);
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
+
+      // 録音開始直後からタイマーをスタート
+      resetSilenceTimer(stopFromTimer);
     } catch (err) {
       if (err instanceof DOMException && err.name === "NotAllowedError") {
         toast.error("マイクのアクセスが許可されていません。ブラウザの設定を確認してください。");
@@ -281,15 +394,16 @@ export function useVoiceInput({
         toast.error("マイクの起動に失敗しました。");
       }
     }
-  }, [onResult]);
+  }, [onResult, resetSilenceTimer, clearSilenceTimer]);
 
   const stopMediaRecorder = useCallback(() => {
+    clearSilenceTimer();
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
       mediaRecorderRef.current = null;
     }
     setIsRecording(false);
-  }, []);
+  }, [clearSilenceTimer]);
 
   // ---- 公開 API ----
   const startVoice = useCallback(() => {
@@ -302,12 +416,13 @@ export function useVoiceInput({
   }, [startSpeechRecognition, startMediaRecorder]);
 
   const stopVoice = useCallback(() => {
+    clearSilenceTimer();
     if (recognitionRef.current) {
       stopSpeechRecognition();
     } else if (mediaRecorderRef.current) {
       stopMediaRecorder();
     }
-  }, [stopSpeechRecognition, stopMediaRecorder]);
+  }, [clearSilenceTimer, stopSpeechRecognition, stopMediaRecorder]);
 
   const toggleVoice = useCallback(() => {
     if (isRecording) {
@@ -317,5 +432,13 @@ export function useVoiceInput({
     }
   }, [isRecording, startVoice, stopVoice]);
 
-  return { isRecording, isProcessing, startVoice, stopVoice, toggleVoice, interimText };
+  return {
+    isRecording,
+    isProcessing,
+    startVoice,
+    stopVoice,
+    toggleVoice,
+    interimText,
+    silenceCountdown,
+  };
 }

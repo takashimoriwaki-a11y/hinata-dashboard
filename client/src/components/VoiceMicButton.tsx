@@ -9,6 +9,7 @@
  * - 処理中: スピナー表示
  * - 通常時: マイクアイコン
  * - 録音中は interimText（暫定テキスト）をボタン横にリアルタイム表示
+ * - 無音タイマー残り5秒以下でカウントダウン表示
  */
 
 import { Loader2, Mic } from "lucide-react";
@@ -40,6 +41,7 @@ const sizeConfig = {
     bars: "h-3",
     barWidth: "w-0.5",
     previewText: "text-xs",
+    countdown: "text-[9px]",
   },
   md: {
     button: "h-10 w-10 rounded-xl",
@@ -47,6 +49,7 @@ const sizeConfig = {
     bars: "h-4",
     barWidth: "w-0.5",
     previewText: "text-sm",
+    countdown: "text-[10px]",
   },
   lg: {
     button: "h-10 w-10 rounded-xl",
@@ -54,6 +57,7 @@ const sizeConfig = {
     bars: "h-4",
     barWidth: "w-0.5",
     previewText: "text-sm",
+    countdown: "text-[10px]",
   },
 };
 
@@ -64,8 +68,11 @@ export function VoiceMicButton({
   disabled = false,
   previewMode = "tooltip",
 }: VoiceMicButtonProps) {
-  const { isRecording, isProcessing, toggleVoice, interimText } = useVoiceInput({ onResult });
+  const { isRecording, isProcessing, toggleVoice, interimText, silenceCountdown } = useVoiceInput({ onResult });
   const cfg = sizeConfig[size];
+
+  // 残り5秒以下でカウントダウン警告を表示
+  const showCountdown = isRecording && silenceCountdown !== null && silenceCountdown <= 5;
 
   const handlePointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
@@ -84,7 +91,9 @@ export function VoiceMicButton({
         "touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
         cfg.button,
         isRecording
-          ? "bg-red-500 border-red-400 text-white shadow-md shadow-red-500/40"
+          ? showCountdown
+            ? "bg-orange-500 border-orange-400 text-white shadow-md shadow-orange-500/40"
+            : "bg-red-500 border-red-400 text-white shadow-md shadow-red-500/40"
           : isProcessing
           ? "bg-muted border-border text-muted-foreground cursor-wait"
           : "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 hover:border-primary/50 active:scale-95",
@@ -92,18 +101,36 @@ export function VoiceMicButton({
         className
       )}
       aria-label={isRecording ? "録音停止" : isProcessing ? "処理中" : "音声入力開始"}
-      title={isRecording ? "タップして停止" : isProcessing ? "文字起こし中..." : "タップして音声入力"}
+      title={
+        isRecording
+          ? showCountdown
+            ? `あと${silenceCountdown}秒で自動停止`
+            : "タップして停止"
+          : isProcessing
+          ? "文字起こし中..."
+          : "タップして音声入力"
+      }
     >
       {/* 録音中のpingアニメーション */}
       {isRecording && (
         <span className="absolute inset-0 rounded-[inherit] overflow-hidden pointer-events-none">
-          <span className="absolute inset-0 animate-ping rounded-[inherit] bg-red-400 opacity-25" />
+          <span
+            className={cn(
+              "absolute inset-0 animate-ping rounded-[inherit] opacity-25",
+              showCountdown ? "bg-orange-400" : "bg-red-400"
+            )}
+          />
         </span>
       )}
 
-      {/* アイコン / 波形 */}
+      {/* アイコン / 波形 / カウントダウン */}
       {isProcessing ? (
         <Loader2 className={cn(cfg.icon, "animate-spin")} />
+      ) : isRecording && showCountdown ? (
+        // 残り5秒以下: カウントダウン数字を表示
+        <span className={cn("font-bold leading-none", cfg.countdown)}>
+          {silenceCountdown}
+        </span>
       ) : isRecording ? (
         <span className={cn("flex items-end justify-center gap-px", cfg.bars)}>
           {[0, 1, 2, 3].map((i) => (
@@ -123,22 +150,43 @@ export function VoiceMicButton({
       )}
 
       {/* tooltip モード: ボタン上部にポップアップ */}
-      {previewMode === "tooltip" && isRecording && interimText && (
-        <span
-          className={cn(
-            "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50",
-            "max-w-[200px] w-max px-2.5 py-1.5 rounded-lg",
-            "bg-gray-900/90 dark:bg-gray-100/90 backdrop-blur-sm",
-            "text-white dark:text-gray-900 font-normal leading-snug",
-            "pointer-events-none shadow-lg",
-            "animate-in fade-in-0 zoom-in-95 duration-150",
-            cfg.previewText
+      {previewMode === "tooltip" && isRecording && (
+        <>
+          {/* interimText プレビュー */}
+          {interimText && (
+            <span
+              className={cn(
+                "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50",
+                "max-w-[200px] w-max px-2.5 py-1.5 rounded-lg",
+                "bg-gray-900/90 dark:bg-gray-100/90 backdrop-blur-sm",
+                "text-white dark:text-gray-900 font-normal leading-snug",
+                "pointer-events-none shadow-lg",
+                "animate-in fade-in-0 zoom-in-95 duration-150",
+                cfg.previewText
+              )}
+            >
+              <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900/90 dark:border-t-gray-100/90" />
+              <span className="opacity-60 italic">{interimText}</span>
+            </span>
           )}
-        >
-          {/* 吹き出しの三角 */}
-          <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900/90 dark:border-t-gray-100/90" />
-          <span className="opacity-60 italic">{interimText}</span>
-        </span>
+          {/* 残り5秒以下のカウントダウン警告 */}
+          {showCountdown && !interimText && (
+            <span
+              className={cn(
+                "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50",
+                "w-max px-2.5 py-1.5 rounded-lg",
+                "bg-orange-600/90 backdrop-blur-sm",
+                "text-white font-medium leading-snug",
+                "pointer-events-none shadow-lg",
+                "animate-in fade-in-0 zoom-in-95 duration-150",
+                cfg.previewText
+              )}
+            >
+              <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-orange-600/90" />
+              あと{silenceCountdown}秒で自動停止
+            </span>
+          )}
+        </>
       )}
     </button>
   );
@@ -159,9 +207,14 @@ export function VoiceMicButton({
             {interimText}
           </span>
         )}
-        {isRecording && !interimText && (
+        {isRecording && !interimText && !showCountdown && (
           <span className={cn("text-muted-foreground italic", cfg.previewText)}>
             話してください...
+          </span>
+        )}
+        {isRecording && showCountdown && !interimText && (
+          <span className={cn("text-orange-500 font-medium", cfg.previewText)}>
+            あと{silenceCountdown}秒で自動停止
           </span>
         )}
       </span>

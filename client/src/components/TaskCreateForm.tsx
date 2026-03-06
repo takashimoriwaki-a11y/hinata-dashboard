@@ -130,10 +130,19 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
               />
               {/* 音声認識中の暫定テキストプレビュー */}
               {taskVoice.isRecording && (
-                <div className="px-2 py-1.5 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 min-h-[28px]">
+                <div className={cn(
+                  "px-2 py-1.5 rounded-md border min-h-[28px]",
+                  taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5
+                    ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
+                    : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
+                )}>
                   {taskVoice.interimText ? (
                     <p className="text-xs text-red-600 dark:text-red-400 italic leading-relaxed">
                       🎤 {taskVoice.interimText}
+                    </p>
+                  ) : taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5 ? (
+                    <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+                      あと{taskVoice.silenceCountdown}秒で自動停止します
                     </p>
                   ) : (
                     <p className="text-xs text-muted-foreground italic">話してください...</p>
@@ -149,17 +158,22 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
                 "border transition-all duration-200 select-none touch-manipulation",
                 "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                 taskVoice.isRecording
-                  ? "bg-red-500 border-red-400 text-white shadow-md shadow-red-500/40"
+                  ? (taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5
+                      ? "bg-orange-500 border-orange-400 text-white shadow-md shadow-orange-500/40"
+                      : "bg-red-500 border-red-400 text-white shadow-md shadow-red-500/40")
                   : "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 active:scale-95"
               )}
               aria-label={taskVoice.isRecording ? "録音停止" : "音声入力開始"}
+              title={taskVoice.isRecording && taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5 ? `あと${taskVoice.silenceCountdown}秒で自動停止` : undefined}
             >
               {taskVoice.isRecording && (
                 <span className="absolute inset-0 rounded-[inherit] overflow-hidden pointer-events-none">
-                  <span className="absolute inset-0 animate-ping rounded-[inherit] bg-red-400 opacity-25" />
+                  <span className={cn("absolute inset-0 animate-ping rounded-[inherit] opacity-25", taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5 ? "bg-orange-400" : "bg-red-400")} />
                 </span>
               )}
-              {taskVoice.isRecording ? (
+              {taskVoice.isRecording && taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5 ? (
+                <span className="text-[10px] font-bold leading-none">{taskVoice.silenceCountdown}</span>
+              ) : taskVoice.isRecording ? (
                 <span className="flex items-end justify-center gap-px h-4">
                   {[0,1,2,3].map((i) => (
                     <span key={i} className="w-0.5 bg-white rounded-full" style={{ height: "60%", animation: "voiceBar 0.5s ease-in-out infinite alternate", animationDelay: `${i * 0.12}s` }} />
