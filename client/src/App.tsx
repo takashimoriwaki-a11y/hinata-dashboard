@@ -15,6 +15,7 @@ import Login from "./pages/Login";
 import Setup from "./pages/Setup";
 import DashboardLayout from "./components/DashboardLayout";
 import SplashScreen from "./components/SplashScreen";
+import OfflineProvider from "./components/OfflineOverlay";
 
 function Router() {
   return (
@@ -66,7 +67,9 @@ function App() {
         <TooltipProvider>
           <Toaster />
           {showSplash && <SplashScreen onFinish={handleFinish} duration={2000} />}
-          <Router />
+          <OfflineProvider>
+            <Router />
+          </OfflineProvider>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

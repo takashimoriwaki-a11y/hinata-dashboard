@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>オフライン - ひなた訪問看護ダッシュボード</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "Noto Sans JP", sans-serif;
+        background: linear-gradient(160deg, #fff7ed 0%, #fed7aa 100%);
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        color: #431407;
+      }
+
+      .card {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(12px);
+        border-radius: 20px;
+        padding: 40px 32px;
+        max-width: 400px;
+        width: 100%;
+        text-align: center;
+        box-shadow: 0 8px 32px rgba(249, 115, 22, 0.15);
+      }
+
+      .logo {
+        width: 80px;
+        height: 80px;
+        object-fit: contain;
+        margin-bottom: 20px;
+        filter: drop-shadow(0 4px 12px rgba(249, 115, 22, 0.25));
+        animation: float 3s ease-in-out infinite;
+      }
+
+      @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-8px); }
+      }
+
+      .icon-wifi {
+        width: 56px;
+        height: 56px;
+        margin: 0 auto 20px;
+        background: #fff1e6;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .icon-wifi svg {
+        width: 32px;
+        height: 32px;
+        color: #f97316;
+      }
+
+      h1 {
+        font-size: 20px;
+        font-weight: 700;
+        color: #c2410c;
+        margin-bottom: 10px;
+        letter-spacing: 0.02em;
+      }
+
+      p {
+        font-size: 14px;
+        color: #78350f;
+        line-height: 1.7;
+        margin-bottom: 8px;
+      }
+
+      .hint {
+        font-size: 13px;
+        color: #a16207;
+        background: #fef9c3;
+        border-radius: 8px;
+        padding: 10px 14px;
+        margin: 16px 0;
+        line-height: 1.6;
+      }
+
+      .retry-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 24px;
+        padding: 12px 28px;
+        background: linear-gradient(135deg, #f97316, #ea580c);
+        color: white;
+        font-family: "Noto Sans JP", sans-serif;
+        font-size: 15px;
+        font-weight: 700;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        box-shadow: 0 4px 16px rgba(249, 115, 22, 0.35);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        letter-spacing: 0.04em;
+      }
+
+      .retry-btn:active {
+        transform: scale(0.96);
+        box-shadow: 0 2px 8px rgba(249, 115, 22, 0.25);
+      }
+
+      .retry-btn svg {
+        width: 18px;
+        height: 18px;
+        transition: transform 0.4s ease;
+      }
+
+      .retry-btn.spinning svg {
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+
+      .status {
+        margin-top: 16px;
+        font-size: 13px;
+        color: #a16207;
+        min-height: 20px;
+      }
+
+      .status.online {
+        color: #16a34a;
+        font-weight: 600;
+      }
+
+      .divider {
+        width: 40px;
+        height: 3px;
+        background: linear-gradient(90deg, #f97316, #fbbf24);
+        border-radius: 2px;
+        margin: 20px auto;
+      }
+
+      footer {
+        margin-top: 32px;
+        font-size: 12px;
+        color: #92400e;
+        opacity: 0.7;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <img
+        src="https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/hinata_logo_mark_45315039.png"
+        alt="ひなた"
+        class="logo"
+      />
+
+      <div class="icon-wifi">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="1" y1="1" x2="23" y2="23"></line>
+          <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+          <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+          <path d="M10.71 5.05A16 16 0 0 1 22.56 9"></path>
+          <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+          <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+          <line x1="12" y1="20" x2="12.01" y2="20"></line>
+        </svg>
+      </div>
+
+      <h1>オフラインです</h1>
+      <p>ネットワークに接続されていないため、<br />ひなたダッシュボードを表示できません。</p>
+
+      <div class="divider"></div>
+
+      <div class="hint">
+        Wi-Fi または モバイルデータ通信の<br />
+        接続状況をご確認ください
+      </div>
+
+      <button class="retry-btn" id="retryBtn" onclick="handleRetry()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+        </svg>
+        再接続を試みる
+      </button>
+
+      <p class="status" id="statusMsg"></p>
+    </div>
+
+    <footer>こころの訪問看護ステーション ひなた</footer>
+
+    <script>
+      let checking = false;
+
+      // ページ読み込み時にオンラインなら即リダイレクト
+      if (navigator.onLine) {
+        window.location.replace("/");
+      }
+
+      // オンライン復帰を検知して自動リダイレクト
+      window.addEventListener("online", () => {
+        document.getElementById("statusMsg").textContent = "接続が回復しました。画面を更新します...";
+        document.getElementById("statusMsg").className = "status online";
+        setTimeout(() => {
+          window.location.replace("/");
+        }, 800);
+      });
+
+      function handleRetry() {
+        if (checking) return;
+        checking = true;
+
+        const btn = document.getElementById("retryBtn");
+        const status = document.getElementById("statusMsg");
+
+        btn.classList.add("spinning");
+        btn.disabled = true;
+        status.textContent = "接続を確認しています...";
+        status.className = "status";
+
+        // fetch で実際の接続確認
+        fetch("/manifest.json?_=" + Date.now(), { cache: "no-store" })
+          .then(() => {
+            status.textContent = "接続が回復しました。画面を更新します...";
+            status.className = "status online";
+            setTimeout(() => {
+              window.location.replace("/");
+            }, 600);
+          })
+          .catch(() => {
+            btn.classList.remove("spinning");
+            btn.disabled = false;
+            status.textContent = "まだオフラインです。しばらくお待ちください。";
+            status.className = "status";
+            checking = false;
+          });
+      }
+    </script>
+  </body>
+</html>

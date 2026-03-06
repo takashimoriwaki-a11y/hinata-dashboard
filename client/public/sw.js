@@ -1,30 +1,35 @@
 // ひなたダッシュボード Service Worker
-// Web Push通知の受信と表示 + PWAキャッシュ管理を担当する
+// Web Push通知の受信と表示 + PWAキャッシュ管理 + オフライン専用ページ対応
 
-const CACHE_NAME = "hinata-pwa-v1";
+const CACHE_NAME = "hinata-pwa-v2";
+const OFFLINE_URL = "/offline.html";
 
-// キャッシュするアセット（オフライン時に表示するファイル）
+// 起動時に必ずキャッシュするアセット
 const PRECACHE_ASSETS = [
   "/",
+  "/offline.html",
   "/manifest.json",
   "/icon-192x192.png",
   "/icon-512x512.png",
   "/apple-touch-icon.png",
 ];
 
-// インストール時にアセットをキャッシュ
+// ===== インストール =====
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(PRECACHE_ASSETS).catch((err) => {
-        console.warn("[SW] precache failed:", err);
-      });
+      // offline.html は必ずキャッシュする（他は失敗しても続行）
+      return cache.add(OFFLINE_URL).then(() =>
+        cache.addAll(PRECACHE_ASSETS.filter((u) => u !== OFFLINE_URL)).catch((err) => {
+          console.warn("[SW] precache partial failure:", err);
+        })
+      );
     })
   );
   self.skipWaiting();
 });
 
-// 古いキャッシュを削除
+// ===== アクティベート（古いキャッシュ削除） =====
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
@@ -38,42 +43,50 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// フェッチ: Network First（APIはネットワーク優先、失敗時はキャッシュ）
+// ===== フェッチ戦略 =====
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
-  // APIリクエストはキャッシュしない
-  if (url.pathname.startsWith("/api/")) {
+  // APIリクエスト・非GETはキャッシュしない（ネットワークのみ）
+  if (url.pathname.startsWith("/api/") || event.request.method !== "GET") {
     return;
   }
 
-  // GETリクエストのみキャッシュ対象
-  if (event.request.method !== "GET") {
+  // ナビゲーションリクエスト（ページ遷移）
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // 成功したらキャッシュに保存して返す
+          if (response.ok) {
+            const cloned = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
+          }
+          return response;
+        })
+        .catch(async () => {
+          // オフライン時: キャッシュ済みページがあればそれを返す
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
+          // なければオフライン専用ページを返す
+          const offlinePage = await caches.match(OFFLINE_URL);
+          return offlinePage ?? new Response("オフラインです", { status: 503 });
+        })
+    );
     return;
   }
 
+  // 静的アセット（JS/CSS/画像等）: Network First → Cache Fallback
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // 成功したレスポンスをキャッシュに保存
         if (response.ok) {
           const cloned = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, cloned);
-          });
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
         }
         return response;
       })
-      .catch(() => {
-        // ネットワーク失敗時はキャッシュから返す
-        return caches.match(event.request).then((cached) => {
-          if (cached) return cached;
-          // ナビゲーションリクエストはルートを返す（SPA対応）
-          if (event.request.mode === "navigate") {
-            return caches.match("/");
-          }
-        });
-      })
+      .catch(() => caches.match(event.request))
   );
 });
 
