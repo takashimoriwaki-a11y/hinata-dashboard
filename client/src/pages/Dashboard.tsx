@@ -451,6 +451,117 @@ function VisitCountCard() {
   );
 }
 
+// ========== ピンチズーム対応画像コンポーネント ==========
+
+function PinchZoomImage({ src, alt }: { src: string; alt: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const scaleRef = useRef(1);
+  const lastDistRef = useRef<number | null>(null);
+  const translateRef = useRef({ x: 0, y: 0 });
+  const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
+
+  const applyTransform = useCallback(() => {
+    if (!imgRef.current) return;
+    imgRef.current.style.transform = `translate(${translateRef.current.x}px, ${translateRef.current.y}px) scale(${scaleRef.current})`;
+  }, []);
+
+  const clampTranslate = useCallback((scale: number) => {
+    if (!containerRef.current || !imgRef.current) return;
+    const containerW = containerRef.current.clientWidth;
+    const containerH = containerRef.current.clientHeight;
+    const imgNaturalW = imgRef.current.naturalWidth || containerW;
+    const imgNaturalH = imgRef.current.naturalHeight || containerH;
+    const displayedW = Math.min(containerW, imgNaturalW) * scale;
+    const displayedH = (displayedW / imgNaturalW) * imgNaturalH;
+    const maxX = Math.max(0, (displayedW - containerW) / 2);
+    const maxY = Math.max(0, (displayedH - containerH) / 2);
+    translateRef.current.x = Math.max(-maxX, Math.min(maxX, translateRef.current.x));
+    translateRef.current.y = Math.max(-maxY, Math.min(maxY, translateRef.current.y));
+  }, []);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastDistRef.current = Math.sqrt(dx * dx + dy * dy);
+      lastTouchRef.current = null;
+    } else if (e.touches.length === 1 && scaleRef.current > 1) {
+      lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      e.stopPropagation();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (lastDistRef.current !== null) {
+        const delta = dist / lastDistRef.current;
+        scaleRef.current = Math.max(1, Math.min(4, scaleRef.current * delta));
+        clampTranslate(scaleRef.current);
+        applyTransform();
+      }
+      lastDistRef.current = dist;
+    } else if (e.touches.length === 1 && scaleRef.current > 1 && lastTouchRef.current) {
+      e.stopPropagation();
+      const dx = e.touches[0].clientX - lastTouchRef.current.x;
+      const dy = e.touches[0].clientY - lastTouchRef.current.y;
+      translateRef.current.x += dx;
+      translateRef.current.y += dy;
+      clampTranslate(scaleRef.current);
+      applyTransform();
+      lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+  }, [applyTransform, clampTranslate]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length < 2) lastDistRef.current = null;
+    if (e.touches.length === 0) {
+      if (scaleRef.current <= 1) {
+        scaleRef.current = 1;
+        translateRef.current = { x: 0, y: 0 };
+        applyTransform();
+      }
+      lastTouchRef.current = null;
+    }
+  }, [applyTransform]);
+
+  const handleDoubleClick = useCallback(() => {
+    if (scaleRef.current > 1) {
+      scaleRef.current = 1;
+      translateRef.current = { x: 0, y: 0 };
+    } else {
+      scaleRef.current = 2;
+    }
+    applyTransform();
+  }, [applyTransform]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="overflow-hidden bg-muted/10 touch-none select-none"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      <img
+        ref={imgRef}
+        src={src}
+        alt={alt}
+        className="w-full object-contain transition-none origin-center"
+        style={{ willChange: "transform" }}
+        onDoubleClick={handleDoubleClick}
+        draggable={false}
+      />
+      <div className="text-center text-[10px] text-muted-foreground/50 py-1">
+        ピンチで拡大・ダブルタップでリセット
+      </div>
+    </div>
+  );
+}
+
 // ========== ZESTスクリーンショットカード（tRPC+S3+DB版）==========
 
 function ScheduleScreenshotCard() {
@@ -882,13 +993,12 @@ function ScheduleScreenshotCard() {
 
       {/* 拡大モーダル（縦スクロールで全チームの今日分を一覧表示） */}
       {viewMeta && (() => {
-        // アップロード済みのスクショを全チーム分取得（選択中の日付）
-        const todaySlides = TEAMS
-          .map((team) => ({
-            team,
-            screenshot: screenshots?.find((s) => s.team === team && s.day === viewMeta.day) ?? null,
-          }))
-          .filter((s) => s.screenshot !== null) as { team: string; screenshot: NonNullable<typeof screenshots>[number] }[];
+        // 全チームのスクショ（登録済み・未登録問わず）を取得
+        const allTeamSlides = TEAMS.map((team) => ({
+          team,
+          screenshot: screenshots?.find((s) => s.team === team && s.day === viewMeta.day) ?? null,
+        }));
+        const registeredCount = allTeamSlides.filter((s) => s.screenshot !== null).length;
 
         return (
         <div
@@ -900,54 +1010,75 @@ function ScheduleScreenshotCard() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* モーダルヘッダー（sticky） */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border sticky top-0 bg-card z-10 rounded-t-xl">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-primary" />
-                <span className="text-sm font-semibold">
-                  {viewMeta.day}のスケジュール（全チーム）
-                </span>
-                <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                  {todaySlides.length}チーム登録済み
-                </span>
+            <div className="flex flex-col gap-2 px-4 pt-3 pb-2 border-b border-border sticky top-0 bg-card z-10 rounded-t-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-semibold">訪問スケジュール（全チーム）</span>
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                    {registeredCount}/{TEAMS.length}チーム登録済み
+                  </span>
+                </div>
+                <button
+                  onClick={() => { setViewUrl(null); setViewMeta(null); }}
+                  className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button
-                onClick={() => { setViewUrl(null); setViewMeta(null); }}
-                className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              {/* 今日/明日タブ */}
+              <div className="flex gap-1">
+                {DAYS.map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => setViewMeta({ ...viewMeta, day: d })}
+                    className={cn(
+                      "px-4 py-1.5 text-xs font-semibold rounded-full transition-colors",
+                      viewMeta.day === d
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    )}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* 全チームの画像を縦スクロールで表示 */}
+            {/* 全チームの画像を縦スクロールで表示（未登録チームも含む） */}
             <div className="divide-y divide-border">
-              {todaySlides.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-40 text-muted-foreground gap-2">
-                  <Calendar className="w-8 h-8 opacity-30" />
-                  <span className="text-sm">{viewMeta.day}のスケジュールはまだ登録されていません</span>
-                </div>
-              ) : (
-                todaySlides.map(({ team, screenshot }) => (
-                  <div key={team}>
-                    {/* チーム名ラベル */}
-                    <div className="flex items-center justify-between px-4 py-2 bg-muted/40">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-foreground">{team}チーム</span>
-                        {screenshot.uploadedByName && (
-                          <span className="text-xs text-muted-foreground">· {screenshot.uploadedByName}</span>
-                        )}
-                      </div>
+              {allTeamSlides.map(({ team, screenshot }) => (
+                <div key={team}>
+                  {/* チーム名ラベル */}
+                  <div className="flex items-center justify-between px-4 py-2 bg-muted/40">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-foreground">{team}チーム</span>
+                      {screenshot?.uploadedByName && (
+                        <span className="text-xs text-muted-foreground">· {screenshot.uploadedByName}</span>
+                      )}
+                      {!screenshot && (
+                        <span className="text-xs text-muted-foreground/60 italic">未登録</span>
+                      )}
+                    </div>
+                    {screenshot && (
                       <span className="text-xs text-muted-foreground">
                         {new Date(screenshot.updatedAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} 登録
                       </span>
-                    </div>
-                    <img
+                    )}
+                  </div>
+                  {screenshot ? (
+                    <PinchZoomImage
                       src={screenshot.imageUrl}
                       alt={`${team}チーム ${viewMeta.day}のスケジュール`}
-                      className="w-full object-contain"
                     />
-                  </div>
-                ))
-              )}
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-24 bg-muted/20 text-muted-foreground/50 gap-1">
+                      <Calendar className="w-6 h-6 opacity-30" />
+                      <span className="text-xs">まだ登録されていません</span>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         </div>
