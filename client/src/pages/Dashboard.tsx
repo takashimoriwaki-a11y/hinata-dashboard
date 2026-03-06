@@ -769,7 +769,7 @@ function ScheduleScreenshotCard() {
                               deleteMutation.mutate({ team, day });
                             }}
                             disabled={deleteMutation.isPending}
-                            className="absolute top-2 right-2 bg-card/90 hover:bg-red-50 text-destructive border border-destructive/30 rounded-full p-1.5 shadow-sm transition-colors"
+                            className="absolute top-2 right-2 bg-white hover:bg-red-50 dark:bg-red-600 dark:hover:bg-red-500 text-red-500 dark:text-white border border-red-200 dark:border-red-500 rounded-full p-1.5 shadow-md transition-colors"
                             title="削除"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
