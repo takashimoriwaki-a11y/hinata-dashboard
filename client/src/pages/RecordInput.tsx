@@ -216,8 +216,8 @@ ${clinicalNotes}`);
       toast.error("クリップボードへのコピーに失敗しました");
     }
     window.open(GEMS_URL, "_blank", "noopener,noreferrer");
-    // Gem送信後に②の入力内容をリセット
-    setClinicalNotes("");
+    // Gem送信後に①②の全入力内容をリセット
+    handleReset();
   };
 
   const handleReset = () => {
@@ -431,6 +431,12 @@ ${clinicalNotes}`);
               </div>
             </div>
           )}
+          {/* リセットボタン（①カード内の末尾） */}
+          <div className="flex justify-end pt-1">
+            <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs text-muted-foreground hover:text-foreground">
+              リセット
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -451,9 +457,6 @@ ${clinicalNotes}`);
               ) : (
                 <><FileSpreadsheet className="w-4 h-4 mr-2" />スプレッドシートへ転送</>
               )}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs">
-              新規入力
             </Button>
           </div>
           {exported && (
@@ -491,18 +494,21 @@ ${clinicalNotes}`);
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="text-xs font-medium text-muted-foreground">本日観察・収集した情報</label>
-              <Button
-                variant="outline"
-                size="sm"
-                className={`h-7 text-xs ${isRecordingNotes ? "bg-red-50 border-red-300 text-red-600" : ""}`}
-                onClick={() => isRecordingNotes ? stopVoiceInput() : startVoiceInput("notes")}
+              <button
+                type="button"
+                className={`inline-flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium border transition-colors select-none touch-manipulation ${
+                  isRecordingNotes
+                    ? "bg-red-50 border-red-300 text-red-600 active:bg-red-100"
+                    : "bg-background border-border text-foreground hover:bg-muted active:bg-muted"
+                }`}
+                onPointerDown={(e) => { e.preventDefault(); isRecordingNotes ? stopVoiceInput() : startVoiceInput("notes"); }}
               >
                 {isRecordingNotes ? (
-                  <><MicOff className="w-3 h-3 mr-1" />停止</>
+                  <><MicOff className="w-3 h-3" />停止</>
                 ) : (
-                  <><Mic className="w-3 h-3 mr-1" />音声入力</>
+                  <><Mic className="w-3 h-3" />音声入力</>
                 )}
-              </Button>
+              </button>
             </div>
             <Textarea
               placeholder="本日の訪問で観察した症状・状態・利用者の言葉・環境の変化などをメモしてください..."
