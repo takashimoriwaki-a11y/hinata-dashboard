@@ -139,7 +139,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
               value={newText}
               onChange={(e) => setNewText(e.target.value)}
               rows={2}
-              className="flex-1 text-sm border border-border rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+              className="flex-1 text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
             />
             <button
               type="button"
@@ -170,7 +170,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
               type="date"
               value={newDueDate}
               onChange={(e) => setNewDueDate(e.target.value)}
-              className="w-full text-sm border border-border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full text-sm border border-border rounded-lg px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
           <div>
@@ -179,7 +179,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
               value={newDueTime}
               onChange={(e) => setNewDueTime(e.target.value)}
               disabled={!newDueDate}
-              className="w-full text-sm border border-border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40"
+              className="w-full text-sm border border-border rounded-lg px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40"
             >
               <option value="">時刻を選択...</option>
               {Array.from({ length: 24 * 6 }, (_, i) => {
@@ -252,7 +252,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
                 const found = staff.find((s) => s.id === id);
                 setNewAssignUserName(found?.name ?? "");
               }}
-              className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             >
               <option value="">スタッフを選択...</option>
               {staff.map((s) => (

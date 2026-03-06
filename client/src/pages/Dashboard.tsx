@@ -650,7 +650,7 @@ function ScheduleScreenshotCard() {
                 <button
                   onClick={(e) => { e.stopPropagation(); handleDelete(); }}
                   disabled={deleteMutation.isPending}
-                  className="absolute top-2 right-2 bg-white/90 hover:bg-red-50 text-destructive border border-destructive/30 rounded-full p-1.5 shadow-sm transition-colors"
+                  className="absolute top-2 right-2 bg-card/90 hover:bg-red-50 dark:hover:bg-red-900/30 text-destructive border border-destructive/30 rounded-full p-1.5 shadow-sm transition-colors"
                   title="削除"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -764,7 +764,7 @@ function ScheduleScreenshotCard() {
           onClick={() => { setViewUrl(null); setViewMeta(null); }}
         >
           <div
-            className="relative max-w-4xl w-full bg-white rounded-xl overflow-hidden shadow-2xl mt-2"
+            className="relative max-w-4xl w-full bg-card text-card-foreground rounded-xl overflow-hidden shadow-2xl mt-2"
             onClick={(e) => e.stopPropagation()}
           >
             {/* モーダルヘッダー */}
@@ -1113,7 +1113,7 @@ function ToolsCard() {
               className={cn(
                 "flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md text-[10px] font-medium transition-all",
                 activeTab === tab.id
-                  ? "bg-white shadow-sm text-primary"
+                  ? "bg-card shadow-sm text-primary"
                   : "text-foreground/70 hover:text-foreground"
               )}
             >
@@ -1185,12 +1185,12 @@ function ToolsCard() {
                 <div className="space-y-1.5 mb-1 p-2 bg-muted/30 rounded-lg">
                   <div className="flex gap-1">
                     <input type="text" placeholder="🔗" value={newEmoji} onChange={(e) => setNewEmoji(e.target.value)}
-                      className="w-10 text-xs border border-border rounded px-1 py-1 bg-white text-center" />
+                      className="w-10 text-xs border border-border rounded px-1 py-1 bg-background text-foreground text-center" />
                     <input type="text" placeholder="ラベル名" value={newLabel} onChange={(e) => setNewLabel(e.target.value)}
-                      className="flex-1 text-xs border border-border rounded px-2 py-1 bg-white" />
+                      className="flex-1 text-xs border border-border rounded px-2 py-1 bg-background text-foreground" />
                   </div>
                   <input type="url" placeholder="https://..." value={newHref} onChange={(e) => setNewHref(e.target.value)}
-                    className="w-full text-xs border border-border rounded px-2 py-1 bg-white" />
+                    className="w-full text-xs border border-border rounded px-2 py-1 bg-background text-foreground" />
                   <div className="flex gap-1">
                     <Button size="sm" className="h-6 text-xs flex-1" onClick={addLink} disabled={createLink.isPending}>追加</Button>
                     <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setShowAddForm(false)}>キャンセル</Button>
@@ -1209,12 +1209,12 @@ function ToolsCard() {
                         <div className="space-y-1 p-2 bg-muted/30 rounded-lg">
                           <div className="flex gap-1">
                             <input type="text" placeholder="絵文字" value={editEmoji} onChange={(e) => setEditEmoji(e.target.value)}
-                              className="w-10 text-xs border border-border rounded px-1 py-1 bg-white text-center" />
+                              className="w-10 text-xs border border-border rounded px-1 py-1 bg-background text-foreground text-center" />
                             <input type="text" placeholder="ラベル名" value={editLabel} onChange={(e) => setEditLabel(e.target.value)}
-                              className="flex-1 text-xs border border-border rounded px-2 py-1 bg-white" />
+                              className="flex-1 text-xs border border-border rounded px-2 py-1 bg-background text-foreground" />
                           </div>
                           <input type="url" placeholder="https://..." value={editHref} onChange={(e) => setEditHref(e.target.value)}
-                            className="w-full text-xs border border-border rounded px-2 py-1 bg-white" />
+                            className="w-full text-xs border border-border rounded px-2 py-1 bg-background text-foreground" />
                           <div className="flex gap-1">
                             <Button size="sm" className="h-6 text-xs flex-1" onClick={saveEdit} disabled={updateLink.isPending}>保存</Button>
                             <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setEditingId(null)}>キャンセル</Button>
@@ -1598,10 +1598,10 @@ function MessageBoard({ title }: { title: string }) {
                     <div>
                       <label className="text-[10px] text-muted-foreground block mb-0.5">表示開始（任意）</label>
                       <input type="date" value={displayFrom} onChange={(e) => setDisplayFrom(e.target.value)}
-                        className="w-full text-[11px] border border-border rounded px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-primary" />
+                        className="w-full text-xs border border-border rounded px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                       <select value={displayFromTime} onChange={(e) => setDisplayFromTime(e.target.value)}
                         disabled={!displayFrom}
-                        className="w-full mt-1 text-[11px] border border-border rounded px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40">
+                        className="w-full mt-1 text-[11px] border border-border rounded px-1.5 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40">
                         <option value="">時刻選択...</option>
                         {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
                       </select>
@@ -1609,10 +1609,10 @@ function MessageBoard({ title }: { title: string }) {
                     <div>
                       <label className="text-[10px] text-muted-foreground block mb-0.5">表示終了（任意）</label>
                       <input type="date" value={displayUntil} onChange={(e) => setDisplayUntil(e.target.value)}
-                        className="w-full text-[11px] border border-border rounded px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-primary" />
+                        className="w-full text-[11px] border border-border rounded px-1.5 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                       <select value={displayUntilTime} onChange={(e) => setDisplayUntilTime(e.target.value)}
                         disabled={!displayUntil}
-                        className="w-full mt-1 text-[11px] border border-border rounded px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40">
+                        className="w-full mt-1 text-[11px] border border-border rounded px-1.5 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40">
                         <option value="">時刻選択...</option>
                         {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
                       </select>
@@ -1622,10 +1622,10 @@ function MessageBoard({ title }: { title: string }) {
                     <label className="text-[10px] text-muted-foreground block mb-0.5">予約送信（任意）</label>
                     <div className="grid grid-cols-2 gap-1.5">
                       <input type="date" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)}
-                        className="w-full text-[11px] border border-border rounded px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-primary" />
+                        className="w-full text-[11px] border border-border rounded px-1.5 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                       <select value={scheduledAtTime} onChange={(e) => setScheduledAtTime(e.target.value)}
                         disabled={!scheduledAt}
-                        className="w-full text-[11px] border border-border rounded px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40">
+                        className="w-full text-[11px] border border-border rounded px-1.5 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40">
                         <option value="">時刻選択...</option>
                         {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
                       </select>
@@ -1696,7 +1696,7 @@ function MessageBoard({ title }: { title: string }) {
                           "flex items-center gap-0.5 text-[11px] px-1.5 py-0.5 rounded-full border transition-colors",
                           hasMe
                             ? "bg-primary/10 border-primary/30 text-primary"
-                            : "bg-white border-border text-muted-foreground hover:border-primary/30"
+                            : "bg-card border-border text-muted-foreground hover:border-primary/30"
                         )}
                       >
                         {emoji} {count}
@@ -1707,7 +1707,7 @@ function MessageBoard({ title }: { title: string }) {
                       <button className="text-[11px] px-1.5 py-0.5 rounded-full border border-dashed border-border text-muted-foreground hover:border-primary/30 hover:text-primary transition-colors">
                         +
                       </button>
-                      <div className="absolute bottom-full left-0 mb-1 hidden group-hover/react:flex gap-1 bg-white border border-border rounded-xl shadow-lg p-1.5 z-10">
+                      <div className="absolute bottom-full left-0 mb-1 hidden group-hover/react:flex gap-1 bg-card border border-border rounded-xl shadow-lg p-1.5 z-10">
                         {REACTION_EMOJIS.map((e) => (
                           <button
                             key={e}

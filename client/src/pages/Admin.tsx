@@ -118,7 +118,7 @@ function BulkImportPanel({
         <CardContent className="space-y-4 pt-0">
           <div className="space-y-1.5">
             <p className="text-xs text-muted-foreground">スプレッドシートのURLを順番に貼り付けてください（上から順に自動割り当て）</p>
-            <div className="bg-white/80 rounded-md p-2.5 text-[11px] text-muted-foreground space-y-0.5 border border-border">
+            <div className="bg-card/80 rounded-md p-2.5 text-[11px] text-muted-foreground space-y-0.5 border border-border">
               {LINK_DEFINITIONS.map((def, i) => (
                 <p key={def.key}><span className="font-semibold text-foreground">{i + 1}.</span> {def.label}</p>
               ))}
@@ -129,7 +129,7 @@ function BulkImportPanel({
             onChange={(e) => setPasteText(e.target.value)}
             placeholder={"https://docs.google.com/spreadsheets/d/AAAA...\nhttps://docs.google.com/spreadsheets/d/BBBB...\nhttps://docs.google.com/spreadsheets/d/CCCC...\nhttps://docs.google.com/spreadsheets/d/DDDD...\nhttps://docs.google.com/spreadsheets/d/EEEE...\nhttps://docs.google.com/spreadsheets/d/FFFF..."}
             rows={6}
-            className="w-full text-xs border border-border rounded-md px-3 py-2 bg-white focus:outline-none focus:border-primary font-mono resize-none"
+            className="w-full text-xs border border-border rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:border-primary font-mono resize-none"
             autoFocus
           />
           {hasAnyUrl && (
@@ -400,7 +400,7 @@ function PatientMasterPanel() {
                     onClick={() => setBulkTeam(t)}
                     className={cn(
                       "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
-                      bulkTeam === t ? "bg-primary text-white border-primary" : "bg-white text-foreground border-border hover:border-primary"
+                      bulkTeam === t ? "bg-primary text-white border-primary" : "bg-background text-foreground border-border hover:border-primary"
                     )}
                   >{t}</button>
                 ))}
@@ -415,7 +415,7 @@ function PatientMasterPanel() {
                 onChange={(e) => setBulkText(e.target.value)}
                 placeholder={"田中 花子\n鈴木 一郎\n佐藤 美咲\n山田 太郎"}
                 rows={6}
-                className="w-full text-sm border border-border rounded-md px-3 py-2 bg-white focus:outline-none focus:border-primary resize-none"
+                className="w-full text-sm border border-border rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:border-primary resize-none"
                 autoFocus
               />
               {bulkParsed.length > 0 && (
@@ -448,7 +448,7 @@ function PatientMasterPanel() {
                   value={addName}
                   onChange={(e) => setAddName(e.target.value)}
                   placeholder="田中 花子"
-                  className="w-full text-sm border border-border rounded-md px-3 py-1.5 bg-white focus:outline-none focus:border-primary"
+                  className="w-full text-sm border border-border rounded-md px-3 py-1.5 bg-background text-foreground focus:outline-none focus:border-primary"
                   autoFocus
                 />
               </div>
@@ -459,7 +459,7 @@ function PatientMasterPanel() {
                   value={addKana}
                   onChange={(e) => setAddKana(e.target.value)}
                   placeholder="たなか はなこ"
-                  className="w-full text-sm border border-border rounded-md px-3 py-1.5 bg-white focus:outline-none focus:border-primary"
+                  className="w-full text-sm border border-border rounded-md px-3 py-1.5 bg-background text-foreground focus:outline-none focus:border-primary"
                 />
               </div>
               <div className="space-y-1">
@@ -471,7 +471,7 @@ function PatientMasterPanel() {
                       onClick={() => setAddTeam(t)}
                       className={cn(
                         "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
-                        addTeam === t ? "bg-primary text-white border-primary" : "bg-white text-foreground border-border hover:border-primary"
+                        addTeam === t ? "bg-primary text-white border-primary" : "bg-background text-foreground border-border hover:border-primary"
                       )}
                     >{t}</button>
                   ))}
@@ -497,7 +497,7 @@ function PatientMasterPanel() {
                 "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
                 filterTeam === t
                   ? "bg-primary text-white border-primary"
-                  : "bg-white text-foreground border-border hover:border-primary hover:text-primary"
+                  : "bg-background text-foreground border-border hover:border-primary hover:text-primary"
               )}
             >
               {t}
@@ -512,7 +512,7 @@ function PatientMasterPanel() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="名前で検索..."
-          className="w-full text-sm border border-border rounded-md px-3 py-1.5 bg-white focus:outline-none focus:border-primary"
+          className="w-full text-sm border border-border rounded-md px-3 py-1.5 bg-background text-foreground focus:outline-none focus:border-primary"
         />
 
         {/* 利用者リスト */}
@@ -540,7 +540,7 @@ function PatientMasterPanel() {
                           type="text"
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
-                          className="text-sm border border-border rounded-md px-3 py-1.5 bg-white focus:outline-none focus:border-primary"
+                          className="text-sm border border-border rounded-md px-3 py-1.5 bg-background text-foreground focus:outline-none focus:border-primary"
                           autoFocus
                         />
                         <input
@@ -548,7 +548,7 @@ function PatientMasterPanel() {
                           value={editKana}
                           onChange={(e) => setEditKana(e.target.value)}
                           placeholder="ふりがな（任意）"
-                          className="text-sm border border-border rounded-md px-3 py-1.5 bg-white focus:outline-none focus:border-primary"
+                          className="text-sm border border-border rounded-md px-3 py-1.5 bg-background text-foreground focus:outline-none focus:border-primary"
                         />
                         <div className="flex flex-wrap gap-1.5">
                           {TEAMS.map((t) => (
@@ -557,7 +557,7 @@ function PatientMasterPanel() {
                               onClick={() => setEditTeam(t)}
                               className={cn(
                                 "px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors",
-                                editTeam === t ? "bg-primary text-white border-primary" : "bg-white text-foreground border-border hover:border-primary"
+                                editTeam === t ? "bg-primary text-white border-primary" : "bg-background text-foreground border-border hover:border-primary"
                               )}
                             >{t}</button>
                           ))}
@@ -764,7 +764,7 @@ export default function Admin() {
                       "px-3 py-1.5 rounded-full text-sm font-medium border transition-colors",
                       selectedYearMonth === opt.ym
                         ? "bg-primary text-white border-primary"
-                        : "bg-white text-foreground border-border hover:border-primary hover:text-primary"
+                        : "bg-background text-foreground border-border hover:border-primary hover:text-primary"
                     )}
                   >
                     {opt.label}
@@ -867,7 +867,7 @@ export default function Admin() {
                               placeholder="https://docs.google.com/spreadsheets/d/..."
                               value={editUrl}
                               onChange={(e) => setEditUrl(e.target.value)}
-                              className="flex-1 text-xs border border-border rounded px-2 py-1.5 bg-white focus:outline-none focus:border-primary"
+                              className="flex-1 text-xs border border-border rounded px-2 py-1.5 bg-background text-foreground focus:outline-none focus:border-primary"
                               autoFocus
                             />
                             <Button size="sm" className="h-7 text-xs px-3 flex-shrink-0" onClick={() => handleSave(def.key, def.label, def.color)} disabled={upsertLink.isPending}>
@@ -1093,7 +1093,7 @@ function StaffManagementPanel() {
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="例：山田 花子"
-                  className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
               <div>
@@ -1103,7 +1103,7 @@ function StaffManagementPanel() {
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
                   placeholder="例：hanako@kokoronohinata.com"
-                  className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
               <div>
@@ -1113,7 +1113,7 @@ function StaffManagementPanel() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="パスワードを入力"
-                  className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
               <div>
@@ -1242,7 +1242,7 @@ function StaffManagementPanel() {
                       value={resetPassword}
                       onChange={(e) => setResetPassword(e.target.value)}
                       placeholder="新しいパスワード（6文字以上）"
-                      className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+                      className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-amber-400"
                     />
                     <div className="flex gap-2 justify-end">
                       <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setResetUserId(null); setResetPassword(""); }}>キャンセル</Button>
