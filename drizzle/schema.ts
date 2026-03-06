@@ -278,3 +278,26 @@ export const appNotifications = mysqlTable("app_notifications", {
 
 export type AppNotification = typeof appNotifications.$inferSelect;
 export type InsertAppNotification = typeof appNotifications.$inferInsert;
+
+/**
+ * ブラウザプッシュ通知サブスクリプションテーブル
+ * Web Push APIのサブスクリプション情報を保存する
+ */
+export const pushSubscriptions = mysqlTable("push_subscriptions", {
+  id: int("id").autoincrement().primaryKey(),
+  /** サブスクリプションのエンドポイントURL（ユニーク） */
+  endpoint: text("endpoint").notNull(),
+  /** P256DH鍵 */
+  p256dh: text("p256dh").notNull(),
+  /** Auth鍵 */
+  auth: text("auth").notNull(),
+  /** 登録したユーザーID（nullの場合は匿名） */
+  userId: int("userId"),
+  /** 登録したユーザー名 */
+  userName: varchar("userName", { length: 200 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type InsertPushSubscription = typeof pushSubscriptions.$inferInsert;

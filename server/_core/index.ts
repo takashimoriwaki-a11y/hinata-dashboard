@@ -115,6 +115,87 @@ async function startServer() {
     }
   });
 
+  // Excelインポートエンドポイント
+  const excelUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+  // 利用者インポート /api/import/patients
+  app.post("/api/import/patients", excelUpload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) { res.status(400).json({ error: "ファイルがありません" }); return; }
+      const XLSX = await import("xlsx");
+      const wb = XLSX.read(req.file.buffer, { type: "buffer" });
+      // 最初のシートを使用（「利用者一覧（インポート用）」シート）
+      const sheetName = wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      // ヘッダー行は3行目（0-indexed: 2）、データは4行目から
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { range: 2, defval: "" });
+      const VALID_TEAMS = ["身体", "天理", "郡山北部", "郡山南部"];
+      const patients: Array<{ name: string; team: string; nameKana?: string; active?: number }> = [];
+      const errors: string[] = [];
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        // ヘッダー行キーを柔軟に取得（★付きも対応）
+        const name = String(row["★ 氏名"] ?? row["氏名"] ?? "").trim();
+        const team = String(row["★ チーム"] ?? row["チーム"] ?? "").trim();
+        const nameKana = String(row["ふりがな"] ?? "").trim();
+        const activeRaw = row["有効フラグ（1=有効 / 0=無効）"] ?? row["有効フラグ"] ?? 1;
+        const active = Number(activeRaw) === 0 ? 0 : 1;
+        if (!name) continue; // 空行スキップ
+        if (!VALID_TEAMS.includes(team)) { errors.push(`${i + 4}行目: チーム「${team}」は無効です（身体/天理/郡山北部/郡山南部）`); continue; }
+        patients.push({ name, team, nameKana: nameKana || undefined, active });
+      }
+      if (patients.length === 0 && errors.length > 0) {
+        res.status(400).json({ error: "インポートできる行がありませんでした", errors }); return;
+      }
+      // DB登録
+      const { batchCreatePatients } = await import("../db");
+      const count = await batchCreatePatients(patients);
+      res.json({ success: true, count, errors });
+    } catch (e) {
+      console.error("[import/patients] error:", e);
+      res.status(500).json({ error: "インポート処理中にエラーが発生しました" });
+    }
+  });
+
+  // 職員インポート /api/import/staff
+  app.post("/api/import/staff", excelUpload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) { res.status(400).json({ error: "ファイルがありません" }); return; }
+      const XLSX = await import("xlsx");
+      const wb = XLSX.read(req.file.buffer, { type: "buffer" });
+      const sheetName = wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { range: 2, defval: "" });
+      const VALID_TEAMS = ["身体", "天理", "郡山北部", "郡山南部"];
+      const staffList: Array<{ name: string; email: string; password: string; team: string; role: "admin" | "user" }> = [];
+      const errors: string[] = [];
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const name = String(row["★ 氏名"] ?? row["氏名"] ?? "").trim();
+        const email = String(row["★ メールアドレス"] ?? row["メールアドレス"] ?? "").trim().toLowerCase();
+        const password = String(row["★ 初期パスワード"] ?? row["初期パスワード"] ?? "").trim();
+        const team = String(row["★ チーム"] ?? row["チーム"] ?? "").trim();
+        const roleRaw = String(row["権限（admin / user）"] ?? row["権限"] ?? "user").trim().toLowerCase();
+        const role: "admin" | "user" = roleRaw === "admin" ? "admin" : "user";
+        if (!name) continue;
+        if (!email || !email.includes("@")) { errors.push(`${i + 4}行目: メールアドレスが無効です`); continue; }
+        if (!password || password.length < 4) { errors.push(`${i + 4}行目: パスワードが短すぎます（4文字以上）`); continue; }
+        if (!VALID_TEAMS.includes(team)) { errors.push(`${i + 4}行目: チーム「${team}」は無効です`); continue; }
+        staffList.push({ name, email, password, team, role });
+      }
+      if (staffList.length === 0 && errors.length > 0) {
+        res.status(400).json({ error: "インポートできる行がありませんでした", errors }); return;
+      }
+      // DB登録
+      const { batchCreateStaff } = await import("../db");
+      const { count, skipped } = await batchCreateStaff(staffList);
+      res.json({ success: true, count, skipped, errors });
+    } catch (e) {
+      console.error("[import/staff] error:", e);
+      res.status(500).json({ error: "インポート処理中にエラーが発生しました" });
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

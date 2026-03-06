@@ -623,6 +623,22 @@ export async function createPatient(data: InsertPatient) {
   return (result as any)[0]?.insertId ?? 0;
 }
 
+/** 利用者を一括登録する */
+export async function batchCreatePatients(data: Array<{ name: string; team: string; nameKana?: string; active?: number }>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  if (data.length === 0) return 0;
+  await db.insert(patients).values(
+    data.map((d) => ({
+      name: d.name,
+      team: d.team as any,
+      nameKana: d.nameKana ?? null,
+      active: d.active ?? 1,
+    }))
+  );
+  return data.length;
+}
+
 /** 利用者を更新する */
 export async function updatePatient(id: number, data: Partial<Pick<InsertPatient, "name" | "nameKana" | "team" | "active">>) {
   const db = await getDb();
@@ -792,6 +808,34 @@ export async function createStaffAccount(data: {
     lastSignedIn: new Date(),
   });
   return { success: true };
+}
+
+/** 職員を一括登録する（メール重複はスキップ） */
+export async function batchCreateStaff(data: Array<{ name: string; email: string; password: string; team: string; role: "admin" | "user" }>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const bcrypt = await import("bcryptjs");
+  let count = 0;
+  let skipped = 0;
+  for (const d of data) {
+    // メール重複チェック
+    const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, d.email)).limit(1);
+    if (existing.length > 0) { skipped++; continue; }
+    const passwordHash = await bcrypt.hash(d.password, 10);
+    const openId = `local-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+    await db.insert(users).values({
+      openId,
+      name: d.name,
+      email: d.email,
+      passwordHash,
+      role: d.role,
+      team: d.team as any,
+      loginMethod: "local",
+      lastSignedIn: new Date(),
+    });
+    count++;
+  }
+  return { count, skipped };
 }
 
 /** スタッフのパスワードをリセットする（管理者用） */

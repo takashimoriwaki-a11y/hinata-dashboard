@@ -553,11 +553,24 @@ export const appRouter = router({
         }
 
         // スケジュール更新通知を生成
+        const notifBody = `${ctx.user.name ?? "不明"}さんが${input.team}チームの${input.day}のスケジュールを更新しました`;
         await createNotification({
           type: "schedule_updated",
           title: `スケジュールが更新されました`,
-          body: `${ctx.user.name ?? "不明"}さんが${input.team}チームの${input.day}のスケジュールを更新しました`,
+          body: notifBody,
         });
+
+        // Web Push通知を送信（非同期でエラーを無視）
+        try {
+          const { sendPushToAll } = await import("./pushNotification");
+          await sendPushToAll({
+            title: "📷 スケジュールが更新されました",
+            body: notifBody,
+            url: "/",
+          });
+        } catch (e) {
+          console.error("[WebPush] failed to send push:", e);
+        }
 
         return { success: true, url: imageUrl };
       }),
@@ -765,8 +778,42 @@ export const appRouter = router({
         );
         return result;
       }),
+  }),  // ========== Web Push通知 ==========
+  push: router({
+    // VAPID公開鍵を返す
+    getVapidPublicKey: publicProcedure.query(() => {
+      const { ENV } = require("./_core/env");
+      return { publicKey: ENV.vapidPublicKey ?? "" };
+    }),
+    // サブスクリプションを登録
+    subscribe: protectedProcedure
+      .input(z.object({
+        endpoint: z.string().url(),
+        p256dh: z.string(),
+        auth: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { saveSubscription } = await import("./pushNotification");
+        await saveSubscription({
+          endpoint: input.endpoint,
+          p256dh: input.p256dh,
+          auth: input.auth,
+          userId: ctx.user.id,
+          userName: ctx.user.name ?? undefined,
+        });
+        return { success: true };
+      }),
+    // サブスクリプションを解除
+    unsubscribe: protectedProcedure
+      .input(z.object({ endpoint: z.string() }))
+      .mutation(async ({ input }) => {
+        const { deleteSubscription } = await import("./pushNotification");
+        await deleteSubscription(input.endpoint);
+        return { success: true };
+      }),
   }),
-  // ========== 利用者管理 ==========
+
+  // ========== スタッフ管理 ==========
   patients: router({
     // 利用者一覧を取得（チーム絞り込み可）
     list: protectedProcedure
@@ -1042,4 +1089,6 @@ export const appRouter = router({
       }),
   }),
 });
+
 export type AppRouter = typeof appRouter;
+

@@ -9,4 +9,8 @@ export const ENV = {
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
   /** 初回セットアップ用の秘密キー（Railway環境変数 SETUP_KEY） */
   setupKey: process.env.SETUP_KEY ?? "hinata-setup-2024",
+  /** Web Push通知用 VAPIDキー */
+  vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? "",
+  vapidPrivateKey: process.env.VAPID_PRIVATE_KEY ?? "",
+  vapidEmail: process.env.VAPID_EMAIL ?? "mailto:admin@kokoronohinata.com",
 };

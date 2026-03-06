@@ -3,7 +3,7 @@
  * スプレッドシートURLの月次管理 + 利用者マスタ管理
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import {
   Plus, Trash2, ExternalLink, Settings, ClipboardPaste,
   CheckCircle2, AlertCircle, ChevronDown, ChevronUp,
   Users, Pencil, X, ChevronRight, UserPlus, Key, Shield, ShieldCheck,
+  FileSpreadsheet, Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -189,6 +190,32 @@ function PatientMasterPanel() {
   const [filterTeam, setFilterTeam] = useState<Team | "全て">("全て");
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Excelインポート
+  const patientExcelRef = useRef<HTMLInputElement>(null);
+  const [importingPatients, setImportingPatients] = useState(false);
+  const handlePatientExcelImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportingPatients(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/import/patients", { method: "POST", body: formData, credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error ?? "インポートに失敗しました"); return; }
+      utils.patients.list.invalidate();
+      toast.success(`${data.count}名の利用者をインポートしました${data.errors?.length ? `（${data.errors.length}件エラー）` : ""}`);
+      if (data.errors?.length) {
+        data.errors.slice(0, 3).forEach((err: string) => toast.error(err, { duration: 5000 }));
+      }
+    } catch {
+      toast.error("インポート処理中にエラーが発生しました");
+    } finally {
+      setImportingPatients(false);
+      if (patientExcelRef.current) patientExcelRef.current.value = "";
+    }
+  }, [utils]);
+
   // 個別追加フォーム
   const [showAddForm, setShowAddForm] = useState(false);
   const [addName, setAddName] = useState("");
@@ -300,6 +327,24 @@ function PatientMasterPanel() {
             <Badge variant="outline" className="text-xs">{allPatients?.length ?? 0}名</Badge>
           </div>
           <div className="flex gap-2">
+            {/* Excelインポートボタン */}
+            <input
+              ref={patientExcelRef}
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={handlePatientExcelImport}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1 text-emerald-600 border-emerald-300 hover:bg-emerald-50"
+              onClick={() => patientExcelRef.current?.click()}
+              disabled={importingPatients}
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              {importingPatients ? "処理中..." : "Excelインポート"}
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -888,6 +933,33 @@ function StaffManagementPanel() {
   const utils = trpc.useUtils();
   const { data: staffList, isLoading } = trpc.staff.getAll.useQuery();
 
+  // Excelインポート
+  const staffExcelRef = useRef<HTMLInputElement>(null);
+  const [importingStaff, setImportingStaff] = useState(false);
+  const handleStaffExcelImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportingStaff(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/import/staff", { method: "POST", body: formData, credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error ?? "インポートに失敗しました"); return; }
+      utils.staff.getAll.invalidate();
+      const msg = `${data.count}名のスタッフを登録しました${data.skipped ? `（${data.skipped}名はメール重複のためスキップ）` : ""}${data.errors?.length ? `（${data.errors.length}件エラー）` : ""}`;
+      toast.success(msg);
+      if (data.errors?.length) {
+        data.errors.slice(0, 3).forEach((err: string) => toast.error(err, { duration: 5000 }));
+      }
+    } catch {
+      toast.error("インポート処理中にエラーが発生しました");
+    } finally {
+      setImportingStaff(false);
+      if (staffExcelRef.current) staffExcelRef.current.value = "";
+    }
+  }, [utils]);
+
   // 新規作成フォーム
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState("");
@@ -949,10 +1021,30 @@ function StaffManagementPanel() {
             <CardTitle className="text-base font-semibold">スタッフアカウント管理</CardTitle>
             <Badge variant="outline" className="text-xs">{staffList?.length ?? 0}名</Badge>
           </div>
-          <Button size="sm" className="h-8 text-xs gap-1" onClick={() => setShowAddForm((v) => !v)}>
-            <UserPlus className="w-3.5 h-3.5" />
-            新規追加
-          </Button>
+          <div className="flex gap-2">
+            {/* Excelインポートボタン */}
+            <input
+              ref={staffExcelRef}
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={handleStaffExcelImport}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1 text-emerald-600 border-emerald-300 hover:bg-emerald-50"
+              onClick={() => staffExcelRef.current?.click()}
+              disabled={importingStaff}
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              {importingStaff ? "処理中..." : "Excelインポート"}
+            </Button>
+            <Button size="sm" className="h-8 text-xs gap-1" onClick={() => setShowAddForm((v) => !v)}>
+              <UserPlus className="w-3.5 h-3.5" />
+              新規追加
+            </Button>
+          </div>
         </div>
         <p className="text-xs text-muted-foreground mt-1">スタッフのログインアカウントを管理します。</p>
       </CardHeader>

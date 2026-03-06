@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect } from "react";
+import { usePushNotification } from "@/hooks/usePushNotification";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Link, useLocation } from "wouter";
 import {
@@ -68,6 +69,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { isNight } = useTheme();
   const { logout } = useAuth({ redirectOnUnauthenticated: true });
+  const { isSubscribed, isLoading: pushLoading, subscribe, unsubscribe, permission: pushPermission } = usePushNotification();
 
   const handleLogout = async () => {
     try {
@@ -187,16 +189,30 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* ボトムアクション */}
       <div className={cn("border-t border-sidebar-border py-2", mobile && "pb-[76px]")} >
         <button
-          onClick={() => toast.info("通知設定は準備中です")}
-          title={(collapsed && !mobile) ? "通知設定" : undefined}
+          onClick={() => {
+            if (pushPermission === "unsupported") {
+              toast.error("このブラウザはプッシュ通知に対応していません");
+            } else if (isSubscribed) {
+              unsubscribe();
+            } else {
+              subscribe();
+            }
+          }}
+          disabled={pushLoading}
+          title={(collapsed && !mobile) ? (isSubscribed ? "通知オン（タップでオフ）" : "通知を有効にする") : undefined}
           className={cn(
             "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150",
-            "text-sm text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-            (collapsed && !mobile) ? "justify-center px-0" : "px-3"
+            "text-sm hover:bg-sidebar-accent",
+            (collapsed && !mobile) ? "justify-center px-0" : "px-3",
+            isSubscribed
+              ? "text-emerald-600 hover:text-emerald-700"
+              : "text-sidebar-foreground/60 hover:text-sidebar-foreground"
           )}
         >
-          <Bell className="w-4 h-4 flex-shrink-0" />
-          {(!collapsed || mobile) && <span>通知設定</span>}
+          <Bell className={cn("w-4 h-4 flex-shrink-0", isSubscribed && "fill-emerald-500")} />
+          {(!collapsed || mobile) && (
+            <span>{pushLoading ? "処理中..." : isSubscribed ? "通知オン" : "通知を有効に"}</span>
+          )}
         </button>
         <Link href="/admin">
           <div
