@@ -43,6 +43,8 @@ import {
   Upload,
   Calendar,
   X,
+  History,
+  Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -851,6 +853,101 @@ function ScheduleScreenshotCard() {
         </div>
       )}
     </>
+  );
+}
+
+// ========== スクリーンショットアップロード履歴カード ==========
+function ScreenshotUploadHistoryCard() {
+  const { isNight } = useTheme();
+  const { data: logs, isLoading } = trpc.schedule.getUploadLogs.useQuery(
+    { limit: 10 },
+    { refetchInterval: 30 * 1000, staleTime: 15 * 1000 }
+  );
+
+  const teamColors: Record<string, string> = {
+    "身体": "bg-blue-100 text-blue-700",
+    "天理": "bg-green-100 text-green-700",
+    "郡山北部": "bg-orange-100 text-orange-700",
+    "郡山南部": "bg-purple-100 text-purple-700",
+  };
+
+  const teamColorsDark: Record<string, string> = {
+    "身体": "bg-blue-900/40 text-blue-300",
+    "天理": "bg-green-900/40 text-green-300",
+    "郡山北部": "bg-orange-900/40 text-orange-300",
+    "郡山南部": "bg-purple-900/40 text-purple-300",
+  };
+
+  function formatRelativeTime(date: Date): string {
+    const now = new Date();
+    const diffMs = now.getTime() - new Date(date).getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    const diffHour = Math.floor(diffMs / 3600000);
+    const diffDay = Math.floor(diffMs / 86400000);
+    if (diffMin < 1) return "たった今";
+    if (diffMin < 60) return `${diffMin}分前`;
+    if (diffHour < 24) return `${diffHour}時間前`;
+    if (diffDay < 7) return `${diffDay}日前`;
+    return new Date(date).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" });
+  }
+
+  return (
+    <Card className={cn("fade-in-up shadow-sm", isNight ? "bg-slate-800/60 border-slate-700" : "")}>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <History className="w-4 h-4 text-primary" />
+          スケジュール更新履歴
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-0">
+        {isLoading ? (
+          <div className="space-y-2">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-8 bg-muted animate-pulse rounded-md" />
+            ))}
+          </div>
+        ) : !logs || logs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
+            <History className="w-8 h-8 mb-2 opacity-30" />
+            <p className="text-sm">まだアップロード履歴がありません</p>
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {logs.map((log) => (
+              <div
+                key={log.id}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-lg text-sm",
+                  isNight ? "bg-slate-700/50" : "bg-muted/40"
+                )}
+              >
+                <span className={cn(
+                  "text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap",
+                  isNight
+                    ? (teamColorsDark[log.team] ?? "bg-slate-600 text-slate-300")
+                    : (teamColors[log.team] ?? "bg-gray-100 text-gray-700")
+                )}>
+                  {log.team}
+                </span>
+                <span className={cn(
+                  "text-xs px-1.5 py-0.5 rounded border whitespace-nowrap",
+                  isNight ? "border-slate-600 text-slate-400" : "border-border text-muted-foreground"
+                )}>
+                  {log.day}
+                </span>
+                <span className={cn("flex-1 text-xs font-medium truncate", isNight ? "text-slate-200" : "text-foreground")}>
+                  {log.uploadedByName ?? "不明"}
+                </span>
+                <span className="flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap">
+                  <Clock className="w-3 h-3" />
+                  {formatRelativeTime(log.createdAt)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1714,6 +1811,7 @@ export default function Dashboard() {
         {/* 左カラム */}
         <div className="lg:col-span-2 space-y-3 md:space-y-4">
           <ScheduleScreenshotCard />
+          <ScreenshotUploadHistoryCard />
         </div>
 
         {/* 右カラム */}

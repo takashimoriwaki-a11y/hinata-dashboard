@@ -1,6 +1,7 @@
 import { and, eq, or, isNull, desc, lte, gte, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot, myLinks, InsertMyLink, spreadsheetLinks, InsertSpreadsheetLink, tasks, InsertTask, messages, InsertMessage, messageReactions, InsertMessageReaction, patients, InsertPatient, visitRecords, InsertVisitRecord, appNotifications, InsertAppNotification } from "../drizzle/schema";
+import { screenshotUploadLogs, InsertScreenshotUploadLog } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -868,4 +869,24 @@ export async function getScreenshotById(id: number) {
     .where(eq(scheduleScreenshots.id, id))
     .limit(1);
   return result.length > 0 ? result[0] : undefined;
+}
+
+// ========== スクリーンショットアップロード履歴 ==========
+
+/** アップロード履歴を記録する */
+export async function createScreenshotUploadLog(data: InsertScreenshotUploadLog): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(screenshotUploadLogs).values(data);
+}
+
+/** 最新N件のアップロード履歴を取得する */
+export async function getRecentScreenshotUploadLogs(limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(screenshotUploadLogs)
+    .orderBy(desc(screenshotUploadLogs.createdAt))
+    .limit(limit);
 }

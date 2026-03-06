@@ -307,3 +307,24 @@ export const pushSubscriptions = mysqlTable("push_subscriptions", {
 
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 export type InsertPushSubscription = typeof pushSubscriptions.$inferInsert;
+
+/**
+ * スクリーンショットアップロード履歴テーブル
+ * アップロードのたびに記録を残す（upsertとは別に蓄積）
+ */
+export const screenshotUploadLogs = mysqlTable("screenshot_upload_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  /** チーム名 */
+  team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部"]).notNull(),
+  /** 今日 or 明日 */
+  day: mysqlEnum("day", ["今日", "明日"]).notNull(),
+  /** アップロードしたユーザーID */
+  uploadedBy: int("uploadedBy"),
+  /** アップロードしたユーザー名 */
+  uploadedByName: varchar("uploadedByName", { length: 200 }),
+  /** アップロード日時 */
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ScreenshotUploadLog = typeof screenshotUploadLogs.$inferSelect;
+export type InsertScreenshotUploadLog = typeof screenshotUploadLogs.$inferInsert;

@@ -57,6 +57,8 @@ import {
   resetStaffPassword,
   deleteStaffAccount,
   updateStaffRole,
+  createScreenshotUploadLog,
+  getRecentScreenshotUploadLogs,
 } from "./db";
 import { storagePut } from "./storage";
 import { eq } from "drizzle-orm";
@@ -552,6 +554,14 @@ export const appRouter = router({
           imageUrl = `/api/screenshot/${recordId}`;
         }
 
+        // アップロード履歴を記録
+        await createScreenshotUploadLog({
+          team: input.team,
+          day: input.day,
+          uploadedBy: ctx.user.id,
+          uploadedByName: ctx.user.name ?? "不明",
+        });
+
         // スケジュール更新通知を生成
         const notifBody = `${ctx.user.name ?? "不明"}さんが${input.team}チームの${input.day}のスケジュールを更新しました`;
         await createNotification({
@@ -597,6 +607,20 @@ export const appRouter = router({
       await moveTomorrowToToday();
       return { success: true };
     }),
+
+    // アップロード履歴を取得（最新N件）
+    getUploadLogs: publicProcedure
+      .input(z.object({ limit: z.number().min(1).max(50).default(20) }).optional())
+      .query(async ({ input }) => {
+        const logs = await getRecentScreenshotUploadLogs(input?.limit ?? 20);
+        return logs.map((l) => ({
+          id: l.id,
+          team: l.team,
+          day: l.day,
+          uploadedByName: l.uploadedByName,
+          createdAt: l.createdAt,
+        }));
+      }),
   }),
 
   // ========== タスク ==========
