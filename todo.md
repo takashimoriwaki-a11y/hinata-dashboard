@@ -509,3 +509,9 @@
 - [x] Service Workerを更新（オフライン対応・キャッシュ・アイコン更新）
 - [x] index.htmlにPWAメタタグを追加（iOS対応・apple-touch-icon・テーマカラー）
 - [x] faviconをヒなたロゴマークに変更
+
+## スプラッシュスクリーン（2026-03-07）
+
+- [x] iOS向けスプラッシュ画像を各デバイスサイズ分生成（Pillow）
+- [x] index.htmlにapple-touch-startup-imageメタタグを追加
+- [x] Reactアプリ内にアニメーション付きスプラッシュ画面コンポーネントを実装

@@ -1,6 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
+import { useState, useCallback } from "react";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -13,6 +14,7 @@ import Admin from "./pages/Admin";
 import Login from "./pages/Login";
 import Setup from "./pages/Setup";
 import DashboardLayout from "./components/DashboardLayout";
+import SplashScreen from "./components/SplashScreen";
 
 function Router() {
   return (
@@ -40,12 +42,30 @@ function Router() {
   );
 }
 
+/**
+ * PWAとしてホーム画面から起動した場合のみスプラッシュスクリーンを表示する。
+ * ブラウザの通常アクセスでは表示しない（display-mode: standalone の判定）。
+ */
+function useSplash() {
+  const isStandalone =
+    typeof window !== "undefined" &&
+    (window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as Navigator & { standalone?: boolean }).standalone === true);
+
+  const [showSplash, setShowSplash] = useState(isStandalone);
+  const handleFinish = useCallback(() => setShowSplash(false), []);
+  return { showSplash, handleFinish };
+}
+
 function App() {
+  const { showSplash, handleFinish } = useSplash();
+
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
         <TooltipProvider>
           <Toaster />
+          {showSplash && <SplashScreen onFinish={handleFinish} duration={2000} />}
           <Router />
         </TooltipProvider>
       </ThemeProvider>
