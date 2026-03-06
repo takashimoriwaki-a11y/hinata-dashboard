@@ -1111,7 +1111,7 @@ function ToolsCard() {
                 "flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md text-[10px] font-medium transition-all",
                 activeTab === tab.id
                   ? "bg-white shadow-sm text-primary"
-                  : "text-muted-foreground hover:text-foreground"
+                  : "text-foreground/70 hover:text-foreground"
               )}
             >
               <span className="text-base leading-none">{tab.label}</span>
