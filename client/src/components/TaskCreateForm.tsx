@@ -20,8 +20,10 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 
 type AssignType = "all" | "team" | "personal";
+type RepeatType = "none" | "weekly" | "monthly";
 const TEAMS = ["身体", "天理", "郡山北部", "郡山南部"] as const;
 type Team = typeof TEAMS[number];
+const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"] as const;
 
 interface TaskCreateFormProps {
   /** フォームを閉じるときに呼ばれるコールバック */
@@ -41,6 +43,11 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
   const [newAssignTeam, setNewAssignTeam] = useState<Team>("身体");
   const [newAssignUserId, setNewAssignUserId] = useState<number | null>(null);
   const [newAssignUserName, setNewAssignUserName] = useState<string>("");
+
+  // 繰り返し設定
+  const [repeatType, setRepeatType] = useState<RepeatType>("none");
+  const [repeatDayOfWeek, setRepeatDayOfWeek] = useState<number>(1); // 月曜日デフォルト
+  const [repeatDayOfMonth, setRepeatDayOfMonth] = useState<number>(1); // 1日デフォルト
 
   // 音声入力
   const [isRecording, setIsRecording] = useState(false);
@@ -110,6 +117,9 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     setNewAssignTeam("身体");
     setNewAssignUserId(null);
     setNewAssignUserName("");
+    setRepeatType("none");
+    setRepeatDayOfWeek(1);
+    setRepeatDayOfMonth(1);
   };
 
   const handleAdd = () => {
@@ -129,6 +139,9 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
       assignTeam: newAssignType === "team" ? newAssignTeam : undefined,
       assignUserId: newAssignType === "personal" && newAssignUserId ? newAssignUserId : undefined,
       assignUserName: newAssignType === "personal" ? newAssignUserName : undefined,
+      repeatType,
+      repeatDayOfWeek: repeatType === "weekly" ? repeatDayOfWeek : undefined,
+      repeatDayOfMonth: repeatType === "monthly" ? repeatDayOfMonth : undefined,
     });
   };
 
@@ -296,6 +309,64 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
                 </option>
               ))}
             </select>
+          )}
+        </div>
+
+        {/* 繰り返し設定 */}
+        <div>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">繰り返し</label>
+          <div className="flex gap-2 mb-2">
+            {([
+              { value: "none", label: "なし" },
+              { value: "weekly", label: "毎週" },
+              { value: "monthly", label: "毎月" },
+            ] as const).map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => setRepeatType(value)}
+                className={cn(
+                  "text-xs px-3 py-1.5 rounded-lg border transition-colors flex-1 justify-center",
+                  repeatType === value
+                    ? "bg-primary text-white border-primary"
+                    : "border-border text-muted-foreground hover:border-primary hover:text-primary"
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {repeatType === "weekly" && (
+            <div className="flex flex-wrap gap-1.5">
+              {WEEKDAYS.map((day, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setRepeatDayOfWeek(idx)}
+                  className={cn(
+                    "text-xs w-9 h-9 rounded-full border transition-colors font-medium",
+                    repeatDayOfWeek === idx
+                      ? "bg-primary text-white border-primary"
+                      : "border-border text-muted-foreground hover:border-primary hover:text-primary"
+                  )}
+                >
+                  {day}
+                </button>
+              ))}
+            </div>
+          )}
+          {repeatType === "monthly" && (
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-muted-foreground">毎月</label>
+              <select
+                value={repeatDayOfMonth}
+                onChange={(e) => setRepeatDayOfMonth(Number(e.target.value))}
+                className="text-sm border border-border rounded-lg px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                  <option key={d} value={d}>{d}日</option>
+                ))}
+              </select>
+              <label className="text-xs text-muted-foreground">に自動生成</label>
+            </div>
           )}
         </div>
 

@@ -513,6 +513,18 @@ export default function Tasks() {
                         )}
                         {/* 指定先 */}
                         <AssignBadge task={task} />
+                        {/* 繰り返しアイコン */}
+                        {task.repeatType && task.repeatType !== "none" && (
+                          <span className="text-[10px] text-primary/80 font-medium" title={
+                            task.repeatType === "weekly"
+                              ? `毎週${["\u65e5","\u6708","\u706b","\u6c34","\u6728","\u91d1","\u571f"][task.repeatDayOfWeek ?? 1]}曜日繰り返し`
+                              : `毎月${task.repeatDayOfMonth ?? 1}日繰り返し`
+                          }>
+                            🔄 {task.repeatType === "weekly"
+                              ? `毎週${["\u65e5","\u6708","\u706b","\u6c34","\u6728","\u91d1","\u571f"][task.repeatDayOfWeek ?? 1]}`
+                              : `毎月${task.repeatDayOfMonth ?? 1}日`}
+                          </span>
+                        )}
                         {/* 作成者 */}
                         <span className="text-[10px] text-muted-foreground/70">
                           作成: {task.createdByName}

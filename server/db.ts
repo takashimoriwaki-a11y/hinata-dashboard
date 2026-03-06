@@ -358,7 +358,26 @@ export async function createTask(data: InsertTask) {
   return (result as any)[0]?.insertId ?? 0;
 }
 
-/** タスクの完了状態を切り替える */
+/** 繰り返しタスクの次回期日を計算する */
+function calcNextDueDate(repeatType: "weekly" | "monthly", repeatDayOfWeek: number | null, repeatDayOfMonth: number | null): Date {
+  const now = new Date();
+  if (repeatType === "weekly" && repeatDayOfWeek !== null) {
+    const today = now.getDay();
+    let daysUntil = repeatDayOfWeek - today;
+    if (daysUntil <= 0) daysUntil += 7;
+    const next = new Date(now);
+    next.setDate(now.getDate() + daysUntil);
+    next.setHours(0, 0, 0, 0);
+    return next;
+  }
+  if (repeatType === "monthly" && repeatDayOfMonth !== null) {
+    const next = new Date(now.getFullYear(), now.getMonth() + 1, repeatDayOfMonth, 0, 0, 0, 0);
+    return next;
+  }
+  return now;
+}
+
+/** タスクの完了状態を切り替える（繰り返し設定があれば次回タスクを自動生成） */
 export async function toggleTask(id: number, done: boolean, completedBy?: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -371,6 +390,39 @@ export async function toggleTask(id: number, done: boolean, completedBy?: number
       updatedAt: new Date(),
     })
     .where(eq(tasks.id, id));
+
+  // 完了時に繰り返し設定があれば次回タスクを自動生成
+  if (done) {
+    const task = await getTaskById(id);
+    if (task && task.repeatType && task.repeatType !== "none") {
+      // 同じ繰り返し設定で未完了の次回タスクがすでに存在する場合は生成しない
+      const existing = await db.select().from(tasks)
+        .where(and(eq(tasks.repeatParentId, id), eq(tasks.done, 0)))
+        .limit(1);
+      if (existing.length === 0) {
+        const nextDue = calcNextDueDate(
+          task.repeatType as "weekly" | "monthly",
+          task.repeatDayOfWeek ?? null,
+          task.repeatDayOfMonth ?? null
+        );
+        await db.insert(tasks).values({
+          text: task.text,
+          done: 0,
+          dueDate: nextDue,
+          createdBy: task.createdBy,
+          createdByName: task.createdByName,
+          assignType: task.assignType,
+          assignTeam: task.assignTeam ?? undefined,
+          assignUserId: task.assignUserId ?? undefined,
+          assignUserName: task.assignUserName ?? undefined,
+          repeatType: task.repeatType,
+          repeatDayOfWeek: task.repeatDayOfWeek ?? undefined,
+          repeatDayOfMonth: task.repeatDayOfMonth ?? undefined,
+          repeatParentId: id,
+        });
+      }
+    }
+  }
 }
 
 /** タスクを削除する（作成者のみ） */

@@ -137,6 +137,14 @@ export const tasks = mysqlTable("tasks", {
   completedBy: int("completedBy"),
   /** 完了日時 */
   completedAt: timestamp("completedAt"),
+  /** 繰り返しタイプ: none=なし, weekly=毎週, monthly=毎月 */
+  repeatType: mysqlEnum("repeatType", ["none", "weekly", "monthly"]).default("none").notNull(),
+  /** 毎週の場合の曜日（0=日, 1=月, ..., 6=土） */
+  repeatDayOfWeek: int("repeatDayOfWeek"),
+  /** 毎月の場合の日（1〜31） */
+  repeatDayOfMonth: int("repeatDayOfMonth"),
+  /** 繰り返し元のタスクID（自動生成タスクの場合に設定） */
+  repeatParentId: int("repeatParentId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

@@ -78,6 +78,54 @@ export default function RecordInput() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
+  // ===== 下書き自動保存 =====
+  const DRAFT_KEY = "hinata_record_draft";
+
+  // ページ読み込み時に下書きを復元
+  const [hasDraft, setHasDraft] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw) as {
+        team?: string; patientId?: number | null; patientName?: string;
+        searchQuery?: string; nextVisitDate?: string; nextVisitTime?: string;
+        notifiedTo?: string; notifiedToOther?: string;
+        notifyMethod?: string; notifyMethodOther?: string; clinicalNotes?: string;
+      };
+      if (draft.team) setTeam(draft.team as Team);
+      if (draft.patientId !== undefined) setPatientId(draft.patientId);
+      if (draft.patientName) setPatientName(draft.patientName);
+      if (draft.searchQuery) setSearchQuery(draft.searchQuery);
+      if (draft.nextVisitDate) setNextVisitDate(draft.nextVisitDate);
+      if (draft.nextVisitTime) setNextVisitTime(draft.nextVisitTime);
+      if (draft.notifiedTo) setNotifiedTo(draft.notifiedTo as typeof notifiedTo);
+      if (draft.notifiedToOther) setNotifiedToOther(draft.notifiedToOther);
+      if (draft.notifyMethod) setNotifyMethod(draft.notifyMethod as typeof notifyMethod);
+      if (draft.notifyMethodOther) setNotifyMethodOther(draft.notifyMethodOther);
+      if (draft.clinicalNotes) setClinicalNotes(draft.clinicalNotes);
+      setHasDraft(true);
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 入力内容が変わるたびにdebounce 1秒でlocalStorageに保存
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const hasContent = team || patientName || nextVisitDate || nextVisitTime ||
+        notifiedTo || notifyMethod || clinicalNotes;
+      if (!hasContent) return;
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        team, patientId, patientName, searchQuery,
+        nextVisitDate, nextVisitTime,
+        notifiedTo, notifiedToOther, notifyMethod, notifyMethodOther,
+        clinicalNotes,
+      }));
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [team, patientId, patientName, searchQuery, nextVisitDate, nextVisitTime,
+      notifiedTo, notifiedToOther, notifyMethod, notifyMethodOther, clinicalNotes]);
+
   // tRPC
   const utils = trpc.useUtils();
   const { data: patients = [], isLoading: patientsLoading } = trpc.patients.search.useQuery(
@@ -233,6 +281,9 @@ ${clinicalNotes}`);
     setClinicalNotes("");
     setSavedRecordId(null);
     setExported(false);
+    // 下書きを削除
+    localStorage.removeItem(DRAFT_KEY);
+    setHasDraft(false);
   };
 
   return (
@@ -241,6 +292,25 @@ ${clinicalNotes}`);
         <ClipboardEdit className="w-5 h-5 text-primary" />
         <h1 className="text-lg font-bold">訪問記録入力</h1>
       </div>
+
+      {/* 下書き復元バナー */}
+      {hasDraft && (
+        <div className="flex items-center justify-between bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-700 rounded-lg px-3 py-2">
+          <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">
+            ✏️ 前回の入力内容を復元しました
+          </p>
+          <button
+            onClick={() => {
+              localStorage.removeItem(DRAFT_KEY);
+              setHasDraft(false);
+              handleReset();
+            }}
+            className="text-xs text-amber-600 dark:text-amber-400 hover:underline ml-2"
+          >
+            消去
+          </button>
+        </div>
+      )}
 
       {/* ① 利用者・次回訪問日時 */}
       <Card className="shadow-sm">
