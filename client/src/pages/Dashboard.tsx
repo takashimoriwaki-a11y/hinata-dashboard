@@ -462,6 +462,8 @@ function PinchZoomImage({ src, alt }: { src: string; alt: string }) {
   const lastDistRef = useRef<number | null>(null);
   const translateRef = useRef({ x: 0, y: 0 });
   const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
+  // ピンチ中かどうかのフラグ（モーダルスクロールとの競合を防ぐ）
+  const isPinchingRef = useRef(false);
 
   const applyTransform = useCallback(() => {
     if (!imgRef.current) return;
@@ -482,53 +484,84 @@ function PinchZoomImage({ src, alt }: { src: string; alt: string }) {
     translateRef.current.y = Math.max(-maxY, Math.min(maxY, translateRef.current.y));
   }, []);
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      lastDistRef.current = Math.sqrt(dx * dx + dy * dy);
-      lastTouchRef.current = null;
-    } else if (e.touches.length === 1 && scaleRef.current > 1) {
-      lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    }
-  }, []);
+  // ネイティブタッチイベントをuseEffectで登録（passive:falseでpreventDefault可能にする）
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      e.stopPropagation();
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (lastDistRef.current !== null) {
-        const delta = dist / lastDistRef.current;
-        scaleRef.current = Math.max(1, Math.min(4, scaleRef.current * delta));
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        // ピンチ開始
+        isPinchingRef.current = true;
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        lastDistRef.current = Math.sqrt(dx * dx + dy * dy);
+        lastTouchRef.current = null;
+        e.preventDefault();
+      } else if (e.touches.length === 1 && scaleRef.current > 1) {
+        // 拡大中の1本指パン
+        lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        // scale>1時は親スクロールを止めてパン操作を優先
+        e.preventDefault();
+      } else {
+        // scale=1 の1本指タッチ → モーダルのスクロールに委ねる
+        lastTouchRef.current = null;
+        isPinchingRef.current = false;
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (lastDistRef.current !== null) {
+          const delta = dist / lastDistRef.current;
+          scaleRef.current = Math.max(1, Math.min(4, scaleRef.current * delta));
+          clampTranslate(scaleRef.current);
+          applyTransform();
+        }
+        lastDistRef.current = dist;
+      } else if (e.touches.length === 1 && scaleRef.current > 1 && lastTouchRef.current) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - lastTouchRef.current.x;
+        const dy = e.touches[0].clientY - lastTouchRef.current.y;
+        translateRef.current.x += dx;
+        translateRef.current.y += dy;
         clampTranslate(scaleRef.current);
         applyTransform();
+        lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       }
-      lastDistRef.current = dist;
-    } else if (e.touches.length === 1 && scaleRef.current > 1 && lastTouchRef.current) {
-      e.stopPropagation();
-      const dx = e.touches[0].clientX - lastTouchRef.current.x;
-      const dy = e.touches[0].clientY - lastTouchRef.current.y;
-      translateRef.current.x += dx;
-      translateRef.current.y += dy;
-      clampTranslate(scaleRef.current);
-      applyTransform();
-      lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    }
-  }, [applyTransform, clampTranslate]);
+      // scale=1 の1本指は何もしない → 親要素のスクロールが動く
+    };
 
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length < 2) lastDistRef.current = null;
-    if (e.touches.length === 0) {
-      if (scaleRef.current <= 1) {
-        scaleRef.current = 1;
-        translateRef.current = { x: 0, y: 0 };
-        applyTransform();
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        lastDistRef.current = null;
+        isPinchingRef.current = false;
       }
-      lastTouchRef.current = null;
-    }
-  }, [applyTransform]);
+      if (e.touches.length === 0) {
+        if (scaleRef.current <= 1) {
+          scaleRef.current = 1;
+          translateRef.current = { x: 0, y: 0 };
+          applyTransform();
+        }
+        lastTouchRef.current = null;
+      }
+    };
+
+    // passive: false にして必要な場合のみ preventDefault を呼べるようにする
+    el.addEventListener("touchstart", onTouchStart, { passive: false });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [applyTransform, clampTranslate]);
 
   const handleDoubleClick = useCallback(() => {
     if (scaleRef.current > 1) {
@@ -543,10 +576,9 @@ function PinchZoomImage({ src, alt }: { src: string; alt: string }) {
   return (
     <div
       ref={containerRef}
-      className="overflow-hidden bg-muted/10 touch-none select-none"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      // touch-auto: scale=1時はブラウザのネイティブスクロールを許可
+      // touch-none はuseEffectのネイティブイベントで必要な場合のみ制御
+      className="overflow-hidden bg-muted/10 touch-auto select-none"
     >
       <img
         ref={imgRef}
