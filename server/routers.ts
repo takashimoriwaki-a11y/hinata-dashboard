@@ -1065,35 +1065,102 @@ export const appRouter = router({
             const meta = await metaRes.json();
             const sheetId = meta.sheets?.[0]?.properties?.sheetId ?? 0;
 
-            // batchUpdateでヘッダー書式・列幅・オートフィルターを一括設定
+            // 転送済み行数を取得して書式を適用
+            const valuesRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A:A")}`, {
+              headers: { Authorization: `Bearer ${token.token}` },
+            });
+            const valuesData = valuesRes.ok ? await valuesRes.json() as { values?: string[][] } : { values: [] };
+            const totalRows = (valuesData.values?.length ?? 1);
+            const dataEndRow = Math.max(totalRows, 2); // データ行の終わり（最低2行）
+
+            // batchUpdateで全書式を一括設定
             const batchBody = {
               requests: [
-                // ヘッダー行（1行目）を太字・背景色付きに
+                // 1. ヘッダー行（1行目）：深青背景・白太字・中央揃え・フォントサイズ11
                 {
                   repeatCell: {
                     range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 10 },
                     cell: {
                       userEnteredFormat: {
-                        backgroundColor: { red: 0.267, green: 0.447, blue: 0.769 }, // #4472C4
-                        textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } },
+                        backgroundColor: { red: 0.165, green: 0.329, blue: 0.573 }, // #2A5492 深青
+                        textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 }, fontSize: 11, fontFamily: "Noto Sans JP" },
                         horizontalAlignment: "CENTER",
+                        verticalAlignment: "MIDDLE",
+                        wrapStrategy: "WRAP",
+                        padding: { top: 6, bottom: 6, left: 6, right: 6 },
                       },
                     },
-                    fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
+                    fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy,padding)",
                   },
                 },
-                // 列幅を内容に合わせて設定
-                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 140 }, fields: "pixelSize" } }, // 転送日時
+                // 2. データ行全体：フォント・垂直中央・パディング
+                {
+                  repeatCell: {
+                    range: { sheetId, startRowIndex: 1, endRowIndex: dataEndRow, startColumnIndex: 0, endColumnIndex: 10 },
+                    cell: {
+                      userEnteredFormat: {
+                        textFormat: { fontSize: 10, fontFamily: "Noto Sans JP" },
+                        verticalAlignment: "MIDDLE",
+                        padding: { top: 4, bottom: 4, left: 6, right: 6 },
+                      },
+                    },
+                    fields: "userEnteredFormat(textFormat,verticalAlignment,padding)",
+                  },
+                },
+                // 3. 病状の経過列（J列）のみテキスト折り返し
+                {
+                  repeatCell: {
+                    range: { sheetId, startRowIndex: 1, endRowIndex: dataEndRow, startColumnIndex: 9, endColumnIndex: 10 },
+                    cell: {
+                      userEnteredFormat: {
+                        wrapStrategy: "WRAP",
+                      },
+                    },
+                    fields: "userEnteredFormat.wrapStrategy",
+                  },
+                },
+                // 4. 奇数行（データ行）：白背景
+                ...Array.from({ length: Math.ceil((dataEndRow - 1) / 2) }, (_, i) => ({
+                  repeatCell: {
+                    range: { sheetId, startRowIndex: 1 + i * 2, endRowIndex: Math.min(2 + i * 2, dataEndRow), startColumnIndex: 0, endColumnIndex: 10 },
+                    cell: { userEnteredFormat: { backgroundColor: { red: 1, green: 1, blue: 1 } } },
+                    fields: "userEnteredFormat.backgroundColor",
+                  },
+                })),
+                // 5. 偶数行（データ行）：極淡青背景 #EBF3FB
+                ...Array.from({ length: Math.floor((dataEndRow - 1) / 2) }, (_, i) => ({
+                  repeatCell: {
+                    range: { sheetId, startRowIndex: 2 + i * 2, endRowIndex: Math.min(3 + i * 2, dataEndRow), startColumnIndex: 0, endColumnIndex: 10 },
+                    cell: { userEnteredFormat: { backgroundColor: { red: 0.922, green: 0.953, blue: 0.984 } } },
+                    fields: "userEnteredFormat.backgroundColor",
+                  },
+                })),
+                // 6. 全セルに枠線を追加
+                {
+                  updateBorders: {
+                    range: { sheetId, startRowIndex: 0, endRowIndex: dataEndRow, startColumnIndex: 0, endColumnIndex: 10 },
+                    top:    { style: "SOLID", width: 1, color: { red: 0.8, green: 0.8, blue: 0.8 } },
+                    bottom: { style: "SOLID", width: 1, color: { red: 0.8, green: 0.8, blue: 0.8 } },
+                    left:   { style: "SOLID", width: 1, color: { red: 0.8, green: 0.8, blue: 0.8 } },
+                    right:  { style: "SOLID", width: 1, color: { red: 0.8, green: 0.8, blue: 0.8 } },
+                    innerHorizontal: { style: "SOLID", width: 1, color: { red: 0.8, green: 0.8, blue: 0.8 } },
+                    innerVertical:   { style: "SOLID", width: 1, color: { red: 0.8, green: 0.8, blue: 0.8 } },
+                  },
+                },
+                // 7. 列幅を内容に合わせて設定
+                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 150 }, fields: "pixelSize" } }, // 転送日時
                 { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 1, endIndex: 2 }, properties: { pixelSize: 100 }, fields: "pixelSize" } }, // 担当者
-                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 2, endIndex: 3 }, properties: { pixelSize: 90 }, fields: "pixelSize" } },  // チーム
-                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 3, endIndex: 4 }, properties: { pixelSize: 120 }, fields: "pixelSize" } }, // 利用者名
-                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 4, endIndex: 5 }, properties: { pixelSize: 140 }, fields: "pixelSize" } }, // 次回訪問日時
-                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 5, endIndex: 6 }, properties: { pixelSize: 90 }, fields: "pixelSize" } },  // 伝達先
-                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 6, endIndex: 7 }, properties: { pixelSize: 120 }, fields: "pixelSize" } }, // 伝達先(その他)
+                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 2, endIndex: 3 }, properties: { pixelSize: 100 }, fields: "pixelSize" } }, // チーム
+                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 3, endIndex: 4 }, properties: { pixelSize: 130 }, fields: "pixelSize" } }, // 利用者名
+                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 4, endIndex: 5 }, properties: { pixelSize: 150 }, fields: "pixelSize" } }, // 次回訪問日時
+                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 5, endIndex: 6 }, properties: { pixelSize: 100 }, fields: "pixelSize" } }, // 伝達先
+                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 6, endIndex: 7 }, properties: { pixelSize: 130 }, fields: "pixelSize" } }, // 伝達先(その他)
                 { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 7, endIndex: 8 }, properties: { pixelSize: 110 }, fields: "pixelSize" } }, // 伝達方法
-                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 8, endIndex: 9 }, properties: { pixelSize: 120 }, fields: "pixelSize" } }, // 伝達方法(その他)
-                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 9, endIndex: 10 }, properties: { pixelSize: 300 }, fields: "pixelSize" } }, // 病状の経過
-                // オートフィルターを設定（全列）
+                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 8, endIndex: 9 }, properties: { pixelSize: 130 }, fields: "pixelSize" } }, // 伝達方法(その他)
+                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 9, endIndex: 10 }, properties: { pixelSize: 320 }, fields: "pixelSize" } }, // 病状の経過
+                // 8. 行の高さ：ヘッダー行を少し高めに
+                { updateDimensionProperties: { range: { sheetId, dimension: "ROWS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 36 }, fields: "pixelSize" } },
+                // 9. オートフィルターを設定（全列）
                 {
                   setBasicFilter: {
                     filter: {
@@ -1101,7 +1168,7 @@ export const appRouter = router({
                     },
                   },
                 },
-                // ヘッダー行を固定（フリーズ）
+                // 10. ヘッダー行を固定（フリーズ）
                 {
                   updateSheetProperties: {
                     properties: { sheetId, gridProperties: { frozenRowCount: 1 } },
