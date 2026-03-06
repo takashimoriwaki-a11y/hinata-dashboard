@@ -1005,7 +1005,7 @@ export const appRouter = router({
         const record = await getVisitRecordById(input.id);
         if (!record) throw new TRPCError({ code: "NOT_FOUND", message: "記録が見つかりません" });
 
-        const VISIT_RECORD_SHEET_ID = "1BGMdVGTQEkcVXioa5leetH_kPr859nNHMnhkwEMlWqA";
+        const VISIT_RECORD_SHEET_ID = "1WOZQ5rI0Fu57nWaiGwComPS_DdEwPgNR6zeOmyrqKpo"; // ひなた_次回訪問日時
         const SHEET_NAME = "シート1";
 
         // サービスアカウント認証
