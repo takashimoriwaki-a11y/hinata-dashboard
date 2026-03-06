@@ -369,3 +369,144 @@ function scheduleTaskReminder() {
 }
 
 scheduleTaskReminder();
+
+// ========== 毎日0:00（JST）に次回訪問日時から1週間経過した行をスプレッドシートから削除 ==========
+function scheduleSheetCleanup() {
+  const checkInterval = 60 * 1000; // 1分ごとにチェック
+  let lastCleanedDate = "";
+
+  setInterval(async () => {
+    const now = new Date();
+    const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000); // UTC+9（JST）
+    const h = jstNow.getUTCHours();
+    const m = jstNow.getUTCMinutes();
+    const dateStr = jstNow.toISOString().slice(0, 10);
+
+    // 毎日0:00（JST）に1回だけ実行
+    if (h === 0 && m === 0 && lastCleanedDate !== dateStr) {
+      lastCleanedDate = dateStr;
+      try {
+        console.log(`[SheetCleanup] ${dateStr} 00:00 - 次回訪問日時から1週間経過した行を削除します`);
+        await deleteExpiredSheetRows();
+        console.log(`[SheetCleanup] 完了`);
+      } catch (e) {
+        console.error(`[SheetCleanup] エラー:`, e);
+      }
+    }
+  }, checkInterval);
+
+  console.log("[SheetCleanup] 毎日0:00のスプレッドシート自動削除スケジューラーを開始しました");
+}
+
+async function deleteExpiredSheetRows() {
+  const VISIT_RECORD_SHEET_ID = "1WOZQ5rI0Fu57nWaiGwComPS_DdEwPgNR6zeOmyrqKpo"; // ひなた_次回訪問日時
+  const SHEET_NAME = "シート1";
+
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+  if (!email || !privateKey) {
+    console.warn("[SheetCleanup] サービスアカウント設定がありません。スキップします。");
+    return;
+  }
+
+  const { GoogleAuth } = await import("google-auth-library");
+  const auth = new GoogleAuth({
+    credentials: { client_email: email, private_key: privateKey.replace(/\\n/g, "\n") },
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  });
+  const client = await auth.getClient();
+  const tokenObj = await client.getAccessToken();
+  const token = tokenObj.token;
+  if (!token) {
+    console.warn("[SheetCleanup] 認証トークン取得失敗。スキップします。");
+    return;
+  }
+
+  // シートの全データを取得（E列＝次回訪問日時）
+  const getUrl = `https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A:J")}`;
+  const getRes = await fetch(getUrl, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!getRes.ok) {
+    const text = await getRes.text();
+    console.error(`[SheetCleanup] データ取得失敗: ${text}`);
+    return;
+  }
+
+  const data = await getRes.json() as { values?: string[][] };
+  const rows: string[][] = data.values ?? [];
+
+  if (rows.length <= 1) {
+    console.log("[SheetCleanup] データ行なし。スキップします。");
+    return;
+  }
+
+  // シートIDを取得
+  const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}?fields=sheets.properties`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!metaRes.ok) {
+    console.error("[SheetCleanup] シートID取得失敗");
+    return;
+  }
+  const meta = await metaRes.json() as { sheets?: Array<{ properties?: { sheetId?: number } }> };
+  const sheetId = meta.sheets?.[0]?.properties?.sheetId ?? 0;
+
+  // 現在時刻（JST）から7日前のタイムスタンプ
+  const now = new Date();
+  const cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  // 削除対象の行インデックスを収集（1行目はヘッダーなのでスキップ）
+  // E列（インデックス4）が次回訪問日時。形式: "YYYY/MM/DD HH:MM"
+  const deleteRowIndexes: number[] = [];
+  for (let i = 1; i < rows.length; i++) {
+    const nextVisitStr = rows[i][4]; // E列
+    if (!nextVisitStr) continue; // 空欄はスキップ
+
+    // "YYYY/MM/DD HH:MM" 形式をパース
+    const parsed = nextVisitStr.replace(/\//g, "-").replace(" ", "T");
+    const nextVisitDate = new Date(parsed);
+    if (isNaN(nextVisitDate.getTime())) continue;
+
+    // 次回訪問日時から7日以上経過していれば削除対象
+    if (nextVisitDate < cutoff) {
+      deleteRowIndexes.push(i);
+    }
+  }
+
+  if (deleteRowIndexes.length === 0) {
+    console.log("[SheetCleanup] 削除対象の行はありません。");
+    return;
+  }
+
+  console.log(`[SheetCleanup] ${deleteRowIndexes.length}行を削除します: 行インデックス ${deleteRowIndexes.join(", ")}`);
+
+  // 下から順に削除（インデックスのずれを防ぐ）
+  const sortedDesc = [...deleteRowIndexes].sort((a, b) => b - a);
+  const deleteRequests = sortedDesc.map((rowIndex) => ({
+    deleteDimension: {
+      range: {
+        sheetId,
+        dimension: "ROWS",
+        startIndex: rowIndex,
+        endIndex: rowIndex + 1,
+      },
+    },
+  }));
+
+  const batchRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}:batchUpdate`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ requests: deleteRequests }),
+  });
+
+  if (!batchRes.ok) {
+    const text = await batchRes.text();
+    console.error(`[SheetCleanup] 削除失敗: ${text}`);
+    return;
+  }
+
+  console.log(`[SheetCleanup] ${deleteRowIndexes.length}行の削除が完了しました`);
+}
+
+scheduleSheetCleanup();
