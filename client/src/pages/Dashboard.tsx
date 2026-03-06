@@ -54,6 +54,7 @@ import { cn } from "@/lib/utils";
 import { Link } from "wouter";
 import { useTheme } from "@/contexts/ThemeContext";
 import TaskCreateForm from "@/components/TaskCreateForm";
+import { VoiceMicButton } from "@/components/VoiceMicButton";
 
 // ========== データ定義 ==========
 
@@ -1573,9 +1574,7 @@ function MessageBoard({ title }: { title: string }) {
   const [displayUntilTime, setDisplayUntilTime] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
   const [scheduledAtTime, setScheduledAtTime] = useState("");
-  const [isRecording, setIsRecording] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  // 音声入力（useVoiceInputフック経由でVoiceMicButtonを使用）
 
   // メッセージ作成
   const createMsg = trpc.messages.create.useMutation({
@@ -1638,48 +1637,6 @@ function MessageBoard({ title }: { title: string }) {
     onError: (e) => toast.error(e.message),
   });
 
-  // 音声入力
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
-      chunksRef.current = [];
-      mr.ondataavailable = (e) => chunksRef.current.push(e.data);
-      mr.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        if (blob.size > 16 * 1024 * 1024) {
-          toast.error("音声ファイルが大きすぎます（16MB以下）");
-          return;
-        }
-        toast.info("文字起こし中...");
-        try {
-          const formData = new FormData();
-          formData.append("audio", blob, "recording.webm");
-          const res = await fetch("/api/transcribe", { method: "POST", body: formData, credentials: "include" });
-          const data = await res.json();
-          if (data.text) {
-            setNewMsg((prev) => prev + (prev ? " " : "") + data.text);
-            toast.success("音声入力完了");
-          } else {
-            toast.error("文字起こしに失敗しました");
-          }
-        } catch {
-          toast.error("音声入力エラー");
-        }
-      };
-      mr.start();
-      mediaRecorderRef.current = mr;
-      setIsRecording(true);
-    } catch {
-      toast.error("マイクのアクセスが許可されていません");
-    }
-  };
-
-  const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
-    setIsRecording(false);
-  };
 
   const buildDateTime = (date: string, time: string): Date | undefined => {
     if (!date) return undefined;
@@ -1738,25 +1695,12 @@ function MessageBoard({ title }: { title: string }) {
                 onChange={(e) => setNewMsg(e.target.value)}
                 className="text-sm min-h-[80px] resize-none flex-1"
               />
-              <button
-                onMouseDown={startRecording}
-                onMouseUp={stopRecording}
-                onTouchStart={startRecording}
-                onTouchEnd={stopRecording}
-                className={cn(
-                  "flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center transition-colors self-end touch-manipulation",
-                  isRecording
-                    ? "bg-red-500 text-white animate-pulse"
-                    : "bg-muted text-muted-foreground hover:bg-primary/20"
-                )}
-                title="押して話す"
-              >
-                🎤
-              </button>
+              <VoiceMicButton
+                onResult={(text) => setNewMsg(prev => prev + (prev ? " " : "") + text)}
+                size="lg"
+                className="self-end flex-shrink-0"
+              />
             </div>
-            {isRecording && (
-              <p className="text-[10px] text-red-500 font-medium animate-pulse">● 録音中...指を離すと停止</p>
-            )}
             {/* 表示期間・予約 */}
             {(() => {
               const timeOptions = Array.from({ length: 24 * 6 }, (_, i) => {

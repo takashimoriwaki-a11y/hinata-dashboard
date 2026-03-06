@@ -7,7 +7,7 @@
  * - ①カードの下にスプレッドシート転送ボタン
  * - ②病状の経過
  */
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,11 +15,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
-  ClipboardEdit, Mic, MicOff, Send, Search, Calendar,
+  ClipboardEdit, Send, Search, Calendar,
   User, ChevronDown, Loader2, FileSpreadsheet, CheckCircle2, ExternalLink
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { VoiceMicButton } from "@/components/VoiceMicButton";
 
 const TEAMS = ["身体", "天理", "郡山北部", "郡山南部"] as const;
 type Team = typeof TEAMS[number];
@@ -72,11 +73,11 @@ export default function RecordInput() {
   // 転送先スプレッドシートURL（編集ボタン用）
   const VISIT_RECORD_SHEET_URL = "https://docs.google.com/spreadsheets/d/1BGMdVGTQEkcVXioa5leetH_kPr859nNHMnhkwEMlWqA/edit";
 
-  // 音声入力
-  const [isRecordingPatient, setIsRecordingPatient] = useState(false);
-  const [isRecordingNotes, setIsRecordingNotes] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  // 音声入力（useVoiceInputフックで管理）
+  // 利用者名検索用
+  const voicePatient = { onResult: (text: string) => { setSearchQuery(text.trim()); setShowPatientList(true); } };
+  // 病状の経過用
+  const voiceNotes = { onResult: (text: string) => { setClinicalNotes(prev => prev + (prev ? "\n" : "") + text.trim()); } };
 
   // ===== 下書き自動保存 =====
   const DRAFT_KEY = "hinata_record_draft";
@@ -161,47 +162,7 @@ export default function RecordInput() {
     onError: (err) => toast.error(`転送エラー: ${err.message}`),
   });
 
-  // 音声入力
-  const startVoiceInput = useCallback(async (target: "patient" | "notes") => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-      chunksRef.current = [];
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      recorder.onstop = async () => {
-        stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        const formData = new FormData();
-        formData.append("audio", blob, "recording.webm");
-        formData.append("language", "ja");
-        try {
-          const res = await fetch("/api/transcribe", { method: "POST", body: formData, credentials: "include" });
-          if (!res.ok) throw new Error("文字起こし失敗");
-          const data = await res.json() as { text: string };
-          if (target === "patient") {
-            setSearchQuery(data.text.trim());
-            setShowPatientList(true);
-          } else {
-            setClinicalNotes(prev => prev + (prev ? "\n" : "") + data.text.trim());
-          }
-        } catch {
-          toast.error("音声の文字起こしに失敗しました");
-        }
-        if (target === "patient") setIsRecordingPatient(false);
-        else setIsRecordingNotes(false);
-      };
-      recorder.start();
-      mediaRecorderRef.current = recorder;
-      if (target === "patient") setIsRecordingPatient(true);
-      else setIsRecordingNotes(true);
-    } catch {
-      toast.error("マイクへのアクセスが許可されていません");
-    }
-  }, []);
 
-  const stopVoiceInput = useCallback(() => {
-    mediaRecorderRef.current?.stop();
-  }, []);
 
   const handleSelectPatient = (id: number, name: string) => {
     setPatientId(id);
@@ -359,14 +320,11 @@ ${clinicalNotes}`);
                       onFocus={() => setShowPatientList(true)}
                     />
                   </div>
-                  <Button
-                    variant="outline"
+                  <VoiceMicButton
+                    onResult={voicePatient.onResult}
                     size="sm"
-                    className={isRecordingPatient ? "bg-red-50 border-red-300 text-red-600" : ""}
-                    onClick={() => isRecordingPatient ? stopVoiceInput() : startVoiceInput("patient")}
-                  >
-                    {isRecordingPatient ? <><MicOff className="w-4 h-4 mr-1" />停止</> : <><Mic className="w-4 h-4 mr-1" />音声</>}
-                  </Button>
+                    label="音声"
+                  />
                   <Button
                     variant="outline"
                     size="sm"
@@ -564,21 +522,11 @@ ${clinicalNotes}`);
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="text-xs font-medium text-muted-foreground">本日観察・収集した情報</label>
-              <button
-                type="button"
-                className={`inline-flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium border transition-colors select-none touch-manipulation ${
-                  isRecordingNotes
-                    ? "bg-red-50 border-red-300 text-red-600 active:bg-red-100"
-                    : "bg-background border-border text-foreground hover:bg-muted active:bg-muted"
-                }`}
-                onPointerDown={(e) => { e.preventDefault(); isRecordingNotes ? stopVoiceInput() : startVoiceInput("notes"); }}
-              >
-                {isRecordingNotes ? (
-                  <><MicOff className="w-3 h-3" />停止</>
-                ) : (
-                  <><Mic className="w-3 h-3" />音声入力</>
-                )}
-              </button>
+              <VoiceMicButton
+                onResult={voiceNotes.onResult}
+                size="sm"
+                label="音声入力"
+              />
             </div>
             <Textarea
               placeholder="本日の訪問で観察した症状・状態・利用者の言葉・環境の変化などをメモしてください..."

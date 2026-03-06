@@ -2,7 +2,7 @@
  * TaskCreateForm - タスク新規作成フォーム（共通コンポーネント）
  * Tasks.tsx と Dashboard.tsx の両方から利用する
  */
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { VoiceMicButton } from "@/components/VoiceMicButton";
 
 type AssignType = "all" | "team" | "personal";
 type RepeatType = "none" | "weekly" | "monthly";
@@ -49,52 +50,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
   const [repeatDayOfWeek, setRepeatDayOfWeek] = useState<number>(1); // 月曜日デフォルト
   const [repeatDayOfMonth, setRepeatDayOfMonth] = useState<number>(1); // 1日デフォルト
 
-  // 音声入力
-  const [isRecording, setIsRecording] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
 
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
-      chunksRef.current = [];
-      mr.ondataavailable = (e) => chunksRef.current.push(e.data);
-      mr.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        if (blob.size > 16 * 1024 * 1024) {
-          toast.error("音声ファイルが大きすぎます（16MB以下）");
-          return;
-        }
-        toast.info("文字起こし中...");
-        try {
-          const formData = new FormData();
-          formData.append("audio", blob, "recording.webm");
-          const res = await fetch("/api/transcribe", { method: "POST", body: formData, credentials: "include" });
-          const data = await res.json();
-          if (data.text) {
-            setNewText((prev) => prev + (prev ? " " : "") + data.text);
-            toast.success("音声入力完了");
-          } else {
-            toast.error("文字起こしに失敗しました");
-          }
-        } catch {
-          toast.error("音声入力エラー");
-        }
-      };
-      mr.start();
-      mediaRecorderRef.current = mr;
-      setIsRecording(true);
-    } catch {
-      toast.error("マイクのアクセスが許可されていません");
-    }
-  };
-
-  const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
-    setIsRecording(false);
-  };
 
   // スタッフ一覧（個人指定用）
   const { data: staff = [] } = trpc.tasks.getStaff.useQuery();
@@ -165,23 +121,12 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
               rows={2}
               className="flex-1 text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
             />
-            <button
-              type="button"
-              onClick={() => isRecording ? stopRecording() : startRecording()}
-              className={cn(
-                "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors self-end text-base",
-                isRecording
-                  ? "bg-red-500 text-white animate-pulse"
-                  : "bg-muted text-muted-foreground hover:bg-primary/20"
-              )}
-              title={isRecording ? "タップして停止" : "タップして開始"}
-            >
-              🎤
-            </button>
+            <VoiceMicButton
+              onResult={(text) => setNewText(prev => prev + (prev ? " " : "") + text)}
+              size="md"
+              className="self-end flex-shrink-0"
+            />
           </div>
-          {isRecording && (
-            <p className="text-[10px] text-red-500 font-medium animate-pulse mt-1">● 録音中...もう一度タップすると停止</p>
-          )}
         </div>
 
         {/* 期日・時刻 */}

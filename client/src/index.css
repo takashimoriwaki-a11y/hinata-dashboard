@@ -226,4 +226,10 @@
   .stagger-3 { animation-delay: 0.15s; }
   .stagger-4 { animation-delay: 0.2s; }
   .stagger-5 { animation-delay: 0.25s; }
+
+  /* Voice input bar animation */
+  @keyframes voiceBar {
+    from { height: 20%; }
+    to { height: 80%; }
+  }
 }

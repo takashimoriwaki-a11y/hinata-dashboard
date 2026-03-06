@@ -7,7 +7,8 @@
  * - 自分に関係するタスクのみ表示
  * - 作成者のみ編集・削除可能
  */
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo } from "react";
+import { VoiceMicButton } from "@/components/VoiceMicButton";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -146,52 +147,7 @@ export default function Tasks() {
   const [editAssignUserId, setEditAssignUserId] = useState<number | null>(null);
   const [editAssignUserName, setEditAssignUserName] = useState<string>("");
 
-  // 音声入力（新規作成用）
-  const [isRecording, setIsRecording] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
 
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
-      chunksRef.current = [];
-      mr.ondataavailable = (e) => chunksRef.current.push(e.data);
-      mr.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        if (blob.size > 16 * 1024 * 1024) {
-          toast.error("音声ファイルが大きすぎます（16MB以下）");
-          return;
-        }
-        toast.info("文字起こし中...");
-        try {
-          const formData = new FormData();
-          formData.append("audio", blob, "recording.webm");
-          const res = await fetch("/api/transcribe", { method: "POST", body: formData, credentials: "include" });
-          const data = await res.json();
-          if (data.text) {
-            setNewText((prev) => prev + (prev ? " " : "") + data.text);
-            toast.success("音声入力完了");
-          } else {
-            toast.error("文字起こしに失敗しました");
-          }
-        } catch {
-          toast.error("音声入力エラー");
-        }
-      };
-      mr.start();
-      mediaRecorderRef.current = mr;
-      setIsRecording(true);
-    } catch {
-      toast.error("マイクのアクセスが許可されていません");
-    }
-  };
-
-  const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
-    setIsRecording(false);
-  };
 
   // タスク作成
   const createTask = trpc.tasks.create.useMutation({
@@ -589,23 +545,12 @@ export default function Tasks() {
                   rows={2}
                   className="flex-1 text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
                 />
-                <button
-                  type="button"
-                  onClick={() => isRecording ? stopRecording() : startRecording()}
-                  className={cn(
-                    "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors self-end text-base",
-                    isRecording
-                      ? "bg-red-500 text-white animate-pulse"
-                      : "bg-muted text-muted-foreground hover:bg-primary/20"
-                  )}
-                  title={isRecording ? "タップして停止" : "タップして開始"}
-                >
-                  🎤
-                </button>
+                <VoiceMicButton
+                  onResult={(text) => setNewText(prev => prev + (prev ? " " : "") + text)}
+                  size="md"
+                  className="self-end flex-shrink-0"
+                />
               </div>
-              {isRecording && (
-                <p className="text-[10px] text-red-500 font-medium animate-pulse mt-1">● 録音中...もう一度タップすると停止</p>
-              )}
             </div>
 
             {/* 期日・時刻 */}
