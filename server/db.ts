@@ -942,3 +942,27 @@ export async function getRecentScreenshotUploadLogs(limit = 20) {
     .orderBy(desc(screenshotUploadLogs.createdAt))
     .limit(limit);
 }
+
+/** メッセージを編集する（作成者のみ） */
+export async function updateMessage(
+  id: number,
+  userId: number,
+  data: {
+    text: string;
+    displayFrom?: Date | null;
+    displayUntil?: Date | null;
+    scheduledAt?: Date | null;
+  }
+) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(messages)
+    .set({
+      text: data.text,
+      displayFrom: data.displayFrom ?? null,
+      displayUntil: data.displayUntil ?? null,
+      scheduledAt: data.scheduledAt ?? null,
+    })
+    .where(and(eq(messages.id, id), eq(messages.createdBy, userId)));
+}

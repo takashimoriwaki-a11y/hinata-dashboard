@@ -32,6 +32,7 @@ import {
   getActiveMessages,
   createMessage,
   softDeleteMessage,
+  updateMessage,
   getMessageById,
   toggleReaction,
   getReactionsByMessageIds,
@@ -796,6 +797,32 @@ export const appRouter = router({
           throw new TRPCError({ code: "FORBIDDEN", message: "作成者のみ削除できます" });
         }
         await softDeleteMessage(input.id, ctx.user.id);
+        return { success: true };
+      }),
+
+    // メッセージを編集する（作成者のみ）
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          text: z.string().min(1).max(1000),
+          displayFrom: z.date().optional().nullable(),
+          displayUntil: z.date().optional().nullable(),
+          scheduledAt: z.date().optional().nullable(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const msg = await getMessageById(input.id);
+        if (!msg) throw new TRPCError({ code: "NOT_FOUND", message: "メッセージが見つかりません" });
+        if (msg.createdBy !== ctx.user.id) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "作成者のみ編集できます" });
+        }
+        await updateMessage(input.id, ctx.user.id, {
+          text: input.text,
+          displayFrom: input.displayFrom ?? null,
+          displayUntil: input.displayUntil ?? null,
+          scheduledAt: input.scheduledAt ?? null,
+        });
         return { success: true };
       }),
 

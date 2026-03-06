@@ -47,6 +47,7 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -453,6 +454,7 @@ function VisitCountCard() {
 function ScheduleScreenshotCard() {
   const { user } = { user: null as null | { id: number; name: string | null; team: string | null } }; // useAuthは後で使う
   const [selectedTeam, setSelectedTeam] = useState<TeamType>("身体");
+  // デフォルトで全チームモードを有効にする
   const [selectedDay, setSelectedDay] = useState<DayType>("今日");
   const [isDragging, setIsDragging] = useState(false);
   const [viewUrl, setViewUrl] = useState<string | null>(null);
@@ -462,7 +464,7 @@ function ScheduleScreenshotCard() {
   const utils = trpc.useUtils();
 
   // 全チームモード
-  const [showAllTeams, setShowAllTeams] = useState(false);
+  const [showAllTeams, setShowAllTeams] = useState(true); // デフォルトで全チーム表示
 
   // スワイプ用state
   const [swipeIndex, setSwipeIndex] = useState(0);
@@ -1560,6 +1562,32 @@ function MessageBoard({ title }: { title: string }) {
     onError: (e) => toast.error(e.message),
   });
 
+  // メッセージ編集state
+  const [editingMsgId, setEditingMsgId] = useState<number | null>(null);
+  const [editingText, setEditingText] = useState("");
+
+  // メッセージ編集mutation
+  const updateMsg = trpc.messages.update.useMutation({
+    onMutate: async ({ id, text }) => {
+      await utils.messages.getActive.cancel();
+      const prev = utils.messages.getActive.getData();
+      utils.messages.getActive.setData(undefined, (old) =>
+        old?.map((m) => m.id === id ? { ...m, text } : m)
+      );
+      return { prev };
+    },
+    onSuccess: () => {
+      setEditingMsgId(null);
+      setEditingText("");
+      toast.success("メッセージを修正しました");
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) utils.messages.getActive.setData(undefined, ctx.prev);
+      toast.error("修正に失敗しました");
+    },
+    onSettled: () => utils.messages.getActive.invalidate(),
+  });
+
   // メッセージ削除
   const deleteMsg = trpc.messages.delete.useMutation({
     onMutate: async ({ id }) => {
@@ -1841,16 +1869,56 @@ function MessageBoard({ title }: { title: string }) {
                           <span className={cn("text-[10px] px-1 rounded", isNight ? "text-blue-400 bg-blue-900/40" : "text-blue-600 bg-blue-50")}>予約</span>
                         )}
                       </div>
-                      <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                      {editingMsgId === msg.id ? (
+                        <div className="mt-1">
+                          <textarea
+                            value={editingText}
+                            onChange={(e) => setEditingText(e.target.value)}
+                            className="w-full text-sm bg-background border border-border rounded-lg p-2 text-foreground resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+                            rows={3}
+                            autoFocus
+                          />
+                          <div className="flex gap-2 mt-1.5">
+                            <button
+                              onPointerDown={() => updateMsg.mutate({ id: msg.id, text: editingText.trim() })}
+                              disabled={!editingText.trim() || updateMsg.isPending}
+                              className="text-xs px-3 py-1 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                            >
+                              保存
+                            </button>
+                            <button
+                              onPointerDown={() => { setEditingMsgId(null); setEditingText(""); }}
+                              className="text-xs px-3 py-1 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              キャンセル
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                      )}
                     </div>
-                    {/* 削除ボタン（作成者のみ） */}
+                    {/* 編集・削除ボタン（作成者のみ） */}
                     {msg.createdBy === user?.id && (
-                      <button
-                        onClick={() => deleteMsg.mutate({ id: msg.id })}
-                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 text-muted-foreground hover:text-destructive transition-all"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 flex-shrink-0 transition-all">
+                        <button
+                          onPointerDown={() => {
+                            setEditingMsgId(msg.id);
+                            setEditingText(msg.text);
+                          }}
+                          className="text-muted-foreground hover:text-primary transition-colors"
+                          title="修正"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onPointerDown={() => deleteMsg.mutate({ id: msg.id })}
+                          className="text-muted-foreground hover:text-destructive transition-colors"
+                          title="削除"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     )}
                   </div>
                   {/* リアクション */}
