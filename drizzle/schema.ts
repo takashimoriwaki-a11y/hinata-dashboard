@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, mediumtext, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -39,10 +39,12 @@ export const scheduleScreenshots = mysqlTable("schedule_screenshots", {
   team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部"]).notNull(),
   /** 今日 or 明日 */
   day: mysqlEnum("day", ["今日", "明日"]).notNull(),
-  /** S3に保存した画像のURL */
+  /** 画像のURL（S3またはdata:URL） */
   imageUrl: text("imageUrl").notNull(),
-  /** S3のキー（削除に使用） */
+  /** S3のキー（削除に使用）またはDB保存の場合は空 */
   imageKey: varchar("imageKey", { length: 512 }).notNull(),
+  /** Base64エンコードされた画像データ（S3が使えない環境用） */
+  imageData: mediumtext("imageData"),
   /** アップロードしたユーザーID */
   uploadedBy: int("uploadedBy"),
   /** アップロードしたユーザー名 */

@@ -506,25 +506,37 @@ export const appRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "ファイルサイズは10MB以下にしてください" });
         }
 
-        // S3にアップロード
-        const ext = input.mimeType.split("/")[1] ?? "png";
-        const key = `schedule-screenshots/${input.team}-${input.day}-${randomSuffix()}.${ext}`;
-        const { url } = await storagePut(key, buffer, input.mimeType);
+        // S3ストレージが利用可能な場合はアップロード、そうでなければDBに直接保存
+        const hasStorage = !!(process.env.BUILT_IN_FORGE_API_URL && process.env.BUILT_IN_FORGE_API_KEY);
 
-        // 既存スクショのS3キーを取得（削除のため）
-        const existing = await getScreenshot(input.team, input.day);
+        let imageUrl: string;
+        let imageKey: string;
+        let imageData: string | undefined;
+
+        if (hasStorage) {
+          // S3にアップロード
+          const ext = input.mimeType.split("/")[1] ?? "png";
+          const key = `schedule-screenshots/${input.team}-${input.day}-${randomSuffix()}.${ext}`;
+          const result = await storagePut(key, buffer, input.mimeType);
+          imageUrl = result.url;
+          imageKey = key;
+        } else {
+          // S3がない場合：Base64データをDBに直接保存
+          imageData = input.imageDataUrl; // data:image/xxx;base64,...形式で保存
+          imageUrl = input.imageDataUrl;  // 表示用URLもdata:URLを使用
+          imageKey = `db-${input.team}-${input.day}`;
+        }
 
         // DBにアップサート
         await upsertScreenshot({
           team: input.team,
           day: input.day,
-          imageUrl: url,
-          imageKey: key,
+          imageUrl,
+          imageKey,
+          imageData,
           uploadedBy: ctx.user.id,
           uploadedByName: ctx.user.name ?? "不明",
         });
-
-        // 古いS3ファイルは削除しない（URLが変わるため古いURLは無効になる）
 
         // スケジュール更新通知を生成
         await createNotification({
@@ -533,7 +545,7 @@ export const appRouter = router({
           body: `${ctx.user.name ?? "不明"}さんが${input.team}チームの${input.day}のスケジュールを更新しました`,
         });
 
-        return { success: true, url };
+        return { success: true, url: imageUrl };
       }),
 
     // スクショを削除

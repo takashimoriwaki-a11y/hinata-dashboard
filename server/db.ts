@@ -151,6 +151,7 @@ export async function upsertScreenshot(data: InsertScheduleScreenshot) {
       .set({
         imageUrl: data.imageUrl,
         imageKey: data.imageKey,
+        imageData: data.imageData ?? null,
         uploadedBy: data.uploadedBy,
         uploadedByName: data.uploadedByName,
         updatedAt: new Date(),
