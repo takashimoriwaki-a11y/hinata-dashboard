@@ -323,7 +323,6 @@ ${clinicalNotes}`);
                   <VoiceMicButton
                     onResult={voicePatient.onResult}
                     size="sm"
-                    label="音声"
                   />
                   <Button
                     variant="outline"
@@ -525,7 +524,6 @@ ${clinicalNotes}`);
               <VoiceMicButton
                 onResult={voiceNotes.onResult}
                 size="sm"
-                label="音声入力"
               />
             </div>
             <Textarea

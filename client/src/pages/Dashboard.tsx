@@ -1697,7 +1697,7 @@ function MessageBoard({ title }: { title: string }) {
               />
               <VoiceMicButton
                 onResult={(text) => setNewMsg(prev => prev + (prev ? " " : "") + text)}
-                size="lg"
+                size="md"
                 className="self-end flex-shrink-0"
               />
             </div>

@@ -329,3 +329,10 @@
 - [x] 期日・時刻の入力形式をホーム画面と統一（10分単位セレクト＋×クリアボタン）
 - [x] 繰り返し設定（なし/毎週/毎月）をタスクタブにも追加
 - [x] 不要なstate・handleAdd・createTask mutationをTasks.tsxから削除
+
+## 音声入力ボタン全統一（2026-03-06）
+
+- [x] VoiceMicButtonのデザインを改善（角丸・色・アニメーション）
+- [x] 全箇所のサイズ・ labelプロパティを統一
+- [x] Dashboard.tsxのsize="lg"をmdに統一
+- [x] RecordInput.tsxのlabelを削除し見た目を統一

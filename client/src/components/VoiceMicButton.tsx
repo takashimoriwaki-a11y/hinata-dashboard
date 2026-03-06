@@ -2,9 +2,12 @@
  * VoiceMicButton
  *
  * 音声入力ボタン共通コンポーネント。
- * - 録音中は赤い波形アニメーションを表示
- * - 処理中はスピナーを表示
+ * アプリ内の全ての音声入力ボタンはこのコンポーネントを使用する。
+ *
  * - タップ1回でON/OFFトグル
+ * - 録音中: 赤背景 + 波形バーアニメーション + ping
+ * - 処理中: スピナー表示
+ * - 通常時: マイクアイコン
  */
 
 import { Loader2, Mic, MicOff } from "lucide-react";
@@ -18,32 +21,39 @@ interface VoiceMicButtonProps {
   size?: "sm" | "md" | "lg";
   /** 追加クラス */
   className?: string;
-  /** ラベルテキスト（省略時はアイコンのみ） */
-  label?: string;
   /** 無効化 */
   disabled?: boolean;
 }
 
-const sizeClasses = {
-  sm: "h-8 px-2 text-xs gap-1",
-  md: "h-10 px-3 text-sm gap-1.5",
-  lg: "h-12 px-4 text-base gap-2",
-};
-
-const iconSizes = {
-  sm: "w-3.5 h-3.5",
-  md: "w-4 h-4",
-  lg: "w-5 h-5",
+const sizeConfig = {
+  sm: {
+    button: "h-8 w-8 rounded-lg",
+    icon: "w-3.5 h-3.5",
+    bars: "h-3",
+    barWidth: "w-0.5",
+  },
+  md: {
+    button: "h-10 w-10 rounded-xl",
+    icon: "w-4 h-4",
+    bars: "h-4",
+    barWidth: "w-0.5",
+  },
+  lg: {
+    button: "h-10 w-10 rounded-xl",
+    icon: "w-4 h-4",
+    bars: "h-4",
+    barWidth: "w-0.5",
+  },
 };
 
 export function VoiceMicButton({
   onResult,
   size = "md",
   className,
-  label,
   disabled = false,
 }: VoiceMicButtonProps) {
   const { isRecording, isProcessing, toggleVoice } = useVoiceInput({ onResult });
+  const cfg = sizeConfig[size];
 
   const handlePointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
@@ -57,62 +67,47 @@ export function VoiceMicButton({
       onPointerDown={handlePointerDown}
       disabled={disabled || isProcessing}
       className={cn(
-        "relative inline-flex items-center justify-center rounded-md font-medium",
+        "relative inline-flex items-center justify-center flex-shrink-0",
         "border transition-all duration-200 select-none",
         "touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-        sizeClasses[size],
+        cfg.button,
         isRecording
-          ? "bg-red-500 border-red-500 text-white shadow-lg shadow-red-500/30"
+          ? "bg-red-500 border-red-400 text-white shadow-md shadow-red-500/40"
           : isProcessing
           ? "bg-muted border-border text-muted-foreground cursor-wait"
-          : "bg-background border-border text-foreground hover:bg-muted active:scale-95",
+          : "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 hover:border-primary/50 active:scale-95",
         disabled && "opacity-50 cursor-not-allowed",
         className
       )}
       aria-label={isRecording ? "録音停止" : isProcessing ? "処理中" : "音声入力開始"}
       title={isRecording ? "タップして停止" : isProcessing ? "文字起こし中..." : "タップして音声入力"}
     >
-      {/* 録音中の波形アニメーション */}
+      {/* 録音中のpingアニメーション */}
       {isRecording && (
-        <span className="absolute inset-0 rounded-md overflow-hidden pointer-events-none">
-          <span className="absolute inset-0 animate-ping rounded-md bg-red-400 opacity-30" />
+        <span className="absolute inset-0 rounded-[inherit] overflow-hidden pointer-events-none">
+          <span className="absolute inset-0 animate-ping rounded-[inherit] bg-red-400 opacity-25" />
         </span>
       )}
 
-      {/* アイコン */}
+      {/* アイコン / 波形 */}
       {isProcessing ? (
-        <Loader2 className={cn(iconSizes[size], "animate-spin")} />
+        <Loader2 className={cn(cfg.icon, "animate-spin")} />
       ) : isRecording ? (
-        <>
-          <MicOff className={cn(iconSizes[size])} />
-          {/* 録音中の波形バー */}
-          <span className="flex items-end gap-px h-4">
-            {[0, 1, 2, 3].map((i) => (
-              <span
-                key={i}
-                className="w-0.5 bg-white rounded-full"
-                style={{
-                  height: `${30 + Math.random() * 40}%`,
-                  animation: `voiceBar 0.6s ease-in-out infinite alternate`,
-                  animationDelay: `${i * 0.15}s`,
-                }}
-              />
-            ))}
-          </span>
-        </>
+        <span className={cn("flex items-end justify-center gap-px", cfg.bars)}>
+          {[0, 1, 2, 3].map((i) => (
+            <span
+              key={i}
+              className={cn(cfg.barWidth, "bg-white rounded-full")}
+              style={{
+                height: "60%",
+                animation: "voiceBar 0.5s ease-in-out infinite alternate",
+                animationDelay: `${i * 0.12}s`,
+              }}
+            />
+          ))}
+        </span>
       ) : (
-        <Mic className={cn(iconSizes[size])} />
-      )}
-
-      {/* ラベル */}
-      {label && !isRecording && !isProcessing && (
-        <span>{label}</span>
-      )}
-      {label && isRecording && (
-        <span>停止</span>
-      )}
-      {label && isProcessing && (
-        <span>処理中...</span>
+        <Mic className={cfg.icon} />
       )}
     </button>
   );
