@@ -83,13 +83,13 @@ function AssignBadge({ task }: { task: { assignType: string; assignTeam?: string
   }
   if (task.assignType === "team") {
     return (
-      <span className="flex items-center gap-0.5 text-[10px] text-blue-600">
+      <span className="flex items-center gap-0.5 text-[10px] text-primary">
         <Users className="w-3 h-3" />{task.assignTeam}チーム
       </span>
     );
   }
   return (
-    <span className="flex items-center gap-0.5 text-[10px] text-purple-600">
+    <span className="flex items-center gap-0.5 text-[10px] text-primary/80">
       <User className="w-3 h-3" />{task.assignUserName ?? "個人"}
     </span>
   );
@@ -427,8 +427,8 @@ export default function Tasks() {
                               className={cn(
                                 "text-xs px-2.5 py-1 rounded-full border transition-colors",
                                 editAssignTeam === team
-                                  ? "bg-blue-600 text-white border-blue-600"
-                                  : "border-border text-muted-foreground hover:border-blue-600 hover:text-blue-600"
+                                  ? "bg-primary text-white border-primary"
+                                  : "border-border text-muted-foreground hover:border-primary hover:text-primary"
                               )}
                             >
                               {team}チーム
@@ -668,8 +668,8 @@ export default function Tasks() {
                       className={cn(
                         "text-xs px-2.5 py-1 rounded-full border transition-colors",
                         newAssignTeam === team
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "border-border text-muted-foreground hover:border-blue-600 hover:text-blue-600"
+                          ? "bg-primary text-white border-primary"
+                          : "border-border text-muted-foreground hover:border-primary hover:text-primary"
                       )}
                     >
                       {team}チーム

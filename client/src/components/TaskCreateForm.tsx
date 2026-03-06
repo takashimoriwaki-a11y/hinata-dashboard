@@ -185,38 +185,38 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
         </div>
 
         {/* 期日・時刻 */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="flex flex-col gap-2">
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">
               <Calendar className="w-3 h-3 inline mr-0.5" />期日（任意）
             </label>
-            <div className="relative">
+            <div className="flex items-center gap-1.5">
               <input
                 type="date"
                 value={newDueDate}
                 onChange={(e) => setNewDueDate(e.target.value)}
-                className="w-full text-sm border border-border rounded-lg px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary pr-7"
+                className="flex-1 text-sm border border-border rounded-lg px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               />
               {newDueDate && (
                 <button
                   type="button"
-                  onClick={() => { setNewDueDate(""); setNewDueTime(""); }}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-destructive transition-colors"
+                  onPointerDown={(e) => { e.preventDefault(); setNewDueDate(""); setNewDueTime(""); }}
+                  className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
                   title="期日をクリア"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-4 h-4" />
                 </button>
               )}
             </div>
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">時刻（任意）</label>
-            <div className="relative">
+            <div className="flex items-center gap-1.5">
               <select
                 value={newDueTime}
                 onChange={(e) => setNewDueTime(e.target.value)}
                 disabled={!newDueDate}
-                className="w-full text-sm border border-border rounded-lg px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40 pr-7"
+                className="flex-1 text-sm border border-border rounded-lg px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40"
               >
                 <option value="">時刻を選択...</option>
                 {Array.from({ length: 24 * 6 }, (_, i) => {
@@ -234,8 +234,8 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
               {newDueTime && (
                 <button
                   type="button"
-                  onClick={() => setNewDueTime("")}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-destructive transition-colors"
+                  onPointerDown={(e) => { e.preventDefault(); setNewDueTime(""); }}
+                  className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
                   title="時刻をクリア"
                 >
                   <X className="w-3.5 h-3.5" />
