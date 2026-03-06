@@ -38,6 +38,7 @@ import {
   getReactionsByMessageIds,
   expireMessages,
   getPatients,
+  getAllPatientsIncludingInactive,
   searchPatients,
   createPatient,
   updatePatient,
@@ -920,11 +921,26 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    // 利用者を無効化（退所等）
+    // 全利用者を取得（退所済も含む）
+    listAll: protectedProcedure
+      .input(z.object({ team: z.enum(["\u8eab\u4f53", "\u5929\u7406", "\u90e1\u5c71\u5317\u90e8", "\u90e1\u5c71\u5357\u90e8"]).optional() }))
+      .query(async ({ input }) => {
+        return getAllPatientsIncludingInactive(input.team);
+      }),
+
+    // 利用者を退所扱いにする（active=0）
     deactivate: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
         await deactivatePatient(input.id);
+        return { success: true };
+      }),
+
+    // 利用者を復帰させる（active=1）
+    activate: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await updatePatient(input.id, { active: 1 });
         return { success: true };
       }),
 

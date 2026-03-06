@@ -14,7 +14,7 @@ import {
   Plus, Trash2, ExternalLink, Settings, ClipboardPaste,
   CheckCircle2, AlertCircle, ChevronDown, ChevronUp,
   Users, Pencil, X, ChevronRight, UserPlus, Key, Shield, ShieldCheck,
-  FileSpreadsheet, Upload, Download,
+  FileSpreadsheet, Upload, Download, LogOut, RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -183,8 +183,11 @@ function BulkImportPanel({
 function PatientMasterPanel() {
   const utils = trpc.useUtils();
 
-  // 全利用者取得
-  const { data: allPatients, isLoading } = trpc.patients.list.useQuery({});
+  // 全利用者取得（退所済も含む）
+  const { data: allPatients, isLoading } = trpc.patients.listAll.useQuery({});
+
+  // 退所済を表示するか
+  const [showInactive, setShowInactive] = useState(false);
 
   // フィルター
   const [filterTeam, setFilterTeam] = useState<Team | "全て">("全て");
@@ -203,7 +206,7 @@ function PatientMasterPanel() {
       const res = await fetch("/api/import/patients", { method: "POST", body: formData, credentials: "include" });
       const data = await res.json();
       if (!res.ok) { toast.error(data.error ?? "インポートに失敗しました"); return; }
-      utils.patients.list.invalidate();
+      utils.patients.listAll.invalidate();
       toast.success(`${data.count}名の利用者をインポートしました${data.errors?.length ? `（${data.errors.length}件エラー）` : ""}`);
       if (data.errors?.length) {
         data.errors.slice(0, 3).forEach((err: string) => toast.error(err, { duration: 5000 }));
@@ -241,28 +244,40 @@ function PatientMasterPanel() {
       .filter((s) => s.length > 0 && s.length <= 100);
   }, [bulkText]);
 
-  // フィルター済みリスト
+  // フィルター済みリスト（有効のみ）
   const filteredPatients = useMemo(() => {
     if (!allPatients) return [];
     return allPatients.filter((p) => {
+      if (p.active !== 1) return false;
       const teamOk = filterTeam === "全て" || p.team === filterTeam;
       const nameOk = !searchQuery || p.name.includes(searchQuery) || (p.nameKana ?? "").includes(searchQuery);
       return teamOk && nameOk;
     });
   }, [allPatients, filterTeam, searchQuery]);
 
-  // チーム別件数
+  // 退所済リスト
+  const inactivePatients = useMemo(() => {
+    if (!allPatients) return [];
+    return allPatients.filter((p) => {
+      if (p.active === 1) return false;
+      const teamOk = filterTeam === "全て" || p.team === filterTeam;
+      const nameOk = !searchQuery || p.name.includes(searchQuery) || (p.nameKana ?? "").includes(searchQuery);
+      return teamOk && nameOk;
+    });
+  }, [allPatients, filterTeam, searchQuery]);
+
+  // チーム別件数（有効のみ）
+  const activePatients = useMemo(() => allPatients?.filter((p) => p.active === 1) ?? [], [allPatients]);
   const teamCounts = useMemo(() => {
-    if (!allPatients) return {} as Record<string, number>;
-    const counts: Record<string, number> = { 全て: allPatients.length };
-    for (const t of TEAMS) counts[t] = allPatients.filter((p) => p.team === t).length;
+    const counts: Record<string, number> = { 全て: activePatients.length };
+    for (const t of TEAMS) counts[t] = activePatients.filter((p) => p.team === t).length;
     return counts;
-  }, [allPatients]);
+  }, [activePatients]);
 
   // Mutations
   const createPatient = trpc.patients.create.useMutation({
     onSuccess: () => {
-      utils.patients.list.invalidate();
+      utils.patients.listAll.invalidate();
       toast.success("利用者を追加しました");
       setAddName(""); setAddKana(""); setShowAddForm(false);
     },
@@ -271,7 +286,7 @@ function PatientMasterPanel() {
 
   const batchCreate = trpc.patients.batchCreate.useMutation({
     onSuccess: (data) => {
-      utils.patients.list.invalidate();
+      utils.patients.listAll.invalidate();
       toast.success(`${data.count}名の利用者を一括登録しました`);
       setBulkText(""); setShowBulkPanel(false);
     },
@@ -280,7 +295,7 @@ function PatientMasterPanel() {
 
   const updatePatient = trpc.patients.update.useMutation({
     onSuccess: () => {
-      utils.patients.list.invalidate();
+      utils.patients.listAll.invalidate();
       toast.success("利用者情報を更新しました");
       setEditingId(null);
     },
@@ -289,8 +304,16 @@ function PatientMasterPanel() {
 
   const deactivatePatient = trpc.patients.deactivate.useMutation({
     onSuccess: () => {
-      utils.patients.list.invalidate();
-      toast.success("利用者を削除しました");
+      utils.patients.listAll.invalidate();
+      toast.success("退所扱いに変更しました");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const activatePatient = trpc.patients.activate.useMutation({
+    onSuccess: () => {
+      utils.patients.listAll.invalidate();
+      toast.success("利用者を復帰させました");
     },
     onError: (e) => toast.error(e.message),
   });
@@ -324,7 +347,7 @@ function PatientMasterPanel() {
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-primary" />
             <CardTitle className="text-base font-semibold">利用者マスタ管理</CardTitle>
-            <Badge variant="outline" className="text-xs">{allPatients?.length ?? 0}名</Badge>
+            <Badge variant="outline" className="text-xs">{activePatients.length}名</Badge>
           </div>
           <div className="flex gap-2 flex-wrap">
             {/* テンプレートダウンロードボタン */}
@@ -596,14 +619,14 @@ function PatientMasterPanel() {
                         </button>
                         <button
                           onClick={() => {
-                            if (confirm(`「${p.name}」を削除しますか？`)) {
+                            if (confirm(`「${p.name}」を退所扱いに変更しますか？\n退所後は記録入力画面に表示されなくなります。`)) {
                               deactivatePatient.mutate({ id: p.id });
                             }
                           }}
-                          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity p-1"
-                          title="削除"
+                          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-amber-600 transition-opacity p-1"
+                          title="退所"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <LogOut className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
@@ -611,6 +634,51 @@ function PatientMasterPanel() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* 退所済セクション */}
+        {inactivePatients.length > 0 && (
+          <div className="mt-4">
+            <button
+              onClick={() => setShowInactive((v) => !v)}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", showInactive && "rotate-180")} />
+              退所済利用者（{inactivePatients.length}名）
+            </button>
+            {showInactive && (
+              <div className="mt-2 space-y-1 border border-border/50 rounded-lg p-2 bg-muted/20">
+                {inactivePatients.map((p, idx) => (
+                  <div key={p.id}>
+                    {idx > 0 && <Separator className="my-1" />}
+                    <div className="flex items-center justify-between py-1 px-1 rounded-lg hover:bg-muted/30 group transition-colors opacity-60 hover:opacity-100">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-muted-foreground truncate line-through">{p.name}</p>
+                        {p.nameKana && (
+                          <p className="text-xs text-muted-foreground/70">{p.nameKana}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 opacity-50">{p.team}</Badge>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-300 text-amber-600">退所</Badge>
+                        <button
+                          onClick={() => {
+                            if (confirm(`「${p.name}」を復帰させますか？`)) {
+                              activatePatient.mutate({ id: p.id });
+                            }
+                          }}
+                          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-emerald-600 transition-opacity p-1"
+                          title="復帰"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </CardContent>

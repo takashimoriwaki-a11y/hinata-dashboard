@@ -630,6 +630,21 @@ export async function getTodayDueTasks() {
 
 // ========== 利用者（患者）管理 ==========
 
+/** 全利用者を取得する（退所済も含む） */
+export async function getAllPatientsIncludingInactive(team?: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions: any[] = [];
+  if (team) {
+    conditions.push(eq(patients.team, team as any));
+  }
+  return db
+    .select()
+    .from(patients)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(patients.team, patients.name);
+}
+
 /** 全利用者を取得する（有効なもののみ） */
 export async function getPatients(team?: string) {
   const db = await getDb();
