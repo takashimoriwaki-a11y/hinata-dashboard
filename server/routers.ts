@@ -58,6 +58,8 @@ import {
   resetStaffPassword,
   deleteStaffAccount,
   updateStaffRole,
+  batchCreatePatients,
+  batchCreateStaff,
   createScreenshotUploadLog,
   getRecentScreenshotUploadLogs,
 } from "./db";
@@ -1149,6 +1151,164 @@ export const appRouter = router({
         }
         await updateStaffRole(input.userId, input.role);
         return { success: true };
+      }),
+  }),
+
+  // ========== Excelインポート ==========
+  import: router({
+    /**
+     * Excelファイル（Base64）を受け取り、利用者・スタッフを一括登録する
+     * 管理者のみ実行可能
+     */
+    excel: protectedProcedure
+      .input(z.object({
+        /** Base64エンコードされたExcelファイルデータ */
+        fileBase64: z.string(),
+        /** ファイル名（拡張子チェック用） */
+        fileName: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        // 管理者チェック
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ実行できます" });
+        }
+
+        // ファイル拡張子チェック
+        const ext = input.fileName.split(".").pop()?.toLowerCase();
+        if (ext !== "xlsx" && ext !== "xls") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: ".xlsx または .xls ファイルのみ対応しています" });
+        }
+
+        // xlsxパッケージでパース
+        const XLSX = await import("xlsx");
+        const buffer = Buffer.from(input.fileBase64, "base64");
+        const workbook = XLSX.read(buffer, { type: "buffer" });
+
+        const VALID_TEAMS = ["身体", "天理", "郡山北部", "郡山南部"] as const;
+        type ValidTeam = typeof VALID_TEAMS[number];
+
+        const result = {
+          patients: { success: 0, skipped: 0, errors: [] as string[] },
+          staff: { success: 0, skipped: 0, errors: [] as string[] },
+        };
+
+        // ===== 利用者シートのパース =====
+        const patientSheet = workbook.Sheets["利用者"];
+        if (patientSheet) {
+          const rows = (XLSX.utils.sheet_to_json(patientSheet, {
+            header: 1,
+            defval: "",
+            range: 6, // 7行目（0-indexed: 6）からヘッダー行
+          }) as unknown) as unknown[][];
+
+          // 8行目（index 1）以降がデータ（index 0がヘッダー）
+          const dataRows = rows.slice(1);
+
+          const patientsToCreate: Array<{ name: string; nameKana?: string; team: ValidTeam; active: number }> = [];
+
+          for (let i = 0; i < dataRows.length; i++) {
+            const row = dataRows[i];
+            const name = String(row[0] ?? "").trim();
+            const nameKana = String(row[1] ?? "").trim();
+            const teamRaw = String(row[2] ?? "").trim();
+            const activeRaw = String(row[3] ?? "").trim();
+
+            // 空行・記入例（グレー行）はスキップ
+            if (!name || name === "山田 花子" || name === "鈴木 一郎" || name === "田中 美咲") {
+              if (!name) continue;
+              result.patients.skipped++;
+              continue;
+            }
+
+            // チームバリデーション
+            if (!VALID_TEAMS.includes(teamRaw as ValidTeam)) {
+              result.patients.errors.push(`利用者 ${i + 2}行目: チーム「${teamRaw}」が無効です（身体/天理/郡山北部/郡山南部）`);
+              continue;
+            }
+
+            const active = activeRaw.startsWith("0") ? 0 : 1;
+
+            patientsToCreate.push({
+              name,
+              nameKana: nameKana || undefined,
+              team: teamRaw as ValidTeam,
+              active,
+            });
+          }
+
+          if (patientsToCreate.length > 0) {
+            try {
+              await batchCreatePatients(patientsToCreate);
+              result.patients.success = patientsToCreate.length;
+            } catch (e: any) {
+              result.patients.errors.push(`利用者一括登録エラー: ${e.message}`);
+            }
+          }
+        }
+
+        // ===== スタッフシートのパース =====
+        const staffSheet = workbook.Sheets["スタッフ"];
+        if (staffSheet) {
+          const rows = (XLSX.utils.sheet_to_json(staffSheet, {
+            header: 1,
+            defval: "",
+            range: 6, // 7行目（0-indexed: 6）からヘッダー行
+          }) as unknown) as unknown[][];
+
+          const dataRows = rows.slice(1);
+          const staffToCreate: Array<{ name: string; team: ValidTeam; role: "user" | "admin" }> = [];
+
+          for (let i = 0; i < dataRows.length; i++) {
+            const row = dataRows[i];
+            const name = String(row[0] ?? "").trim();
+            const teamRaw = String(row[1] ?? "").trim();
+            const roleRaw = String(row[2] ?? "").trim().toLowerCase();
+
+            // 空行・記入例はスキップ
+            if (!name || name === "森脇 崇" || name === "佐藤 看護師" || name === "中村 作業療法士") {
+              if (!name) continue;
+              result.staff.skipped++;
+              continue;
+            }
+
+            // チームバリデーション
+            if (!VALID_TEAMS.includes(teamRaw as ValidTeam)) {
+              result.staff.errors.push(`スタッフ ${i + 2}行目: チーム「${teamRaw}」が無効です`);
+              continue;
+            }
+
+            const role: "user" | "admin" = roleRaw === "admin" ? "admin" : "user";
+
+            staffToCreate.push({ name, team: teamRaw as ValidTeam, role });
+          }
+
+          // スタッフはメールなしで登録（名前+チームで既存検索して更新）
+          // 既存ユーザーは名前で検索して team/role を更新、存在しなければスキップ
+          const db = await import("./db").then(m => m.getDb());
+          if (db) {
+            const { users: usersTable } = await import("../drizzle/schema");
+            const { eq: drizzleEq, or, like } = await import("drizzle-orm");
+            for (const s of staffToCreate) {
+              // 名前で既存ユーザーを検索
+              const existing = await db.select({ id: usersTable.id })
+                .from(usersTable)
+                .where(like(usersTable.name, s.name))
+                .limit(1);
+              if (existing.length > 0) {
+                // 既存ユーザーのチーム・権限を更新
+                await db.update(usersTable)
+                  .set({ team: s.team, role: s.role, updatedAt: new Date() })
+                  .where(drizzleEq(usersTable.id, existing[0].id));
+                result.staff.success++;
+              } else {
+                // 未登録スタッフはスキップ（Manus OAuthログイン後に自動登録されるため）
+                result.staff.skipped++;
+              }
+            }
+          }
+        }
+
+        return result;
       }),
   }),
 });

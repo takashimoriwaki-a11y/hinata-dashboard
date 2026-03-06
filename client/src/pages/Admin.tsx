@@ -691,7 +691,7 @@ export default function Admin() {
   }, []);
 
   // セクション切り替え
-  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff">("sheets");
+  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import">("sheets");
   const { user: currentUser } = useAuth();
 
   return (
@@ -742,6 +742,19 @@ export default function Admin() {
             )}
           >
             スタッフ管理
+          </button>
+        )}
+        {currentUser?.role === "admin" && (
+          <button
+            onClick={() => setActiveSection("import")}
+            className={cn(
+              "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
+              activeSection === "import"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            一括インポート
           </button>
         )}
       </div>
@@ -932,6 +945,9 @@ export default function Admin() {
 
       {/* スタッフ管理セクション */}
       {activeSection === "staff" && <StaffManagementPanel />}
+
+      {/* 一括インポートセクション */}
+      {activeSection === "import" && <BulkExcelImportPanel />}
     </div>
   );
 }
@@ -1266,5 +1282,259 @@ function StaffManagementPanel() {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// ============================
+// 一括Excelインポートパネル
+// ============================
+
+function BulkExcelImportPanel() {
+  const [file, setFile] = useState<File | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const utils = trpc.useUtils();
+
+  const importMutation = trpc.import.excel.useMutation({
+    onSuccess: (result) => {
+      const pMsg = `利用者: ${result.patients.success}件登録${result.patients.skipped > 0 ? `・${result.patients.skipped}件スキップ` : ""}`;
+      const sMsg = `スタッフ: ${result.staff.success}件更新${result.staff.skipped > 0 ? `・${result.staff.skipped}件スキップ` : ""}`;
+      const hasErrors = result.patients.errors.length > 0 || result.staff.errors.length > 0;
+
+      if (hasErrors) {
+        const allErrors = [...result.patients.errors, ...result.staff.errors];
+        toast.warning(`インポート完了（一部エラー）\n${pMsg} / ${sMsg}`, {
+          description: allErrors.slice(0, 3).join("\n") + (allErrors.length > 3 ? `\n他${allErrors.length - 3}件` : ""),
+          duration: 8000,
+        });
+      } else {
+        toast.success(`インポート完了！ ${pMsg} / ${sMsg}`);
+      }
+
+      // キャッシュを更新
+      utils.patients.list.invalidate();
+      utils.staff.getAll.invalidate();
+      setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) setFile(f);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const f = e.dataTransfer.files?.[0];
+    if (f && (f.name.endsWith(".xlsx") || f.name.endsWith(".xls"))) {
+      setFile(f);
+    } else {
+      toast.error(".xlsx または .xls ファイルをドロップしてください");
+    }
+  };
+
+  const handleImport = async () => {
+    if (!file) return;
+    // FileをBase64に変換
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = (e.target?.result as string).split(",")[1];
+      importMutation.mutate({ fileBase64: base64, fileName: file.name });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDownloadTemplate = () => {
+    // テンプレートファイルのダウンロードリンク（別途CDNにアップロードが必要）
+    toast.info("テンプレートファイルはチャットからダウンロードしてください");
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* 説明カード */}
+      <Card className="shadow-sm border-primary/20 bg-primary/5">
+        <CardContent className="pt-4 pb-3">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <Upload className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground mb-1">Excelファイルで利用者・スタッフを一括登録</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                「ひなた_一括インポート.xlsx」テンプレートに入力したデータを読み込みます。<br />
+                <span className="font-medium text-foreground">利用者シート</span>：新規登録（最大200件）<br />
+                <span className="font-medium text-foreground">スタッフシート</span>：既存ユーザーのチーム・権限を更新（未ログインユーザーはスキップ）
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ファイルアップロードエリア */}
+      <Card className="shadow-sm">
+        <CardHeader className="pb-2 pt-4">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+            Excelファイルを選択
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* ドラッグ&ドロップエリア */}
+          <div
+            className={cn(
+              "border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all",
+              dragOver
+                ? "border-primary bg-primary/5 scale-[1.01]"
+                : "border-border hover:border-primary/50 hover:bg-muted/30",
+              file && "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20"
+            )}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            {file ? (
+              <div className="space-y-2">
+                <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto">
+                  <FileSpreadsheet className="w-6 h-6 text-emerald-600" />
+                </div>
+                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">{file.name}</p>
+                <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400">クリックで別のファイルを選択</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mx-auto">
+                  <Upload className="w-6 h-6 text-muted-foreground" />
+                </div>
+                <p className="text-sm font-medium text-foreground">クリックまたはドラッグ&ドロップ</p>
+                <p className="text-xs text-muted-foreground">.xlsx / .xls ファイル対応</p>
+              </div>
+            )}
+          </div>
+
+          {/* アクションボタン */}
+          <div className="flex gap-3">
+            <Button
+              onClick={handleImport}
+              disabled={!file || importMutation.isPending}
+              className="flex-1"
+            >
+              {importMutation.isPending ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                  インポート中...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 mr-2" />
+                  インポート実行
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => { setFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+              disabled={!file || importMutation.isPending}
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* インポート結果 */}
+      {importMutation.isSuccess && (
+        <Card className="shadow-sm border-emerald-200 dark:border-emerald-800">
+          <CardHeader className="pb-2 pt-4">
+            <CardTitle className="text-base font-semibold flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="w-4 h-4" />
+              インポート結果
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {/* 利用者 */}
+            <div className="rounded-lg bg-muted/50 p-3 space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">利用者シート</p>
+              <div className="flex gap-4 text-sm">
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                  ✓ {importMutation.data.patients.success}件 登録
+                </span>
+                {importMutation.data.patients.skipped > 0 && (
+                  <span className="text-muted-foreground">{importMutation.data.patients.skipped}件 スキップ</span>
+                )}
+              </div>
+              {importMutation.data.patients.errors.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {importMutation.data.patients.errors.map((err, i) => (
+                    <p key={i} className="text-xs text-destructive flex items-start gap-1">
+                      <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                      {err}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* スタッフ */}
+            <div className="rounded-lg bg-muted/50 p-3 space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">スタッフシート</p>
+              <div className="flex gap-4 text-sm">
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                  ✓ {importMutation.data.staff.success}件 更新
+                </span>
+                {importMutation.data.staff.skipped > 0 && (
+                  <span className="text-muted-foreground">{importMutation.data.staff.skipped}件 スキップ（未ログイン）</span>
+                )}
+              </div>
+              {importMutation.data.staff.errors.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {importMutation.data.staff.errors.map((err, i) => (
+                    <p key={i} className="text-xs text-destructive flex items-start gap-1">
+                      <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                      {err}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 注意事項 */}
+      <Card className="shadow-sm">
+        <CardContent className="pt-4 pb-3">
+          <p className="text-xs font-semibold text-muted-foreground mb-2">注意事項</p>
+          <ul className="space-y-1 text-xs text-muted-foreground">
+            <li className="flex items-start gap-1.5">
+              <span className="text-primary mt-0.5">•</span>
+              利用者は新規登録のみ（同名の利用者が既に存在する場合も追加登録されます）
+            </li>
+            <li className="flex items-start gap-1.5">
+              <span className="text-primary mt-0.5">•</span>
+              スタッフはアプリに一度ログインしたユーザーのみ更新可能です（未ログインユーザーはスキップ）
+            </li>
+            <li className="flex items-start gap-1.5">
+              <span className="text-primary mt-0.5">•</span>
+              テンプレートのグレー記入例行は自動的に無視されます
+            </li>
+            <li className="flex items-start gap-1.5">
+              <span className="text-primary mt-0.5">•</span>
+              インポート後は利用者マスタ・スタッフ管理タブで内容を確認してください
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
