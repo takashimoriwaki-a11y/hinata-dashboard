@@ -274,7 +274,7 @@ function VisitCountCard() {
   };
 
   return (
-    <Card className="fade-in-up stagger-1 shadow-sm">
+    <Card className="fade-in-up stagger-1 shadow-sm flex flex-col h-full">
       <CardHeader className="pb-1 pt-3 px-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -295,7 +295,7 @@ function VisitCountCard() {
           {data.currentMonth}（{data.lastUpdatedDate}時点の累計）
         </p>
       </CardHeader>
-      <CardContent className="space-y-3 px-4 pb-3">
+      <CardContent className="space-y-3 px-4 pb-3 flex-1">
         <div className="grid grid-cols-3 gap-2">
           {/* メイン */}
           <div className="space-y-1.5 border-2 border-orange-400 dark:border-orange-500 rounded-xl p-2.5 bg-orange-50/50 dark:bg-orange-950/30">
@@ -1709,14 +1709,14 @@ function ToolsCard() {
 
 function QuickLinksCard() {
   return (
-    <Card className="fade-in-up stagger-4 shadow-sm">
+    <Card className="fade-in-up stagger-4 shadow-sm flex flex-col h-full">
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-semibold flex items-center gap-2">
           <ExternalLink className="w-4 h-4 text-primary" />
           AIツール・外部リンク
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-1.5">
+      <CardContent className="space-y-1.5 flex-1">
         {externalLinks.map((link) => (
           <a
             key={link.label}
@@ -1982,7 +1982,7 @@ function MessageBoard({ title }: { title: string }) {
   };
 
   return (
-    <Card className="fade-in-up stagger-4 shadow-sm">
+    <Card className="fade-in-up stagger-4 shadow-sm flex flex-col h-full">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -1997,7 +1997,7 @@ function MessageBoard({ title }: { title: string }) {
           </button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-2">
+      <CardContent className="space-y-2 flex-1 overflow-auto">
         {/* 投稿フォーム */}
         {showForm && (
           <div className="border border-primary/20 rounded-xl p-4 space-y-3 bg-primary/5">
@@ -2404,7 +2404,7 @@ export default function Dashboard() {
       </div>
 
       {/* 下段: メッセージ・訪問件数・クイックリンクを横並び（PC版） */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 items-stretch">
         <MessageBoard title="メッセージ" />
         <VisitCountCard />
         <QuickLinksCard />
