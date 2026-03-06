@@ -47,6 +47,8 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -1000,9 +1002,19 @@ function ScheduleScreenshotCard() {
         }));
         const registeredCount = allTeamSlides.filter((s) => s.screenshot !== null).length;
 
+        // 各チームセクションのスクロール先IDを生成
+        const teamSectionId = (team: string) => `modal-team-${team.replace(/\s/g, "-")}`;
+
+        const scrollToTeam = (team: string, container: HTMLElement | null) => {
+          if (!container) return;
+          const el = container.querySelector(`#${teamSectionId(team)}`);
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        };
+
         return (
         <div
           className="fixed inset-0 z-50 bg-black/85 overflow-y-auto"
+          id="modal-scroll-container"
           onClick={() => { setViewUrl(null); setViewMeta(null); }}
         >
           <div
@@ -1043,12 +1055,27 @@ function ScheduleScreenshotCard() {
                   </button>
                 ))}
               </div>
+              {/* チームジャンプボタン行 */}
+              <div className="flex gap-1 flex-wrap">
+                {TEAMS.map((team) => (
+                  <button
+                    key={team}
+                    onClick={() => scrollToTeam(team, document.getElementById("modal-scroll-container"))}
+                    className="px-3 py-1 text-[11px] font-medium rounded-full bg-muted/60 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors border border-border/50"
+                  >
+                    {team}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* 全チームの画像を縦スクロールで表示（未登録チームも含む） */}
             <div className="divide-y divide-border">
-              {allTeamSlides.map(({ team, screenshot }) => (
-                <div key={team}>
+              {allTeamSlides.map(({ team, screenshot }, idx) => {
+                const nextTeam = allTeamSlides[idx + 1]?.team ?? null;
+                const isLast = idx === allTeamSlides.length - 1;
+                return (
+                <div key={team} id={teamSectionId(team)}>
                   {/* チーム名ラベル */}
                   <div className="flex items-center justify-between px-4 py-2 bg-muted/40">
                     <div className="flex items-center gap-2">
@@ -1077,8 +1104,29 @@ function ScheduleScreenshotCard() {
                       <span className="text-xs">まだ登録されていません</span>
                     </div>
                   )}
+                  {/* 次のチームへボタン */}
+                  <div className="flex justify-end px-3 py-2 bg-muted/20">
+                    {!isLast && nextTeam ? (
+                      <button
+                        onClick={() => scrollToTeam(nextTeam, document.getElementById("modal-scroll-container"))}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                      >
+                        <ChevronDown className="w-3.5 h-3.5" />
+                        {nextTeam}チームへ
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => scrollToTeam(TEAMS[0], document.getElementById("modal-scroll-container"))}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+                      >
+                        <ChevronUp className="w-3.5 h-3.5" />
+                        先頭に戻る
+                      </button>
+                    )}
+                  </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
