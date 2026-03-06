@@ -26,20 +26,28 @@ export async function saveSubscription(data: {
   auth: string;
   userId?: number;
   userName?: string;
+  teamFilter?: string | null;
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+  const { eq } = await import("drizzle-orm");
   // 既存のendpointがあれば更新、なければ挿入
   const existing = await db
     .select({ id: pushSubscriptions.id })
     .from(pushSubscriptions)
-    .where((await import("drizzle-orm")).eq(pushSubscriptions.endpoint, data.endpoint))
+    .where(eq(pushSubscriptions.endpoint, data.endpoint))
     .limit(1);
   if (existing.length > 0) {
     await db
       .update(pushSubscriptions)
-      .set({ p256dh: data.p256dh, auth: data.auth, userId: data.userId, userName: data.userName })
-      .where((await import("drizzle-orm")).eq(pushSubscriptions.endpoint, data.endpoint));
+      .set({
+        p256dh: data.p256dh,
+        auth: data.auth,
+        userId: data.userId,
+        userName: data.userName,
+        teamFilter: data.teamFilter ?? null,
+      })
+      .where(eq(pushSubscriptions.endpoint, data.endpoint));
   } else {
     await db.insert(pushSubscriptions).values(data);
   }
@@ -53,13 +61,27 @@ export async function deleteSubscription(endpoint: string) {
   await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint));
 }
 
-/** 全サブスクリプションに通知を送信する */
-export async function sendPushToAll(payload: { title: string; body: string; url?: string }) {
+/**
+ * スクリーンショット更新時のプッシュ通知を送信する
+ * @param payload 通知内容
+ * @param team 更新されたチーム名（チームフィルターの対象）
+ */
+export async function sendPushToAll(
+  payload: { title: string; body: string; url?: string },
+  team?: string
+) {
   initWebPush();
   if (!initialized) return;
   const db = await getDb();
   if (!db) return;
-  const subs = await db.select().from(pushSubscriptions);
+  // 全サブスクリプションを取得し、チームフィルターを適用
+  const allSubs = await db.select().from(pushSubscriptions);
+  const subs = allSubs.filter((sub) => {
+    // teamFilterが未設定（null）→全チームの更新で通知
+    if (!sub.teamFilter) return true;
+    // teamFilterが設定されている→更新チームと一致する場合のみ通知
+    return sub.teamFilter === team;
+  });
   const payloadStr = JSON.stringify(payload);
   const failed: string[] = [];
   await Promise.allSettled(

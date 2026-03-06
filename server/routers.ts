@@ -563,11 +563,14 @@ export const appRouter = router({
         // Web Push通知を送信（非同期でエラーを無視）
         try {
           const { sendPushToAll } = await import("./pushNotification");
-          await sendPushToAll({
-            title: "📷 スケジュールが更新されました",
-            body: notifBody,
-            url: "/",
-          });
+          await sendPushToAll(
+            {
+              title: "📷 スケジュールが更新されました",
+              body: notifBody,
+              url: "/",
+            },
+            input.team // チームフィルター用に更新チームを渡す
+          );
         } catch (e) {
           console.error("[WebPush] failed to send push:", e);
         }
@@ -791,6 +794,8 @@ export const appRouter = router({
         endpoint: z.string().url(),
         p256dh: z.string(),
         auth: z.string(),
+        /** null = 全チーム、文字列 = 指定チームのみ */
+        teamFilter: z.string().nullable().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const { saveSubscription } = await import("./pushNotification");
@@ -800,6 +805,7 @@ export const appRouter = router({
           auth: input.auth,
           userId: ctx.user.id,
           userName: ctx.user.name ?? undefined,
+          teamFilter: input.teamFilter ?? null,
         });
         return { success: true };
       }),

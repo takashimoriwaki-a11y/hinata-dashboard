@@ -196,6 +196,62 @@ async function startServer() {
     }
   });
 
+  // 利用者テンプレートダウンロード /api/template/patients
+  app.get("/api/template/patients", async (_req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      const wb = XLSX.utils.book_new();
+      // ヘッダー説明行
+      const headerInfo = [
+        ["【利用者一括登録テンプレート】"],
+        ["★マークの列は必須です。3行目以降にデータを入力してください。"],
+        ["★ 氏名", "ふりがな", "★ チーム", "有効フラグ（1=有効 / 0=無効）"],
+        ["山田 太郎", "やまだ たろう", "身体", "1"],
+        ["鈴木 花子", "すずき はなこ", "天理", "1"],
+        ["田中 一郎", "", "郡山北部", "1"],
+        ["佐藤 二郎", "", "郡山南部", "1"],
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(headerInfo);
+      // 列幅設定
+      ws["!cols"] = [{ wch: 20 }, { wch: 20 }, { wch: 14 }, { wch: 30 }];
+      XLSX.utils.book_append_sheet(wb, ws, "利用者一覧（インポート用）");
+      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+      res.setHeader("Content-Disposition", 'attachment; filename*=UTF-8\'\'%E5%88%A9%E7%94%A8%E8%80%85%E3%83%86%E3%83%B3%E3%83%97%E3%83%AC%E3%83%BC%E3%83%88.xlsx');
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.send(buf);
+    } catch (e) {
+      console.error("[template/patients] error:", e);
+      res.status(500).json({ error: "テンプレート生成に失敗しました" });
+    }
+  });
+
+  // 職員テンプレートダウンロード /api/template/staff
+  app.get("/api/template/staff", async (_req, res) => {
+    try {
+      const XLSX = await import("xlsx");
+      const wb = XLSX.utils.book_new();
+      const headerInfo = [
+        ["【職員一括登録テンプレート】"],
+        ["★マークの列は必須です。3行目以降にデータを入力してください。メール重複はスキップされます。"],
+        ["★ 氏名", "★ メールアドレス", "★ 初期パスワード", "★ チーム", "権限（admin / user）"],
+        ["山田 太郎", "yamada@example.com", "Pass1234", "身体", "user"],
+        ["鈴木 花子", "suzuki@example.com", "Pass1234", "天理", "user"],
+        ["田中 一郎", "tanaka@example.com", "Pass1234", "郡山北部", "user"],
+        ["佐藤 二郎", "sato@example.com", "Pass1234", "郡山南部", "admin"],
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(headerInfo);
+      ws["!cols"] = [{ wch: 20 }, { wch: 30 }, { wch: 16 }, { wch: 14 }, { wch: 22 }];
+      XLSX.utils.book_append_sheet(wb, ws, "職員一覧（インポート用）");
+      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+      res.setHeader("Content-Disposition", 'attachment; filename*=UTF-8\'\'%E8%81%B7%E5%93%A1%E3%83%86%E3%83%B3%E3%83%97%E3%83%AC%E3%83%BC%E3%83%88.xlsx');
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.send(buf);
+    } catch (e) {
+      console.error("[template/staff] error:", e);
+      res.status(500).json({ error: "テンプレート生成に失敗しました" });
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

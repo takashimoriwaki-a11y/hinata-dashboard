@@ -14,7 +14,7 @@ import {
   Plus, Trash2, ExternalLink, Settings, ClipboardPaste,
   CheckCircle2, AlertCircle, ChevronDown, ChevronUp,
   Users, Pencil, X, ChevronRight, UserPlus, Key, Shield, ShieldCheck,
-  FileSpreadsheet, Upload,
+  FileSpreadsheet, Upload, Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -326,7 +326,21 @@ function PatientMasterPanel() {
             <CardTitle className="text-base font-semibold">利用者マスタ管理</CardTitle>
             <Badge variant="outline" className="text-xs">{allPatients?.length ?? 0}名</Badge>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            {/* テンプレートダウンロードボタン */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1 text-blue-600 border-blue-300 hover:bg-blue-50"
+              onClick={() => {
+                const a = document.createElement("a");
+                a.href = "/api/template/patients";
+                a.click();
+              }}
+            >
+              <Download className="w-3.5 h-3.5" />
+              テンプレートDL
+            </Button>
             {/* Excelインポートボタン */}
             <input
               ref={patientExcelRef}
@@ -1021,7 +1035,21 @@ function StaffManagementPanel() {
             <CardTitle className="text-base font-semibold">スタッフアカウント管理</CardTitle>
             <Badge variant="outline" className="text-xs">{staffList?.length ?? 0}名</Badge>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            {/* テンプレートダウンロードボタン */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1 text-blue-600 border-blue-300 hover:bg-blue-50"
+              onClick={() => {
+                const a = document.createElement("a");
+                a.href = "/api/template/staff";
+                a.click();
+              }}
+            >
+              <Download className="w-3.5 h-3.5" />
+              テンプレートDL
+            </Button>
             {/* Excelインポートボタン */}
             <input
               ref={staffExcelRef}

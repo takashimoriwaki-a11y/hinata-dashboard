@@ -45,7 +45,7 @@ export function usePushNotification() {
   }, []);
 
   // Service Workerを登録してプッシュ通知を購読する
-  const subscribe = useCallback(async () => {
+  const subscribe = useCallback(async (teamFilter?: string | null) => {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       toast.error("このブラウザはプッシュ通知に対応していません");
       return;
@@ -84,6 +84,7 @@ export function usePushNotification() {
         endpoint: sub.endpoint,
         p256dh: subJson.keys?.p256dh ?? "",
         auth: subJson.keys?.auth ?? "",
+        teamFilter: teamFilter ?? null,
       });
 
       setIsSubscribed(true);

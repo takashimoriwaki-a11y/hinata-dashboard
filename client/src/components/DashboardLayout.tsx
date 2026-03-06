@@ -29,6 +29,20 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import DailyMessageBar from "./DailyMessageBar";
 import { useTheme } from "@/contexts/ThemeContext";
 import NotificationDropdown from "./NotificationDropdown";
@@ -70,6 +84,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { isNight } = useTheme();
   const { logout } = useAuth({ redirectOnUnauthenticated: true });
   const { isSubscribed, isLoading: pushLoading, subscribe, unsubscribe, permission: pushPermission } = usePushNotification();
+  const [notifDialogOpen, setNotifDialogOpen] = useState(false);
+  const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>("all");
 
   const handleLogout = async () => {
     try {
@@ -192,14 +208,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           onClick={() => {
             if (pushPermission === "unsupported") {
               toast.error("このブラウザはプッシュ通知に対応していません");
-            } else if (isSubscribed) {
-              unsubscribe();
             } else {
-              subscribe();
+              setNotifDialogOpen(true);
             }
           }}
           disabled={pushLoading}
-          title={(collapsed && !mobile) ? (isSubscribed ? "通知オン（タップでオフ）" : "通知を有効にする") : undefined}
+          title={(collapsed && !mobile) ? (isSubscribed ? "通知設定" : "通知を有効にする") : undefined}
           className={cn(
             "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150",
             "text-sm hover:bg-sidebar-accent",
@@ -211,7 +225,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         >
           <Bell className={cn("w-4 h-4 flex-shrink-0", isSubscribed && "fill-emerald-500")} />
           {(!collapsed || mobile) && (
-            <span>{pushLoading ? "処理中..." : isSubscribed ? "通知オン" : "通知を有効に"}</span>
+            <span>{pushLoading ? "処理中..." : isSubscribed ? "通知設定" : "通知を有効に"}</span>
           )}
         </button>
         <Link href="/admin">
@@ -399,6 +413,78 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </nav>
 
       </div>
+
+      {/* ========== 通知設定ダイアログ ========== */}
+      <Dialog open={notifDialogOpen} onOpenChange={setNotifDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bell className="w-5 h-5 text-primary" />
+              プッシュ通知設定
+            </DialogTitle>
+            <DialogDescription>
+              スケジュールが更新されたときに通知を受け取るチームを選んでください。
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* 現在の状態表示 */}
+            {isSubscribed && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 rounded-lg text-sm text-emerald-700">
+                <Bell className="w-4 h-4 fill-emerald-500" />
+                通知は現在オンになっています
+              </div>
+            )}
+
+            {/* チーム選択 */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">通知するチーム</label>
+              <Select value={selectedTeamFilter} onValueChange={setSelectedTeamFilter}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="チームを選択" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">🔔 全チーム（すべての更新で通知）</SelectItem>
+                  <SelectItem value="身体">📌 身体チームのみ</SelectItem>
+                  <SelectItem value="天理">📌 天理チームのみ</SelectItem>
+                  <SelectItem value="郡山北部">📌 郡山北部チームのみ</SelectItem>
+                  <SelectItem value="郡山南部">📌 郡山南部チームのみ</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                「全チーム」を選ぶと、どのチームのスケジュールが更新されても通知が届きます。
+              </p>
+            </div>
+
+            {/* ボタングループ */}
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={async () => {
+                  const filter = selectedTeamFilter === "all" ? null : selectedTeamFilter;
+                  await subscribe(filter);
+                  setNotifDialogOpen(false);
+                }}
+                disabled={pushLoading}
+                className="flex-1 bg-primary text-white text-sm font-medium py-2 px-4 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {pushLoading ? "処理中..." : isSubscribed ? "設定を更新" : "通知を有効にする"}
+              </button>
+              {isSubscribed && (
+                <button
+                  onClick={async () => {
+                    await unsubscribe();
+                    setNotifDialogOpen(false);
+                  }}
+                  disabled={pushLoading}
+                  className="flex-1 border border-destructive text-destructive text-sm font-medium py-2 px-4 rounded-lg hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                >
+                  通知をオフにする
+                </button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

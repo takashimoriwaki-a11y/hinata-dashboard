@@ -295,6 +295,12 @@ export const pushSubscriptions = mysqlTable("push_subscriptions", {
   userId: int("userId"),
   /** 登録したユーザー名 */
   userName: varchar("userName", { length: 200 }),
+  /**
+   * 通知フィルター設定
+   * null = 全チームのスクリーンショット更新で通知
+   * "身体" | "天理" | "郡山北部" | "郡山南部" = 指定チームのみ通知
+   */
+  teamFilter: varchar("teamFilter", { length: 50 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
