@@ -119,7 +119,18 @@ export async function updateUserTeam(userId: number, team: "身体" | "天理" |
 export async function getAllScreenshots() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(scheduleScreenshots);
+  // imageDataは除外（Base64データは大きすぎるためレスポンスに含めない）
+  return db.select({
+    id: scheduleScreenshots.id,
+    team: scheduleScreenshots.team,
+    day: scheduleScreenshots.day,
+    imageUrl: scheduleScreenshots.imageUrl,
+    imageKey: scheduleScreenshots.imageKey,
+    uploadedBy: scheduleScreenshots.uploadedBy,
+    uploadedByName: scheduleScreenshots.uploadedByName,
+    createdAt: scheduleScreenshots.createdAt,
+    updatedAt: scheduleScreenshots.updatedAt,
+  }).from(scheduleScreenshots);
 }
 
 export async function getScreenshot(team: string, day: string) {
@@ -176,6 +187,15 @@ export async function deleteScreenshot(team: string, day: string) {
         eq(scheduleScreenshots.day, day as any)
       )
     );
+}
+
+export async function updateScreenshotUrl(id: number, imageUrl: string) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(scheduleScreenshots)
+    .set({ imageUrl })
+    .where(eq(scheduleScreenshots.id, id));
 }
 
 export async function deleteAllTodayScreenshots() {
@@ -793,4 +813,15 @@ export async function updateStaffRole(userId: number, role: "user" | "admin") {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.update(users).set({ role }).where(eq(users.id, userId));
+}
+
+export async function getScreenshotById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(scheduleScreenshots)
+    .where(eq(scheduleScreenshots.id, id))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
 }

@@ -1,0 +1,38 @@
+{
+  "query": "SELECT id, team, day, imageUrl, CASE WHEN imageData IS NOT NULL THEN 'YES' ELSE 'NO' END as has_imageData FROM schedule_screenshots ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT id, team, day, imageUrl, CASE WHEN imageData IS NOT NULL THEN 'YES' ELSE 'NO' END as has_imageData FROM schedule_screenshots ORDER BY id;",
+  "rows": [
+    {
+      "id": "5",
+      "team": "身体",
+      "day": "今日",
+      "imageUrl": "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/schedule-screenshots/身体-今日-m4rickv6.jpeg",
+      "has_imageData": "NO"
+    },
+    {
+      "id": "6",
+      "team": "身体",
+      "day": "明日",
+      "imageUrl": "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/schedule-screenshots/身体-明日-d3iow4l9.jpeg",
+      "has_imageData": "NO"
+    },
+    {
+      "id": "7",
+      "team": "天理",
+      "day": "今日",
+      "imageUrl": "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/schedule-screenshots/天理-今日-0cg20wv7.jpeg",
+      "has_imageData": "NO"
+    },
+    {
+      "id": "8",
+      "team": "天理",
+      "day": "明日",
+      "imageUrl": "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/schedule-screenshots/天理-明日-hrkb9ggh.jpeg",
+      "has_imageData": "NO"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tteam\tday\timageUrl\thas_imageData\n5\t身体\t今日\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/schedule-screenshots/身体-今日-m4rickv6.jpeg\tNO\n6\t身体\t明日\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/schedule-screenshots/身体-明日-d3iow4l9.jpeg\tNO\n7\t天理\t今日\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/schedule-screenshots/天理-今日-0cg20wv7.jpeg\tNO\n8\t天理\t明日\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/schedule-screenshots/天理-明日-hrkb9ggh.jpeg\tNO\n",
+  "stderr": "",
+  "execution_time_ms": 1609
+}

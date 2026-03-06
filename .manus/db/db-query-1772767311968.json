@@ -1,0 +1,38 @@
+{
+  "query": "SELECT id, team, day, \n  CASE \n    WHEN imageUrl LIKE 'data:%' THEN 'BASE64_URL'\n    WHEN imageUrl = '__db__' THEN 'PLACEHOLDER'\n    WHEN imageUrl LIKE '/api/screenshot/%' THEN 'API_URL'\n    WHEN imageUrl IS NULL THEN 'NULL'\n    ELSE LEFT(imageUrl, 60)\n  END as imageUrl_type,\n  CASE WHEN imageData IS NOT NULL THEN 'HAS_DATA' ELSE 'NO_DATA' END as imageData_status\nFROM schedule_screenshots;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT id, team, day, \n  CASE \n    WHEN imageUrl LIKE 'data:%' THEN 'BASE64_URL'\n    WHEN imageUrl = '__db__' THEN 'PLACEHOLDER'\n    WHEN imageUrl LIKE '/api/screenshot/%' THEN 'API_URL'\n    WHEN imageUrl IS NULL THEN 'NULL'\n    ELSE LEFT(imageUrl, 60)\n  END as imageUrl_type,\n  CASE WHEN imageData IS NOT NULL THEN 'HAS_DATA' ELSE 'NO_DATA' END as imageData_status\nFROM schedule_screenshots;",
+  "rows": [
+    {
+      "id": "5",
+      "team": "身体",
+      "day": "今日",
+      "imageUrl_type": "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP",
+      "imageData_status": "NO_DATA"
+    },
+    {
+      "id": "6",
+      "team": "身体",
+      "day": "明日",
+      "imageUrl_type": "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP",
+      "imageData_status": "NO_DATA"
+    },
+    {
+      "id": "7",
+      "team": "天理",
+      "day": "今日",
+      "imageUrl_type": "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP",
+      "imageData_status": "NO_DATA"
+    },
+    {
+      "id": "8",
+      "team": "天理",
+      "day": "明日",
+      "imageUrl_type": "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP",
+      "imageData_status": "NO_DATA"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tteam\tday\timageUrl_type\timageData_status\n5\t身体\t今日\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP\tNO_DATA\n6\t身体\t明日\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP\tNO_DATA\n7\t天理\t今日\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP\tNO_DATA\n8\t天理\t明日\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP\tNO_DATA\n",
+  "stderr": "",
+  "execution_time_ms": 1574
+}

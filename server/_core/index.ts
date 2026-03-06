@@ -80,6 +80,41 @@ async function startServer() {
     }
   });
 
+  // スクリーンショット画像取得エンドポイント（Base64データをDBから取得して返す）
+  app.get("/api/screenshot/:id", async (req, res) => {
+    try {
+      const { getScreenshotById } = await import("../db");
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        res.status(400).json({ error: "Invalid ID" });
+        return;
+      }
+      const screenshot = await getScreenshotById(id);
+      if (!screenshot) {
+        res.status(404).json({ error: "Not found" });
+        return;
+      }
+      // imageDataがある場合はBase64から画像を返す
+      if (screenshot.imageData) {
+        const base64Data = screenshot.imageData.replace(/^data:image\/\w+;base64,/, "");
+        const mimeMatch = screenshot.imageData.match(/^data:(image\/\w+);base64,/);
+        const mimeType = mimeMatch ? mimeMatch[1] : "image/png";
+        const buffer = Buffer.from(base64Data, "base64");
+        res.set("Content-Type", mimeType);
+        res.set("Cache-Control", "public, max-age=3600");
+        res.send(buffer);
+      } else if (screenshot.imageUrl) {
+        // S3 URLの場合はリダイレクト
+        res.redirect(screenshot.imageUrl);
+      } else {
+        res.status(404).json({ error: "No image data" });
+      }
+    } catch (e) {
+      console.error("[screenshot] error:", e);
+      res.status(500).json({ error: "Internal error" });
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

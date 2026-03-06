@@ -8,6 +8,7 @@ import {
   getAllScreenshots,
   getScreenshot,
   upsertScreenshot,
+  updateScreenshotUrl,
   deleteScreenshot,
   deleteAllTodayScreenshots,
   moveTomorrowToToday,
@@ -485,7 +486,8 @@ export const appRouter = router({
         id: s.id,
         team: s.team,
         day: s.day,
-        imageUrl: s.imageUrl,
+        // imageUrlがdata:URLの場合は専用エンドポイントのURLに変換（Base64データをレスポンスに含めない）
+        imageUrl: s.imageUrl?.startsWith("data:") ? `/api/screenshot/${s.id}` : s.imageUrl,
         uploadedByName: s.uploadedByName,
         updatedAt: s.updatedAt,
       }));
@@ -528,12 +530,13 @@ export const appRouter = router({
         } else {
           // S3がない場合：Base64データをDBに直接保存
           imageData = input.imageDataUrl; // data:image/xxx;base64,...形式で保存
-          imageUrl = input.imageDataUrl;  // 表示用URLもdata:URLを使用
           imageKey = `db-${input.team}-${input.day}`;
+          // imageUrlは後でDBのIDが確定してから /api/screenshot/:id に設定するため一時的にプレースホルダー
+          imageUrl = `__db__`; // upsert後にIDで上書き
         }
 
         // DBにアップサート
-        await upsertScreenshot({
+        const recordId = await upsertScreenshot({
           team: input.team,
           day: input.day,
           imageUrl,
@@ -542,6 +545,12 @@ export const appRouter = router({
           uploadedBy: ctx.user.id,
           uploadedByName: ctx.user.name ?? "不明",
         });
+
+        // S3なし環境の場合、DBのIDが確定したので imageUrl を /api/screenshot/:id に更新
+        if (!hasStorage && recordId) {
+          await updateScreenshotUrl(recordId, `/api/screenshot/${recordId}`);
+          imageUrl = `/api/screenshot/${recordId}`;
+        }
 
         // スケジュール更新通知を生成
         await createNotification({

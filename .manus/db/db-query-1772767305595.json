@@ -1,0 +1,38 @@
+{
+  "query": "SELECT id, team, day, LEFT(imageUrl, 50) as imageUrl_preview, LEFT(imageData, 30) as imageData_preview FROM schedule_screenshots;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT id, team, day, LEFT(imageUrl, 50) as imageUrl_preview, LEFT(imageData, 30) as imageData_preview FROM schedule_screenshots;",
+  "rows": [
+    {
+      "id": "5",
+      "team": "身体",
+      "day": "今日",
+      "imageUrl_preview": "https://d2xsxph8kpxj0f.cloudfront.net/310519663391",
+      "imageData_preview": "NULL"
+    },
+    {
+      "id": "6",
+      "team": "身体",
+      "day": "明日",
+      "imageUrl_preview": "https://d2xsxph8kpxj0f.cloudfront.net/310519663391",
+      "imageData_preview": "NULL"
+    },
+    {
+      "id": "7",
+      "team": "天理",
+      "day": "今日",
+      "imageUrl_preview": "https://d2xsxph8kpxj0f.cloudfront.net/310519663391",
+      "imageData_preview": "NULL"
+    },
+    {
+      "id": "8",
+      "team": "天理",
+      "day": "明日",
+      "imageUrl_preview": "https://d2xsxph8kpxj0f.cloudfront.net/310519663391",
+      "imageData_preview": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tteam\tday\timageUrl_preview\timageData_preview\n5\t身体\t今日\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663391\tNULL\n6\t身体\t明日\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663391\tNULL\n7\t天理\t今日\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663391\tNULL\n8\t天理\t明日\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663391\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 1623
+}
