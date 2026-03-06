@@ -8,9 +8,10 @@
  * - 録音中: 赤背景 + 波形バーアニメーション + ping
  * - 処理中: スピナー表示
  * - 通常時: マイクアイコン
+ * - 録音中は interimText（暫定テキスト）をボタン横にリアルタイム表示
  */
 
-import { Loader2, Mic, MicOff } from "lucide-react";
+import { Loader2, Mic } from "lucide-react";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,13 @@ interface VoiceMicButtonProps {
   className?: string;
   /** 無効化 */
   disabled?: boolean;
+  /**
+   * プレビュー表示モード（デフォルト: "tooltip"）
+   * - "tooltip": ボタン上部にポップアップ表示
+   * - "inline": ボタン右横にインライン表示（横並びレイアウト用）
+   * - "none": プレビューなし
+   */
+  previewMode?: "tooltip" | "inline" | "none";
 }
 
 const sizeConfig = {
@@ -31,18 +39,21 @@ const sizeConfig = {
     icon: "w-3.5 h-3.5",
     bars: "h-3",
     barWidth: "w-0.5",
+    previewText: "text-xs",
   },
   md: {
     button: "h-10 w-10 rounded-xl",
     icon: "w-4 h-4",
     bars: "h-4",
     barWidth: "w-0.5",
+    previewText: "text-sm",
   },
   lg: {
     button: "h-10 w-10 rounded-xl",
     icon: "w-4 h-4",
     bars: "h-4",
     barWidth: "w-0.5",
+    previewText: "text-sm",
   },
 };
 
@@ -51,8 +62,9 @@ export function VoiceMicButton({
   size = "md",
   className,
   disabled = false,
+  previewMode = "tooltip",
 }: VoiceMicButtonProps) {
-  const { isRecording, isProcessing, toggleVoice } = useVoiceInput({ onResult });
+  const { isRecording, isProcessing, toggleVoice, interimText } = useVoiceInput({ onResult });
   const cfg = sizeConfig[size];
 
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -61,7 +73,7 @@ export function VoiceMicButton({
     toggleVoice();
   };
 
-  return (
+  const button = (
     <button
       type="button"
       onPointerDown={handlePointerDown}
@@ -109,6 +121,52 @@ export function VoiceMicButton({
       ) : (
         <Mic className={cfg.icon} />
       )}
+
+      {/* tooltip モード: ボタン上部にポップアップ */}
+      {previewMode === "tooltip" && isRecording && interimText && (
+        <span
+          className={cn(
+            "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50",
+            "max-w-[200px] w-max px-2.5 py-1.5 rounded-lg",
+            "bg-gray-900/90 dark:bg-gray-100/90 backdrop-blur-sm",
+            "text-white dark:text-gray-900 font-normal leading-snug",
+            "pointer-events-none shadow-lg",
+            "animate-in fade-in-0 zoom-in-95 duration-150",
+            cfg.previewText
+          )}
+        >
+          {/* 吹き出しの三角 */}
+          <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900/90 dark:border-t-gray-100/90" />
+          <span className="opacity-60 italic">{interimText}</span>
+        </span>
+      )}
     </button>
   );
+
+  // inline モード: ボタン + テキストを横並びで返す
+  if (previewMode === "inline") {
+    return (
+      <span className="inline-flex items-center gap-2 min-w-0">
+        {button}
+        {isRecording && interimText && (
+          <span
+            className={cn(
+              "text-muted-foreground italic truncate max-w-[180px]",
+              "animate-in fade-in-0 duration-150",
+              cfg.previewText
+            )}
+          >
+            {interimText}
+          </span>
+        )}
+        {isRecording && !interimText && (
+          <span className={cn("text-muted-foreground italic", cfg.previewText)}>
+            話してください...
+          </span>
+        )}
+      </span>
+    );
+  }
+
+  return button;
 }

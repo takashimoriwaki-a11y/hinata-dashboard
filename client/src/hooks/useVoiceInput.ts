@@ -6,7 +6,7 @@
  * 共通音声入力カスタムフック。
  *
  * 使い方:
- *   const { isRecording, startVoice, stopVoice, isProcessing } = useVoiceInput({
+ *   const { isRecording, startVoice, stopVoice, isProcessing, interimText } = useVoiceInput({
  *     onResult: (text) => setMyText(prev => prev + text),
  *   });
  */
@@ -32,6 +32,8 @@ interface UseVoiceInputReturn {
   stopVoice: () => void;
   /** トグル（開始/停止を切り替え） */
   toggleVoice: () => void;
+  /** 認識中の暫定テキスト（確定前のリアルタイムプレビュー用） */
+  interimText: string;
 }
 
 // SpeechRecognition の型定義（ブラウザ互換）
@@ -102,6 +104,7 @@ export function useVoiceInput({
 }: UseVoiceInputOptions): UseVoiceInputReturn {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [interimText, setInterimText] = useState("");
 
   // Web Speech API 用
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
@@ -119,24 +122,37 @@ export function useVoiceInput({
     try {
       const recognition = new SpeechRecognitionClass();
       recognition.lang = lang;
-      recognition.continuous = true;       // 長い発話に対応
-      recognition.interimResults = false;  // 確定結果のみ取得（精度優先）
+      recognition.continuous = true;      // 長い発話に対応
+      recognition.interimResults = true;  // 暫定結果も取得（リアルタイムプレビュー）
       recognition.maxAlternatives = 1;
 
-      let accumulatedText = "";
+      let accumulatedFinalText = "";
 
       recognition.onresult = (event: SpeechRecognitionEvent) => {
+        let currentInterim = "";
+
         for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
-            accumulatedText += event.results[i][0].transcript;
+            // 確定テキストを蓄積
+            accumulatedFinalText += transcript;
+            // 確定したら暫定テキストをクリア
+            currentInterim = "";
+          } else {
+            // 未確定テキストをプレビュー用に保持
+            currentInterim += transcript;
           }
         }
+
+        // 暫定テキストを更新（確定テキスト + 現在の未確定テキスト）
+        setInterimText(currentInterim);
       };
 
       recognition.onend = () => {
         setIsRecording(false);
-        if (accumulatedText.trim()) {
-          onResult(accumulatedText.trim());
+        setInterimText("");
+        if (accumulatedFinalText.trim()) {
+          onResult(accumulatedFinalText.trim());
           toast.success("音声入力完了");
         }
         recognitionRef.current = null;
@@ -144,6 +160,7 @@ export function useVoiceInput({
 
       recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         setIsRecording(false);
+        setInterimText("");
         recognitionRef.current = null;
         if (event.error === "not-allowed") {
           toast.error("マイクのアクセスが許可されていません。ブラウザの設定を確認してください。");
@@ -171,6 +188,7 @@ export function useVoiceInput({
       recognitionRef.current = null;
     }
     setIsRecording(false);
+    setInterimText("");
   }, []);
 
   // ---- MediaRecorder + Whisper フォールバック実装 ----
@@ -299,5 +317,5 @@ export function useVoiceInput({
     }
   }, [isRecording, startVoice, stopVoice]);
 
-  return { isRecording, isProcessing, startVoice, stopVoice, toggleVoice };
+  return { isRecording, isProcessing, startVoice, stopVoice, toggleVoice, interimText };
 }

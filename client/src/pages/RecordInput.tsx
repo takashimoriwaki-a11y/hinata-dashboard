@@ -19,8 +19,10 @@ import {
   User, ChevronDown, Loader2, FileSpreadsheet, CheckCircle2, ExternalLink
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
 import { VoiceMicButton } from "@/components/VoiceMicButton";
+import { useVoiceInput } from "@/hooks/useVoiceInput";
 
 const TEAMS = ["身体", "天理", "郡山北部", "郡山南部"] as const;
 type Team = typeof TEAMS[number];
@@ -76,8 +78,10 @@ export default function RecordInput() {
   // 音声入力（useVoiceInputフックで管理）
   // 利用者名検索用
   const voicePatient = { onResult: (text: string) => { setSearchQuery(text.trim()); setShowPatientList(true); } };
-  // 病状の経過用
-  const voiceNotes = { onResult: (text: string) => { setClinicalNotes(prev => prev + (prev ? "\n" : "") + text.trim()); } };
+  // 病状の経過用（interimTextを直接取得するためuseVoiceInputを直接使用）
+  const notesVoice = useVoiceInput({
+    onResult: (text: string) => { setClinicalNotes(prev => prev + (prev ? "\n" : "") + text.trim()); },
+  });
 
   // ===== 下書き自動保存 =====
   const DRAFT_KEY = "hinata_record_draft";
@@ -323,6 +327,7 @@ ${clinicalNotes}`);
                   <VoiceMicButton
                     onResult={voicePatient.onResult}
                     size="sm"
+                    previewMode="tooltip"
                   />
                   <Button
                     variant="outline"
@@ -521,17 +526,55 @@ ${clinicalNotes}`);
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="text-xs font-medium text-muted-foreground">本日観察・収集した情報</label>
-              <VoiceMicButton
-                onResult={voiceNotes.onResult}
-                size="sm"
-              />
+              <button
+                type="button"
+                onPointerDown={(e) => { e.preventDefault(); notesVoice.toggleVoice(); }}
+                className={cn(
+                  "relative inline-flex items-center justify-center flex-shrink-0 h-8 w-8 rounded-lg",
+                  "border transition-all duration-200 select-none touch-manipulation",
+                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                  notesVoice.isRecording
+                    ? "bg-red-500 border-red-400 text-white shadow-md shadow-red-500/40"
+                    : "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 active:scale-95"
+                )}
+                aria-label={notesVoice.isRecording ? "録音停止" : "音声入力開始"}
+              >
+                {notesVoice.isRecording && (
+                  <span className="absolute inset-0 rounded-[inherit] overflow-hidden pointer-events-none">
+                    <span className="absolute inset-0 animate-ping rounded-[inherit] bg-red-400 opacity-25" />
+                  </span>
+                )}
+                {notesVoice.isRecording ? (
+                  <span className="flex items-end justify-center gap-px h-3">
+                    {[0,1,2,3].map((i) => (
+                      <span key={i} className="w-0.5 bg-white rounded-full" style={{ height: "60%", animation: "voiceBar 0.5s ease-in-out infinite alternate", animationDelay: `${i * 0.12}s` }} />
+                    ))}
+                  </span>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+                )}
+              </button>
             </div>
-            <Textarea
-              placeholder="本日の訪問で観察した症状・状態・利用者の言葉・環境の変化などをメモしてください..."
-              value={clinicalNotes}
-              onChange={(e) => setClinicalNotes(e.target.value)}
-              className="min-h-[120px] text-sm"
-            />
+            <div className="relative">
+              <Textarea
+                placeholder="本日訪問で観察した症状・状態・利用者の言葉・環境の変化などをメモしてください..."
+                value={clinicalNotes}
+                onChange={(e) => setClinicalNotes(e.target.value)}
+                className="min-h-[120px] text-sm"
+              />
+              {/* 音声認識中の暫定テキストプレビュー */}
+              {notesVoice.isRecording && (
+                <div className="mt-1.5 px-2 py-1.5 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 min-h-[32px]">
+                  {notesVoice.interimText ? (
+                    <p className="text-xs text-red-600 dark:text-red-400 italic leading-relaxed">
+                      🎤 {notesVoice.interimText}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">話してください...</p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
           <Button
             className="w-full"

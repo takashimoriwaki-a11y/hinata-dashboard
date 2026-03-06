@@ -55,6 +55,7 @@ import { Link } from "wouter";
 import { useTheme } from "@/contexts/ThemeContext";
 import TaskCreateForm from "@/components/TaskCreateForm";
 import { VoiceMicButton } from "@/components/VoiceMicButton";
+import { useVoiceInput } from "@/hooks/useVoiceInput";
 
 // ========== データ定義 ==========
 
@@ -1574,7 +1575,10 @@ function MessageBoard({ title }: { title: string }) {
   const [displayUntilTime, setDisplayUntilTime] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
   const [scheduledAtTime, setScheduledAtTime] = useState("");
-  // 音声入力（useVoiceInputフック経由でVoiceMicButtonを使用）
+  // 音声入力（interimTextを直接取得するためuseVoiceInputを直接使用）
+  const msgVoice = useVoiceInput({
+    onResult: (text: string) => setNewMsg(prev => prev + (prev ? " " : "") + text),
+  });
 
   // メッセージ作成
   const createMsg = trpc.messages.create.useMutation({
@@ -1689,17 +1693,54 @@ function MessageBoard({ title }: { title: string }) {
         {showForm && (
           <div className="border border-primary/20 rounded-xl p-4 space-y-3 bg-primary/5">
             <div className="flex gap-2">
-              <Textarea
-                placeholder="メッセージを入力..."
-                value={newMsg}
-                onChange={(e) => setNewMsg(e.target.value)}
-                className="text-sm min-h-[80px] resize-none flex-1"
-              />
-              <VoiceMicButton
-                onResult={(text) => setNewMsg(prev => prev + (prev ? " " : "") + text)}
-                size="md"
-                className="self-end flex-shrink-0"
-              />
+              <div className="flex-1 space-y-1.5">
+                <Textarea
+                  placeholder="メッセージを入力..."
+                  value={newMsg}
+                  onChange={(e) => setNewMsg(e.target.value)}
+                  className="text-sm min-h-[80px] resize-none w-full"
+                />
+                {/* 音声認識中の暫定テキストプレビュー */}
+                {msgVoice.isRecording && (
+                  <div className="px-2 py-1.5 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 min-h-[28px]">
+                    {msgVoice.interimText ? (
+                      <p className="text-xs text-red-600 dark:text-red-400 italic leading-relaxed">
+                        🎤 {msgVoice.interimText}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">話してください...</p>
+                    )}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onPointerDown={(e) => { e.preventDefault(); msgVoice.toggleVoice(); }}
+                className={cn(
+                  "relative inline-flex items-center justify-center flex-shrink-0 h-10 w-10 rounded-xl self-end",
+                  "border transition-all duration-200 select-none touch-manipulation",
+                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                  msgVoice.isRecording
+                    ? "bg-red-500 border-red-400 text-white shadow-md shadow-red-500/40"
+                    : "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 active:scale-95"
+                )}
+                aria-label={msgVoice.isRecording ? "録音停止" : "音声入力開始"}
+              >
+                {msgVoice.isRecording && (
+                  <span className="absolute inset-0 rounded-[inherit] overflow-hidden pointer-events-none">
+                    <span className="absolute inset-0 animate-ping rounded-[inherit] bg-red-400 opacity-25" />
+                  </span>
+                )}
+                {msgVoice.isRecording ? (
+                  <span className="flex items-end justify-center gap-px h-4">
+                    {[0,1,2,3].map((i) => (
+                      <span key={i} className="w-0.5 bg-white rounded-full" style={{ height: "60%", animation: "voiceBar 0.5s ease-in-out infinite alternate", animationDelay: `${i * 0.12}s` }} />
+                    ))}
+                  </span>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+                )}
+              </button>
             </div>
             {/* 表示期間・予約 */}
             {(() => {

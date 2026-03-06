@@ -336,3 +336,8 @@
 - [x] 全箇所のサイズ・ labelプロパティを統一
 - [x] Dashboard.tsxのsize="lg"をmdに統一
 - [x] RecordInput.tsxのlabelを削除し見た目を統一
+## 音声認識中リアルタイムプレビュー（2026-03-06）
+
+- [x] useVoiceInputにinterimTextを追加（interimResults: true）
+- [x] VoiceMicButtonにinterimTextプレビューオーバーレイを追加
+- [x] 各入力箇所（RecordInput・Dashboard・TaskCreateForm）にプレビュー表示を適用
