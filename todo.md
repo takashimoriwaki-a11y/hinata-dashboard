@@ -322,3 +322,10 @@
 - [x] iOS Safari・Android Chrome両対応（interimResults・continuous設定）
 - [x] 権限エラー・非対応ブラウザ時にわかりやすいエラーメッセージを表示
 - [x] 記録タブ・タスク・メッセージの全音声入力ボタンを統一コンポーネントに置き換え
+
+## タスク作成UI統一（2026-03-06）
+
+- [x] タスクタブの新規作成フォームをTaskCreateFormコンポーネントに置き換え
+- [x] 期日・時刻の入力形式をホーム画面と統一（10分単位セレクト＋×クリアボタン）
+- [x] 繰り返し設定（なし/毎週/毎月）をタスクタブにも追加
+- [x] 不要なstate・handleAdd・createTask mutationをTasks.tsxから削除
