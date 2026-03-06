@@ -1,0 +1,20 @@
+{
+  "query": "SELECT id, name, email, role, team, passwordHash, loginMethod, lastSignedIn FROM users WHERE email = 'takashimoriwaki@kokoronohinata.com' LIMIT 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT id, name, email, role, team, passwordHash, loginMethod, lastSignedIn FROM users WHERE email = 'takashimoriwaki@kokoronohinata.com' LIMIT 1;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "崇 森脇",
+      "email": "takashimoriwaki@kokoronohinata.com",
+      "role": "admin",
+      "team": "身体",
+      "passwordHash": "NULL",
+      "loginMethod": "google",
+      "lastSignedIn": "2026-03-05 17:04:46"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\tteam\tpasswordHash\tloginMethod\tlastSignedIn\n1\t崇 森脇\ttakashimoriwaki@kokoronohinata.com\tadmin\t身体\tNULL\tgoogle\t2026-03-05 17:04:46\n",
+  "stderr": "",
+  "execution_time_ms": 1579
+}

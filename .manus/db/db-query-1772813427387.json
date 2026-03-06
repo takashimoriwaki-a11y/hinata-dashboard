@@ -1,0 +1,20 @@
+{
+  "query": "SELECT id, name, email, role, team, loginMethod, lastSignedIn, CASE WHEN passwordHash IS NULL THEN 'NULL' WHEN passwordHash = '' THEN 'EMPTY' ELSE 'SET' END as passwordStatus FROM users WHERE email = 'takashimoriwaki@kokoronohinata.com';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT id, name, email, role, team, loginMethod, lastSignedIn, CASE WHEN passwordHash IS NULL THEN 'NULL' WHEN passwordHash = '' THEN 'EMPTY' ELSE 'SET' END as passwordStatus FROM users WHERE email = 'takashimoriwaki@kokoronohinata.com';",
+  "rows": [
+    {
+      "id": "1",
+      "name": "崇 森脇",
+      "email": "takashimoriwaki@kokoronohinata.com",
+      "role": "admin",
+      "team": "身体",
+      "loginMethod": "google",
+      "lastSignedIn": "2026-03-05 17:04:46",
+      "passwordStatus": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\tteam\tloginMethod\tlastSignedIn\tpasswordStatus\n1\t崇 森脇\ttakashimoriwaki@kokoronohinata.com\tadmin\t身体\tgoogle\t2026-03-05 17:04:46\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 1578
+}
