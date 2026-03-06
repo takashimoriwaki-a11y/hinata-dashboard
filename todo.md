@@ -404,3 +404,13 @@
 - [x] サービスアカウントに編集権限を付与
 - [x] routers.tsのVISIT_RECORD_SHEET_IDを新しいID（1WOZQ5rI0Fu57nWaiGwComPS_DdEwPgNR6zeOmyrqKpo）に変更
 - [x] TypeScriptコンパイルエラー 0件を確認
+
+## 転送済みフラグリセット・スプレッドシート書式・フィルター機能（2026-03-07）
+
+- [x] tRPC visitRecords.unmarkExported プロシージャを追加（転送済みフラグをリセット）
+- [x] db.tsにunmarkVisitRecordExported関数を追加
+- [x] 記録入力画面に「未転送に戻す」ボタンを追加（転送済み状態時に表示）
+- [x] exportToSheet時にスプレッドシートのヘッダー行書式を設定（太字・青背景・白文字・列幅）
+- [x] exportToSheet時にオートフィルターを設定（A1:J1範囲、日付・チーム・担当者等でフィルター可能）
+- [x] ヘッダー行をフリーズ（固定）しスクロールしても見えるように設定
+- [x] TypeScriptコンパイルエラー 0件を確認

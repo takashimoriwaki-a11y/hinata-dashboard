@@ -761,6 +761,13 @@ export async function markVisitRecordExported(id: number) {
   await db.update(visitRecords).set({ exportedAt: new Date() }).where(eq(visitRecords.id, id));
 }
 
+/** スプレッドシート転送済みフラグをリセットする（未転送に戻す） */
+export async function unmarkVisitRecordExported(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(visitRecords).set({ exportedAt: null }).where(eq(visitRecords.id, id));
+}
+
 // ========== アプリ内通知 ==========
 
 /** 通知を作成する */

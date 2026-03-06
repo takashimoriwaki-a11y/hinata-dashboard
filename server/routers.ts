@@ -47,6 +47,7 @@ import {
   getVisitRecords,
   getVisitRecordById,
   markVisitRecordExported,
+  unmarkVisitRecordExported,
   createNotification,
   getUnreadNotifications,
   getAllNotifications,
@@ -1053,8 +1054,80 @@ export const appRouter = router({
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Sheets API error: ${text}` });
         }
 
+        // シートIDを取得してヘッダー書式・列幅・オートフィルターを設定（初回転送時のみ実行）
+        try {
+          const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}?fields=sheets.properties`, {
+            headers: { Authorization: `Bearer ${token.token}` },
+          });
+          if (metaRes.ok) {
+            const meta = await metaRes.json();
+            const sheetId = meta.sheets?.[0]?.properties?.sheetId ?? 0;
+
+            // batchUpdateでヘッダー書式・列幅・オートフィルターを一括設定
+            const batchBody = {
+              requests: [
+                // ヘッダー行（1行目）を太字・背景色付きに
+                {
+                  repeatCell: {
+                    range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 10 },
+                    cell: {
+                      userEnteredFormat: {
+                        backgroundColor: { red: 0.267, green: 0.447, blue: 0.769 }, // #4472C4
+                        textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } },
+                        horizontalAlignment: "CENTER",
+                      },
+                    },
+                    fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
+                  },
+                },
+                // 列幅を内容に合わせて設定
+                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 140 }, fields: "pixelSize" } }, // 転送日時
+                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 1, endIndex: 2 }, properties: { pixelSize: 100 }, fields: "pixelSize" } }, // 担当者
+                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 2, endIndex: 3 }, properties: { pixelSize: 90 }, fields: "pixelSize" } },  // チーム
+                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 3, endIndex: 4 }, properties: { pixelSize: 120 }, fields: "pixelSize" } }, // 利用者名
+                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 4, endIndex: 5 }, properties: { pixelSize: 140 }, fields: "pixelSize" } }, // 次回訪問日時
+                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 5, endIndex: 6 }, properties: { pixelSize: 90 }, fields: "pixelSize" } },  // 伝達先
+                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 6, endIndex: 7 }, properties: { pixelSize: 120 }, fields: "pixelSize" } }, // 伝達先(その他)
+                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 7, endIndex: 8 }, properties: { pixelSize: 110 }, fields: "pixelSize" } }, // 伝達方法
+                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 8, endIndex: 9 }, properties: { pixelSize: 120 }, fields: "pixelSize" } }, // 伝達方法(その他)
+                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 9, endIndex: 10 }, properties: { pixelSize: 300 }, fields: "pixelSize" } }, // 病状の経過
+                // オートフィルターを設定（全列）
+                {
+                  setBasicFilter: {
+                    filter: {
+                      range: { sheetId, startRowIndex: 0, startColumnIndex: 0, endColumnIndex: 10 },
+                    },
+                  },
+                },
+                // ヘッダー行を固定（フリーズ）
+                {
+                  updateSheetProperties: {
+                    properties: { sheetId, gridProperties: { frozenRowCount: 1 } },
+                    fields: "gridProperties.frozenRowCount",
+                  },
+                },
+              ],
+            };
+            await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}:batchUpdate`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
+              body: JSON.stringify(batchBody),
+            });
+          }
+        } catch {
+          // 書式設定の失敗は転送自体に影響しない
+        }
+
         // 転送済みフラグを立てる
         await markVisitRecordExported(input.id);
+        return { success: true };
+      }),
+
+    // 転送済みフラグをリセット（未転送に戻す）
+    unmarkExported: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await unmarkVisitRecordExported(input.id);
         return { success: true };
       }),
   }),

@@ -73,7 +73,7 @@ export default function RecordInput() {
   const [exported, setExported] = useState(false);
 
   // 転送先スプレッドシートURL（編集ボタン用）
-  const VISIT_RECORD_SHEET_URL = "https://docs.google.com/spreadsheets/d/1BGMdVGTQEkcVXioa5leetH_kPr859nNHMnhkwEMlWqA/edit";
+  const VISIT_RECORD_SHEET_URL = "https://docs.google.com/spreadsheets/d/1WOZQ5rI0Fu57nWaiGwComPS_DdEwPgNR6zeOmyrqKpo/edit"; // ひなた_次回訪問日時
 
   // 音声入力（useVoiceInputフックで管理）
   // 利用者名検索用
@@ -164,6 +164,15 @@ export default function RecordInput() {
       setNotifyMethodOther("");
     },
     onError: (err) => toast.error(`転送エラー: ${err.message}`),
+  });
+
+  const unmarkExported = trpc.visitRecords.unmarkExported.useMutation({
+    onSuccess: () => {
+      setExported(false);
+      toast.success("未転送に戻しました");
+      utils.visitRecords.getMine.invalidate();
+    },
+    onError: (err) => toast.error(`リセットエラー: ${err.message}`),
   });
 
 
@@ -492,15 +501,30 @@ ${clinicalNotes}`);
             </Button>
           </div>
           {exported && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full text-xs border-emerald-400 text-emerald-700 hover:bg-emerald-50"
-              onClick={() => window.open(VISIT_RECORD_SHEET_URL, "_blank", "noopener,noreferrer")}
-            >
-              <ExternalLink className="w-3 h-3 mr-1" />
-              スプレッドシートを開いて確認・修正する
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 text-xs border-emerald-400 text-emerald-700 hover:bg-emerald-50"
+                onClick={() => window.open(VISIT_RECORD_SHEET_URL, "_blank", "noopener,noreferrer")}
+              >
+                <ExternalLink className="w-3 h-3 mr-1" />
+                スプレッドシートを確認
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs border-amber-300 text-amber-700 hover:bg-amber-50"
+                onClick={() => {
+                  if (savedRecordId && confirm("転送済みフラグをリセットしますか？\nスプレッドシートのデータは削除されません。")) {
+                    unmarkExported.mutate({ id: savedRecordId });
+                  }
+                }}
+                disabled={unmarkExported.isPending}
+              >
+                {unmarkExported.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "未転送に戻す"}
+              </Button>
+            </div>
           )}
         </div>
       ) : (
