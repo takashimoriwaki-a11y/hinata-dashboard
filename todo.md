@@ -457,3 +457,13 @@
 - [ ] Login.tsxのGoogleログインURLを正しいManus OAuthフローに修正
 - [ ] 職員のGoogleログイン対応（新規登録時にGoogleアカウントと紐付け）
 - [ ] TypeScriptコンパイルエラー 0件を確認
+
+## Google OAuth対応（2026-03-07）
+
+- [x] スタッフ管理画面にGoogleメールアドレス登録・変更機能を追加
+  - [x] db.tsにupdateStaffEmail関数を追加
+  - [x] routers.tsにstaff.updateEmail procedureを追加
+  - [x] Admin.tsxのスタッフ一覧にメールアドレス編集UIを追加（メールアイコンボタン）
+- [x] 未登録Googleアカウントでのログイン時にわかりやすいエラーメッセージを表示
+  - [x] googleAuth.tsでメール未登録時にgoogle_not_registeredエラーコードを返す
+  - [x] Login.tsxでエラーコードに応じたメッセージを表示

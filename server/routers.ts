@@ -60,6 +60,7 @@ import {
   resetStaffPassword,
   deleteStaffAccount,
   updateStaffRole,
+  updateStaffEmail,
   batchCreatePatients,
   batchCreateStaff,
   createScreenshotUploadLog,
@@ -71,7 +72,8 @@ import { storagePut } from "./storage";
 import { eq } from "drizzle-orm";
 import { users } from "../drizzle/schema";
 
-const COOKIE_NAME = "session";
+// COOKIE_NAME is imported from shared/const via googleAuth.ts; use the shared constant here too
+import { COOKIE_NAME } from "../shared/const";
 
 // Google Sheets API設定
 const SPREADSHEET_ID = "1rS_ZMccLCy-XcRxbxlhTfNwhaCesdX7DBSZggjQUH58";
@@ -1309,6 +1311,23 @@ export const appRouter = router({
         }
         await updateStaffRole(input.userId, input.role);
         return { success: true };
+      }),
+    // スタッフのメールアドレスを変更（管理者のみ）
+    updateEmail: protectedProcedure
+      .input(z.object({
+        userId: z.number(),
+        email: z.string().email(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
+        }
+        try {
+          await updateStaffEmail(input.userId, input.email);
+          return { success: true };
+        } catch (err: any) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: err.message ?? "メールアドレスの更新に失敗しました" });
+        }
       }),
   }),
 

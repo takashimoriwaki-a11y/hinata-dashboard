@@ -14,7 +14,7 @@ import {
   Plus, Trash2, ExternalLink, Settings, ClipboardPaste,
   CheckCircle2, AlertCircle, ChevronDown, ChevronUp,
   Users, Pencil, X, ChevronRight, UserPlus, Key, Shield, ShieldCheck,
-  FileSpreadsheet, Upload, Download, LogOut, RotateCcw,
+  FileSpreadsheet, Upload, Download, LogOut, RotateCcw, Mail,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -1119,6 +1119,20 @@ function StaffManagementPanel() {
     onError: (e) => toast.error(e.message),
   });
 
+  // メールアドレス編集
+  const [editEmailUserId, setEditEmailUserId] = useState<number | null>(null);
+  const [editEmailValue, setEditEmailValue] = useState("");
+
+  const updateEmail = trpc.staff.updateEmail.useMutation({
+    onSuccess: () => {
+      utils.staff.getAll.invalidate();
+      toast.success("メールアドレスを更新しました");
+      setEditEmailUserId(null);
+      setEditEmailValue("");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
   const handleCreate = () => {
     if (!newName.trim()) { toast.error("名前を入力してください"); return; }
     if (!newEmail.trim()) { toast.error("メールアドレスを入力してください"); return; }
@@ -1302,6 +1316,14 @@ function StaffManagementPanel() {
                     <p className="text-xs text-muted-foreground">最終ログイン: {staff.lastSignedIn ? new Date(staff.lastSignedIn).toLocaleDateString("ja-JP") : "未ログイン"}</p>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
+                    {/* メールアドレス編集 */}
+                    <button
+                      onClick={() => { setEditEmailUserId(staff.id); setEditEmailValue(staff.email ?? ""); }}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                      title="メールアドレス変更（Googleログイン用）"
+                    >
+                      <Mail className="w-3.5 h-3.5" />
+                    </button>
                     {/* パスワードリセット */}
                     <button
                       onClick={() => { setResetUserId(staff.id); setResetPassword(""); }}
@@ -1332,6 +1354,35 @@ function StaffManagementPanel() {
                     </button>
                   </div>
                 </div>
+
+                {/* メールアドレス編集フォーム */}
+                {editEmailUserId === staff.id && (
+                  <div className="mt-2 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-3 space-y-2">
+                    <p className="text-xs font-medium text-blue-700 dark:text-blue-400">{staff.name}のメールアドレス変更（Googleログイン用）</p>
+                    <input
+                      type="email"
+                      value={editEmailValue}
+                      onChange={(e) => setEditEmailValue(e.target.value)}
+                      placeholder="例：hanako@kokoronohinata.com"
+                      className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    />
+                    <p className="text-[10px] text-blue-600 dark:text-blue-400">GoogleアカウントのメールアドレスをここにGoogleログインできるようになります</p>
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setEditEmailUserId(null); setEditEmailValue(""); }}>キャンセル</Button>
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs bg-blue-600 hover:bg-blue-700"
+                        onClick={() => {
+                          if (!editEmailValue.trim()) { toast.error("メールアドレスを入力してください"); return; }
+                          updateEmail.mutate({ userId: staff.id, email: editEmailValue.trim() });
+                        }}
+                        disabled={updateEmail.isPending}
+                      >
+                        {updateEmail.isPending ? "更新中..." : "メールアドレスを変更"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 {/* パスワードリセットフォーム */}
                 {resetUserId === staff.id && (

@@ -117,19 +117,9 @@ export function registerGoogleAuthRoutes(app: Express) {
       }
 
       if (!user) {
-        // 新規ユーザーとして登録
-        await db.upsertUser({
-          openId,
-          name,
-          email,
-          loginMethod: "google",
-          lastSignedIn: new Date(),
-        });
-        user = await db.getUserByOpenId(openId);
-      }
-
-      if (!user) {
-        res.redirect(302, "/login?error=user_creation_failed");
+        // 未登録のGoogleアカウントはログイン拒否（管理者がメールアドレスを事前登録する必要がある）
+        console.warn(`[GoogleAuth] Unregistered Google account attempted login: ${email}`);
+        res.redirect(302, `/login?error=google_not_registered&email=${encodeURIComponent(email ?? "")}`);
         return;
       }
 

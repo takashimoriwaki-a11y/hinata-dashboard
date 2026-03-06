@@ -1,4 +1,4 @@
-import { and, eq, or, isNull, desc, lte, gte, lt } from "drizzle-orm";
+import { and, eq, or, isNull, desc, lte, gte, lt, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot, myLinks, InsertMyLink, spreadsheetLinks, InsertSpreadsheetLink, tasks, InsertTask, messages, InsertMessage, messageReactions, InsertMessageReaction, patients, InsertPatient, visitRecords, InsertVisitRecord, appNotifications, InsertAppNotification } from "../drizzle/schema";
 import { screenshotUploadLogs, InsertScreenshotUploadLog, appSettings } from "../drizzle/schema";
@@ -1004,4 +1004,20 @@ export async function setSetting(key: string, value: string): Promise<void> {
   const db = await getDb();
   if (!db) return;
   await db.insert(appSettings).values({ key, value }).onDuplicateKeyUpdate({ set: { value } });
+}
+
+/** スタッフのメールアドレスを更新する（管理者用） */
+export async function updateStaffEmail(userId: number, email: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // メールアドレスの重複チェック（自分以外）
+  const existing = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(eq(users.email, email), sql`${users.id} != ${userId}`))
+    .limit(1);
+  if (existing.length > 0) {
+    throw new Error("このメールアドレスはすでに使用されています");
+  }
+  await db.update(users).set({ email }).where(eq(users.id, userId));
 }

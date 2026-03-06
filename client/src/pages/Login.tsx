@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,21 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   const utils = trpc.useUtils();
+
+  // URLパラメータからエラーコードを取得してメッセージを表示
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const errorCode = params.get("error");
+    const emailParam = params.get("email");
+    if (errorCode === "google_not_registered") {
+      const emailMsg = emailParam ? `（${emailParam}）` : "";
+      setError(`このGoogleアカウント${emailMsg}はシステムに登録されていません。管理者にメールアドレスの登録を依頼してください。`);
+    } else if (errorCode === "google_auth_failed") {
+      setError("Googleログインに失敗しました。しばらくしてからお試しください。");
+    } else if (errorCode === "user_creation_failed") {
+      setError("アカウントの作成に失敗しました。管理者にお問い合わせください。");
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
