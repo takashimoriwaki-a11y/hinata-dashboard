@@ -324,8 +324,10 @@ export const appRouter = router({
       try {
         return await getVisitData();
       } catch (error) {
-        console.error("[Visits] Failed to fetch sheet data:", error);
-        return null;
+        const msg = error instanceof Error ? error.message : String(error);
+        console.error("[Visits] Failed to fetch sheet data:", msg);
+        // デバッグ用: エラーメッセージを一時的に返す
+        return { _error: msg } as any;
       }
     }),
   }),
