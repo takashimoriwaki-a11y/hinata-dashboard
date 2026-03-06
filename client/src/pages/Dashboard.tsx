@@ -1650,45 +1650,99 @@ function MessageBoard({ title }: { title: string }) {
                   <div className="grid grid-cols-2 gap-1.5">
                     <div>
                       <label className="text-xs font-medium text-foreground block mb-1">表示開始（任意）</label>
-                      <input type="date" value={displayFrom} onChange={(e) => setDisplayFrom(e.target.value)}
-                        className="w-full text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
-                      <select value={displayFromTime} onChange={(e) => setDisplayFromTime(e.target.value)}
-                        disabled={!displayFrom}
-                        className="w-full mt-1.5 text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40">
-                        <option value="">時刻選択...</option>
-                        {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
-                      </select>
+                      <div className="relative">
+                        <input type="date" value={displayFrom} onChange={(e) => setDisplayFrom(e.target.value)}
+                          className="w-full text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary pr-7" />
+                        {displayFrom && (
+                          <button type="button" onClick={() => { setDisplayFrom(""); setDisplayFromTime(""); }}
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-destructive transition-colors" title="クリア">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative mt-1.5">
+                        <select value={displayFromTime} onChange={(e) => setDisplayFromTime(e.target.value)}
+                          disabled={!displayFrom}
+                          className="w-full text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40 pr-7">
+                          <option value="">時刻選択...</option>
+                          {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                        {displayFromTime && (
+                          <button type="button" onClick={() => setDisplayFromTime("")}
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-destructive transition-colors" title="時刻クリア">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <label className="text-xs font-medium text-foreground block mb-1">表示終了（任意）</label>
-                      <input type="date" value={displayUntil} onChange={(e) => setDisplayUntil(e.target.value)}
-                        className="w-full text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
-                      <select value={displayUntilTime} onChange={(e) => setDisplayUntilTime(e.target.value)}
-                        disabled={!displayUntil}
-                        className="w-full mt-1.5 text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40">
-                        <option value="">時刻選択...</option>
-                        {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
-                      </select>
+                      <div className="relative">
+                        <input type="date" value={displayUntil} onChange={(e) => setDisplayUntil(e.target.value)}
+                          className="w-full text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary pr-7" />
+                        {displayUntil && (
+                          <button type="button" onClick={() => { setDisplayUntil(""); setDisplayUntilTime(""); }}
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-destructive transition-colors" title="クリア">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative mt-1.5">
+                        <select value={displayUntilTime} onChange={(e) => setDisplayUntilTime(e.target.value)}
+                          disabled={!displayUntil}
+                          className="w-full text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40 pr-7">
+                          <option value="">時刻選択...</option>
+                          {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                        {displayUntilTime && (
+                          <button type="button" onClick={() => setDisplayUntilTime("")}
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-destructive transition-colors" title="時刻クリア">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div>
                     <label className="text-xs font-medium text-foreground block mb-1">予約送信（任意）</label>
                     <div className="grid grid-cols-2 gap-1.5">
-                      <input type="date" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)}
-                        className="w-full text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
-                      <select value={scheduledAtTime} onChange={(e) => setScheduledAtTime(e.target.value)}
-                        disabled={!scheduledAt}
-                        className="w-full text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40">
-                        <option value="">時刻選択...</option>
-                        {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
-                      </select>
+                      <div className="relative">
+                        <input type="date" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)}
+                          className="w-full text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary pr-7" />
+                        {scheduledAt && (
+                          <button type="button" onClick={() => { setScheduledAt(""); setScheduledAtTime(""); }}
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-destructive transition-colors" title="クリア">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <select value={scheduledAtTime} onChange={(e) => setScheduledAtTime(e.target.value)}
+                          disabled={!scheduledAt}
+                          className="w-full text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40 pr-7">
+                          <option value="">時刻選択...</option>
+                          {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                        {scheduledAtTime && (
+                          <button type="button" onClick={() => setScheduledAtTime("")}
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-destructive transition-colors" title="時刻クリア">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </>
               );
             })()}
             <div className="flex gap-2">
-              <Button variant="outline" size="default" className="flex-1 text-sm" onClick={() => setShowForm(false)}>キャンセル</Button>
+              <Button variant="outline" size="default" className="flex-1 text-sm" onClick={() => {
+                setNewMsg("");
+                setDisplayFrom(""); setDisplayFromTime("");
+                setDisplayUntil(""); setDisplayUntilTime("");
+                setScheduledAt(""); setScheduledAtTime("");
+                setShowForm(false);
+              }}>キャンセル</Button>
               <Button size="default" className="flex-1 text-sm" onClick={handlePost} disabled={createMsg.isPending || !newMsg.trim()}>
                 {scheduledAt ? "予約送信" : "投稿"}
               </Button>

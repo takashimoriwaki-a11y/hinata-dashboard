@@ -12,6 +12,7 @@ import {
   Users,
   Globe,
   ChevronUp,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -101,6 +102,16 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     onError: (e) => toast.error(e.message),
   });
 
+  const handleClear = () => {
+    setNewText("");
+    setNewDueDate("");
+    setNewDueTime("");
+    setNewAssignType("all");
+    setNewAssignTeam("身体");
+    setNewAssignUserId(null);
+    setNewAssignUserName("");
+  };
+
   const handleAdd = () => {
     if (!newText.trim()) {
       toast.error("タスクの内容を入力してください");
@@ -166,34 +177,58 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
             <label className="text-xs font-medium text-muted-foreground mb-1 block">
               <Calendar className="w-3 h-3 inline mr-0.5" />期日（任意）
             </label>
-            <input
-              type="date"
-              value={newDueDate}
-              onChange={(e) => setNewDueDate(e.target.value)}
-              className="w-full text-sm border border-border rounded-lg px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            />
+            <div className="relative">
+              <input
+                type="date"
+                value={newDueDate}
+                onChange={(e) => setNewDueDate(e.target.value)}
+                className="w-full text-sm border border-border rounded-lg px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary pr-7"
+              />
+              {newDueDate && (
+                <button
+                  type="button"
+                  onClick={() => { setNewDueDate(""); setNewDueTime(""); }}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-destructive transition-colors"
+                  title="期日をクリア"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">時刻（任意）</label>
-            <select
-              value={newDueTime}
-              onChange={(e) => setNewDueTime(e.target.value)}
-              disabled={!newDueDate}
-              className="w-full text-sm border border-border rounded-lg px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40"
-            >
-              <option value="">時刻を選択...</option>
-              {Array.from({ length: 24 * 6 }, (_, i) => {
-                const h = Math.floor(i / 6);
-                const m = (i % 6) * 10;
-                const hh = String(h).padStart(2, "0");
-                const mm = String(m).padStart(2, "0");
-                return (
-                  <option key={`${hh}:${mm}`} value={`${hh}:${mm}`}>
-                    {hh}:{mm}
-                  </option>
-                );
-              })}
-            </select>
+            <div className="relative">
+              <select
+                value={newDueTime}
+                onChange={(e) => setNewDueTime(e.target.value)}
+                disabled={!newDueDate}
+                className="w-full text-sm border border-border rounded-lg px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40 pr-7"
+              >
+                <option value="">時刻を選択...</option>
+                {Array.from({ length: 24 * 6 }, (_, i) => {
+                  const h = Math.floor(i / 6);
+                  const m = (i % 6) * 10;
+                  const hh = String(h).padStart(2, "0");
+                  const mm = String(m).padStart(2, "0");
+                  return (
+                    <option key={`${hh}:${mm}`} value={`${hh}:${mm}`}>
+                      {hh}:{mm}
+                    </option>
+                  );
+                })}
+              </select>
+              {newDueTime && (
+                <button
+                  type="button"
+                  onClick={() => setNewDueTime("")}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-destructive transition-colors"
+                  title="時刻をクリア"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -275,7 +310,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
             variant="outline"
             size="sm"
             className="flex-1"
-            onClick={onClose}
+            onClick={() => { handleClear(); onClose(); }}
           >
             キャンセル
           </Button>
