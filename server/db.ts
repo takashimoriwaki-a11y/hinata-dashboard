@@ -109,7 +109,7 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-export async function updateUserTeam(userId: number, team: "身体" | "天理" | "郡山北部" | "郡山南部") {
+export async function updateUserTeam(userId: number, team: "身体" | "天理" | "郡山北部" | "郡山南部" | "事務員" | "全チーム") {
   const db = await getDb();
   if (!db) return;
   await db.update(users).set({ team }).where(eq(users.id, userId));
@@ -840,7 +840,7 @@ export async function createStaffAccount(data: {
   email: string;
   passwordHash: string;
   role: "user" | "admin";
-  team: "身体" | "天理" | "郡山北部" | "郡山南部";
+  team: "身体" | "天理" | "郡山北部" | "郡山南部" | "事務員" | "全チーム";
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");

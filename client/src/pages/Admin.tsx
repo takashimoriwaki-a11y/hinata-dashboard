@@ -956,7 +956,7 @@ export default function Admin() {
 // スタッフ管理パネル
 // ============================
 
-const TEAMS_STAFF = ["身体", "天理", "郡山北部", "郡山南部"] as const;
+const TEAMS_STAFF = ["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"] as const;
 type TeamStaff = typeof TEAMS_STAFF[number];
 
 function StaffManagementPanel() {
@@ -1348,8 +1348,10 @@ function BulkExcelImportPanel() {
   };
 
   const handleDownloadTemplate = () => {
-    // テンプレートファイルのダウンロードリンク（別途CDNにアップロードが必要）
-    toast.info("テンプレートファイルはチャットからダウンロードしてください");
+    const a = document.createElement("a");
+    a.href = "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/\u3072\u306a\u305f_\u4e00\u62ec\u30a4\u30f3\u30dd\u30fc\u30c8_30e004e2.xlsx";
+    a.download = "\u3072\u306a\u305f_\u4e00\u62ec\u30a4\u30f3\u30dd\u30fc\u30c8.xlsx";
+    a.click();
   };
 
   return (
@@ -1361,13 +1363,20 @@ function BulkExcelImportPanel() {
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
               <Upload className="w-4 h-4 text-primary" />
             </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground mb-1">Excelファイルで利用者・スタッフを一括登録</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-foreground mb-1">エクセルファイルで利用者・スタッフを一括登録</p>
+              <p className="text-xs text-muted-foreground leading-relaxed mb-2">
                 「ひなた_一括インポート.xlsx」テンプレートに入力したデータを読み込みます。<br />
                 <span className="font-medium text-foreground">利用者シート</span>：新規登録（最大200件）<br />
                 <span className="font-medium text-foreground">スタッフシート</span>：既存ユーザーのチーム・権限を更新（未ログインユーザーはスキップ）
               </p>
+              <button
+                onClick={handleDownloadTemplate}
+                className="text-xs text-primary hover:underline flex items-center gap-1"
+              >
+                <Download className="w-3 h-3" />
+                テンプレートをダウンロード
+              </button>
             </div>
           </div>
         </CardContent>
@@ -1518,7 +1527,7 @@ function BulkExcelImportPanel() {
           <ul className="space-y-1 text-xs text-muted-foreground">
             <li className="flex items-start gap-1.5">
               <span className="text-primary mt-0.5">•</span>
-              利用者は新規登録のみ（同名の利用者が既に存在する場合も追加登録されます）
+              利用者は「氏名＋チーム」が一致する場合は更新、一致しない場合は新規登録されます
             </li>
             <li className="flex items-start gap-1.5">
               <span className="text-primary mt-0.5">•</span>

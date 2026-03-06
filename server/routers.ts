@@ -1087,7 +1087,7 @@ export const appRouter = router({
         email: z.string().email(),
         password: z.string().min(6).max(100),
         role: z.enum(["user", "admin"]).default("user"),
-        team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]).default("身体"),
+        team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]).default("身体"),
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin") {
@@ -1186,6 +1186,8 @@ export const appRouter = router({
 
         const VALID_TEAMS = ["身体", "天理", "郡山北部", "郡山南部"] as const;
         type ValidTeam = typeof VALID_TEAMS[number];
+        const VALID_STAFF_TEAMS = ["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"] as const;
+        type ValidStaffTeam = typeof VALID_STAFF_TEAMS[number];
 
         const result = {
           patients: { success: 0, skipped: 0, errors: [] as string[] },
@@ -1290,7 +1292,7 @@ export const appRouter = router({
           }) as unknown) as unknown[][];
 
           const dataRows = rows.slice(1);
-          const staffToCreate: Array<{ name: string; team: ValidTeam; role: "user" | "admin" }> = [];
+          const staffToCreate: Array<{ name: string; team: ValidStaffTeam; role: "user" | "admin" }> = [];
 
           for (let i = 0; i < dataRows.length; i++) {
             const row = dataRows[i];
@@ -1306,14 +1308,14 @@ export const appRouter = router({
             }
 
             // チームバリデーション
-            if (!VALID_TEAMS.includes(teamRaw as ValidTeam)) {
-              result.staff.errors.push(`スタッフ ${i + 2}行目: チーム「${teamRaw}」が無効です`);
+            if (!VALID_STAFF_TEAMS.includes(teamRaw as ValidStaffTeam)) {
+              result.staff.errors.push(`スタッフ ${i + 2}行目: チーム「${teamRaw}」が無効です（身体/天理/郡山北部/郡山南部/事務員/全チーム）`);
               continue;
             }
 
             const role: "user" | "admin" = roleRaw === "admin" ? "admin" : "user";
 
-            staffToCreate.push({ name, team: teamRaw as ValidTeam, role });
+            staffToCreate.push({ name, team: teamRaw as ValidStaffTeam, role });
           }
 
           // スタッフはメールなしで登録（名前+チームで既存検索して更新）

@@ -1,0 +1,1 @@
+ALTER TABLE `users` MODIFY COLUMN `team` enum('身体','天理','郡山北部','郡山南部','事務員','全チーム') DEFAULT '身体';

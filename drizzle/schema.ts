@@ -18,7 +18,7 @@ export const users = mysqlTable("users", {
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
   /** ユーザーが所属するチーム（デフォルト選択に使用） */
-  team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部"]).default("身体"),
+  team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]).default("身体"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
