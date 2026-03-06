@@ -8,14 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Heart } from "lucide-react";
 
-// Manus OAuthポータルを使ったGoogleログインURLを生成
+// Google OAuthログインURL（サーバー側の/api/auth/googleへリダイレクト）
 function getGoogleLoginUrl(): string {
-  const portalUrl = import.meta.env.VITE_OAUTH_PORTAL_URL ?? "https://manus.im";
-  const appId = import.meta.env.VITE_APP_ID ?? "";
-  // コールバックURLをstateとしてbase64エンコードして渡す
-  const callbackUrl = `${window.location.origin}/api/oauth/callback`;
-  const state = btoa(callbackUrl);
-  return `${portalUrl}/oauth/google?appId=${appId}&state=${state}`;
+  return "/api/auth/google";
 }
 
 export default function Login() {
@@ -58,6 +53,7 @@ export default function Login() {
   };
 
   const handleGoogleLogin = () => {
+    // サーバー側のGoogle OAuthエンドポイントへリダイレクト
     window.location.href = getGoogleLoginUrl();
   };
 

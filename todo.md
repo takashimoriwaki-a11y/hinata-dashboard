@@ -450,3 +450,10 @@
 - [x] Login.tsxにGoogleログインボタンを追加（Manus OAuthフロー利用）
 - [x] メール/パスワードログインとGoogleログインを並列表示（「または」区切り線付き）
 - [x] TypeScriptコンパイルエラー 0件を確認
+
+## GoogleログインURL修正・全職員Googleログイン対応（2026-03-07）
+
+- [ ] OAuthフローの正しいURL構造を確認（const.tsのgetLoginUrl関数を参照）
+- [ ] Login.tsxのGoogleログインURLを正しいManus OAuthフローに修正
+- [ ] 職員のGoogleログイン対応（新規登録時にGoogleアカウントと紐付け）
+- [ ] TypeScriptコンパイルエラー 0件を確認
