@@ -9,8 +9,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Heart } from "lucide-react";
 
 // Google OAuthログインURL（サーバー側の/api/auth/googleへリダイレクト）
+// originパラメータを渡してサーバー側でリダイレクトURIを正しく生成できるようにする
 function getGoogleLoginUrl(): string {
-  return "/api/auth/google";
+  const origin = window.location.origin;
+  return `/api/auth/google?origin=${encodeURIComponent(origin)}`;
 }
 
 export default function Login() {

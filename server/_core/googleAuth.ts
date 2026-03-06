@@ -5,14 +5,12 @@ import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { createSessionToken } from "./localAuth";
 
-function getOAuth2Client(): OAuth2Client {
-  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
-  return new OAuth2Client(clientId, clientSecret);
-}
-
-function getCallbackUrl(req: Request): string {
-  // フロントエンドからoriginを渡してもらう（stateパラメータ経由）
+function getCallbackUrl(req: Request, origin?: string): string {
+  // originパラメータが渡された場合はそれを使用（フロントエンドのURLが正確）
+  if (origin) {
+    return `${origin}/api/auth/google/callback`;
+  }
+  // フォールバック: ヘッダーから取得
   const proto = req.headers["x-forwarded-proto"] || req.protocol;
   const host = req.headers["x-forwarded-host"] || req.headers.host;
   return `${proto}://${host}/api/auth/google/callback`;
@@ -27,11 +25,13 @@ export function registerGoogleAuthRoutes(app: Express) {
       return;
     }
 
-    const callbackUrl = getCallbackUrl(req);
+    // フロントエンドからoriginを受け取る
+    const origin = req.query.origin as string | undefined;
+    const callbackUrl = getCallbackUrl(req, origin);
     const oauth2Client = new OAuth2Client(clientId, process.env.GOOGLE_OAUTH_CLIENT_SECRET, callbackUrl);
 
-    // stateにreturnPathを含める（CSRF対策も兼ねる）
-    const state = Buffer.from(JSON.stringify({ returnPath: "/" })).toString("base64url");
+    // stateにreturnPathとoriginを含める（コールバック時にリダイレクトURIを再構築するため）
+    const state = Buffer.from(JSON.stringify({ returnPath: "/", origin: origin ?? null })).toString("base64url");
 
     const authUrl = oauth2Client.generateAuthUrl({
       access_type: "online",
@@ -54,7 +54,21 @@ export function registerGoogleAuthRoutes(app: Express) {
     }
 
     try {
-      const callbackUrl = getCallbackUrl(req);
+      // stateからoriginとreturnPathを取得
+      let returnPath = "/";
+      let originFromState: string | null = null;
+      if (state) {
+        try {
+          const decoded = JSON.parse(Buffer.from(state, "base64url").toString());
+          if (decoded.returnPath) returnPath = decoded.returnPath;
+          if (decoded.origin) originFromState = decoded.origin;
+        } catch {
+          // stateのパースに失敗した場合はデフォルトのパスを使用
+        }
+      }
+
+      // コールバックURLはstateのoriginから再構築（認証URLと一致させる必要がある）
+      const callbackUrl = getCallbackUrl(req, originFromState ?? undefined);
       const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
       const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
       const oauth2Client = new OAuth2Client(clientId, clientSecret, callbackUrl);
@@ -123,17 +137,6 @@ export function registerGoogleAuthRoutes(app: Express) {
       const sessionToken = await createSessionToken(user.openId, user.name ?? name);
       const cookieOptions = getSessionCookieOptions(req);
       res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-
-      // stateからreturnPathを取得
-      let returnPath = "/";
-      if (state) {
-        try {
-          const decoded = JSON.parse(Buffer.from(state, "base64url").toString());
-          if (decoded.returnPath) returnPath = decoded.returnPath;
-        } catch {
-          // stateのパースに失敗した場合はデフォルトのパスを使用
-        }
-      }
 
       res.redirect(302, returnPath);
     } catch (error) {
