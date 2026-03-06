@@ -1558,13 +1558,13 @@ function MessageBoard({ title }: { title: string }) {
       <CardContent className="space-y-2">
         {/* 投稿フォーム */}
         {showForm && (
-          <div className="border border-primary/20 rounded-xl p-3 space-y-2 bg-primary/5">
-            <div className="flex gap-1.5">
+          <div className="border border-primary/20 rounded-xl p-4 space-y-3 bg-primary/5">
+            <div className="flex gap-2">
               <Textarea
                 placeholder="メッセージを入力..."
                 value={newMsg}
                 onChange={(e) => setNewMsg(e.target.value)}
-                className="text-xs min-h-[60px] resize-none flex-1"
+                className="text-sm min-h-[80px] resize-none flex-1"
               />
               <button
                 onMouseDown={startRecording}
@@ -1572,7 +1572,7 @@ function MessageBoard({ title }: { title: string }) {
                 onTouchStart={startRecording}
                 onTouchEnd={stopRecording}
                 className={cn(
-                  "flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors self-end",
+                  "flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center transition-colors self-end touch-manipulation",
                   isRecording
                     ? "bg-red-500 text-white animate-pulse"
                     : "bg-muted text-muted-foreground hover:bg-primary/20"
@@ -1596,36 +1596,36 @@ function MessageBoard({ title }: { title: string }) {
                 <>
                   <div className="grid grid-cols-2 gap-1.5">
                     <div>
-                      <label className="text-[10px] text-muted-foreground block mb-0.5">表示開始（任意）</label>
+                      <label className="text-xs font-medium text-foreground block mb-1">表示開始（任意）</label>
                       <input type="date" value={displayFrom} onChange={(e) => setDisplayFrom(e.target.value)}
-                        className="w-full text-xs border border-border rounded px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                        className="w-full text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                       <select value={displayFromTime} onChange={(e) => setDisplayFromTime(e.target.value)}
                         disabled={!displayFrom}
-                        className="w-full mt-1 text-[11px] border border-border rounded px-1.5 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40">
+                        className="w-full mt-1.5 text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40">
                         <option value="">時刻選択...</option>
                         {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="text-[10px] text-muted-foreground block mb-0.5">表示終了（任意）</label>
+                      <label className="text-xs font-medium text-foreground block mb-1">表示終了（任意）</label>
                       <input type="date" value={displayUntil} onChange={(e) => setDisplayUntil(e.target.value)}
-                        className="w-full text-[11px] border border-border rounded px-1.5 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                        className="w-full text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                       <select value={displayUntilTime} onChange={(e) => setDisplayUntilTime(e.target.value)}
                         disabled={!displayUntil}
-                        className="w-full mt-1 text-[11px] border border-border rounded px-1.5 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40">
+                        className="w-full mt-1.5 text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40">
                         <option value="">時刻選択...</option>
                         {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
                       </select>
                     </div>
                   </div>
                   <div>
-                    <label className="text-[10px] text-muted-foreground block mb-0.5">予約送信（任意）</label>
+                    <label className="text-xs font-medium text-foreground block mb-1">予約送信（任意）</label>
                     <div className="grid grid-cols-2 gap-1.5">
                       <input type="date" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)}
-                        className="w-full text-[11px] border border-border rounded px-1.5 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                        className="w-full text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                       <select value={scheduledAtTime} onChange={(e) => setScheduledAtTime(e.target.value)}
                         disabled={!scheduledAt}
-                        className="w-full text-[11px] border border-border rounded px-1.5 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40">
+                        className="w-full text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40">
                         <option value="">時刻選択...</option>
                         {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
                       </select>
@@ -1634,9 +1634,9 @@ function MessageBoard({ title }: { title: string }) {
                 </>
               );
             })()}
-            <div className="flex gap-1.5">
-              <Button variant="outline" size="sm" className="flex-1 h-7 text-xs" onClick={() => setShowForm(false)}>キャンセル</Button>
-              <Button size="sm" className="flex-1 h-7 text-xs" onClick={handlePost} disabled={createMsg.isPending || !newMsg.trim()}>
+            <div className="flex gap-2">
+              <Button variant="outline" size="default" className="flex-1 text-sm" onClick={() => setShowForm(false)}>キャンセル</Button>
+              <Button size="default" className="flex-1 text-sm" onClick={handlePost} disabled={createMsg.isPending || !newMsg.trim()}>
                 {scheduledAt ? "予約送信" : "投稿"}
               </Button>
             </div>
@@ -1816,7 +1816,6 @@ export default function Dashboard() {
         {/* 左カラム */}
         <div className="lg:col-span-2 space-y-3 md:space-y-4">
           <ScheduleScreenshotCard />
-          <ScreenshotUploadHistoryCard />
         </div>
 
         {/* 右カラム */}
