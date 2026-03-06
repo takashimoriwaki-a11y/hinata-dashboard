@@ -98,7 +98,8 @@ export function registerLocalAuthRoutes(app: Express) {
       res.json({ ok: true, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
     } catch (error) {
       console.error("[LocalAuth] Login failed", error);
-      res.status(500).json({ error: "ログインに失敗しました" });
+      const errMsg = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ error: "ログインに失敗しました", detail: errMsg });
     }
   });
 

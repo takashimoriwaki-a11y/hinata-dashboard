@@ -9,9 +9,12 @@ let _db: ReturnType<typeof drizzle> | null = null;
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      // trim() to handle accidental whitespace in environment variables
+      const dbUrl = process.env.DATABASE_URL.trim();
+      console.log("[Database] Connecting with URL prefix:", dbUrl.substring(0, 20) + "...");
+      _db = drizzle(dbUrl);
     } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
+      console.error("[Database] Failed to connect:", error);
       _db = null;
     }
   }
