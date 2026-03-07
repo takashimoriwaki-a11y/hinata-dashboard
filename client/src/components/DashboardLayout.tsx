@@ -334,8 +334,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             >
               <Menu className="w-5 h-5" />
             </button>
-            {/* ロゴマーク */}
-            <img src={LOGO_MARK_URL} alt="ひなた" className="w-7 h-7 object-contain flex-shrink-0" />
+            {/* ロゴマーク：PC版はサイドバーに表示されるためトップバーでは非表示 */}
+            <img src={LOGO_MARK_URL} alt="ひなた" className="md:hidden w-7 h-7 object-contain flex-shrink-0" />
             {/* 日付・ステーション名: スマホでは縦並び、PCでは横並び */}
             <div className="flex flex-col md:flex-row md:items-center md:gap-3 min-w-0">
               <span className={cn("text-xs md:text-sm font-semibold whitespace-nowrap", isNight ? "text-slate-200" : "text-foreground/80")}>{dateStr}</span>
