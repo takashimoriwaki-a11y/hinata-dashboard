@@ -935,6 +935,21 @@ export async function updateStaffRole(userId: number, role: "user" | "admin") {
   await db.update(users).set({ role }).where(eq(users.id, userId));
 }
 
+/** スタッフの基本情報を一括更新する（管理者用） */
+export async function updateStaffInfo(userId: number, data: {
+  name: string;
+  team: "\u8eab\u4f53" | "\u5929\u7406" | "\u90e1\u5c71\u5317\u90e8" | "\u90e1\u5c71\u5357\u90e8" | "\u4e8b\u52d9\u54e1" | "\u5168\u30c1\u30fc\u30e0";
+  role: "user" | "admin";
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(users).set({
+    name: data.name,
+    team: data.team,
+    role: data.role,
+  }).where(eq(users.id, userId));
+}
+
 export async function getScreenshotById(id: number) {
   const db = await getDb();
   if (!db) return undefined;

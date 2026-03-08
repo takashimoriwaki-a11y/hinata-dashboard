@@ -61,6 +61,7 @@ import {
   deleteStaffAccount,
   updateStaffRole,
   updateStaffEmail,
+  updateStaffInfo,
   batchCreatePatients,
   batchCreateStaff,
   createScreenshotUploadLog,
@@ -1397,6 +1398,26 @@ export const appRouter = router({
         } catch (err: any) {
           throw new TRPCError({ code: "BAD_REQUEST", message: err.message ?? "メールアドレスの更新に失敗しました" });
         }
+      }),
+
+    // スタッフの基本情報を一括更新（管理者のみ）
+    updateInfo: protectedProcedure
+      .input(z.object({
+        userId: z.number(),
+        name: z.string().min(1).max(50),
+        team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]),
+        role: z.enum(["user", "admin"]),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
+        }
+        await updateStaffInfo(input.userId, {
+          name: input.name,
+          team: input.team,
+          role: input.role,
+        });
+        return { success: true };
       }),
   }),
 

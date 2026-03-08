@@ -1119,6 +1119,28 @@ function StaffManagementPanel() {
     onError: (e) => toast.error(e.message),
   });
 
+  // スタッフ情報編集ダイアログ
+  const [editStaff, setEditStaff] = useState<{ id: number; name: string; team: TeamStaff; role: "user" | "admin" } | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editTeam, setEditTeam] = useState<TeamStaff>("身体");
+  const [editRole, setEditRole] = useState<"user" | "admin">("user");
+
+  const updateInfo = trpc.staff.updateInfo.useMutation({
+    onSuccess: () => {
+      utils.staff.getAll.invalidate();
+      toast.success("スタッフ情報を更新しました");
+      setEditStaff(null);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const openEditDialog = (staff: { id: number; name: string | null; team: string | null; role: "user" | "admin" }) => {
+    setEditStaff({ id: staff.id, name: staff.name ?? "", team: (staff.team as TeamStaff) ?? "身体", role: staff.role });
+    setEditName(staff.name ?? "");
+    setEditTeam((staff.team as TeamStaff) ?? "身体");
+    setEditRole(staff.role);
+  };
+
   // メールアドレス編集
   const [editEmailUserId, setEditEmailUserId] = useState<number | null>(null);
   const [editEmailValue, setEditEmailValue] = useState("");
@@ -1141,6 +1163,7 @@ function StaffManagementPanel() {
   };
 
   return (
+    <>
     <Card className="shadow-sm">
       <CardHeader className="pb-2 pt-4">
         <div className="flex items-center justify-between">
@@ -1316,6 +1339,14 @@ function StaffManagementPanel() {
                     <p className="text-xs text-muted-foreground">最終ログイン: {staff.lastSignedIn ? new Date(staff.lastSignedIn).toLocaleDateString("ja-JP") : "未ログイン"}</p>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
+                    {/* スタッフ情報編集 */}
+                    <button
+                      onClick={() => openEditDialog(staff)}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-green-600 hover:bg-green-50 transition-colors"
+                      title="スタッフ情報を編集"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
                     {/* メールアドレス編集 */}
                     <button
                       onClick={() => { setEditEmailUserId(staff.id); setEditEmailValue(staff.email ?? ""); }}
@@ -1417,6 +1448,107 @@ function StaffManagementPanel() {
         )}
       </CardContent>
     </Card>
+
+    {/* スタッフ情報編集ダイアログ */}
+    {editStaff && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="bg-background rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-semibold text-foreground">スタッフ情報の編集</h3>
+            <button
+              onClick={() => setEditStaff(null)}
+              className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* 名前 */}
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">名前</label>
+            <input
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              placeholder="例：山田花子"
+              className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </div>
+
+          {/* チーム */}
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">所属チーム</label>
+            <div className="flex flex-wrap gap-1.5">
+              {TEAMS_STAFF.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setEditTeam(t)}
+                  className={cn(
+                    "px-3 py-1 text-xs rounded-full border transition-colors",
+                    editTeam === t
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border text-muted-foreground hover:border-primary"
+                  )}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 権限 */}
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">権限</label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setEditRole("user")}
+                className={cn(
+                  "flex-1 py-1.5 text-xs rounded-lg border transition-colors",
+                  editRole === "user"
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "border-border text-muted-foreground hover:border-blue-400"
+                )}
+              >
+                一般スタッフ
+              </button>
+              <button
+                onClick={() => setEditRole("admin")}
+                className={cn(
+                  "flex-1 py-1.5 text-xs rounded-lg border transition-colors",
+                  editRole === "admin"
+                    ? "bg-amber-500 text-white border-amber-500"
+                    : "border-border text-muted-foreground hover:border-amber-400"
+                )}
+              >
+                管理者
+              </button>
+            </div>
+          </div>
+
+          {/* ボタン */}
+          <div className="flex gap-2 pt-1">
+            <Button
+              variant="outline"
+              className="flex-1 h-9 text-sm"
+              onClick={() => setEditStaff(null)}
+            >
+              キャンセル
+            </Button>
+            <Button
+              className="flex-1 h-9 text-sm"
+              onClick={() => {
+                if (!editName.trim()) { toast.error("名前を入力してください"); return; }
+                updateInfo.mutate({ userId: editStaff.id, name: editName.trim(), team: editTeam, role: editRole });
+              }}
+              disabled={updateInfo.isPending}
+            >
+              {updateInfo.isPending ? "更新中..." : "保存"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
