@@ -1,0 +1,28 @@
+{
+  "query": "UPDATE users SET role = 'admin' WHERE name LIKE '%森脇%' OR name LIKE '%崇%' OR email LIKE '%moriwaki%'; SELECT id, name, email, role FROM users;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute UPDATE users SET role = 'admin' WHERE name LIKE '%森脇%' OR name LIKE '%崇%' OR email LIKE '%moriwaki%'; SELECT id, name, email, role FROM users;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "崇 森脇",
+      "email": "takashimoriwaki@kokoronohinata.com",
+      "role": "admin"
+    },
+    {
+      "id": "181053",
+      "name": "テスト管理者",
+      "email": "admin@hinata.jp",
+      "role": "admin"
+    },
+    {
+      "id": "210001",
+      "name": "崇 森脇",
+      "email": "takashimoriwaki@kokoronohinata.com",
+      "role": "admin"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\n1\t崇 森脇\ttakashimoriwaki@kokoronohinata.com\tadmin\n181053\tテスト管理者\tadmin@hinata.jp\tadmin\n210001\t崇 森脇\ttakashimoriwaki@kokoronohinata.com\tadmin\n",
+  "stderr": "",
+  "execution_time_ms": 1821
+}

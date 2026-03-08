@@ -887,7 +887,7 @@ export default function Admin() {
                     <Badge variant="secondary" className="text-xs bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400">今月</Badge>
                   )}
                   {selectedYearMonth > currentYearMonth && (
-                    <Badge variant="secondary" className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400">琉月以降</Badge>
+                    <Badge variant="secondary" className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400">来月以降</Badge>
                   )}
                   <Badge variant="outline" className="text-xs">
                     {Object.keys(selectedLinks).length} / {LINK_DEFINITIONS.length} 件登録済み
@@ -1006,7 +1006,7 @@ export default function Admin() {
                           }
                           <span className="text-sm font-medium">{formatYearMonth(ym)}</span>
                           {isCurrent && <Badge variant="secondary" className="text-[10px] bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 px-1.5 py-0">今月</Badge>}
-                          {ym > currentYearMonth && <Badge variant="secondary" className="text-[10px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 px-1.5 py-0">琉月以降</Badge>}
+                          {ym > currentYearMonth && <Badge variant="secondary" className="text-[10px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 px-1.5 py-0">来月以降</Badge>}
                         </div>
                         <span className={cn("text-xs font-medium", isComplete ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")}>
                           {count} / {LINK_DEFINITIONS.length} 件

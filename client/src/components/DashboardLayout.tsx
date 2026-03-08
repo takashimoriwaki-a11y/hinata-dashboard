@@ -266,7 +266,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         className={cn(
           "relative hidden md:flex flex-col h-full transition-all duration-300 ease-in-out z-30 flex-shrink-0",
           "bg-sidebar text-sidebar-foreground border-r border-sidebar-border",
-          collapsed ? "w-[60px]" : "w-56"
+          collapsed ? "w-0 overflow-hidden" : "w-56"
         )}
       >
         <SidebarContent />

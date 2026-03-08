@@ -1,0 +1,31 @@
+{
+  "query": "SELECT id, name, email, role, openId FROM users ORDER BY createdAt;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT id, name, email, role, openId FROM users ORDER BY createdAt;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "崇 森脇",
+      "email": "takashimoriwaki@kokoronohinata.com",
+      "role": "admin",
+      "openId": "We8HCUrgt6q2L56cfWKJky"
+    },
+    {
+      "id": "181053",
+      "name": "テスト管理者",
+      "email": "admin@hinata.jp",
+      "role": "admin",
+      "openId": "local_1772730612818_8eg1fbkze25"
+    },
+    {
+      "id": "210001",
+      "name": "崇 森脇",
+      "email": "takashimoriwaki@kokoronohinata.com",
+      "role": "user",
+      "openId": "google_115056266073181046540"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\topenId\n1\t崇 森脇\ttakashimoriwaki@kokoronohinata.com\tadmin\tWe8HCUrgt6q2L56cfWKJky\n181053\tテスト管理者\tadmin@hinata.jp\tadmin\tlocal_1772730612818_8eg1fbkze25\n210001\t崇 森脇\ttakashimoriwaki@kokoronohinata.com\tuser\tgoogle_115056266073181046540\n",
+  "stderr": "",
+  "execution_time_ms": 1550
+}
