@@ -88,10 +88,14 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
       setNewAssignType(assignType);
 
       // チーム指定: assignTypeがteamのときに設定
-      if (assignType === "team" && f.assignTeam) {
-        const team = f.assignTeam as Team;
-        if (TEAMS.includes(team)) {
-          setNewAssignTeam(team);
+      if (assignType === "team") {
+        if (f.assignTeam && TEAMS.includes(f.assignTeam as Team)) {
+          setNewAssignTeam(f.assignTeam as Team);
+        } else {
+          // チーム名が認識できなかった場合はエラーを表示して庅る
+          setVoiceError("チーム名が聞き取れませんでした。もう一度お試しください");
+          setIsAnalyzing(false);
+          return;
         }
       }
 
