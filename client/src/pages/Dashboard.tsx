@@ -42,6 +42,7 @@ import {
   ClipboardEdit,
   Upload,
   Calendar,
+  CalendarClock,
   X,
   History,
   Clock,
@@ -2415,6 +2416,17 @@ export default function Dashboard() {
               <span className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm cursor-pointer" style={{backgroundColor: '#e06060'}}>
                 <ClipboardEdit className="w-3.5 h-3.5" />
                 記録
+              </span>
+            </Link>
+            <Link href="/schedule-change">
+              <span
+                className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm cursor-pointer"
+                style={{backgroundColor: '#f59e0b'}}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor='#d97706')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor='#f59e0b')}
+              >
+                <CalendarClock className="w-3.5 h-3.5" />
+                変更連絡
               </span>
             </Link>
           </div>
