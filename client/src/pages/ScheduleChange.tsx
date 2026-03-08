@@ -947,6 +947,14 @@ export default function ScheduleChange() {
   const [voiceText, setVoiceText] = useState("");
   const [isParsingVoice, setIsParsingVoice] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  // 初回ヒント表示（localStorageで既読判定）
+  const [showVoiceHint, setShowVoiceHint] = useState(() => {
+    try {
+      return !localStorage.getItem("hinata_voice_hint_seen");
+    } catch {
+      return true;
+    }
+  });
   // 音声入力後の利用者候補選択ダイアログ用
   const [voicePatientCandidates, setVoicePatientCandidates] = useState<PatientItem[]>([]);
   const [showVoicePatientDialog, setShowVoicePatientDialog] = useState(false);
@@ -1359,13 +1367,47 @@ export default function ScheduleChange() {
             />
           </div>
 
+          {/* 初回ヒントバナー */}
+          {showVoiceHint && !isParsingVoice && !voiceText && (
+            <div className="relative p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowVoiceHint(false);
+                  try { localStorage.setItem("hinata_voice_hint_seen", "1"); } catch {}
+                }}
+                className="absolute top-2 right-2 text-amber-400 hover:text-amber-600 transition-colors"
+                aria-label="閉じる"
+              >
+                ✕
+              </button>
+              <p className="font-semibold text-amber-800 mb-1.5">💡 認識精度を上げるコツ</p>
+              <ul className="space-y-1 text-amber-700 pr-4">
+                <li>「○○チーム」「○○さん」のようにチーム名・利用者名を明確に話す</li>
+                <li>日時は「明日の午前10時」「来週月曜の14時」のように具体的に話す</li>
+                <li>変更種別（変更・キャンセル・追加・会議）を最初に伝えると正確に転記されます</li>
+                <li>静かな場所ではっきり話すと認識精度が向上します</li>
+              </ul>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowVoiceHint(false);
+                  try { localStorage.setItem("hinata_voice_hint_seen", "1"); } catch {}
+                }}
+                className="mt-2 w-full py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 font-medium rounded-lg transition-colors"
+              >
+                わかりました！
+              </button>
+            </div>
+          )}
+
           {/* 例文一覧 */}
           {!isParsingVoice && !voiceText && (
             <div>
               <p className="text-[10px] font-medium text-muted-foreground mb-1.5">話しかけの例（タップでそのままAI転記）</p>
               <div className="flex flex-col gap-1.5">
                 {[
-                  { label: "訪問日時変更", text: "○○チームの○○さんの訪問を明日の○○時から○○時に変更、担当は××から○○に変更" },
+                  { label: "訪問日時変更", text: "○○チームの○○さんの訪問を明日の○○時から○○時に変更、理由は○○のため" },
                   { label: "訪問キャンセル", text: "○○チームの○○さんの明日○○時の訪問をキャンセル、利用者都合により" },
                   { label: "訪問追加", text: "○○チームの○○さんに明後日の○○時から訪問を追加、担当は××" },
                   { label: "会議追加", text: "○○チーム対象の○○会議を来週○曜の○○時から開催、参加は××・○○・××" },
