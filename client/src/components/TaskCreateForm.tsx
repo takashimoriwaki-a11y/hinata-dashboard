@@ -335,7 +335,17 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
                       onClick={() => {
                         if (targetId) {
                           const el = document.getElementById(targetId);
-                          if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); el.focus(); }
+                          if (el) {
+                            el.scrollIntoView({ behavior: "smooth", block: "center" });
+                            // 枠線点滅ハイライト
+                            el.classList.remove("highlight-pulse");
+                            void el.offsetWidth;
+                            el.classList.add("highlight-pulse");
+                            el.addEventListener("animationend", () => el.classList.remove("highlight-pulse"), { once: true });
+                            if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) {
+                              setTimeout(() => el.focus(), 300);
+                            }
+                          }
                         }
                       }}
                       className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 font-medium hover:bg-amber-300 dark:hover:bg-amber-700 transition-colors cursor-pointer underline underline-offset-2"

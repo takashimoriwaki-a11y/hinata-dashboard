@@ -232,4 +232,18 @@
     from { height: 20%; }
     to { height: 80%; }
   }
+
+  /* Field highlight pulse animation (used when missing-field tag is tapped) */
+  @keyframes highlightPulse {
+    0%   { box-shadow: 0 0 0 0px oklch(0.65 0.22 45 / 0); border-color: var(--border); }
+    20%  { box-shadow: 0 0 0 4px oklch(0.65 0.22 45 / 0.35); border-color: oklch(0.65 0.22 45); }
+    40%  { box-shadow: 0 0 0 0px oklch(0.65 0.22 45 / 0); border-color: var(--border); }
+    60%  { box-shadow: 0 0 0 4px oklch(0.65 0.22 45 / 0.35); border-color: oklch(0.65 0.22 45); }
+    80%  { box-shadow: 0 0 0 0px oklch(0.65 0.22 45 / 0); border-color: var(--border); }
+    90%  { box-shadow: 0 0 0 3px oklch(0.65 0.22 45 / 0.2); border-color: oklch(0.65 0.22 45 / 0.6); }
+    100% { box-shadow: 0 0 0 0px oklch(0.65 0.22 45 / 0); border-color: var(--border); }
+  }
+  .highlight-pulse {
+    animation: highlightPulse 1.4s ease-in-out;
+  }
 }

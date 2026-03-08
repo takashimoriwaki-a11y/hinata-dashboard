@@ -1532,6 +1532,11 @@ export default function ScheduleChange() {
                         const el = document.getElementById(targetId);
                         if (!el) return;
                         el.scrollIntoView({ behavior: "smooth", block: "center" });
+                        // 枠線点滅ハイライト
+                        el.classList.remove("highlight-pulse");
+                        void el.offsetWidth; // reflowでアニメーションをリセット
+                        el.classList.add("highlight-pulse");
+                        el.addEventListener("animationend", () => el.classList.remove("highlight-pulse"), { once: true });
                         if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
                           setTimeout(() => el.focus(), 300);
                         }
