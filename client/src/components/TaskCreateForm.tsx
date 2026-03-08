@@ -79,19 +79,22 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
       const f = data.fields;
       const missing: string[] = [];
 
-      // タスク内容
-      if (f.text) setNewText(f.text);
-      else missing.push("タスク内容");
+      // タスク内容（空欄のみ上書き）
+      if (f.text) {
+        setNewText(prev => prev.trim() ? prev : f.text!);
+      } else {
+        setNewText(prev => { if (!prev.trim()) missing.push("タスク内容"); return prev; });
+      }
 
-      // 期日
-      if (f.dueDateStr) setNewDueDate(f.dueDateStr);
+      // 期日（空欄のみ上書き）
+      if (f.dueDateStr) setNewDueDate(prev => prev.trim() ? prev : f.dueDateStr!);
       // 期日は任意なので未転記でも missing には追加しない
 
-      // 指定先種別
+      // 指定先種別（現在が「all」のときのみ上書き）
       const assignType = (f.assignType as AssignType) || "all";
-      setNewAssignType(assignType);
+      setNewAssignType(prev => prev === "all" ? assignType : prev);
 
-      // チーム指定: assignTypeがteamのときに設定
+      // チーム指定: assignTypeがteamのときに設定（常に上書き — チーム名は明示的に話した場合は必ず反映）
       if (assignType === "team") {
         if (f.assignTeam && TEAMS.includes(f.assignTeam as Team)) {
           setNewAssignTeam(f.assignTeam as Team);
@@ -101,15 +104,15 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
         }
       }
 
-      // 個人指定: assignTypeがpersonalのときに設定
+      // 個人指定: assignTypeがpersonalのときに設定（空欄のみ上書き）
       if (assignType === "personal") {
         if (f.assignPersonName) {
-          const found = staff.find(s => s.name && s.name.includes(f.assignPersonName));
+          const found = staff.find(s => s.name && s.name.includes(f.assignPersonName!));
           if (found) {
-            setNewAssignUserId(found.id);
-            setNewAssignUserName(found.name ?? "");
+            setNewAssignUserId(prev => prev ?? found.id);
+            setNewAssignUserName(prev => prev.trim() ? prev : (found.name ?? ""));
           } else {
-            setNewAssignUserName(f.assignPersonName);
+            setNewAssignUserName(prev => prev.trim() ? prev : f.assignPersonName!);
           }
         } else {
           missing.push("担当者名");

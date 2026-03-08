@@ -691,3 +691,6 @@
 
 - [x] TaskCreateFormに聴き取れなかった項目バナーを追加
 - [x] ScheduleChange.tsxに聴き取れなかった項目バナーを追加
+
+- [x] TaskCreateFormの2回目音声入力をマージ方式に改善（空欄のみ上書き）
+- [x] ScheduleChange.tsxの2回目音声入力をマージ方式に改善（空欄のみ上書き）

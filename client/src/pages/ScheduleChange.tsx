@@ -1136,9 +1136,9 @@ export default function ScheduleChange() {
       let applied = 0;
       const missing: string[] = [];
 
-      // changeTypeとteamを先に適用
+      // changeType（空欄のみ上書き）
       if (f.changeType && ["visit_change", "visit_cancel", "visit_add", "meeting_add", "meeting_change"].includes(f.changeType)) {
-        setChangeType(f.changeType as ChangeType);
+        setChangeType(prev => prev === "" ? f.changeType as ChangeType : prev);
         applied++;
       } else {
         missing.push("変更種別（日時変更・キャンセル・追加等）");
@@ -1146,30 +1146,30 @@ export default function ScheduleChange() {
 
       if (f.team) {
         if (["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"].includes(f.team)) {
+          // チーム名は明示的に話した場合は常に反映（補完時に上書きできるよう）
           setTeam(f.team as Team);
           applied++;
         } else {
-          // チーム名が認識できなかった場合は missing に追加
           missing.push("チーム名（身体・天理・郡山北部・郡山南部）");
         }
       } else {
         missing.push("チーム名（身体・天理・郡山北部・郡山南部）");
       }
 
-      if (f.fromDatetime) { setFromDatetime(f.fromDatetime); applied++; }
+      if (f.fromDatetime) { setFromDatetime(prev => prev.trim() ? prev : f.fromDatetime!); applied++; }
       else { missing.push("変更前日時"); }
 
-      if (f.toDatetime) { setToDatetime(f.toDatetime); applied++; }
+      if (f.toDatetime) { setToDatetime(prev => prev.trim() ? prev : f.toDatetime!); applied++; }
       // toDatetimeはキャンセル時は不要なので missing には追加しない
 
-      if (f.staffBefore) { setStaffBefore(f.staffBefore); applied++; }
-      if (f.staffAfter) { setStaffAfter(f.staffAfter); applied++; }
-      if (f.meetingName) { setMeetingName(f.meetingName); applied++; }
+      if (f.staffBefore) { setStaffBefore(prev => prev.trim() ? prev : f.staffBefore!); applied++; }
+      if (f.staffAfter) { setStaffAfter(prev => prev.trim() ? prev : f.staffAfter!); applied++; }
+      if (f.meetingName) { setMeetingName(prev => prev.trim() ? prev : f.meetingName!); applied++; }
       if (f.meetingStaff && Array.isArray(f.meetingStaff) && f.meetingStaff.length > 0) {
-        setMeetingStaff(f.meetingStaff);
+        setMeetingStaff(prev => prev.length > 0 ? prev : f.meetingStaff!);
         applied++;
       }
-      if (f.reason) { setReason(f.reason); applied++; }
+      if (f.reason) { setReason(prev => prev.trim() ? prev : f.reason!); applied++; }
 
       // 利用者名処理: patientLastName または patientName で登録利用者から検索して連携
       // ※ 苗字だけ伝えた場合も含め、常に登録利用者から検索し、直接転記しない
