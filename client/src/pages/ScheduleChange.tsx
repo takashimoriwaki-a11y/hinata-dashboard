@@ -309,6 +309,184 @@ function PatientAutocomplete({
   );
 }
 
+// ========== スタッフオートコンプリートコンポーネント ==========
+type StaffItem = {
+  id: number;
+  name: string;
+  team?: string | null;
+};
+
+function StaffAutocomplete({
+  staffList,
+  value,
+  onChange,
+  placeholder = "スタッフ名で検索...",
+  label,
+}: {
+  staffList: StaffItem[];
+  value: string;
+  onChange: (name: string) => void;
+  placeholder?: string;
+  label?: string;
+}) {
+  const [query, setQuery] = useState(value);
+  const [open, setOpen] = useState(false);
+  const [highlighted, setHighlighted] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    setQuery(value);
+  }, [value]);
+
+  const filtered = useMemo(() => {
+    if (!query) return staffList.slice(0, 50);
+    const q = query.toLowerCase();
+    return staffList.filter((s) => s.name.toLowerCase().includes(q)).slice(0, 20);
+  }, [staffList, query]);
+
+  const handleSelect = (staff: StaffItem) => {
+    setQuery(staff.name);
+    onChange(staff.name);
+    setOpen(false);
+    inputRef.current?.blur();
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setQuery(val);
+    onChange(val);
+    setOpen(true);
+    setHighlighted(0);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!open) {
+      if (e.key === "ArrowDown" || e.key === "Enter") { setOpen(true); return; }
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlighted((h) => Math.min(h + 1, filtered.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlighted((h) => Math.max(h - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (filtered[highlighted]) handleSelect(filtered[highlighted]);
+    } else if (e.key === "Escape") {
+      setOpen(false);
+    }
+  };
+
+  useEffect(() => {
+    if (listRef.current) {
+      const item = listRef.current.querySelector(`[data-index="${highlighted}"]`) as HTMLElement;
+      if (item) item.scrollIntoView({ block: "nearest" });
+    }
+  }, [highlighted]);
+
+  return (
+    <div className="space-y-1">
+      {label && <Label className="text-xs text-muted-foreground">{label}</Label>}
+      <div ref={containerRef} className="relative">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={handleInputChange}
+            onFocus={() => setOpen(true)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            className={cn(
+              "w-full pl-9 pr-9 py-2.5 text-sm rounded-lg border border-input bg-background",
+              "focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent",
+              "transition-all placeholder:text-muted-foreground",
+              value && "border-primary/60 bg-primary/5"
+            )}
+            autoComplete="off"
+          />
+          {value ? (
+            <button
+              type="button"
+              onClick={() => { setQuery(""); onChange(""); setOpen(false); inputRef.current?.focus(); }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => { setOpen((o) => !o); inputRef.current?.focus(); }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ChevronDown className={cn("w-4 h-4 transition-transform", open && "rotate-180")} />
+            </button>
+          )}
+        </div>
+
+        {value && (
+          <div className="mt-1.5 flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-lg border border-primary/20">
+            <CheckCircle2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+            <span className="text-sm font-medium text-primary">{value}</span>
+          </div>
+        )}
+
+        {open && (
+          <div
+            ref={listRef}
+            className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-xl shadow-lg max-h-56 overflow-y-auto"
+          >
+            {filtered.length === 0 ? (
+              <div className="py-4 text-center text-sm text-muted-foreground">
+                {query ? `「${query}」に一致するスタッフが見つかりません` : "スタッフが登録されていません"}
+              </div>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onMouseDown={(e) => { e.preventDefault(); onChange(""); setQuery(""); setOpen(false); }}
+                  className="w-full text-left px-4 py-2.5 text-sm text-muted-foreground hover:bg-muted/60 border-b"
+                >
+                  （変更なし）
+                </button>
+                {filtered.map((s, idx) => (
+                  <button
+                    key={s.id}
+                    data-index={idx}
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); handleSelect(s); }}
+                    onMouseEnter={() => setHighlighted(idx)}
+                    className={cn(
+                      "w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between gap-2",
+                      highlighted === idx ? "bg-primary/10 text-primary" : "hover:bg-muted/60 text-foreground"
+                    )}
+                  >
+                    <span className="font-medium">{s.name}</span>
+                    {s.team && <span className="text-xs text-muted-foreground flex-shrink-0">{s.team}</span>}
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ========== メインコンポーネント ==========
 
 export default function ScheduleChange() {
@@ -656,46 +834,26 @@ export default function ScheduleChange() {
             </CardContent>
           </Card>
 
-          {/* 担当スタッフ変更 */}
+          {/* 担当スタッフ変更（オートコンプリート） */}
           <Card>
             <CardHeader className="pb-2 pt-4">
               <CardTitle className="text-sm font-semibold">担当スタッフ</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">変更前の担当スタッフ</Label>
-                <Select value={staffBefore} onValueChange={setStaffBefore}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="スタッフを選択..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">（変更なし）</SelectItem>
-                    {staffList.map((s) => (
-                      <SelectItem key={s.id} value={s.name}>
-                        {s.name}
-                        {s.team && <span className="text-muted-foreground ml-2 text-xs">({s.team})</span>}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">変更後の担当スタッフ</Label>
-                <Select value={staffAfter} onValueChange={setStaffAfter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="スタッフを選択..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">（変更なし）</SelectItem>
-                    {staffList.map((s) => (
-                      <SelectItem key={s.id} value={s.name}>
-                        {s.name}
-                        {s.team && <span className="text-muted-foreground ml-2 text-xs">({s.team})</span>}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <StaffAutocomplete
+                staffList={staffList}
+                value={staffBefore}
+                onChange={setStaffBefore}
+                label="変更前の担当スタッフ"
+                placeholder="スタッフ名で検索..."
+              />
+              <StaffAutocomplete
+                staffList={staffList}
+                value={staffAfter}
+                onChange={setStaffAfter}
+                label="変更後の担当スタッフ"
+                placeholder="スタッフ名で検索..."
+              />
             </CardContent>
           </Card>
 

@@ -594,3 +594,8 @@
 
 - [x] ScheduleChange.tsxの利用者名入力を利用者マスタ検索オートコンプリートに変更した（PatientAutocompleteコンポーネント新規作成）
 - [x] TypeScriptエラー0件・テスト126件全件合格確認
+
+## 変更連絡フォーム：担当スタッフオートコンプリート入力（2026-03-08）
+
+- [x] ScheduleChange.tsxの担当スタッフ選択（変更前・変更後）をStaffAutocompleteコンポーネントに変更した
+- [x] TypeScriptエラー0件・テスト126件全件合格確認
