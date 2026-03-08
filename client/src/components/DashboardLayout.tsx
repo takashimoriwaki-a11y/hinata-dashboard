@@ -125,6 +125,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     second: "2-digit",
     hour12: false,
   });
+  const timeStrShort = now.toLocaleTimeString("ja-JP", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 
   // サイドバー内容（PC・モバイル共通）
   const SidebarContent = ({ mobile = false }: { mobile?: boolean }) => (
@@ -365,7 +370,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <div className="flex flex-col md:flex-row md:items-center md:gap-3 min-w-0">
               <div className="flex items-center gap-2">
                 <span className={cn("text-xs md:text-sm font-semibold whitespace-nowrap", isNight ? "text-slate-200" : "text-foreground/80")}>{dateStr}</span>
-                <span className={cn("text-xs md:text-sm font-mono font-semibold whitespace-nowrap tabular-nums", isNight ? "text-slate-300" : "text-foreground/70")}>{timeStr}</span>
+                {/* モバイル: HH:MM、PC: HH:MM:SS */}
+                <span className={cn("text-xs font-mono font-semibold whitespace-nowrap tabular-nums md:hidden", isNight ? "text-slate-300" : "text-foreground/70")}>{timeStrShort}</span>
+                <span className={cn("hidden md:inline text-sm font-mono font-semibold whitespace-nowrap tabular-nums", isNight ? "text-slate-300" : "text-foreground/70")}>{timeStr}</span>
               </div>
               <span className={cn("hidden md:block text-xs font-medium border-l border-border pl-3 whitespace-nowrap", isNight ? "text-slate-300" : "text-foreground/75")}>こころの訪問看護ステーションひなた</span>
               <span className={cn("md:hidden text-[10px] font-semibold leading-tight whitespace-nowrap", isNight ? "text-slate-300" : "text-foreground/70")}>こころの訪問看護ステーションひなた</span>
