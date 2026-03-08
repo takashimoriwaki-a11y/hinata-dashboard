@@ -51,6 +51,7 @@ import {
   ChevronDown,
   ChevronUp,
   Pencil,
+  ListTodo,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -2427,6 +2428,17 @@ export default function Dashboard() {
               >
                 <CalendarClock className="w-3.5 h-3.5" />
                 変更連絡
+              </span>
+            </Link>
+            <Link href="/tasks">
+              <span
+                className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm cursor-pointer"
+                style={{backgroundColor: '#6366f1'}}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor='#4f46e5')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor='#6366f1')}
+              >
+                <ListTodo className="w-3.5 h-3.5" />
+                タスク
               </span>
             </Link>
           </div>
