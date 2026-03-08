@@ -81,10 +81,12 @@ function PatientAutocomplete({
   patientList,
   value,
   onChange,
+  onTeamSelect,
 }: {
   patientList: PatientItem[];
   value: string;
   onChange: (name: string) => void;
+  onTeamSelect?: (team: string) => void;
 }) {
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
@@ -135,6 +137,7 @@ function PatientAutocomplete({
   const handleVoiceCandidateSelect = (patient: PatientItem) => {
     setQuery(patient.name);
     onChange(patient.name);
+    if (patient.team && onTeamSelect) onTeamSelect(patient.team);
     setShowVoiceDialog(false);
     setVoiceCandidates([]);
     setOpen(false);
@@ -170,6 +173,7 @@ function PatientAutocomplete({
   const handleSelect = (patient: PatientItem) => {
     setQuery(patient.name);
     onChange(patient.name);
+    if (patient.team && onTeamSelect) onTeamSelect(patient.team);
     setOpen(false);
     inputRef.current?.blur();
   };
@@ -942,6 +946,7 @@ export default function ScheduleChange() {
   // 音声入力関連ステート
   const [voiceText, setVoiceText] = useState("");
   const [isParsingVoice, setIsParsingVoice] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   // 音声入力後の利用者候補選択ダイアログ用
   const [voicePatientCandidates, setVoicePatientCandidates] = useState<PatientItem[]>([]);
   const [showVoicePatientDialog, setShowVoicePatientDialog] = useState(false);
@@ -1189,11 +1194,12 @@ export default function ScheduleChange() {
     },
     onError: (err) => {
       setIsParsingVoice(false);
-      toast.error(`AI解析に失敗しました: ${err.message}`);
+      setVoiceError(err.message || "AI解析に失敗しました");
     },
   });
 
   const handleVoiceResult = useCallback((text: string) => {
+    setVoiceError(null);
     setVoiceText(text);
     setIsParsingVoice(true);
     parseVoice.mutate({ text });
@@ -1393,6 +1399,30 @@ export default function ScheduleChange() {
               <span>AIが音声内容を解析して各項目に転記中...</span>
             </div>
           )}
+
+          {/* AI解析失敗時のエラー表示と再試行ボタン */}
+          {voiceError && !isParsingVoice && (
+            <div className="flex items-start gap-3 p-3 bg-destructive/10 border border-destructive/30 rounded-xl">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-destructive">⚠️ AI解析に失敗しました</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{voiceError}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setVoiceError(null);
+                  if (voiceText) {
+                    setIsParsingVoice(true);
+                    parseVoice.mutate({ text: voiceText });
+                  }
+                }}
+                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-xs font-medium rounded-lg hover:bg-primary/90 active:scale-95 transition-all"
+              >
+                <span className="text-sm">🎤</span>
+                もう一度話す
+              </button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -1516,6 +1546,13 @@ export default function ScheduleChange() {
             patientList={patientList}
             value={patientName}
             onChange={(v) => { setPatientName(v); triggerDraftSave({ patientName: v }); }}
+            onTeamSelect={(t) => {
+              const validTeams = ["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"];
+              if (validTeams.includes(t) && !team) {
+                setTeam(t as Team);
+                triggerDraftSave({ team: t as Team });
+              }
+            }}
           />
 
           {/* 日時変更 */}
@@ -1852,6 +1889,12 @@ export default function ScheduleChange() {
                   type="button"
                   onClick={() => {
                     setPatientName(p.name);
+                    // チーム未選択の場合は利用者のチームを自動セット
+                    const validTeams = ["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"];
+                    if (p.team && validTeams.includes(p.team) && !team) {
+                      setTeam(p.team as Team);
+                      triggerDraftSave({ team: p.team as Team });
+                    }
                     const prevApplied = (pendingVoiceFields?.appliedCount as number) ?? 0;
                     toast.success(`音声内容を${prevApplied + 1}項目に自動転記しました`);
                     setShowVoicePatientDialog(false);
