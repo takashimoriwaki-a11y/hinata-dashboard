@@ -29,10 +29,10 @@ const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"] as const;
 
 /** 音声入力の例文 */
 const VOICE_EXAMPLES = [
-  "郡山南部チームの○○さんの自立支援医療受給者証を写真撮る",
-  "身体チームの○○さんの上限管理表に×月×日□□円と記入する",
-  "天理チームの○○さんに×月×日誕生日プレゼントを渡す",
-  "郡山北部チームの○○さんに×月×日の訪問時間が△時でいいか確認する",
+  "○○チームの○○さんの自立支援医療受給者証を写真撮る",
+  "○○チームの○○さんの上限管理表に×月×日□□円と記入する",
+  "○○チームの○○さんに×月×日誕生日プレゼントを渡す",
+  "○○チームの○○さんに×月×日の訪問時間が△時でいいか確認する",
 ];
 
 interface TaskCreateFormProps {
@@ -76,14 +76,27 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
       setIsAnalyzing(false);
       setVoiceError(null);
       const f = data.fields;
+
+      // タスク内容
       if (f.text) setNewText(f.text);
+
+      // 期日
       if (f.dueDateStr) setNewDueDate(f.dueDateStr);
-      if (f.assignType) setNewAssignType(f.assignType as AssignType);
-      if (f.assignTeam && TEAMS.includes(f.assignTeam as Team)) {
-        setNewAssignTeam(f.assignTeam as Team);
+
+      // 指定先種別
+      const assignType = (f.assignType as AssignType) || "all";
+      setNewAssignType(assignType);
+
+      // チーム指定: assignTypeがteamのときに設定
+      if (assignType === "team" && f.assignTeam) {
+        const team = f.assignTeam as Team;
+        if (TEAMS.includes(team)) {
+          setNewAssignTeam(team);
+        }
       }
-      if (f.assignPersonName && f.assignType === "personal") {
-        // スタッフ名から部分一致で検索
+
+      // 個人指定: assignTypeがpersonalのときに設定
+      if (assignType === "personal" && f.assignPersonName) {
         const found = staff.find(s => s.name && s.name.includes(f.assignPersonName));
         if (found) {
           setNewAssignUserId(found.id);
@@ -92,6 +105,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
           setNewAssignUserName(f.assignPersonName);
         }
       }
+
       toast.success("AI解析完了！内容を確認してください");
     },
     onError: (e) => {
