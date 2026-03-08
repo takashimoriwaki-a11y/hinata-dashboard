@@ -444,79 +444,72 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
           )}
         </div>
 
-        {/* タスク内容 */}
+        {/* 指定先 */}
         <div>
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">内容 *</label>
-          <textarea
-            id="task-content-textarea"
-            placeholder="タスクの内容を入力..."
-            value={newText}
-            onChange={(e) => setNewText(e.target.value)}
-            rows={2}
-            className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-          />
-        </div>
-
-        {/* 期日・時刻 */}
-        <div className="flex flex-col gap-2">
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">
-              <Calendar className="w-3 h-3 inline mr-0.5" />期日（任意）
-            </label>
-            <div className="flex items-center gap-1.5">
-              <input
-                id="task-due-date"
-                type="date"
-                value={newDueDate}
-                onChange={(e) => setNewDueDate(e.target.value)}
-                className="flex-1 text-sm border border-border rounded-lg px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              {newDueDate && (
-                <button
-                  type="button"
-                  onPointerDown={(e) => { e.preventDefault(); setNewDueDate(""); setNewDueTime(""); }}
-                  className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
-                  title="期日をクリア"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">時刻（任意）</label>
-            <div className="flex items-center gap-1.5">
-              <select
-                value={newDueTime}
-                onChange={(e) => setNewDueTime(e.target.value)}
-                disabled={!newDueDate}
-                className="flex-1 text-sm border border-border rounded-lg px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40"
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">指定先</label>
+          <div id="task-assign-type" className="flex gap-2 mb-2">
+            {([
+              { value: "all", label: "全員", icon: Globe },
+              { value: "team", label: "チーム", icon: Users },
+              { value: "personal", label: "個人", icon: User },
+            ] as const).map(({ value, label, icon: Icon }) => (
+              <button
+                key={value}
+                onClick={() => setNewAssignType(value)}
+                className={cn(
+                  "flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border transition-colors flex-1 justify-center",
+                  newAssignType === value
+                    ? "bg-primary text-white border-primary"
+                    : "border-border text-muted-foreground hover:border-primary hover:text-primary"
+                )}
               >
-                <option value="">時刻を選択...</option>
-                {Array.from({ length: 24 * 6 }, (_, i) => {
-                  const h = Math.floor(i / 6);
-                  const m = (i % 6) * 10;
-                  const hh = String(h).padStart(2, "0");
-                  const mm = String(m).padStart(2, "0");
-                  return (
-                    <option key={`${hh}:${mm}`} value={`${hh}:${mm}`}>
-                      {hh}:{mm}
-                    </option>
-                  );
-                })}
-              </select>
-              {newDueTime && (
-                <button
-                  type="button"
-                  onPointerDown={(e) => { e.preventDefault(); setNewDueTime(""); }}
-                  className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
-                  title="時刻をクリア"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
+                <Icon className="w-3.5 h-3.5" />
+                {label}
+              </button>
+            ))}
           </div>
+
+          {/* チーム選択 */}
+          {newAssignType === "team" && (
+            <div id="task-assign-team" className="flex flex-wrap gap-1.5">
+              {TEAMS.map((team) => (
+                <button
+                  key={team}
+                  onClick={() => setNewAssignTeam(team)}
+                  className={cn(
+                    "text-xs px-2.5 py-1 rounded-full border transition-colors",
+                    newAssignTeam === team
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "border-border text-muted-foreground hover:border-blue-600 hover:text-blue-600"
+                  )}
+                >
+                  {team}チーム
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* 個人選択 */}
+          {newAssignType === "personal" && (
+            <select
+              id="task-assign-user"
+              value={newAssignUserId ?? ""}
+              onChange={(e) => {
+                const id = Number(e.target.value);
+                setNewAssignUserId(id || null);
+                const found = staff.find((s) => s.id === id);
+                setNewAssignUserName(found?.name ?? "");
+              }}
+              className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="">スタッフを選択...</option>
+              {staff.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name ?? "名前なし"}{s.team ? ` (${s.team})` : ""}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* 利用者名（任意） */}
@@ -633,72 +626,79 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
           </div>
         )}
 
-        {/* 指定先 */}
-        <div>
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">指定先</label>
-          <div id="task-assign-type" className="flex gap-2 mb-2">
-            {([
-              { value: "all", label: "全員", icon: Globe },
-              { value: "team", label: "チーム", icon: Users },
-              { value: "personal", label: "個人", icon: User },
-            ] as const).map(({ value, label, icon: Icon }) => (
-              <button
-                key={value}
-                onClick={() => setNewAssignType(value)}
-                className={cn(
-                  "flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border transition-colors flex-1 justify-center",
-                  newAssignType === value
-                    ? "bg-primary text-white border-primary"
-                    : "border-border text-muted-foreground hover:border-primary hover:text-primary"
-                )}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {/* チーム選択 */}
-          {newAssignType === "team" && (
-            <div id="task-assign-team" className="flex flex-wrap gap-1.5">
-              {TEAMS.map((team) => (
+        {/* 期日・時刻 */}
+        <div className="flex flex-col gap-2">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              <Calendar className="w-3 h-3 inline mr-0.5" />期日（任意）
+            </label>
+            <div className="flex items-center gap-1.5">
+              <input
+                id="task-due-date"
+                type="date"
+                value={newDueDate}
+                onChange={(e) => setNewDueDate(e.target.value)}
+                className="flex-1 text-sm border border-border rounded-lg px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              {newDueDate && (
                 <button
-                  key={team}
-                  onClick={() => setNewAssignTeam(team)}
-                  className={cn(
-                    "text-xs px-2.5 py-1 rounded-full border transition-colors",
-                    newAssignTeam === team
-                      ? "bg-blue-600 text-white border-blue-600"
-                      : "border-border text-muted-foreground hover:border-blue-600 hover:text-blue-600"
-                  )}
+                  type="button"
+                  onPointerDown={(e) => { e.preventDefault(); setNewDueDate(""); setNewDueTime(""); }}
+                  className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                  title="期日をクリア"
                 >
-                  {team}チーム
+                  <X className="w-4 h-4" />
                 </button>
-              ))}
+              )}
             </div>
-          )}
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">時刻（任意）</label>
+            <div className="flex items-center gap-1.5">
+              <select
+                value={newDueTime}
+                onChange={(e) => setNewDueTime(e.target.value)}
+                disabled={!newDueDate}
+                className="flex-1 text-sm border border-border rounded-lg px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40"
+              >
+                <option value="">時刻を選択...</option>
+                {Array.from({ length: 24 * 6 }, (_, i) => {
+                  const h = Math.floor(i / 6);
+                  const m = (i % 6) * 10;
+                  const hh = String(h).padStart(2, "0");
+                  const mm = String(m).padStart(2, "0");
+                  return (
+                    <option key={`${hh}:${mm}`} value={`${hh}:${mm}`}>
+                      {hh}:{mm}
+                    </option>
+                  );
+                })}
+              </select>
+              {newDueTime && (
+                <button
+                  type="button"
+                  onPointerDown={(e) => { e.preventDefault(); setNewDueTime(""); }}
+                  className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                  title="時刻をクリア"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
 
-          {/* 個人選択 */}
-          {newAssignType === "personal" && (
-            <select
-              id="task-assign-user"
-              value={newAssignUserId ?? ""}
-              onChange={(e) => {
-                const id = Number(e.target.value);
-                setNewAssignUserId(id || null);
-                const found = staff.find((s) => s.id === id);
-                setNewAssignUserName(found?.name ?? "");
-              }}
-              className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="">スタッフを選択...</option>
-              {staff.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name ?? "名前なし"}{s.team ? ` (${s.team})` : ""}
-                </option>
-              ))}
-            </select>
-          )}
+        {/* タスク内容 */}
+        <div>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">内容 *</label>
+          <textarea
+            id="task-content-textarea"
+            placeholder="タスクの内容を入力..."
+            value={newText}
+            onChange={(e) => setNewText(e.target.value)}
+            rows={2}
+            className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+          />
         </div>
 
         {/* 繰り返し設定 */}
