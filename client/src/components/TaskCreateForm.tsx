@@ -63,6 +63,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [lastVoiceText, setLastVoiceText] = useState<string | null>(null);
+  const [missingFields, setMissingFields] = useState<string[]>([]);
   const [showHint, setShowHint] = useState(() => {
     try { return !localStorage.getItem("taskVoiceHintDismissed"); } catch { return true; }
   });
@@ -76,12 +77,15 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
       setIsAnalyzing(false);
       setVoiceError(null);
       const f = data.fields;
+      const missing: string[] = [];
 
       // タスク内容
       if (f.text) setNewText(f.text);
+      else missing.push("タスク内容");
 
       // 期日
       if (f.dueDateStr) setNewDueDate(f.dueDateStr);
+      // 期日は任意なので未転記でも missing には追加しない
 
       // 指定先種別
       const assignType = (f.assignType as AssignType) || "all";
@@ -92,25 +96,30 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
         if (f.assignTeam && TEAMS.includes(f.assignTeam as Team)) {
           setNewAssignTeam(f.assignTeam as Team);
         } else {
-          // チーム名が認識できなかった場合はエラーを表示して庅る
-          setVoiceError("チーム名が聞き取れませんでした。もう一度お試しください");
-          setIsAnalyzing(false);
-          return;
+          // チーム名が認識できなかった場合は missing に追加
+          missing.push("チーム名（身体・天理・郡山北部・郡山南部）");
         }
       }
 
       // 個人指定: assignTypeがpersonalのときに設定
-      if (assignType === "personal" && f.assignPersonName) {
-        const found = staff.find(s => s.name && s.name.includes(f.assignPersonName));
-        if (found) {
-          setNewAssignUserId(found.id);
-          setNewAssignUserName(found.name ?? "");
+      if (assignType === "personal") {
+        if (f.assignPersonName) {
+          const found = staff.find(s => s.name && s.name.includes(f.assignPersonName));
+          if (found) {
+            setNewAssignUserId(found.id);
+            setNewAssignUserName(found.name ?? "");
+          } else {
+            setNewAssignUserName(f.assignPersonName);
+          }
         } else {
-          setNewAssignUserName(f.assignPersonName);
+          missing.push("担当者名");
         }
       }
 
-      toast.success("AI解析完了！内容を確認してください");
+      setMissingFields(missing);
+      if (missing.length === 0) {
+        toast.success("AI解析完了！内容を確認してください");
+      }
     },
     onError: (e) => {
       setIsAnalyzing(false);
@@ -299,6 +308,19 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
                   もう一度試す
                 </button>
               )}
+            </div>
+          )}
+
+          {/* 未転記項目バナー */}
+          {missingFields.length > 0 && (
+            <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2 space-y-1.5">
+              <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">聞き取れなかった項目があります</p>
+              <div className="flex flex-wrap gap-1">
+                {missingFields.map((field) => (
+                  <span key={field} className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 font-medium">{field}</span>
+                ))}
+              </div>
+              <p className="text-[10px] text-amber-700 dark:text-amber-400">上記の項目だけもう一度マイクで話してください</p>
             </div>
           )}
 

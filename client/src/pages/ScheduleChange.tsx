@@ -947,6 +947,7 @@ export default function ScheduleChange() {
   const [voiceText, setVoiceText] = useState("");
   const [isParsingVoice, setIsParsingVoice] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [missingVoiceFields, setMissingVoiceFields] = useState<string[]>([]);
   // 初回ヒント表示（localStorageで既読判定）
   const [showVoiceHint, setShowVoiceHint] = useState(() => {
     try {
@@ -1133,25 +1134,34 @@ export default function ScheduleChange() {
     onSuccess: (data) => {
       const f = data.fields;
       let applied = 0;
+      const missing: string[] = [];
 
       // changeTypeとteamを先に適用
       if (f.changeType && ["visit_change", "visit_cancel", "visit_add", "meeting_add", "meeting_change"].includes(f.changeType)) {
         setChangeType(f.changeType as ChangeType);
         applied++;
+      } else {
+        missing.push("変更種別（日時変更・キャンセル・追加等）");
       }
+
       if (f.team) {
         if (["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"].includes(f.team)) {
           setTeam(f.team as Team);
           applied++;
         } else {
-          // チーム名が認識できなかった場合はエラーを表示して処理を中断
-          setIsParsingVoice(false);
-          setVoiceError("チーム名が聞き取れませんでした。もう一度お試しください");
-          return;
+          // チーム名が認識できなかった場合は missing に追加
+          missing.push("チーム名（身体・天理・郡山北部・郡山南部）");
         }
+      } else {
+        missing.push("チーム名（身体・天理・郡山北部・郡山南部）");
       }
+
       if (f.fromDatetime) { setFromDatetime(f.fromDatetime); applied++; }
+      else { missing.push("変更前日時"); }
+
       if (f.toDatetime) { setToDatetime(f.toDatetime); applied++; }
+      // toDatetimeはキャンセル時は不要なので missing には追加しない
+
       if (f.staffBefore) { setStaffBefore(f.staffBefore); applied++; }
       if (f.staffAfter) { setStaffAfter(f.staffAfter); applied++; }
       if (f.meetingName) { setMeetingName(f.meetingName); applied++; }
@@ -1191,33 +1201,42 @@ export default function ScheduleChange() {
           // チームも自動セット（未選択の場合）
           if (!team && candidates[0].team) {
             setTeam(candidates[0].team as Team);
+            // チームが自動セットされた場合は missing からチーム名を除去
+            const idx = missing.indexOf("チーム名（身体・天理・郡山北部・郡山南部）");
+            if (idx !== -1) missing.splice(idx, 1);
           }
+          setMissingVoiceFields(missing);
           setIsParsingVoice(false);
-          toast.success(`音声内容を${applied}項目に自動転記しました`);
+          if (missing.length === 0) {
+            toast.success(`音声内容を${applied}項目に自動転記しました`);
+          }
         } else if (candidates.length > 1) {
           // 複数候補 → 候補選択ダイアログ
           setPendingVoiceFields({ appliedCount: applied });
           setVoicePatientCandidates(candidates);
           setShowVoicePatientDialog(true);
+          setMissingVoiceFields(missing);
           setIsParsingVoice(false);
           // 候補選択待ちのときはトーストなし（ダイアログが表示される）
         } else {
           // 候補なし → 登録外の利用者として AI 返却値をそのまま転記
           if (f.patientName) { setPatientName(f.patientName); applied++; }
+          else { missing.push("利用者名"); }
+          setMissingVoiceFields(missing);
           setIsParsingVoice(false);
-          if (applied > 0) {
+          if (missing.length === 0 && applied > 0) {
             toast.success(`音声内容を${applied}項目に自動転記しました（利用者は登録外）`);
-          } else {
+          } else if (applied === 0 && missing.length === 0) {
             toast("認識できた項目がありませんでした。もう一度お試しください。");
           }
         }
       } else {
         // 利用者名なしのケース
+        missing.push("利用者名");
+        setMissingVoiceFields(missing);
         setIsParsingVoice(false);
-        if (applied > 0) {
+        if (missing.length === 0 && applied > 0) {
           toast.success(`音声内容を${applied}項目に自動転記しました`);
-        } else {
-          toast("認識できた項目がありませんでした。もう一度お試しください。");
         }
       }
     },
@@ -1485,6 +1504,19 @@ export default function ScheduleChange() {
                 <span className="text-sm">🎤</span>
                 もう一度話す
               </button>
+            </div>
+          )}
+
+          {/* 未転記項目バナー */}
+          {missingVoiceFields.length > 0 && !isParsingVoice && (
+            <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2.5 space-y-1.5">
+              <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">💬 聞き取れなかった項目があります</p>
+              <div className="flex flex-wrap gap-1">
+                {missingVoiceFields.map((field) => (
+                  <span key={field} className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 font-medium">{field}</span>
+                ))}
+              </div>
+              <p className="text-[10px] text-amber-700 dark:text-amber-400">上記の項目だけもう一度マイクで話してください</p>
             </div>
           )}
 
