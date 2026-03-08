@@ -40,7 +40,7 @@ import { cn } from "@/lib/utils";
 const CHANGE_TYPES = [
   { value: "visit_change", label: "訪問日時変更", icon: "🔄", color: "bg-blue-100 text-blue-800 border-blue-200" },
   { value: "visit_cancel", label: "訪問キャンセル", icon: "❌", color: "bg-red-100 text-red-800 border-red-200" },
-  { value: "visit_add", label: "訪問追加", icon: "➕", color: "bg-green-100 text-green-800 border-green-200" },
+  { value: "visit_add", label: "訪問追加", icon: "✅", color: "bg-green-100 text-green-800 border-green-200" },
   { value: "meeting_add", label: "会議追加", icon: "📅", color: "bg-purple-100 text-purple-800 border-purple-200" },
   { value: "meeting_change", label: "会議変更", icon: "📝", color: "bg-orange-100 text-orange-800 border-orange-200" },
 ] as const;
@@ -656,19 +656,28 @@ function MultiStaffAutocomplete({
   staffList,
   selected,
   onToggle,
+  selectedTeam,
 }: {
   staffList: StaffItem2[];
   selected: string[];
   onToggle: (name: string) => void;
+  selectedTeam?: string;
 }) {
   const [query, setQuery] = useState("");
   const [manualInput, setManualInput] = useState("");
 
+  // チーム選択時: そのチーム + 全チームのスタッフを優先表示（デフォルト一覧）
+  const defaultList = useMemo(() => {
+    if (!selectedTeam || selectedTeam === "全チーム") return staffList;
+    return staffList.filter(s => s.team === selectedTeam || s.team === "全チーム");
+  }, [staffList, selectedTeam]);
+
   const filtered = useMemo(() => {
-    if (!query.trim()) return staffList;
+    const base = query.trim() ? staffList : defaultList;
+    if (!query.trim()) return base;
     const q = query.toLowerCase();
     return staffList.filter(s => s.name.toLowerCase().includes(q));
-  }, [staffList, query]);
+  }, [staffList, defaultList, query]);
 
   const handleAddManual = () => {
     const val = manualInput.trim();
@@ -1400,6 +1409,7 @@ export default function ScheduleChange() {
               <MultiStaffAutocomplete
                 staffList={staffList}
                 selected={meetingStaff}
+                selectedTeam={team || undefined}
                 onToggle={(name) => {
                   setMeetingStaff(prev =>
                     prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
