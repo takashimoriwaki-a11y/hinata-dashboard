@@ -141,10 +141,14 @@ export default function RecordInput() {
       setEditingPreview((p) => {
         if (!p) return p;
         if (field === "patientName" && f.patientName) {
-          const matched = (patientsRef.current ?? []).find(
-            (pt) => pt.name === f.patientName || pt.name.includes(f.patientName!) || f.patientName!.includes(pt.name)
-          );
-          return { ...p, patientName: matched ? matched.name : f.patientName, patientId: matched ? matched.id : null };
+          const aiName = f.patientName;
+          const src = allPatientsRef.current.length > 0 ? allPatientsRef.current : (patientsRef.current ?? []);
+          // 完全一致を優先、次に部分一致
+          const exact = src.find((pt) => pt.name === aiName);
+          const matched = exact ?? src.filter(
+            (pt) => pt.name.includes(aiName) || aiName.includes(pt.name.split('\u3000')[0].split(' ')[0])
+          ).find(Boolean);
+          return { ...p, patientName: matched ? matched.name : aiName, patientId: matched ? matched.id : null };
         }
         if (field === "visitDate" && f.visitDate) return { ...p, visitDate: f.visitDate };
         if (field === "visitTime" && f.visitTime) return { ...p, visitTime: f.visitTime };
@@ -170,7 +174,11 @@ export default function RecordInput() {
   const reInputPatientVoice = useVoiceInput({
     onResult: (text) => {
       setIsParsingReInput(true);
-      parseReInputMutation.mutate({ text, patientNames: patientsRef.current.map((p) => p.name), targetField: "patientName" } as { text: string; patientNames: string[]; targetField: string });
+      // 全利用者リストを渡す（検索結果ではなく全件）
+      const names = allPatientsRef.current.length > 0
+        ? allPatientsRef.current.map((p) => p.name)
+        : patientsRef.current.map((p) => p.name);
+      parseReInputMutation.mutate({ text, patientNames: names, targetField: "patientName" } as { text: string; patientNames: string[]; targetField: string });
     },
   });
   // 個別音声再入力用フック（次回訪問日時）
@@ -200,10 +208,20 @@ export default function RecordInput() {
     onSuccess: (result) => {
       const f = result.fields;
       // 確認パネル用のプレビューデータを構築
+      // 全利用者リストを使ってマッチング（検索結果ではなく全件）
+      const sourceList = allPatientsRef.current.length > 0 ? allPatientsRef.current : patientsRef.current;
       const matched = f.patientName
-        ? (patientsRef.current ?? []).find(
-            (p) => p.name === f.patientName || p.name.includes(f.patientName!) || f.patientName!.includes(p.name)
-          )
+        ? (() => {
+            const aiName = f.patientName;
+            // 完全一致を優先
+            const exact = sourceList.find((p) => p.name === aiName);
+            if (exact) return exact;
+            // 部分一致
+            const partial = sourceList.filter(
+              (p) => p.name.includes(aiName) || aiName.includes(p.name.split('\u3000')[0].split(' ')[0])
+            );
+            return partial.length === 1 ? partial[0] : undefined;
+          })()
         : undefined;
       const preview: VoicePreview = {
         patientName: matched ? matched.name : (f.patientName ?? undefined),
@@ -232,7 +250,11 @@ export default function RecordInput() {
     setVisitVoiceText(text);
     setVisitVoiceError(null);
     setIsParsingVisitVoice(true);
-    parseVisitVoiceMutation.mutate({ text, patientNames: patientsRef.current.map((p) => p.name) });
+    // 全利用者リストを渡す（検索結果ではなく全件）
+    const names = allPatientsRef.current.length > 0
+      ? allPatientsRef.current.map((p) => p.name)
+      : patientsRef.current.map((p) => p.name);
+    parseVisitVoiceMutation.mutate({ text, patientNames: names });
   };
 
   const visitVoice = useVoiceInput({
@@ -293,6 +315,11 @@ export default function RecordInput() {
     { query: searchQuery, team: team as Team || undefined },
     { enabled: showPatientList || searchQuery.length > 0 }
   );
+
+  // 全利用者リスト（音声入力時のマッチング用）
+  const { data: allPatients = [] } = trpc.patients.list.useQuery({});
+  const allPatientsRef = useRef<typeof allPatients>([]);
+  useEffect(() => { allPatientsRef.current = allPatients; }, [allPatients]);
 
   // patientsRefを最新のpatientsで同期
   useEffect(() => { patientsRef.current = patients; }, [patients]);
