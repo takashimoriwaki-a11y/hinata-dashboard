@@ -942,6 +942,11 @@ export default function ScheduleChange() {
   // 音声入力関連ステート
   const [voiceText, setVoiceText] = useState("");
   const [isParsingVoice, setIsParsingVoice] = useState(false);
+  // 音声入力後の利用者候補選択ダイアログ用
+  const [voicePatientCandidates, setVoicePatientCandidates] = useState<PatientItem[]>([]);
+  const [showVoicePatientDialog, setShowVoicePatientDialog] = useState(false);
+  // 候補選択後に適用するその他のフィールドを一時保存
+  const [pendingVoiceFields, setPendingVoiceFields] = useState<Record<string, unknown> | null>(null);
 
   // 下書き自動保存（入力変更から800msデバウンス）
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1115,6 +1120,8 @@ export default function ScheduleChange() {
     onSuccess: (data) => {
       const f = data.fields;
       let applied = 0;
+
+      // changeTypeとteamを先に適用
       if (f.changeType && ["visit_change", "visit_cancel", "visit_add", "meeting_add", "meeting_change"].includes(f.changeType)) {
         setChangeType(f.changeType as ChangeType);
         applied++;
@@ -1123,7 +1130,6 @@ export default function ScheduleChange() {
         setTeam(f.team as Team);
         applied++;
       }
-      if (f.patientName) { setPatientName(f.patientName); applied++; }
       if (f.fromDatetime) { setFromDatetime(f.fromDatetime); applied++; }
       if (f.toDatetime) { setToDatetime(f.toDatetime); applied++; }
       if (f.staffBefore) { setStaffBefore(f.staffBefore); applied++; }
@@ -1134,11 +1140,51 @@ export default function ScheduleChange() {
         applied++;
       }
       if (f.reason) { setReason(f.reason); applied++; }
-      setIsParsingVoice(false);
-      if (applied > 0) {
-        toast.success(`音声内容を${applied}項目に自動転記しました`);
+
+      // 利用者名処理: patientLastNameがあれば登録利用者から検索して連携
+      const lastName = (f as Record<string, unknown>).patientLastName as string | null;
+      if (lastName) {
+        // 苗字で先頭一致検索
+        const exactMatches = patientList.filter((p: PatientItem) => {
+          const parts = p.name.split(/[　 ]/);
+          return parts[0] === lastName;
+        });
+        const candidates = exactMatches.length > 0
+          ? exactMatches
+          : patientList.filter((p: PatientItem) => p.name.includes(lastName));
+
+        if (candidates.length === 1) {
+          // 1件一致 → 即転記
+          setPatientName(candidates[0].name);
+          applied++;
+          setIsParsingVoice(false);
+          toast.success(`音声内容を${applied}項目に自動転記しました`);
+        } else if (candidates.length > 1) {
+          // 複数候補 → 候補選択ダイアログ
+          setPendingVoiceFields({ appliedCount: applied });
+          setVoicePatientCandidates(candidates);
+          setShowVoicePatientDialog(true);
+          setIsParsingVoice(false);
+          // 候補選択待ちのときはトーストなし（ダイアログが表示される）
+        } else {
+          // 候補なし → AI返却の姓名をそのまま転記
+          if (f.patientName) { setPatientName(f.patientName); applied++; }
+          setIsParsingVoice(false);
+          if (applied > 0) {
+            toast.success(`音声内容を${applied}項目に自動転記しました`);
+          } else {
+            toast("認識できた項目がありませんでした。もう一度お試しください。");
+          }
+        }
       } else {
-        toast("認識できた項目がありませんでした。もう一度お試しください。");
+        // 利用者名なしのケース
+        if (f.patientName) { setPatientName(f.patientName); applied++; }
+        setIsParsingVoice(false);
+        if (applied > 0) {
+          toast.success(`音声内容を${applied}項目に自動転記しました`);
+        } else {
+          toast("認識できた項目がありませんでした。もう一度お試しください。");
+        }
       }
     },
     onError: (err) => {
@@ -1787,6 +1833,60 @@ export default function ScheduleChange() {
             </>
           )}
         </Button>
+      )}
+
+      {/* 音声入力後の利用者候補選択ダイアログ */}
+      {showVoicePatientDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-popover border border-border rounded-2xl shadow-2xl w-[90vw] max-w-sm mx-4 overflow-hidden">
+            <div className="px-4 py-3 border-b border-border bg-muted/30">
+              <p className="text-sm font-semibold text-foreground">利用者を選択してください</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                「{voicePatientCandidates[0]?.name.split(/[　 ]/)[0]}」さんが{voicePatientCandidates.length}名登録されています
+              </p>
+            </div>
+            <div className="max-h-64 overflow-y-auto">
+              {voicePatientCandidates.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    setPatientName(p.name);
+                    const prevApplied = (pendingVoiceFields?.appliedCount as number) ?? 0;
+                    toast.success(`音声内容を${prevApplied + 1}項目に自動転記しました`);
+                    setShowVoicePatientDialog(false);
+                    setVoicePatientCandidates([]);
+                    setPendingVoiceFields(null);
+                  }}
+                  className="w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-primary/10 active:bg-primary/20 transition-colors border-b border-border/50 last:border-0"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{p.name}</p>
+                    {p.nameKana && (
+                      <p className="text-xs text-muted-foreground mt-0.5">{p.nameKana}</p>
+                    )}
+                  </div>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground flex-shrink-0">
+                    {p.team}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <div className="px-4 py-3 border-t border-border">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowVoicePatientDialog(false);
+                  setVoicePatientCandidates([]);
+                  setPendingVoiceFields(null);
+                }}
+                className="w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                キャンセル（手動で入力）
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

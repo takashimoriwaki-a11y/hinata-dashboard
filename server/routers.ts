@@ -1790,13 +1790,14 @@ export const appRouter = router({
 抽出項目:
 - changeType: 次のいずれか。訪問日時変更=visit_change、訪問キャンセル=visit_cancel、訪問追加=visit_add、会議追加=meeting_add、会議変更=meeting_change
 - team: 身体 / 天理 / 郡山北部 / 郡山南部 / 事務員 / 全チーム のいずれか
-- patientName: 利用者名（姓名）
+- patientName: 利用者名（姓名）。姓だけの場合は姓のみ返す
+- patientLastName: 利用者の姓（苗字）のみ。姓名両方わかる場合は同じ値、姓だけの場合はその姓、利用者が不明な場合はnull
 - fromDatetime: 変更前日時（ISO 8601）
 - toDatetime: 変更後日時または追加日時（ISO 8601）
 - staffBefore: 変更前担当スタッフ名
 - staffAfter: 変更後担当スタッフ名
 - meetingName: 会議名
-- meetingStaff: 参加スタッフ名の配列（例: ["\u68ee脇", "\u7530中"]）
+- meetingStaff: 参加スタッフ名の配列（例: ["森脇", "田中"]）
 - reason: 備考・変更理由
 
 不明な項目はnullを返してください。必ず有効なJSONのみを返してください。`;
@@ -1817,6 +1818,7 @@ export const appRouter = router({
                   changeType: { type: ["string", "null"] },
                   team: { type: ["string", "null"] },
                   patientName: { type: ["string", "null"] },
+                  patientLastName: { type: ["string", "null"] },
                   fromDatetime: { type: ["string", "null"] },
                   toDatetime: { type: ["string", "null"] },
                   staffBefore: { type: ["string", "null"] },
@@ -1825,7 +1827,7 @@ export const appRouter = router({
                   meetingStaff: { type: ["array", "null"], items: { type: "string" } },
                   reason: { type: ["string", "null"] },
                 },
-                required: ["changeType", "team", "patientName", "fromDatetime", "toDatetime", "staffBefore", "staffAfter", "meetingName", "meetingStaff", "reason"],
+                required: ["changeType", "team", "patientName", "patientLastName", "fromDatetime", "toDatetime", "staffBefore", "staffAfter", "meetingName", "meetingStaff", "reason"],
                 additionalProperties: false,
               },
             },
