@@ -83,6 +83,45 @@ export default function RecordInput() {
     onResult: (text: string) => { setClinicalNotes(prev => prev + (prev ? "\n" : "") + text.trim()); },
   });
 
+  // 次回訪問日時・伝達先・伝達方法の音声入力用state
+  const [visitVoiceText, setVisitVoiceText] = useState("");
+  const [isParsingVisitVoice, setIsParsingVisitVoice] = useState(false);
+  const [visitVoiceError, setVisitVoiceError] = useState<string | null>(null);
+  const [showVisitVoiceHint, setShowVisitVoiceHint] = useState(false);
+
+  // 次回訪問日時音声入力用tRPCミューテーション
+  const parseVisitVoiceMutation = trpc.visitRecords.parseVisitVoice.useMutation({
+    onSuccess: (result) => {
+      const f = result.fields;
+      if (f.visitDate) setNextVisitDate(f.visitDate);
+      if (f.visitTime) setNextVisitTime(f.visitTime);
+      if (f.notifiedTo && NOTIFY_TO_OPTIONS.includes(f.notifiedTo as typeof NOTIFY_TO_OPTIONS[number])) {
+        setNotifiedTo(f.notifiedTo as typeof NOTIFY_TO_OPTIONS[number]);
+      }
+      if (f.notifiedToOther) setNotifiedToOther(f.notifiedToOther);
+      if (f.notifyMethod && NOTIFY_METHOD_OPTIONS.includes(f.notifyMethod as typeof NOTIFY_METHOD_OPTIONS[number])) {
+        setNotifyMethod(f.notifyMethod as typeof NOTIFY_METHOD_OPTIONS[number]);
+      }
+      if (f.notifyMethodOther) setNotifyMethodOther(f.notifyMethodOther);
+      setIsParsingVisitVoice(false);
+    },
+    onError: (err) => {
+      setVisitVoiceError(err.message);
+      setIsParsingVisitVoice(false);
+    },
+  });
+
+  const handleVisitVoiceResult = (text: string) => {
+    setVisitVoiceText(text);
+    setVisitVoiceError(null);
+    setIsParsingVisitVoice(true);
+    parseVisitVoiceMutation.mutate({ text });
+  };
+
+  const visitVoice = useVoiceInput({
+    onResult: handleVisitVoiceResult,
+  });
+
   // ===== 下書き自動保存 =====
   const DRAFT_KEY = "hinata_record_draft";
 
@@ -376,12 +415,143 @@ ${clinicalNotes}`);
             )}
           </div>
 
-          {/* 次回訪問日時 */}
+          {/* 次回訪問日時 + 音声入力 */}
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">
-              <Calendar className="w-3 h-3 inline mr-1" />
-              次回訪問日時
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-medium text-muted-foreground">
+                <Calendar className="w-3 h-3 inline mr-1" />
+                次回訪問日時
+              </label>
+              {/* 音声入力ボタン */}
+              <button
+                type="button"
+                onPointerDown={(e) => { e.preventDefault(); visitVoice.toggleVoice(); }}
+                className={cn(
+                  "relative inline-flex items-center justify-center flex-shrink-0 h-8 w-8 rounded-lg",
+                  "border transition-all duration-200 select-none touch-manipulation",
+                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                  visitVoice.isRecording
+                    ? (visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5
+                        ? "bg-orange-500 border-orange-400 text-white shadow-md shadow-orange-500/40"
+                        : "bg-red-500 border-red-400 text-white shadow-md shadow-red-500/40")
+                    : "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 active:scale-95"
+                )}
+                aria-label={visitVoice.isRecording ? "録音停止" : "音声入力開始"}
+                disabled={isParsingVisitVoice}
+              >
+                {visitVoice.isRecording && (
+                  <span className="absolute inset-0 rounded-[inherit] overflow-hidden pointer-events-none">
+                    <span className={cn("absolute inset-0 animate-ping rounded-[inherit] opacity-25", visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5 ? "bg-orange-400" : "bg-red-400")} />
+                  </span>
+                )}
+                {isParsingVisitVoice ? (
+                  <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                ) : visitVoice.isRecording && visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5 ? (
+                  <span className="text-[9px] font-bold leading-none">{visitVoice.silenceCountdown}</span>
+                ) : visitVoice.isRecording ? (
+                  <span className="flex items-end justify-center gap-px h-3">
+                    {[0,1,2,3].map((i) => (
+                      <span key={i} className="w-0.5 bg-white rounded-full" style={{ height: "60%", animation: "voiceBar 0.5s ease-in-out infinite alternate", animationDelay: `${i * 0.12}s` }} />
+                    ))}
+                  </span>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+                )}
+              </button>
+            </div>
+
+            {/* 音声認識中の暫定テキストプレビュー */}
+            {visitVoice.isRecording && (
+              <div className={cn(
+                "mb-2 px-2 py-1.5 rounded-md border min-h-[32px]",
+                visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5
+                  ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
+                  : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
+              )}>
+                {visitVoice.interimText ? (
+                  <p className="text-xs text-red-600 dark:text-red-400 italic leading-relaxed">
+                    🎤 {visitVoice.interimText}
+                  </p>
+                ) : visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5 ? (
+                  <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+                    あと{visitVoice.silenceCountdown}秒で自動停止します
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">話しかけてください...</p>
+                )}
+              </div>
+            )}
+
+            {/* AI解析中 */}
+            {isParsingVisitVoice && (
+              <div className="mb-2 flex items-center gap-2 text-xs text-primary">
+                <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <span>AIが音声内容を解析して各項目に転記中...</span>
+              </div>
+            )}
+
+            {/* AI解析失敗時 */}
+            {visitVoiceError && !isParsingVisitVoice && (
+              <div className="mb-2 flex items-start gap-3 p-2 bg-destructive/10 border border-destructive/30 rounded-lg">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-destructive">⚠️ AI解析に失敗しました</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{visitVoiceError}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setVisitVoiceError(null); if (visitVoiceText) handleVisitVoiceResult(visitVoiceText); }}
+                  className="text-[10px] text-primary hover:underline whitespace-nowrap"
+                >
+                  再試行
+                </button>
+              </div>
+            )}
+
+            {/* 例文ヒントトグル */}
+            {!visitVoice.isRecording && !isParsingVisitVoice && !visitVoiceText && (
+              <button
+                type="button"
+                onClick={() => setShowVisitVoiceHint((v) => !v)}
+                className="mb-2 text-[10px] text-primary hover:underline flex items-center gap-1"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                話しかけの例文を見る
+              </button>
+            )}
+            {showVisitVoiceHint && !visitVoice.isRecording && !isParsingVisitVoice && (
+              <div className="mb-2">
+                <p className="text-[10px] font-medium text-muted-foreground mb-1.5">話しかけの例（タップでそのままAI転記）</p>
+                <div className="flex flex-col gap-1.5">
+                  {[
+                    { label: "日時のみ", text: "明日の午後2時に次回訪問、本人に口頭で伝えた" },
+                    { label: "日時＋伝達先＋伝達方法", text: "来週月曜の10時から、家族にカレンダーに記入してもらった" },
+                    { label: "伝達先のみ", text: "本人に付箋で伝えた" },
+                    { label: "伝達方法のみ", text: "電話で家族に連絡した" },
+                  ].map((ex) => (
+                    <button
+                      key={ex.label}
+                      type="button"
+                      onClick={() => { setShowVisitVoiceHint(false); handleVisitVoiceResult(ex.text); }}
+                      className={cn(
+                        "w-full text-left rounded-lg bg-background/70 border border-border px-3 py-2",
+                        "hover:bg-primary/5 hover:border-primary/40 active:scale-[0.98] transition-all duration-150",
+                        "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <span className="inline-block text-[9px] font-semibold text-primary bg-primary/10 rounded px-1.5 py-0.5 mr-2 leading-none">{ex.label}</span>
+                          <span className="text-[11px] text-muted-foreground leading-snug">{ex.text}</span>
+                        </div>
+                        <span className="flex-shrink-0 text-[9px] font-medium text-primary bg-primary/10 border border-primary/20 rounded px-1.5 py-0.5 whitespace-nowrap">例文から入力</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 日付・時刻入力 */}
             <div className="flex gap-2">
               <Input
                 type="date"
@@ -422,56 +592,54 @@ ${clinicalNotes}`);
             </div>
           </div>
 
-          {/* 伝達先・伝達方法（次回訪問日時が入力されたときのみ表示） */}
-          {nextVisitDate && (
-            <div className="space-y-3 border-t pt-3">
-              <p className="text-xs font-medium text-muted-foreground">次回訪問日時の伝達</p>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">伝達先</label>
-                <div className="flex gap-2 flex-wrap">
-                  {NOTIFY_TO_OPTIONS.map((opt) => (
-                    <button
-                      key={opt}
-                      className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${notifiedTo === opt ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"}`}
-                      onClick={() => setNotifiedTo(opt)}
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-                {notifiedTo === "その他" && (
-                  <Input
-                    className="mt-2 text-sm"
-                    placeholder="伝達先を記入..."
-                    value={notifiedToOther}
-                    onChange={(e) => setNotifiedToOther(e.target.value)}
-                  />
-                )}
+          {/* 伝達先・伝達方法（常時表示） */}
+          <div className="space-y-3 border-t pt-3">
+            <p className="text-xs font-medium text-muted-foreground">次回訪問日時の伝達</p>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">伝達先</label>
+              <div className="flex gap-2 flex-wrap">
+                {NOTIFY_TO_OPTIONS.map((opt) => (
+                  <button
+                    key={opt}
+                    className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${notifiedTo === opt ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"}`}
+                    onClick={() => setNotifiedTo(opt)}
+                  >
+                    {opt}
+                  </button>
+                ))}
               </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">伝達方法</label>
-                <div className="flex gap-2 flex-wrap">
-                  {NOTIFY_METHOD_OPTIONS.map((opt) => (
-                    <button
-                      key={opt}
-                      className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${notifyMethod === opt ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"}`}
-                      onClick={() => setNotifyMethod(opt)}
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-                {notifyMethod === "その他" && (
-                  <Input
-                    className="mt-2 text-sm"
-                    placeholder="伝達方法を記入..."
-                    value={notifyMethodOther}
-                    onChange={(e) => setNotifyMethodOther(e.target.value)}
-                  />
-                )}
-              </div>
+              {notifiedTo === "その他" && (
+                <Input
+                  className="mt-2 text-sm"
+                  placeholder="伝達先を記入..."
+                  value={notifiedToOther}
+                  onChange={(e) => setNotifiedToOther(e.target.value)}
+                />
+              )}
             </div>
-          )}
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">伝達方法</label>
+              <div className="flex gap-2 flex-wrap">
+                {NOTIFY_METHOD_OPTIONS.map((opt) => (
+                  <button
+                    key={opt}
+                    className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${notifyMethod === opt ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"}`}
+                    onClick={() => setNotifyMethod(opt)}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+              {notifyMethod === "その他" && (
+                <Input
+                  className="mt-2 text-sm"
+                  placeholder="伝達方法を記入..."
+                  value={notifyMethodOther}
+                  onChange={(e) => setNotifyMethodOther(e.target.value)}
+                />
+              )}
+            </div>
+          </div>
           {/* リセットボタン（①カード内の末尾） */}
           <div className="flex justify-end pt-1">
             <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs text-muted-foreground hover:text-foreground">
