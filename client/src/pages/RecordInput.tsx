@@ -523,134 +523,181 @@ ${clinicalNotes}`);
           </div>
 
           {/* 音声転記確認・修正パネル */}
-          {voicePreview && editingPreview && (
-            <div className="rounded-xl border-2 border-emerald-400/60 bg-emerald-50 dark:bg-emerald-950/30 p-3 space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">✅ AI転記結果を確認・修正</p>
-                <button
-                  type="button"
-                  onClick={() => { setVoicePreview(null); setEditingPreview(null); setVisitVoiceText(""); }}
-                  className="text-[10px] text-muted-foreground hover:text-destructive"
-                >
-                  ✕ 閉じる
-                </button>
-              </div>
-              <p className="text-[10px] text-muted-foreground -mt-1">内容を確認して「確定」をタップしてください。修正したい場合は各項目を直接編集できます。</p>
+          {voicePreview && editingPreview && (() => {
+            // 未検出項目の判定
+            const missingPatient = !editingPreview.patientName;
+            const missingDate = !editingPreview.visitDate;
+            const missingTime = !editingPreview.visitTime;
+            const missingNotifiedTo = !editingPreview.notifiedTo;
+            const missingNotifyMethod = !editingPreview.notifyMethod;
+            const missingCount = [missingPatient, missingDate, missingTime, missingNotifiedTo, missingNotifyMethod].filter(Boolean).length;
+            const hasMissing = missingCount > 0;
+            return (
+              <div className={cn(
+                "rounded-xl border-2 p-3 space-y-3",
+                hasMissing
+                  ? "border-amber-400/70 bg-amber-50 dark:bg-amber-950/20"
+                  : "border-emerald-400/60 bg-emerald-50 dark:bg-emerald-950/30"
+              )}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <p className={cn(
+                      "text-xs font-semibold",
+                      hasMissing ? "text-amber-700 dark:text-amber-300" : "text-emerald-700 dark:text-emerald-300"
+                    )}>
+                      {hasMissing ? `⚠️ AI転記結果（未検出 ${missingCount}項目）` : "✅ AI転記結果を確認・修正"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setVoicePreview(null); setEditingPreview(null); setVisitVoiceText(""); }}
+                    className="text-[10px] text-muted-foreground hover:text-destructive"
+                  >
+                    ✕ 閉じる
+                  </button>
+                </div>
+                <p className="text-[10px] text-muted-foreground -mt-1">
+                  {hasMissing
+                    ? <><span className="text-red-500 font-medium">赤字の項目</span>は未検出です。入力してから「確定」をタップしてください。</>
+                    : "内容を確認して「確定」をタップしてください。修正したい場合は各項目を直接編集できます。"
+                  }
+                </p>
 
-              {/* 利用者名 */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-medium text-muted-foreground">利用者名</label>
-                <Input
-                  className="text-sm h-8"
-                  value={editingPreview.patientName ?? ""}
-                  onChange={(e) => setEditingPreview((p) => p ? { ...p, patientName: e.target.value, patientId: null } : p)}
-                  placeholder="未検出"
-                />
-              </div>
-
-              {/* 次回訪問日時 */}
-              <div className="grid grid-cols-2 gap-2">
+                {/* 利用者名 */}
                 <div className="space-y-1">
-                  <label className="text-[10px] font-medium text-muted-foreground">次回訪問日</label>
+                  <div className="flex items-center gap-1.5">
+                    <label className={cn("text-[10px] font-medium", missingPatient ? "text-red-500" : "text-muted-foreground")}>利用者名</label>
+                    {missingPatient && <span className="text-[9px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
+                  </div>
                   <Input
-                    type="date"
-                    className="text-sm h-8"
-                    value={editingPreview.visitDate ?? ""}
-                    onChange={(e) => setEditingPreview((p) => p ? { ...p, visitDate: e.target.value } : p)}
+                    className={cn("text-sm h-8", missingPatient && "border-red-400 focus-visible:ring-red-400")}
+                    value={editingPreview.patientName ?? ""}
+                    onChange={(e) => setEditingPreview((p) => p ? { ...p, patientName: e.target.value, patientId: null } : p)}
+                    placeholder={missingPatient ? "← 利用者名を入力してください" : ""}
                   />
                 </div>
+
+                {/* 次回訪問日時 */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <label className={cn("text-[10px] font-medium", missingDate ? "text-red-500" : "text-muted-foreground")}>次回訪問日</label>
+                      {missingDate && <span className="text-[9px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
+                    </div>
+                    <Input
+                      type="date"
+                      className={cn("text-sm h-8", missingDate && "border-red-400 focus-visible:ring-red-400")}
+                      value={editingPreview.visitDate ?? ""}
+                      onChange={(e) => setEditingPreview((p) => p ? { ...p, visitDate: e.target.value } : p)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <label className={cn("text-[10px] font-medium", missingTime ? "text-red-500" : "text-muted-foreground")}>次回訪問時刻</label>
+                      {missingTime && <span className="text-[9px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
+                    </div>
+                    <Input
+                      type="time"
+                      className={cn("text-sm h-8", missingTime && "border-red-400 focus-visible:ring-red-400")}
+                      value={editingPreview.visitTime ?? ""}
+                      onChange={(e) => setEditingPreview((p) => p ? { ...p, visitTime: e.target.value } : p)}
+                    />
+                  </div>
+                </div>
+
+                {/* 伝達先 */}
                 <div className="space-y-1">
-                  <label className="text-[10px] font-medium text-muted-foreground">次回訪問時刻</label>
-                  <Input
-                    type="time"
-                    className="text-sm h-8"
-                    value={editingPreview.visitTime ?? ""}
-                    onChange={(e) => setEditingPreview((p) => p ? { ...p, visitTime: e.target.value } : p)}
-                  />
+                  <div className="flex items-center gap-1.5">
+                    <label className={cn("text-[10px] font-medium", missingNotifiedTo ? "text-red-500" : "text-muted-foreground")}>伝達先</label>
+                    {missingNotifiedTo && <span className="text-[9px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
+                  </div>
+                  <div className={cn("flex flex-wrap gap-1.5 p-1.5 rounded-lg border", missingNotifiedTo ? "border-red-400 bg-red-50/50 dark:bg-red-950/10" : "border-transparent")}>
+                    {NOTIFY_TO_OPTIONS.map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setEditingPreview((p) => p ? { ...p, notifiedTo: opt } : p)}
+                        className={cn(
+                          "px-3 py-1 rounded-full text-xs border transition-all",
+                          editingPreview.notifiedTo === opt
+                            ? "bg-emerald-600 text-white border-emerald-600"
+                            : "bg-background border-border hover:border-emerald-400"
+                        )}
+                      >{opt}</button>
+                    ))}
+                  </div>
+                  {editingPreview.notifiedTo === "その他" && (
+                    <Input
+                      className="text-sm h-8 mt-1"
+                      value={editingPreview.notifiedToOther ?? ""}
+                      onChange={(e) => setEditingPreview((p) => p ? { ...p, notifiedToOther: e.target.value } : p)}
+                      placeholder="具体的に入力..."
+                    />
+                  )}
+                </div>
+
+                {/* 伝達方法 */}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <label className={cn("text-[10px] font-medium", missingNotifyMethod ? "text-red-500" : "text-muted-foreground")}>伝達方法</label>
+                    {missingNotifyMethod && <span className="text-[9px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
+                  </div>
+                  <div className={cn("flex flex-wrap gap-1.5 p-1.5 rounded-lg border", missingNotifyMethod ? "border-red-400 bg-red-50/50 dark:bg-red-950/10" : "border-transparent")}>
+                    {NOTIFY_METHOD_OPTIONS.map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setEditingPreview((p) => p ? { ...p, notifyMethod: opt } : p)}
+                        className={cn(
+                          "px-3 py-1 rounded-full text-xs border transition-all",
+                          editingPreview.notifyMethod === opt
+                            ? "bg-emerald-600 text-white border-emerald-600"
+                            : "bg-background border-border hover:border-emerald-400"
+                        )}
+                      >{opt}</button>
+                    ))}
+                  </div>
+                  {editingPreview.notifyMethod === "その他" && (
+                    <Input
+                      className="text-sm h-8 mt-1"
+                      value={editingPreview.notifyMethodOther ?? ""}
+                      onChange={(e) => setEditingPreview((p) => p ? { ...p, notifyMethodOther: e.target.value } : p)}
+                      placeholder="具体的に入力..."
+                    />
+                  )}
+                </div>
+
+                {/* ボタン行 */}
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    size="sm"
+                    className={cn(
+                      "flex-1 text-white text-xs h-9",
+                      hasMissing
+                        ? "bg-amber-500 hover:bg-amber-600"
+                        : "bg-emerald-600 hover:bg-emerald-700"
+                    )}
+                    onClick={() => editingPreview && applyVoicePreview(editingPreview)}
+                  >
+                    {hasMissing ? `未入力項目あり・そのまま確定` : "✓　この内容で確定"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs h-9 px-3"
+                    onClick={() => {
+                      setVoicePreview(null);
+                      setEditingPreview(null);
+                      setVisitVoiceText("");
+                      setVisitVoiceError(null);
+                    }}
+                  >
+                    やり直す
+                  </Button>
                 </div>
               </div>
-
-              {/* 伝達先 */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-medium text-muted-foreground">伝達先</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {NOTIFY_TO_OPTIONS.map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setEditingPreview((p) => p ? { ...p, notifiedTo: opt } : p)}
-                      className={cn(
-                        "px-3 py-1 rounded-full text-xs border transition-all",
-                        editingPreview.notifiedTo === opt
-                          ? "bg-emerald-600 text-white border-emerald-600"
-                          : "bg-background border-border hover:border-emerald-400"
-                      )}
-                    >{opt}</button>
-                  ))}
-                </div>
-                {editingPreview.notifiedTo === "その他" && (
-                  <Input
-                    className="text-sm h-8 mt-1"
-                    value={editingPreview.notifiedToOther ?? ""}
-                    onChange={(e) => setEditingPreview((p) => p ? { ...p, notifiedToOther: e.target.value } : p)}
-                    placeholder="具体的に入力..."
-                  />
-                )}
-              </div>
-
-              {/* 伝達方法 */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-medium text-muted-foreground">伝達方法</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {NOTIFY_METHOD_OPTIONS.map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setEditingPreview((p) => p ? { ...p, notifyMethod: opt } : p)}
-                      className={cn(
-                        "px-3 py-1 rounded-full text-xs border transition-all",
-                        editingPreview.notifyMethod === opt
-                          ? "bg-emerald-600 text-white border-emerald-600"
-                          : "bg-background border-border hover:border-emerald-400"
-                      )}
-                    >{opt}</button>
-                  ))}
-                </div>
-                {editingPreview.notifyMethod === "その他" && (
-                  <Input
-                    className="text-sm h-8 mt-1"
-                    value={editingPreview.notifyMethodOther ?? ""}
-                    onChange={(e) => setEditingPreview((p) => p ? { ...p, notifyMethodOther: e.target.value } : p)}
-                    placeholder="具体的に入力..."
-                  />
-                )}
-              </div>
-
-              {/* ボタン行 */}
-              <div className="flex gap-2 pt-1">
-                <Button
-                  size="sm"
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-9"
-                  onClick={() => editingPreview && applyVoicePreview(editingPreview)}
-                >
-                  ✓　この内容で確定
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-xs h-9 px-3"
-                  onClick={() => {
-                    setVoicePreview(null);
-                    setEditingPreview(null);
-                    setVisitVoiceText("");
-                    setVisitVoiceError(null);
-                  }}
-                >
-                  やり直す
-                </Button>
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* チーム選択 */}
           <div>
