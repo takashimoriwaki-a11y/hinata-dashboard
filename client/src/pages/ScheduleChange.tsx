@@ -93,15 +93,51 @@ function PatientAutocomplete({
   const listRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // 音声入力候補選択ダイアログ用state
+  const [voiceCandidates, setVoiceCandidates] = useState<PatientItem[]>([]);
+  const [showVoiceDialog, setShowVoiceDialog] = useState(false);
+
   // 音声入力で苗字を受け取り自動検索
   const handleVoiceForPatient = (text: string) => {
     // 苗字だけ抽出（「さん」「の」などを除去、最初の単語を使用）
     const cleaned = text.trim().replace(/さん$|の$|で$/, "").split(/[　 、。，．]/)[0];
-    setQuery(cleaned);
-    onChange(cleaned);
-    setOpen(true);
-    setHighlighted(0);
-    inputRef.current?.focus();
+    if (!cleaned) return;
+
+    // 登録利用者から苗字で完全一致検索（苗字のみ入力想定なので先頭一致を優先）
+    const exactMatches = patientList.filter((p) => {
+      const nameParts = p.name.split(/[　 ]/);
+      return nameParts[0] === cleaned;
+    });
+    const partialMatches = exactMatches.length > 0
+      ? exactMatches
+      : patientList.filter((p) => p.name.includes(cleaned));
+
+    if (partialMatches.length === 1) {
+      // 1件のみ→即転記
+      setQuery(partialMatches[0].name);
+      onChange(partialMatches[0].name);
+      setOpen(false);
+    } else if (partialMatches.length > 1) {
+      // 複数候補→選択ダイアログを表示
+      setVoiceCandidates(partialMatches);
+      setShowVoiceDialog(true);
+      setQuery(cleaned);
+    } else {
+      // 候補なし→ドロップダウンを開いて手動入力へ
+      setQuery(cleaned);
+      onChange(cleaned);
+      setOpen(true);
+      setHighlighted(0);
+      inputRef.current?.focus();
+    }
+  };
+
+  const handleVoiceCandidateSelect = (patient: PatientItem) => {
+    setQuery(patient.name);
+    onChange(patient.name);
+    setShowVoiceDialog(false);
+    setVoiceCandidates([]);
+    setOpen(false);
   };
 
   // 外側クリックで閉じる
@@ -333,6 +369,52 @@ function PatientAutocomplete({
           <p className="mt-2 text-xs text-muted-foreground">
             ※ チームを選択すると利用者が絞り込まれます。利用者マスタに登録がない場合は直接入力できます。
           </p>
+        )}
+
+        {/* 音声入力候補選択ダイアログ */}
+        {showVoiceDialog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="bg-popover border border-border rounded-2xl shadow-2xl w-[90vw] max-w-sm mx-4 overflow-hidden">
+              <div className="px-4 py-3 border-b border-border bg-muted/30">
+                <p className="text-sm font-semibold text-foreground">利用者を選択してください</p>
+                <p className="text-xs text-muted-foreground mt-0.5">「{voiceCandidates[0]?.name.split(/[　 ]/)[0]}」さんが{voiceCandidates.length}名登録されています</p>
+              </div>
+              <div className="max-h-64 overflow-y-auto">
+                {voiceCandidates.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => handleVoiceCandidateSelect(p)}
+                    className="w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-primary/10 active:bg-primary/20 transition-colors border-b border-border/50 last:border-0"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{p.name}</p>
+                      {p.nameKana && (
+                        <p className="text-xs text-muted-foreground mt-0.5">{p.nameKana}</p>
+                      )}
+                    </div>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground flex-shrink-0">
+                      {p.team}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="px-4 py-3 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowVoiceDialog(false);
+                    setVoiceCandidates([]);
+                    setOpen(true);
+                    inputRef.current?.focus();
+                  }}
+                  className="w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  キャンセル（手動で検索）
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>
