@@ -30,6 +30,9 @@ import {
   Check,
   UserRound,
   Filter,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import TaskCreateForm from "@/components/TaskCreateForm";
 import { toast } from "sonner";
@@ -120,6 +123,13 @@ type DateFilter = "all" | "overdue" | "today" | "tomorrow" | "this_week" | "no_d
 // チームフィルターの種類（null = 全員）
 type TeamFilter = Team | "all_team" | "personal" | null;
 
+// 並び替えキー
+type SortKey = "dueDate" | "createdAt" | "assignType";
+type SortDir = "asc" | "desc";
+
+// 指定先の並び順（all < team < personal）
+const ASSIGN_ORDER: Record<string, number> = { all: 0, team: 1, personal: 2 };
+
 export default function Tasks() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
@@ -141,6 +151,10 @@ export default function Tasks() {
 
   // 利用者名フィルター
   const [patientFilter, setPatientFilter] = useState<string | null>(null);
+
+  // 並び替え
+  const [sortKey, setSortKey] = useState<SortKey>("dueDate");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   // フィルターパネルの開閉
   const [showFilters, setShowFilters] = useState(false);
@@ -280,7 +294,7 @@ export default function Tasks() {
   };
 
   const filtered = useMemo(() => {
-    return tasks.filter((t) => {
+    const base = tasks.filter((t) => {
       if (filter === "active" && t.done !== 0) return false;
       if (filter === "done" && t.done !== 1) return false;
       if (!matchesDateFilter(t)) return false;
@@ -288,7 +302,32 @@ export default function Tasks() {
       if (patientFilter && t.patientName !== patientFilter) return false;
       return true;
     });
-  }, [tasks, filter, dateFilter, teamFilter, patientFilter]);
+
+    // 並び替え
+    return [...base].sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === "dueDate") {
+        // 期日なしは常に末尾
+        if (!a.dueDate && !b.dueDate) cmp = 0;
+        else if (!a.dueDate) cmp = 1;
+        else if (!b.dueDate) cmp = -1;
+        else cmp = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      } else if (sortKey === "createdAt") {
+        cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      } else if (sortKey === "assignType") {
+        const ao = ASSIGN_ORDER[a.assignType] ?? 0;
+        const bo = ASSIGN_ORDER[b.assignType] ?? 0;
+        if (ao !== bo) {
+          cmp = ao - bo;
+        } else if (a.assignType === "team" && b.assignType === "team") {
+          cmp = (a.assignTeam ?? "").localeCompare(b.assignTeam ?? "", "ja");
+        } else {
+          cmp = (a.assignUserName ?? "").localeCompare(b.assignUserName ?? "", "ja");
+        }
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [tasks, filter, dateFilter, teamFilter, patientFilter, sortKey, sortDir]);
 
   // タスクに含まれる利用者名の一覧（重複なし）
   const patientNames = useMemo(() => {
@@ -603,6 +642,49 @@ export default function Tasks() {
           )}
         </div>
       )}
+
+      {/* 並び替えバー */}
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] text-muted-foreground flex-shrink-0">並び替え:</span>
+        <div className="flex flex-wrap gap-1.5">
+          {([
+            { key: "dueDate" as SortKey, label: "期日" },
+            { key: "createdAt" as SortKey, label: "作成日" },
+            { key: "assignType" as SortKey, label: "指定先" },
+          ]).map(({ key, label }) => {
+            const isActive = sortKey === key;
+            return (
+              <button
+                key={key}
+                onClick={() => {
+                  if (sortKey === key) {
+                    setSortDir((d) => d === "asc" ? "desc" : "asc");
+                  } else {
+                    setSortKey(key);
+                    setSortDir("asc");
+                  }
+                }}
+                className={cn(
+                  "flex items-center gap-0.5 text-[11px] px-2 py-0.5 rounded-full border transition-colors",
+                  isActive
+                    ? "bg-primary/10 border-primary/40 text-primary font-medium"
+                    : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary"
+                )}
+              >
+                {label}
+                {isActive ? (
+                  sortDir === "asc"
+                    ? <ArrowUp className="w-2.5 h-2.5" />
+                    : <ArrowDown className="w-2.5 h-2.5" />
+                ) : (
+                  <ArrowUpDown className="w-2.5 h-2.5 opacity-40" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <span className="text-[10px] text-muted-foreground ml-auto">{filtered.length}件</span>
+      </div>
 
       {/* タスク一覧 */}
       <Card className="shadow-sm">
