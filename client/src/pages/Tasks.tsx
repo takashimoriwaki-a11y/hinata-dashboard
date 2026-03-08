@@ -33,6 +33,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Home,
 } from "lucide-react";
 import TaskCreateForm from "@/components/TaskCreateForm";
 import { toast } from "sonner";
@@ -485,6 +486,23 @@ export default function Tasks() {
               : `完了 (${doneCount})`}
           </Button>
         ))}
+        {/* 自分のチームに戻るボタン（自分のチーム以外を表示中の時のみ表示） */}
+        {(() => {
+          const validTeams: Team[] = ["身体", "天理", "郡山北部", "郡山南部"];
+          const myTeam = user?.team && validTeams.includes(user.team as Team) ? user.team as Team : null;
+          const isOnMyTeam = myTeam && teamFilter === myTeam;
+          if (!myTeam || isOnMyTeam) return null;
+          return (
+            <button
+              onClick={() => setTeamFilter(myTeam)}
+              className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg border border-emerald-400 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+              title={`${myTeam}チームのタスクに戻る`}
+            >
+              <Home className="w-3 h-3" />
+              {myTeam}チーム
+            </button>
+          );
+        })()}
         {/* フィルターパネル開閉ボタン */}
         <button
           onClick={() => setShowFilters((v) => !v)}

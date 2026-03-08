@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import {
   ClipboardEdit, Send, Search, Calendar,
-  User, ChevronDown, Loader2, FileSpreadsheet, CheckCircle2, ExternalLink
+  User, ChevronDown, Loader2, FileSpreadsheet, CheckCircle2, ExternalLink, Home
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -892,7 +892,24 @@ ${clinicalNotes}`);
 
           {/* チーム選択 */}
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">チーム</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-medium text-muted-foreground">チーム</label>
+              {(() => {
+                const validTeams: Team[] = ["身体", "天理", "郡山北部", "郡山南部"];
+                const myTeam = user?.team && validTeams.includes(user.team as Team) ? user.team as Team : null;
+                if (!myTeam || team === myTeam) return null;
+                return (
+                  <button
+                    type="button"
+                    onClick={() => { setTeam(myTeam); setPatientId(null); setPatientName(""); setSearchQuery(""); }}
+                    className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border border-emerald-400 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+                  >
+                    <Home className="w-3 h-3" />
+                    {myTeam}チーム
+                  </button>
+                );
+              })()}
+            </div>
             <Select value={team} onValueChange={(v) => { setTeam(v as Team); setPatientId(null); setPatientName(""); setSearchQuery(""); }}>
               <SelectTrigger className="text-sm">
                 <SelectValue placeholder="チームを選択（全員表示）" />

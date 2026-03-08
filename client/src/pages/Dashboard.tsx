@@ -53,6 +53,7 @@ import {
   Pencil,
   ListTodo,
   UserRound,
+  Home,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -1009,6 +1010,29 @@ function ScheduleScreenshotCard() {
           {/* チーム・日付セレクター */}
           <div className="flex flex-wrap gap-2 mt-2">
             <div className="flex gap-1 flex-wrap">
+              {/* 自分のチームに戻るボタン（自分のチーム以外を表示中の時のみ） */}
+              {(() => {
+                const validTeams: TeamType[] = ["身体", "天理", "郡山北部", "郡山南部"];
+                const myTeam = user?.team && validTeams.includes(user.team as TeamType) ? user.team as TeamType
+                  : myTeamData?.team && validTeams.includes(myTeamData.team as TeamType) ? myTeamData.team as TeamType
+                  : null;
+                const isOnMyTeam = myTeam && !showAllTeams && selectedTeam === myTeam;
+                if (!myTeam || isOnMyTeam) return null;
+                return (
+                  <button
+                    onClick={() => {
+                      setShowAllTeams(false);
+                      setSwipeIndex(DAYS.indexOf(selectedDay));
+                      handleTeamChange(myTeam);
+                    }}
+                    className="text-xs px-2.5 py-1 rounded-md border border-emerald-400 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors font-medium flex items-center gap-1"
+                    title={`${myTeam}チームのスケジュールに戻る`}
+                  >
+                    <Home className="w-3 h-3" />
+                    {myTeam}
+                  </button>
+                );
+              })()}
               {/* 全チームボタン */}
               <button
                 onClick={() => {

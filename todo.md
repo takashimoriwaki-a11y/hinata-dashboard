@@ -829,3 +829,9 @@
 - [x] Tasks.tsx：チームフィルターをlocalStorageに保存・復元
 - [x] RecordInput.tsx：チーム選択をlocalStorageに保存・復元
 - [x] Dashboard.tsx：訪問スケジュールのチーム選択をlocalStorageに保存・復元
+
+## 「自分のチームに戻る」ボタン追加（2026-03-09）
+
+- [x] Tasks.tsx：自分のチーム以外を表示中の時に「自分のチームに戻る」ボタンを表示
+- [x] RecordInput.tsx：自分のチーム以外を選択中の時に「自分のチームに戻る」ボタンを表示
+- [x] Dashboard.tsx：自分のチーム以外を表示中の時に「自分のチームに戻る」ボタンを表示
