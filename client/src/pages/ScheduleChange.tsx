@@ -1410,14 +1410,14 @@ export default function ScheduleChange() {
             </CardContent>
           </Card>
 
-          {/* 変更理由・備考 */}
+          {/* 備考 */}
           <Card>
             <CardHeader className="pb-2 pt-4">
-              <CardTitle className="text-sm font-semibold">変更理由・備考</CardTitle>
+              <CardTitle className="text-sm font-semibold">備考</CardTitle>
             </CardHeader>
             <CardContent>
               <Textarea
-                placeholder="変更の理由や特記事項を入力してください..."
+                placeholder="特記事項があれば入力してください..."
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 rows={3}
@@ -1520,7 +1520,7 @@ export default function ScheduleChange() {
             {/* 変更理由 */}
             {reason && (
               <div className="rounded-xl border border-border bg-background p-3">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{changeType === "visit_cancel" ? "キャンセル理由・備考" : "変更理由・備考"}</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{changeType === "visit_cancel" ? "キャンセル理由・備考" : isMeetingType ? "備考" : "変更理由・備考"}</p>
                 <p className="text-sm text-foreground">{reason}</p>
               </div>
             )}
