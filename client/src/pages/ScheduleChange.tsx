@@ -93,6 +93,17 @@ function PatientAutocomplete({
   const listRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // 音声入力で苗字を受け取り自動検索
+  const handleVoiceForPatient = (text: string) => {
+    // 苗字だけ抽出（「さん」「の」などを除去、最初の単語を使用）
+    const cleaned = text.trim().replace(/さん$|の$|で$/, "").split(/[　 、。，．]/)[0];
+    setQuery(cleaned);
+    onChange(cleaned);
+    setOpen(true);
+    setHighlighted(0);
+    inputRef.current?.focus();
+  };
+
   // 外側クリックで閉じる
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -189,51 +200,59 @@ function PatientAutocomplete({
       </CardHeader>
       <CardContent>
         <div ref={containerRef} className="relative">
-          {/* 入力フィールド */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-            <input
-              ref={inputRef}
-              type="text"
-              value={query}
-              onChange={handleInputChange}
-              onFocus={() => setOpen(true)}
-              onKeyDown={handleKeyDown}
-              placeholder="利用者名またはカナで検索..."
-              className={cn(
-                "w-full pl-9 pr-9 py-2.5 text-sm rounded-lg border border-input bg-background",
-                "focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent",
-                "transition-all placeholder:text-muted-foreground",
-                value && "border-primary/60 bg-primary/5"
+          {/* 入力フィールド + 音声入力ボタン */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={handleInputChange}
+                onFocus={() => setOpen(true)}
+                onKeyDown={handleKeyDown}
+                placeholder="利用者名またはカナで検索..."
+                className={cn(
+                  "w-full pl-9 pr-9 py-2.5 text-sm rounded-lg border border-input bg-background",
+                  "focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent",
+                  "transition-all placeholder:text-muted-foreground",
+                  value && "border-primary/60 bg-primary/5"
+                )}
+                autoComplete="off"
+              />
+              {/* クリアボタン / ドロップダウン矢印 */}
+              {value ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuery("");
+                    onChange("");
+                    setOpen(false);
+                    inputRef.current?.focus();
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen((o) => !o);
+                    inputRef.current?.focus();
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ChevronDown className={cn("w-4 h-4 transition-transform", open && "rotate-180")} />
+                </button>
               )}
-              autoComplete="off"
+            </div>
+            {/* 音声入力ボタン */}
+            <VoiceMicButton
+              onResult={handleVoiceForPatient}
+              size="sm"
+              previewMode="tooltip"
             />
-            {/* クリアボタン / ドロップダウン矢印 */}
-            {value ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setQuery("");
-                  onChange("");
-                  setOpen(false);
-                  inputRef.current?.focus();
-                }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setOpen((o) => !o);
-                  inputRef.current?.focus();
-                }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ChevronDown className={cn("w-4 h-4 transition-transform", open && "rotate-180")} />
-              </button>
-            )}
           </div>
 
           {/* 選択済み表示 */}
