@@ -823,3 +823,9 @@
 
 - [x] ホーム画面の訪問スケジュールコンポーネントを確認
 - [x] ログインユーザーの所属チームを訪問スケジュールのデフォルトチームに自動設定
+
+## チームフィルターのlocalStorage永続化（2026-03-09）
+
+- [x] Tasks.tsx：チームフィルターをlocalStorageに保存・復元
+- [x] RecordInput.tsx：チーム選択をlocalStorageに保存・復元
+- [x] Dashboard.tsx：訪問スケジュールのチーム選択をlocalStorageに保存・復元

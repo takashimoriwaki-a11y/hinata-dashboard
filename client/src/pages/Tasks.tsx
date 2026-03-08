@@ -146,14 +146,36 @@ export default function Tasks() {
   // 日付フィルター
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
 
-  // チームフィルター（ログインユーザーの所属チームを初期値に自動設定）
-  const [teamFilter, setTeamFilter] = useState<TeamFilter>(null);
+  // チームフィルター（localStorage永続化）
+  const VALID_TEAMS: Team[] = ["身体", "天理", "郡山北部", "郡山南部"];
+  const VALID_TEAM_FILTERS = [...VALID_TEAMS, "all_team", "personal"] as const;
+  const [teamFilter, setTeamFilterRaw] = useState<TeamFilter>(() => {
+    try {
+      const saved = localStorage.getItem("tasks_teamFilter");
+      if (saved && (VALID_TEAM_FILTERS as readonly string[]).includes(saved)) return saved as TeamFilter;
+    } catch {}
+    return null;
+  });
 
+  const setTeamFilter = (value: TeamFilter) => {
+    setTeamFilterRaw(value);
+    try {
+      if (value === null) localStorage.removeItem("tasks_teamFilter");
+      else localStorage.setItem("tasks_teamFilter", value);
+    } catch {}
+  };
+
+  // localStorageに保存済みの場合はユーザーチームで上書きしない、未保存の場合はユーザーチームをデフォルトに設定
   useEffect(() => {
     if (!user?.team) return;
-    const validTeams: Team[] = ["身体", "天理", "郡山北部", "郡山南部"];
-    if (validTeams.includes(user.team as Team)) {
-      setTeamFilter(prev => prev === null ? user.team as Team : prev);
+    if (VALID_TEAMS.includes(user.team as Team)) {
+      setTeamFilterRaw(prev => {
+        if (prev !== null) return prev; // 既に保存済みの場合は維持
+        // localStorageに保存されていない場合はユーザーの所属チームを設定
+        const newVal = user.team as Team;
+        try { localStorage.setItem("tasks_teamFilter", newVal); } catch {}
+        return newVal;
+      });
     }
   }, [user?.team]);
 

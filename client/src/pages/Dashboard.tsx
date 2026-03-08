@@ -778,7 +778,22 @@ function ScheduleCommentSection({ team, day }: { team: string; day: string }) {
 
 function ScheduleScreenshotCard() {
   const { user } = useAuth();
-  const [selectedTeam, setSelectedTeam] = useState<TeamType>("身体");
+  const SCHEDULE_TEAM_KEY = "hinata_schedule_team";
+  const SCHEDULE_ALL_TEAMS_KEY = "hinata_schedule_all_teams";
+  const VALID_SCHEDULE_TEAMS: TeamType[] = ["身体", "天理", "郡山北部", "郡山南部"];
+
+  const [selectedTeam, setSelectedTeamRaw] = useState<TeamType>(() => {
+    try {
+      const saved = localStorage.getItem(SCHEDULE_TEAM_KEY);
+      if (saved && VALID_SCHEDULE_TEAMS.includes(saved as TeamType)) return saved as TeamType;
+    } catch {}
+    return "身体";
+  });
+  const setSelectedTeam = (value: TeamType) => {
+    setSelectedTeamRaw(value);
+    try { localStorage.setItem(SCHEDULE_TEAM_KEY, value); } catch {}
+  };
+
   // デフォルトで全チームモードを有効にする
   const [selectedDay, setSelectedDay] = useState<DayType>("今日");
   const [isDragging, setIsDragging] = useState(false);
@@ -790,9 +805,18 @@ function ScheduleScreenshotCard() {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const utils = trpc.useUtils();
-
-  // 全チームモード
-  const [showAllTeams, setShowAllTeams] = useState(true); // デフォルトで全チーム表示
+  // 全チームモード（localStorage永続化）
+  const [showAllTeams, setShowAllTeamsRaw] = useState(() => {
+    try {
+      const saved = localStorage.getItem(SCHEDULE_ALL_TEAMS_KEY);
+      if (saved === "false") return false;
+    } catch {}
+    return true; // デフォルトで全チーム表示
+  });
+  const setShowAllTeams = (value: boolean) => {
+    setShowAllTeamsRaw(value);
+    try { localStorage.setItem(SCHEDULE_ALL_TEAMS_KEY, String(value)); } catch {}
+  };
 
   // スワイプ用state
   const [swipeIndex, setSwipeIndex] = useState(0);

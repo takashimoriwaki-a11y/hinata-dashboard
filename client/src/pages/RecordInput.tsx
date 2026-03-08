@@ -35,7 +35,23 @@ export default function RecordInput() {
   const { user } = useAuth();
 
   // ① 利用者・次回訪問日時
-  const [team, setTeam] = useState<Team | "">("");
+  const RECORD_TEAM_KEY = "hinata_record_team";
+  const [team, setTeamRaw] = useState<Team | "">(() => {
+    try {
+      const saved = localStorage.getItem("hinata_record_team");
+      const validTeams: Team[] = ["身体", "天理", "郡山北部", "郡山南部"];
+      if (saved && validTeams.includes(saved as Team)) return saved as Team;
+    } catch {}
+    return "";
+  });
+
+  const setTeam = (value: Team | "") => {
+    setTeamRaw(value);
+    try {
+      if (value === "") localStorage.removeItem("hinata_record_team");
+      else localStorage.setItem("hinata_record_team", value);
+    } catch {}
+  };
   const [patientId, setPatientId] = useState<number | null>(null);
   const [patientName, setPatientName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -47,12 +63,17 @@ export default function RecordInput() {
   const [notifyMethod, setNotifyMethod] = useState<typeof NOTIFY_METHOD_OPTIONS[number] | "">("");
   const [notifyMethodOther, setNotifyMethodOther] = useState("");
 
-  // ログインユーザーの所属チームを初期値に自動設定（ドラフトがない場合のみ）
+  // ログインユーザーの所属チームを初期値に自動設定（localStorageに保存済みの場合はそちらを優先）
   useEffect(() => {
     if (!user?.team) return;
     const validTeams: Team[] = ["身体", "天理", "郡山北部", "郡山南部"];
     if (validTeams.includes(user.team as Team)) {
-      setTeam(prev => prev === "" ? user.team as Team : prev);
+      setTeamRaw(prev => {
+        if (prev !== "") return prev; // localStorage保存済みまたはドラフト復元済みの場合は維持
+        const newVal = user.team as Team;
+        try { localStorage.setItem(RECORD_TEAM_KEY, newVal); } catch {}
+        return newVal;
+      });
     }
   }, [user?.team]);
 
