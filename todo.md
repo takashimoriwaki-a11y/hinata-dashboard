@@ -561,3 +561,16 @@
 ## スタッフExcelインポート修正（2026-03-08）
 
 - [x] 「事務員」と「全チーム」をVALID_TEAMSに追加してインポートできるよう修正した（server/_core/index.tsの172行目）
+
+## スケジュール変更入力機能（2026-03-08）
+
+- [x] DBスキーマ：schedule_changesテーブルを追加（変更種別・チーム・利用者・変更前後日時・スタッフ・理由等）
+- [x] pnpm db:pushでマイグレーション実行
+- [x] db.tsにcreateScheduleChange/getScheduleChanges関数を追加
+- [x] routers.tsにscheduleChanges.create/list/createAndExportプロシージャを追加（protectedProcedure）
+- [x] routers.tsにscheduleChanges.exportToSheetプロシージャを追加（スプレッドシート自動転記）
+- [x] ScheduleChange.tsxページを新規作成（変更種別・チーム・利用者・日時・スタッフ・理由の入力フォーム）
+- [x] App.tsxに/schedule-changeルートを追加
+- [x] DashboardLayout.tsxのナビゲーションに「変更連絡」を追加
+- [x] テスト作成（scheduleChanges.test.ts 12件合格）
+- [x] TypeScriptエラー0件確認

@@ -374,3 +374,57 @@ export const scheduleComments = mysqlTable("schedule_comments", {
 
 export type ScheduleComment = typeof scheduleComments.$inferSelect;
 export type InsertScheduleComment = typeof scheduleComments.$inferInsert;
+
+/**
+ * スケジュール変更連絡テーブル
+ * 利用者の訪問スケジュール変更・追加・キャンセル、会議予定の変更・追加を管理する
+ */
+export const scheduleChanges = mysqlTable("schedule_changes", {
+  id: int("id").autoincrement().primaryKey(),
+  /**
+   * 変更種別
+   * visit_change: 訪問日時変更
+   * visit_cancel: 訪問キャンセル
+   * visit_add: 訪問追加（新規）
+   * meeting_add: 会議追加
+   * meeting_change: 会議変更
+   */
+  changeType: mysqlEnum("changeType", [
+    "visit_change",
+    "visit_cancel",
+    "visit_add",
+    "meeting_add",
+    "meeting_change",
+  ]).notNull(),
+  /** 対象チーム（会議の場合はnull可） */
+  team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]),
+  /** 利用者名（訪問系の場合） */
+  patientName: varchar("patientName", { length: 100 }),
+  /** 利用者ID（利用者マスタと紐付け、任意） */
+  patientId: int("patientId"),
+  /** 変更前の日時（ISO文字列） */
+  fromDatetime: varchar("fromDatetime", { length: 30 }),
+  /** 変更後の日時（ISO文字列）。キャンセルの場合はnull */
+  toDatetime: varchar("toDatetime", { length: 30 }),
+  /** 訪問担当スタッフ（変更前） */
+  staffBefore: text("staffBefore"),
+  /** 訪問担当スタッフ（変更後） */
+  staffAfter: text("staffAfter"),
+  /** 会議名（会議系の場合） */
+  meetingName: varchar("meetingName", { length: 200 }),
+  /** 会議参加スタッフ（JSON配列文字列） */
+  meetingStaff: text("meetingStaff"),
+  /** 変更理由・備考 */
+  reason: text("reason"),
+  /** 入力したユーザーID */
+  createdBy: int("createdBy").notNull(),
+  /** 入力したユーザー名（表示用キャッシュ） */
+  createdByName: text("createdByName").notNull(),
+  /** スプレッドシート転記済みフラグ */
+  exported: int("exported").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ScheduleChange = typeof scheduleChanges.$inferSelect;
+export type InsertScheduleChange = typeof scheduleChanges.$inferInsert;

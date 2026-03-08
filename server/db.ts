@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot, myLinks, InsertMyLink, spreadsheetLinks, InsertSpreadsheetLink, tasks, InsertTask, messages, InsertMessage, messageReactions, InsertMessageReaction, patients, InsertPatient, visitRecords, InsertVisitRecord, appNotifications, InsertAppNotification } from "../drizzle/schema";
 import { screenshotUploadLogs, InsertScreenshotUploadLog, appSettings } from "../drizzle/schema";
 import { scheduleComments, InsertScheduleComment } from "../drizzle/schema";
+import { scheduleChanges, InsertScheduleChange } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -1094,4 +1095,47 @@ export async function getScheduleCommentCounts(day: string) {
     .where(eq(scheduleComments.day, day as any))
     .groupBy(scheduleComments.team);
   return rows.map((r) => ({ team: r.team, count: Number(r.count) }));
+}
+
+// ========== スケジュール変更連絡 ==========
+
+/** スケジュール変更連絡を作成する */
+export async function createScheduleChange(data: InsertScheduleChange) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(scheduleChanges).values(data);
+  return (result as any)[0]?.insertId ?? 0;
+}
+
+/** スケジュール変更連絡一覧を取得する（新しい順） */
+export async function getScheduleChanges(limit = 100) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(scheduleChanges)
+    .orderBy(desc(scheduleChanges.createdAt))
+    .limit(limit);
+}
+
+/** スケジュール変更連絡をIDで取得する */
+export async function getScheduleChangeById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(scheduleChanges)
+    .where(eq(scheduleChanges.id, id))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+/** スプレッドシート転記済みフラグを立てる */
+export async function markScheduleChangeExported(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(scheduleChanges)
+    .set({ exported: 1 })
+    .where(eq(scheduleChanges.id, id));
 }

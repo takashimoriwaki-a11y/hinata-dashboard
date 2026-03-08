@@ -11,6 +11,7 @@ import PatientList from "./pages/PatientList";
 import Schedule from "./pages/Schedule";
 import Tasks from "./pages/Tasks";
 import Admin from "./pages/Admin";
+import ScheduleChange from "./pages/ScheduleChange";
 import Login from "./pages/Login";
 import Setup from "./pages/Setup";
 import DashboardLayout from "./components/DashboardLayout";
@@ -34,6 +35,7 @@ function Router() {
             <Route path={"/schedule"} component={Schedule} />
             <Route path={"/tasks"} component={Tasks} />
             <Route path={"/admin"} component={Admin} />
+            <Route path={"/schedule-change"} component={ScheduleChange} />
             <Route path={"/404"} component={NotFound} />
             <Route component={NotFound} />
           </Switch>

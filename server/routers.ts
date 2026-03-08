@@ -73,6 +73,10 @@ import {
   deleteScheduleComment,
   updateScheduleComment,
   getScheduleCommentCounts,
+  createScheduleChange,
+  getScheduleChanges,
+  getScheduleChangeById,
+  markScheduleChangeExported,
 } from "./db";
 import { storagePut } from "./storage";
 import { eq } from "drizzle-orm";
@@ -1302,6 +1306,11 @@ export const appRouter = router({
 
   // ========== スタッフ管理（管理者専用） ==========
   staff: router({
+    // スタッフ一覧を取得（変更連絡フォーム用：全ユーザー可）
+    listForForm: protectedProcedure.query(async () => {
+      const all = await getAllStaff();
+      return all.map(s => ({ id: s.id, name: s.name ?? "不明", team: s.team }));
+    }),
     // スタッフ一覧を取得（管理者のみ）
     getAll: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role !== "admin") {
@@ -1612,6 +1621,300 @@ export const appRouter = router({
         }
 
         return result;
+      }),
+  }),
+
+  // ========== スケジュール変更連絡 ==========
+  scheduleChanges: router({
+    /** スケジュール変更連絡を作成する */
+    create: protectedProcedure
+      .input(z.object({
+        changeType: z.enum(["visit_change", "visit_cancel", "visit_add", "meeting_add", "meeting_change"]),
+        team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]).optional(),
+        patientName: z.string().optional(),
+        patientId: z.number().optional(),
+        fromDatetime: z.string().optional(),
+        toDatetime: z.string().optional(),
+        staffBefore: z.string().optional(),
+        staffAfter: z.string().optional(),
+        meetingName: z.string().optional(),
+        meetingStaff: z.string().optional(),
+        reason: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const id = await createScheduleChange({
+          ...input,
+          createdBy: ctx.user.id,
+          createdByName: ctx.user.name ?? "不明",
+        });
+        return { success: true, id };
+      }),
+
+    /** スケジュール変更連絡一覧を取得する */
+    list: protectedProcedure
+      .input(z.object({ limit: z.number().int().min(1).max(500).default(100) }).optional())
+      .query(async ({ input }) => {
+        return getScheduleChanges(input?.limit ?? 100);
+      }),
+
+    /** スプレッドシートに転記する */
+    exportToSheet: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        spreadsheetId: z.string().optional(),
+        sheetName: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const record = await getScheduleChangeById(input.id);
+        if (!record) throw new TRPCError({ code: "NOT_FOUND", message: "記録が見つかりません" });
+
+        const CHANGE_SHEET_ID = input.spreadsheetId ?? "1rS_ZMccLCy-XcRxbxlhTfNwhaCesdX7DBSZggjQUH58";
+        const SHEET_NAME = input.sheetName ?? "スケジュール変更連絡";
+
+        const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+        const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+        if (!email || !privateKey) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "サービスアカウント設定がありません" });
+
+        const { GoogleAuth: GA } = await import("google-auth-library");
+        const auth = new GA({
+          credentials: { client_email: email, private_key: privateKey.replace(/\\n/g, "\n") },
+          scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+        });
+        const client = await auth.getClient();
+        const token = await client.getAccessToken();
+        if (!token.token) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "認証トークン取得失敗" });
+
+        // 変更種別の日本語ラベル
+        const typeLabel: Record<string, string> = {
+          visit_change: "訪問日時変更",
+          visit_cancel: "訪問キャンセル",
+          visit_add: "訪問追加",
+          meeting_add: "会議追加",
+          meeting_change: "会議変更",
+        };
+
+        // 日時フォーマット
+        const fmtDt = (dt: string | null | undefined) => {
+          if (!dt) return "";
+          try {
+            const d = new Date(dt);
+            const pad = (n: number) => String(n).padStart(2, "0");
+            return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+          } catch { return dt; }
+        };
+
+        // 入力日時
+        const createdAt = record.createdAt ? fmtDt(record.createdAt.toISOString()) : "";
+
+        // スプレッドシートに追記する行データ
+        const row = [
+          createdAt,                                    // A: 入力日時
+          record.createdByName,                         // B: 入力者
+          typeLabel[record.changeType] ?? record.changeType, // C: 変更種別
+          record.team ?? "",                            // D: チーム
+          record.patientName ?? "",                     // E: 利用者名
+          fmtDt(record.fromDatetime),                   // F: 変更前日時
+          fmtDt(record.toDatetime),                     // G: 変更後日時
+          record.staffBefore ?? "",                     // H: 変更前担当スタッフ
+          record.staffAfter ?? "",                      // I: 変更後担当スタッフ
+          record.meetingName ?? "",                     // J: 会議名
+          record.meetingStaff ? JSON.parse(record.meetingStaff).join("、") : "", // K: 会議参加スタッフ
+          record.reason ?? "",                          // L: 変更理由・備考
+        ];
+
+        // スプレッドシートにシートが存在するか確認し、なければ作成
+        const metaRes = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}?fields=sheets.properties`,
+          { headers: { Authorization: `Bearer ${token.token}` } }
+        );
+        if (!metaRes.ok) {
+          const text = await metaRes.text();
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `スプレッドシートへのアクセスに失敗: ${text}` });
+        }
+        const meta = await metaRes.json() as { sheets?: { properties: { title: string; sheetId: number } }[] };
+        const sheetExists = meta.sheets?.some(s => s.properties.title === SHEET_NAME);
+
+        if (!sheetExists) {
+          // シートを作成
+          await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}:batchUpdate`,
+            {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                requests: [{ addSheet: { properties: { title: SHEET_NAME } } }]
+              }),
+            }
+          );
+          // ヘッダー行を追加
+          const headerRow = ["入力日時", "入力者", "変更種別", "チーム", "利用者名", "変更前日時", "変更後日時", "変更前担当スタッフ", "変更後担当スタッフ", "会議名", "会議参加スタッフ", "変更理由・備考"];
+          await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A1")}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+            {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ values: [headerRow] }),
+            }
+          );
+        }
+
+        // データ行を追記
+        const appendRes = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A:L")}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+          {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ values: [row] }),
+          }
+        );
+        if (!appendRes.ok) {
+          const text = await appendRes.text();
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `スプレッドシートへの書き込みに失敗: ${text}` });
+        }
+
+        await markScheduleChangeExported(input.id);
+        return { success: true };
+      }),
+
+    /** 作成と同時にスプレッドシートへ転記する（ワンステップ） */
+    createAndExport: protectedProcedure
+      .input(z.object({
+        changeType: z.enum(["visit_change", "visit_cancel", "visit_add", "meeting_add", "meeting_change"]),
+        team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]).optional(),
+        patientName: z.string().optional(),
+        patientId: z.number().optional(),
+        fromDatetime: z.string().optional(),
+        toDatetime: z.string().optional(),
+        staffBefore: z.string().optional(),
+        staffAfter: z.string().optional(),
+        meetingName: z.string().optional(),
+        meetingStaff: z.string().optional(),
+        reason: z.string().optional(),
+        spreadsheetId: z.string().optional(),
+        sheetName: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        // まずDBに保存
+        const id = await createScheduleChange({
+          changeType: input.changeType,
+          team: input.team,
+          patientName: input.patientName,
+          patientId: input.patientId,
+          fromDatetime: input.fromDatetime,
+          toDatetime: input.toDatetime,
+          staffBefore: input.staffBefore,
+          staffAfter: input.staffAfter,
+          meetingName: input.meetingName,
+          meetingStaff: input.meetingStaff,
+          reason: input.reason,
+          createdBy: ctx.user.id,
+          createdByName: ctx.user.name ?? "不明",
+        });
+
+        const record = await getScheduleChangeById(id);
+        if (!record) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "作成した記録が見つかりません" });
+
+        const CHANGE_SHEET_ID = input.spreadsheetId ?? "1rS_ZMccLCy-XcRxbxlhTfNwhaCesdX7DBSZggjQUH58";
+        const SHEET_NAME = input.sheetName ?? "スケジュール変更連絡";
+
+        const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+        const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+        if (!email || !privateKey) {
+          // スプレッドシート転記はスキップしてDBのみ保存
+          return { success: true, id, exported: false };
+        }
+
+        try {
+          const { GoogleAuth: GA } = await import("google-auth-library");
+          const auth = new GA({
+            credentials: { client_email: email, private_key: privateKey.replace(/\\n/g, "\n") },
+            scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+          });
+          const client = await auth.getClient();
+          const token = await client.getAccessToken();
+          if (!token.token) return { success: true, id, exported: false };
+
+          const typeLabel: Record<string, string> = {
+            visit_change: "訪問日時変更",
+            visit_cancel: "訪問キャンセル",
+            visit_add: "訪問追加",
+            meeting_add: "会議追加",
+            meeting_change: "会議変更",
+          };
+
+          const fmtDt = (dt: string | null | undefined) => {
+            if (!dt) return "";
+            try {
+              const d = new Date(dt);
+              const pad = (n: number) => String(n).padStart(2, "0");
+              return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            } catch { return dt ?? ""; }
+          };
+
+          const createdAt = record.createdAt ? fmtDt(record.createdAt.toISOString()) : "";
+
+          const row = [
+            createdAt,
+            record.createdByName,
+            typeLabel[record.changeType] ?? record.changeType,
+            record.team ?? "",
+            record.patientName ?? "",
+            fmtDt(record.fromDatetime),
+            fmtDt(record.toDatetime),
+            record.staffBefore ?? "",
+            record.staffAfter ?? "",
+            record.meetingName ?? "",
+            record.meetingStaff ? JSON.parse(record.meetingStaff).join("、") : "",
+            record.reason ?? "",
+          ];
+
+          // シート存在確認
+          const metaRes = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}?fields=sheets.properties`,
+            { headers: { Authorization: `Bearer ${token.token}` } }
+          );
+          if (metaRes.ok) {
+            const meta = await metaRes.json() as { sheets?: { properties: { title: string; sheetId: number } }[] };
+            const sheetExists = meta.sheets?.some(s => s.properties.title === SHEET_NAME);
+            if (!sheetExists) {
+              await fetch(
+                `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}:batchUpdate`,
+                {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({ requests: [{ addSheet: { properties: { title: SHEET_NAME } } }] }),
+                }
+              );
+              const headerRow = ["入力日時", "入力者", "変更種別", "チーム", "利用者名", "変更前日時", "変更後日時", "変更前担当スタッフ", "変更後担当スタッフ", "会議名", "会議参加スタッフ", "変更理由・備考"];
+              await fetch(
+                `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A1")}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+                {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({ values: [headerRow] }),
+                }
+              );
+            }
+          }
+
+          const appendRes = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A:L")}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+            {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ values: [row] }),
+            }
+          );
+
+          if (appendRes.ok) {
+            await markScheduleChangeExported(id);
+            return { success: true, id, exported: true };
+          }
+          return { success: true, id, exported: false };
+        } catch (e) {
+          console.error("[ScheduleChange] スプレッドシート転記エラー:", e);
+          return { success: true, id, exported: false };
+        }
       }),
   }),
 

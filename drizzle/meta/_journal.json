@@ -134,6 +134,13 @@
       "when": 1772820372829,
       "tag": "0018_milky_talkback",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1772965398573,
+      "tag": "0019_tricky_punisher",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,20 @@
+CREATE TABLE `schedule_changes` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`changeType` enum('visit_change','visit_cancel','visit_add','meeting_add','meeting_change') NOT NULL,
+	`team` enum('身体','天理','郡山北部','郡山南部','事務員','全チーム'),
+	`patientName` varchar(100),
+	`patientId` int,
+	`fromDatetime` varchar(30),
+	`toDatetime` varchar(30),
+	`staffBefore` text,
+	`staffAfter` text,
+	`meetingName` varchar(200),
+	`meetingStaff` text,
+	`reason` text,
+	`createdBy` int NOT NULL,
+	`createdByName` text NOT NULL,
+	`exported` int NOT NULL DEFAULT 0,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `schedule_changes_id` PRIMARY KEY(`id`)
+);
