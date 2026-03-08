@@ -839,6 +839,7 @@ export const appRouter = router({
 - assignType: 指定先の種別。「全員」「全スタッフ」「全体」など→all、「身体」「天理」「郡山北部」「郡山南部」などチーム名→team、特定の人名が含まれる場合→personal。不明な場合はall
 - assignTeam: assignTypeがteamの場合のチーム名（身体/天理/郡山北部/郡山南部のいずれか）。不明な場合はnull
 - assignPersonName: assignTypeがpersonalの場合の担当者名（姓のみで可）。不明な場合はnull
+- patientName: 利用者（患者）の名前。「○○さん」「○○の」など利用者を指す表現から抽出。姓のみでも可。担当スタッフ名と混同しないこと。不明な場合はnull
 不明な項目はnullを返してください。必ず有効なJSONのみを返してください。`;
         const res = await invokeLLM({
           messages: [
@@ -858,8 +859,9 @@ export const appRouter = router({
                   assignType: { type: "string", enum: ["all", "team", "personal"] },
                   assignTeam: { type: ["string", "null"] },
                   assignPersonName: { type: ["string", "null"] },
+                  patientName: { type: ["string", "null"] },
                 },
-                required: ["text", "dueDateStr", "assignType", "assignTeam", "assignPersonName"],
+                required: ["text", "dueDateStr", "assignType", "assignTeam", "assignPersonName", "patientName"],
                 additionalProperties: false,
               },
             },

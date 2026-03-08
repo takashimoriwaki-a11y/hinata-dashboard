@@ -59,6 +59,11 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
   const [patientName, setPatientName] = useState("");
   const [patientQuery, setPatientQuery] = useState("");
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
+  // 複数候補ダイアログ
+  const [patientCandidates, setPatientCandidates] = useState<Array<{ id: number; name: string; nameKana?: string | null; team?: string | null }>>([]);
+  const [showCandidateDialog, setShowCandidateDialog] = useState(false);
+  // 音声転記待機検索クエリ
+  const [pendingPatientSearch, setPendingPatientSearch] = useState<string | null>(null);
 
   // 繰り返し設定
   const [repeatType, setRepeatType] = useState<RepeatType>("none");
@@ -125,6 +130,14 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
         }
       }
 
+      // 利用者名自動転記（空欄のみ上書き）
+      if (f.patientName && !patientName.trim()) {
+        // 苗字で検索して候補を絞り込む
+        const lastName = f.patientName.trim();
+        // サーバー側で検索するため、一時的にクエリをセットして候補を取得する
+        setPendingPatientSearch(lastName);
+      }
+
       setMissingFields(missing);
       if (missing.length === 0) {
         toast.success("AI解析完了！内容を確認してください");
@@ -168,11 +181,41 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     try { localStorage.setItem("taskVoiceHintDismissed", "1"); } catch {}
   };
 
-  // 利用者検索クエリ
+  // 利用者検索クエリ（フリーテキスト入力時）
   const { data: patientResults = [] } = trpc.patients.search.useQuery(
     { query: patientQuery },
     { enabled: patientQuery.length >= 1 }
   );
+
+  // チーム別利用者一覧（チーム選択時のドロップダウン用）
+  const { data: teamPatients = [] } = trpc.patients.list.useQuery(
+    { team: newAssignTeam },
+    { enabled: newAssignType === "team" }
+  );
+
+  // 音声転記待機検索（pendingPatientSearchがセットされたときに検索）
+  const { data: pendingSearchResults = [], isFetched: pendingSearchFetched } = trpc.patients.search.useQuery(
+    { query: pendingPatientSearch ?? "" },
+    { enabled: !!pendingPatientSearch }
+  );
+
+  // pendingPatientSearchの結果が返ったら自動選択 or 候補ダイアログ表示
+  useEffect(() => {
+    if (!pendingPatientSearch || !pendingSearchFetched) return;
+    if (pendingSearchResults.length === 1) {
+      // 1件のみ→自動選択
+      setPatientName(pendingSearchResults[0].name);
+      toast.success(`利用者「${pendingSearchResults[0].name}」を自動選択しました`);
+    } else if (pendingSearchResults.length > 1) {
+      // 複数候補→候補ダイアログ表示
+      setPatientCandidates(pendingSearchResults);
+      setShowCandidateDialog(true);
+    } else {
+      // 該当なし→入力欄に苗字をそのまま設定
+      setPatientName(pendingPatientSearch);
+    }
+    setPendingPatientSearch(null);
+  }, [pendingPatientSearch, pendingSearchFetched, pendingSearchResults]);
 
   const handleClear = () => {
     setNewText("");
@@ -481,32 +524,58 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
           <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
             <UserRound className="w-3.5 h-3.5" />利用者名（任意）
           </label>
-          <div className="flex items-center gap-1.5">
-            <input
-              type="text"
-              placeholder="利用者名を入力または検索..."
-              value={patientName}
-              onChange={(e) => {
-                setPatientName(e.target.value);
-                setPatientQuery(e.target.value);
-                setShowPatientDropdown(true);
-              }}
-              onFocus={() => { if (patientQuery) setShowPatientDropdown(true); }}
-              onBlur={() => setTimeout(() => setShowPatientDropdown(false), 150)}
-              className="flex-1 text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-            {patientName && (
-              <button
-                type="button"
-                onClick={() => { setPatientName(""); setPatientQuery(""); }}
-                className="w-7 h-7 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
+          {newAssignType === "team" ? (
+            /* チーム指定時：チームの利用者一覧から選択 */
+            <div className="flex items-center gap-1.5">
+              <select
+                value={patientName}
+                onChange={(e) => setPatientName(e.target.value)}
+                className="flex-1 text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-          {/* 検索結果ドロップダウン */}
-          {showPatientDropdown && patientResults.length > 0 && (
+                <option value="">{newAssignTeam}チームの利用者を選択...</option>
+                {teamPatients.map((p) => (
+                  <option key={p.id} value={p.name}>{p.name}{p.nameKana ? ` (${p.nameKana})` : ""}</option>
+                ))}
+              </select>
+              {patientName && (
+                <button
+                  type="button"
+                  onClick={() => setPatientName("")}
+                  className="w-7 h-7 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          ) : (
+            /* 全員・個人指定時：フリーテキスト検索 */
+            <div className="flex items-center gap-1.5">
+              <input
+                type="text"
+                placeholder="利用者名を入力または検索..."
+                value={patientName}
+                onChange={(e) => {
+                  setPatientName(e.target.value);
+                  setPatientQuery(e.target.value);
+                  setShowPatientDropdown(true);
+                }}
+                onFocus={() => { if (patientQuery) setShowPatientDropdown(true); }}
+                onBlur={() => setTimeout(() => setShowPatientDropdown(false), 150)}
+                className="flex-1 text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              {patientName && (
+                <button
+                  type="button"
+                  onClick={() => { setPatientName(""); setPatientQuery(""); }}
+                  className="w-7 h-7 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          )}
+          {/* フリーテキスト検索結果ドロップダウン */}
+          {showPatientDropdown && patientResults.length > 0 && newAssignType !== "team" && (
             <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
               {patientResults.map((p) => (
                 <button
@@ -528,6 +597,41 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
             </div>
           )}
         </div>
+
+        {/* 複数候補ダイアログ */}
+        {showCandidateDialog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowCandidateDialog(false)}>
+            <div className="bg-popover border border-border rounded-xl shadow-xl p-4 w-72 max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
+              <p className="text-sm font-semibold mb-1">利用者を選択してください</p>
+              <p className="text-xs text-muted-foreground mb-3">同じ苗字の利用者が複数います</p>
+              <div className="space-y-1.5">
+                {patientCandidates.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => {
+                      setPatientName(p.name);
+                      setShowCandidateDialog(false);
+                      setPatientCandidates([]);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm rounded-lg border border-border hover:bg-accent hover:text-accent-foreground transition-colors flex items-center justify-between"
+                  >
+                    <span className="font-medium">{p.name}</span>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      {p.nameKana && <span>{p.nameKana}</span>}
+                      {p.team && <span className="px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">{p.team}</span>}
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => { setShowCandidateDialog(false); setPatientCandidates([]); }}
+                className="mt-3 w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >キャンセル</button>
+            </div>
+          </div>
+        )}
 
         {/* 指定先 */}
         <div>

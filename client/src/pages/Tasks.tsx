@@ -148,6 +148,11 @@ export default function Tasks() {
     { query: editPatientQuery },
     { enabled: editPatientQuery.length >= 1 }
   );
+  // 編集フォームのチーム別利用者一覧
+  const { data: editTeamPatients = [] } = trpc.patients.list.useQuery(
+    { team: editAssignTeam },
+    { enabled: editAssignType === "team" }
+  );
   // 利用者名フィルター
   const [patientFilter, setPatientFilter] = useState<string | null>(null);
 
@@ -433,50 +438,76 @@ export default function Tasks() {
                       <label className="text-xs font-medium text-muted-foreground mb-1 block">
                         <UserRound className="w-3 h-3 inline mr-0.5" />利用者名（任意）
                       </label>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={editPatientOpen ? editPatientQuery : editPatientName}
-                          onChange={(e) => {
-                            setEditPatientQuery(e.target.value);
-                            setEditPatientName(e.target.value);
-                            setEditPatientOpen(true);
-                          }}
-                          onFocus={() => {
-                            setEditPatientQuery(editPatientName);
-                            setEditPatientOpen(true);
-                          }}
-                          onBlur={() => setTimeout(() => setEditPatientOpen(false), 150)}
-                          placeholder="利用者名を入力または検索..."
-                          className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-violet-500 pr-8"
-                        />
-                        {editPatientName && (
-                          <button
-                            type="button"
-                            onClick={() => { setEditPatientName(""); setEditPatientQuery(""); }}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      {editAssignType === "team" ? (
+                        /* チーム指定時：チームの利用者一覧から選択 */
+                        <div className="flex items-center gap-1.5">
+                          <select
+                            value={editPatientName}
+                            onChange={(e) => setEditPatientName(e.target.value)}
+                            className="flex-1 text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-violet-500"
                           >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                      {editPatientOpen && editPatientResults.length > 0 && (
-                        <div className="absolute z-50 left-0 right-0 mt-1 bg-background border border-border rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                          {editPatientResults.map((p: any) => (
+                            <option value="">{editAssignTeam}チームの利用者を選択...</option>
+                            {editTeamPatients.map((p) => (
+                              <option key={p.id} value={p.name}>{p.name}{p.nameKana ? ` (${p.nameKana})` : ""}</option>
+                            ))}
+                          </select>
+                          {editPatientName && (
                             <button
-                              key={p.id}
                               type="button"
-                              onMouseDown={() => {
-                                setEditPatientName(p.name);
-                                setEditPatientQuery("");
-                                setEditPatientOpen(false);
-                              }}
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+                              onClick={() => setEditPatientName("")}
+                              className="w-7 h-7 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
                             >
-                              {p.name}
-                              {p.nameKana && <span className="text-xs text-muted-foreground ml-1">({p.nameKana})</span>}
+                              <X className="w-3.5 h-3.5" />
                             </button>
-                          ))}
+                          )}
+                        </div>
+                      ) : (
+                        /* 全員・個人指定時：フリーテキスト検索 */
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={editPatientOpen ? editPatientQuery : editPatientName}
+                            onChange={(e) => {
+                              setEditPatientQuery(e.target.value);
+                              setEditPatientName(e.target.value);
+                              setEditPatientOpen(true);
+                            }}
+                            onFocus={() => {
+                              setEditPatientQuery(editPatientName);
+                              setEditPatientOpen(true);
+                            }}
+                            onBlur={() => setTimeout(() => setEditPatientOpen(false), 150)}
+                            placeholder="利用者名を入力または検索..."
+                            className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-violet-500 pr-8"
+                          />
+                          {editPatientName && (
+                            <button
+                              type="button"
+                              onClick={() => { setEditPatientName(""); setEditPatientQuery(""); }}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {editPatientOpen && editPatientResults.length > 0 && (
+                            <div className="absolute z-50 left-0 right-0 mt-1 bg-background border border-border rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                              {editPatientResults.map((p: any) => (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onMouseDown={() => {
+                                    setEditPatientName(p.name);
+                                    setEditPatientQuery("");
+                                    setEditPatientOpen(false);
+                                  }}
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+                                >
+                                  {p.name}
+                                  {p.nameKana && <span className="text-xs text-muted-foreground ml-1">({p.nameKana})</span>}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
