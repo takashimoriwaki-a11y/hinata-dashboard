@@ -1218,6 +1218,20 @@ export const appRouter = router({
           return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
         };
 
+        // ヘッダー行の定義（ダッシュボード入力項目と整合）
+        const HEADER_ROW = [
+          "転送日時",
+          "担当者",
+          "チーム",
+          "利用者名",
+          "次回訪問日時",
+          "伝達先",
+          "伝達先（その他）",
+          "伝達方法",
+          "伝達方法（その他）",
+          "病状の経過",
+        ];
+
         const row = [
           formatDate(record.createdAt),
           record.createdByName ?? "",
@@ -1230,6 +1244,23 @@ export const appRouter = router({
           record.notifyMethodOther ?? "",
           record.clinicalNotes ?? "",
         ];
+
+        // 現在のシートの内容を確認してヘッダー行がなければ先に書き込む
+        const checkUrl = `https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A1")}?valueRenderOption=UNFORMATTED_VALUE`;
+        const checkRes = await fetch(checkUrl, {
+          headers: { Authorization: `Bearer ${token.token}` },
+        });
+        const checkData = checkRes.ok ? await checkRes.json() as { values?: string[][] } : { values: [] };
+        const firstCell = checkData.values?.[0]?.[0] ?? "";
+        if (firstCell !== "転送日時") {
+          // ヘッダー行を1行目に書き込む
+          const headerUrl = `https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A1")}?valueInputOption=USER_ENTERED`;
+          await fetch(headerUrl, {
+            method: "PUT",
+            headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ values: [HEADER_ROW] }),
+          });
+        }
 
         const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A:J")}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
         const res = await fetch(appendUrl, {
