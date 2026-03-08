@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { VoiceMicButton } from "@/components/VoiceMicButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ import {
   RotateCcw,
   Calendar as CalendarIcon,
   Clock,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -836,6 +838,9 @@ export default function ScheduleChange() {
   const [meetingStaff, setMeetingStaff] = useState<string[]>([]);
   const [reason, setReason] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  // 音声入力関連ステート
+  const [voiceText, setVoiceText] = useState("");
+  const [isParsingVoice, setIsParsingVoice] = useState(false);
 
   // 下書き自動保存（入力変更から800msデバウンス）
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1004,6 +1009,50 @@ export default function ScheduleChange() {
     setLastRecord(null);
   };
 
+  // 音声入力テキストをLLMで解析しフォームに自動転記
+  const parseVoice = trpc.scheduleChanges.parseVoice.useMutation({
+    onSuccess: (data) => {
+      const f = data.fields;
+      let applied = 0;
+      if (f.changeType && ["visit_change", "visit_cancel", "visit_add", "meeting_add", "meeting_change"].includes(f.changeType)) {
+        setChangeType(f.changeType as ChangeType);
+        applied++;
+      }
+      if (f.team && ["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"].includes(f.team)) {
+        setTeam(f.team as Team);
+        applied++;
+      }
+      if (f.patientName) { setPatientName(f.patientName); applied++; }
+      if (f.fromDatetime) { setFromDatetime(f.fromDatetime); applied++; }
+      if (f.toDatetime) { setToDatetime(f.toDatetime); applied++; }
+      if (f.staffBefore) { setStaffBefore(f.staffBefore); applied++; }
+      if (f.staffAfter) { setStaffAfter(f.staffAfter); applied++; }
+      if (f.meetingName) { setMeetingName(f.meetingName); applied++; }
+      if (f.meetingStaff && Array.isArray(f.meetingStaff) && f.meetingStaff.length > 0) {
+        setMeetingStaff(f.meetingStaff);
+        applied++;
+      }
+      if (f.reason) { setReason(f.reason); applied++; }
+      setIsParsingVoice(false);
+      if (applied > 0) {
+        toast.success(`音声内容を${applied}項目に自動転記しました`);
+      } else {
+        toast("認識できた項目がありませんでした。もう一度お試しください。");
+      }
+    },
+    onError: (err) => {
+      setIsParsingVoice(false);
+      toast.error(`AI解析に失敗しました: ${err.message}`);
+    },
+  });
+
+  const handleVoiceResult = useCallback((text: string) => {
+    setVoiceText(text);
+    setIsParsingVoice(true);
+    parseVoice.mutate({ text });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const toggleMeetingStaff = (name: string) => {
     setMeetingStaff(prev =>
       prev.includes(name) ? prev.filter(s => s !== name) : [...prev, name]
@@ -1131,6 +1180,39 @@ export default function ScheduleChange() {
           </div>
         )}
       </div>
+
+      {/* 音声入力カード */}
+      <Card className="border-2 border-primary/20 bg-primary/5">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <Sparkles className="w-4 h-4 text-primary flex-shrink-0" />
+                <span className="text-sm font-semibold text-primary">音声入力で自動転記</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {isParsingVoice
+                  ? "AIが内容を解析中..."
+                  : voiceText
+                  ? `「${voiceText.slice(0, 40)}${voiceText.length > 40 ? "..." : ""}」`
+                  : "マイクボタンをタップして話すと各項目に自動入力されます"}
+              </p>
+            </div>
+            <VoiceMicButton
+              onResult={handleVoiceResult}
+              size="lg"
+              disabled={isParsingVoice}
+              previewMode="tooltip"
+            />
+          </div>
+          {isParsingVoice && (
+            <div className="mt-2 flex items-center gap-2 text-xs text-primary">
+              <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <span>AIが音声内容を解析して各項目に転記中...</span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* 下書き復元バナー */}
       {hasDraft && draftSavedAt && (

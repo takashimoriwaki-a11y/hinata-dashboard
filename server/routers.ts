@@ -1776,6 +1776,74 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    /** 音声テキストをLLMで解析しフォーム項目を抽出する */
+    parseVoice: protectedProcedure
+      .input(z.object({ text: z.string().min(1) }))
+      .mutation(async ({ input }) => {
+        const { invokeLLM } = await import("./_core/llm");
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
+        const systemPrompt = `あなたは訪問看護ステーションの業務アシスタントです。スタッフが音声で伝えた内容から、スケジュール変更連絡の各項目を抽出してJSONで返してください。
+
+今日は${todayStr}です。日時は「明日」「明後日」「今日」などの相対表現も解釈してISO 8601形式（YYYY-MM-DDTHH:mm）で返してください。
+
+抽出項目:
+- changeType: 次のいずれか。訪問日時変更=visit_change、訪問キャンセル=visit_cancel、訪問追加=visit_add、会議追加=meeting_add、会議変更=meeting_change
+- team: 身体 / 天理 / 郡山北部 / 郡山南部 / 事務員 / 全チーム のいずれか
+- patientName: 利用者名（姓名）
+- fromDatetime: 変更前日時（ISO 8601）
+- toDatetime: 変更後日時または追加日時（ISO 8601）
+- staffBefore: 変更前担当スタッフ名
+- staffAfter: 変更後担当スタッフ名
+- meetingName: 会議名
+- meetingStaff: 参加スタッフ名の配列（例: ["\u68ee脇", "\u7530中"]）
+- reason: 備考・変更理由
+
+不明な項目はnullを返してください。必ず有効なJSONのみを返してください。`;
+
+        const res = await invokeLLM({
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: input.text },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "schedule_change_fields",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  changeType: { type: ["string", "null"] },
+                  team: { type: ["string", "null"] },
+                  patientName: { type: ["string", "null"] },
+                  fromDatetime: { type: ["string", "null"] },
+                  toDatetime: { type: ["string", "null"] },
+                  staffBefore: { type: ["string", "null"] },
+                  staffAfter: { type: ["string", "null"] },
+                  meetingName: { type: ["string", "null"] },
+                  meetingStaff: { type: ["array", "null"], items: { type: "string" } },
+                  reason: { type: ["string", "null"] },
+                },
+                required: ["changeType", "team", "patientName", "fromDatetime", "toDatetime", "staffBefore", "staffAfter", "meetingName", "meetingStaff", "reason"],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+
+        const rawContent = res.choices?.[0]?.message?.content;
+        const content = typeof rawContent === "string" ? rawContent : null;
+        if (!content) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI解析に失敗しました" });
+
+        try {
+          const parsed = JSON.parse(content);
+          return { success: true, fields: parsed };
+        } catch {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AIの応答を解析できませんでした" });
+        }
+      }),
+
     /** 作成と同時にスプレッドシートへ転記する（ワンステップ） */
     createAndExport: protectedProcedure
       .input(z.object({
