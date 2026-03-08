@@ -12,7 +12,6 @@ import {
   Users,
   Globe,
   X,
-  Lightbulb,
   Loader2,
   UserRound,
 } from "lucide-react";
@@ -72,9 +71,6 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [lastVoiceText, setLastVoiceText] = useState<string | null>(null);
   const [missingFields, setMissingFields] = useState<string[]>([]);
-  const [showHint, setShowHint] = useState(() => {
-    try { return !localStorage.getItem("taskVoiceHintDismissed"); } catch { return true; }
-  });
 
   // ログインユーザーの所属チームをデフォルトに設定
   useEffect(() => {
@@ -208,10 +204,6 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     });
   };
 
-  const handleDismissHint = () => {
-    setShowHint(false);
-    try { localStorage.setItem("taskVoiceHintDismissed", "1"); } catch {}
-  };
 
   // 利用者検索クエリ（フリーテキスト入力時）
   const { data: patientResults = [] } = trpc.patients.search.useQuery(
@@ -312,21 +304,6 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
 
         {/* ===== 音声入力AIカード ===== */}
         <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
-          {/* ヒントバナー（初回のみ） */}
-          {showHint && (
-            <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2 text-xs text-amber-800 dark:text-amber-300 space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold flex items-center gap-1"><Lightbulb className="w-3.5 h-3.5" />音声入力のコツ</span>
-                <button type="button" onClick={handleDismissHint} className="text-amber-600 hover:text-amber-900 dark:hover:text-amber-100 transition-colors"><X className="w-3.5 h-3.5" /></button>
-              </div>
-              <ul className="list-disc list-inside space-y-0.5 pl-1">
-                <li>利用者名・期日・担当者を一言で話すだけでOK</li>
-                <li>「○○さんの△△を来週金曜までに」のように話す</li>
-                <li>下の例文を参考に話しかけてみてください</li>
-              </ul>
-              <button type="button" onClick={handleDismissHint} className="mt-1 text-amber-700 dark:text-amber-400 font-medium underline underline-offset-2">わかりました！</button>
-            </div>
-          )}
 
           {/* チーム未選択時のヒント（利用者指定時のみ表示） */}
           {newAssignType === "team" && !taskVoice.isRecording && !isAnalyzing && (

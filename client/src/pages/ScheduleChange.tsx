@@ -951,14 +951,6 @@ export default function ScheduleChange() {
   const [isParsingVoice, setIsParsingVoice] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [missingVoiceFields, setMissingVoiceFields] = useState<string[]>([]);
-  // 初回ヒント表示（localStorageで既読判定）
-  const [showVoiceHint, setShowVoiceHint] = useState(() => {
-    try {
-      return !localStorage.getItem("hinata_voice_hint_seen");
-    } catch {
-      return true;
-    }
-  });
   // 音声入力後の利用者候補選択ダイアログ用
   const [voicePatientCandidates, setVoicePatientCandidates] = useState<PatientItem[]>([]);
   const [showVoicePatientDialog, setShowVoicePatientDialog] = useState(false);
@@ -1410,39 +1402,7 @@ export default function ScheduleChange() {
             />
           </div>
 
-          {/* 初回ヒントバナー */}
-          {showVoiceHint && !isParsingVoice && !voiceText && (
-            <div className="relative p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowVoiceHint(false);
-                  try { localStorage.setItem("hinata_voice_hint_seen", "1"); } catch {}
-                }}
-                className="absolute top-2 right-2 text-amber-400 hover:text-amber-600 transition-colors"
-                aria-label="閉じる"
-              >
-                ✕
-              </button>
-              <p className="font-semibold text-amber-800 mb-1.5">💡 認識精度を上げるコツ</p>
-              <ul className="space-y-1 text-amber-700 pr-4">
-                <li>「○○チーム」「○○さん」のようにチーム名・利用者名を明確に話す</li>
-                <li>日時は「明日の午前10時」「来週月曜の14時」のように具体的に話す</li>
-                <li>変更種別（変更・キャンセル・追加・会議）を最初に伝えると正確に転記されます</li>
-                <li>静かな場所ではっきり話すと認識精度が向上します</li>
-              </ul>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowVoiceHint(false);
-                  try { localStorage.setItem("hinata_voice_hint_seen", "1"); } catch {}
-                }}
-                className="mt-2 w-full py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 font-medium rounded-lg transition-colors"
-              >
-                わかりました！
-              </button>
-            </div>
-          )}
+
 
           {/* 例文（表示のみ） */}
           {!isParsingVoice && !voiceText && (
@@ -1531,22 +1491,7 @@ export default function ScheduleChange() {
             </div>
           )}
 
-          {/* 「ヒントを見る」リンク（ヒント非表示中のみ表示） */}
-          {!showVoiceHint && !isParsingVoice && (
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowVoiceHint(true);
-                  try { localStorage.removeItem("hinata_voice_hint_seen"); } catch {}
-                }}
-                className="flex items-center gap-1 text-[10px] text-primary/60 hover:text-primary transition-colors"
-              >
-                <span>💡</span>
-                ヒントを見る
-              </button>
-            </div>
-          )}
+
         </CardContent>
       </Card>
 

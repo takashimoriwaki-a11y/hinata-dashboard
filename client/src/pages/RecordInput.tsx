@@ -120,7 +120,6 @@ export default function RecordInput() {
   const [visitVoiceText, setVisitVoiceText] = useState("");
   const [isParsingVisitVoice, setIsParsingVisitVoice] = useState(false);
   const [visitVoiceError, setVisitVoiceError] = useState<string | null>(null);
-  const [showVisitVoiceHint, setShowVisitVoiceHint] = useState(false);
 
   // 音声転記確認パネル用state
   type VoicePreview = {
@@ -614,25 +613,7 @@ ${clinicalNotes}`);
               </div>
             )}
 
-            {/* 例文ヒント */}
-            {!visitVoice.isRecording && !isParsingVisitVoice && !visitVoiceText && (
-              <button
-                type="button"
-                onClick={() => setShowVisitVoiceHint((v) => !v)}
-                className="text-[10px] text-primary hover:underline flex items-center gap-1"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                話しかけの例文を見る
-              </button>
-            )}
-            {showVisitVoiceHint && !visitVoice.isRecording && !isParsingVisitVoice && (
-              <div>
-                <p className="text-[10px] font-medium text-muted-foreground mb-1.5">話しかけの例</p>
-                <div className="rounded-lg bg-background/70 border border-border px-3 py-2">
-                  <span className="text-[11px] text-muted-foreground leading-snug">山田さんの次回訪問は明日の午後2時、本人に口頭で伝えた</span>
-                </div>
-              </div>
-            )}
+
           </div>
 
           {/* 音声転記確認・修正パネル */}
