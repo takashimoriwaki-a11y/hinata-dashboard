@@ -79,6 +79,18 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     try { return !localStorage.getItem("taskVoiceHintDismissed"); } catch { return true; }
   });
 
+  // ログインユーザーの所属チームをデフォルトに設定
+  useEffect(() => {
+    if (!user?.team) return;
+    // usersテーブルのteam列は「身体」「天理」「郡山北部」「郡山南部」「事務員」「全チーム」
+    // TaskCreateFormのTeam型は「身体」「天理」「郡山北部」「郡山南部」のみ
+    const validTeams: Team[] = ["身体", "天理", "郡山北部", "郡山南部"];
+    if (validTeams.includes(user.team as Team)) {
+      setNewAssignTeam(user.team as Team);
+    }
+    // 「事務員」「全チーム」の場合はデフォルト「身体」のまま
+  }, [user?.team]);
+
   // スタッフ一覧（個人指定用）
   const { data: staff = [] } = trpc.tasks.getStaff.useQuery();
 
