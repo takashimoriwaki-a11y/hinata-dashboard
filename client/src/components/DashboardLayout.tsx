@@ -371,8 +371,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <div className="flex items-center gap-2">
                 <span className={cn("text-xs md:text-sm font-semibold whitespace-nowrap", isNight ? "text-slate-200" : "text-foreground/80")}>{dateStr}</span>
                 {/* モバイル: HH:MM、PC: HH:MM:SS */}
-                <span className={cn("text-xs font-mono font-semibold whitespace-nowrap tabular-nums md:hidden", isNight ? "text-slate-300" : "text-foreground/70")}>{timeStrShort}</span>
-                <span className={cn("hidden md:inline text-sm font-mono font-semibold whitespace-nowrap tabular-nums", isNight ? "text-slate-300" : "text-foreground/70")}>{timeStr}</span>
+                <span className={cn("text-[10px] font-mono font-medium whitespace-nowrap tabular-nums md:hidden", isNight ? "text-slate-400" : "text-foreground/55")}>{timeStrShort}</span>
+                <span className={cn("hidden md:inline text-xs font-mono font-medium whitespace-nowrap tabular-nums", isNight ? "text-slate-400" : "text-foreground/55")}>{timeStr}</span>
               </div>
               <span className={cn("hidden md:block text-xs font-medium border-l border-border pl-3 whitespace-nowrap", isNight ? "text-slate-300" : "text-foreground/75")}>こころの訪問看護ステーションひなた</span>
               <span className={cn("md:hidden text-[10px] font-semibold leading-tight whitespace-nowrap", isNight ? "text-slate-300" : "text-foreground/70")}>こころの訪問看護ステーションひなた</span>
