@@ -21,6 +21,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { VoiceMicButton } from "@/components/VoiceMicButton";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 
@@ -31,6 +32,8 @@ const NOTIFY_TO_OPTIONS = ["本人", "家族", "その他"] as const;
 const NOTIFY_METHOD_OPTIONS = ["口頭", "カレンダー記入", "付箋", "電話", "その他"] as const;
 
 export default function RecordInput() {
+  const { user } = useAuth();
+
   // ① 利用者・次回訪問日時
   const [team, setTeam] = useState<Team | "">("");
   const [patientId, setPatientId] = useState<number | null>(null);
@@ -43,6 +46,15 @@ export default function RecordInput() {
   const [notifiedToOther, setNotifiedToOther] = useState("");
   const [notifyMethod, setNotifyMethod] = useState<typeof NOTIFY_METHOD_OPTIONS[number] | "">("");
   const [notifyMethodOther, setNotifyMethodOther] = useState("");
+
+  // ログインユーザーの所属チームを初期値に自動設定（ドラフトがない場合のみ）
+  useEffect(() => {
+    if (!user?.team) return;
+    const validTeams: Team[] = ["身体", "天理", "郡山北部", "郡山南部"];
+    if (validTeams.includes(user.team as Team)) {
+      setTeam(prev => prev === "" ? user.team as Team : prev);
+    }
+  }, [user?.team]);
 
   // 時間セレクト用
   const [timeDropdownOpen, setTimeDropdownOpen] = useState(false);
