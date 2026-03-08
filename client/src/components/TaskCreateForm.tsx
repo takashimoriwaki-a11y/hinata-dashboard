@@ -83,7 +83,10 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
   const { data: staff = [] } = trpc.tasks.getStaff.useQuery();
 
   // 全利用者一覧（音声転記AI用）
-  const { data: allPatients = [] } = trpc.patients.list.useQuery({});
+  // チーム選択時はそのチームの利用者のみに自動絞り込み
+  const { data: allPatients = [] } = trpc.patients.list.useQuery(
+    { team: newAssignType === "team" ? newAssignTeam : undefined }
+  );
 
   // parseVoice mutation
   const parseVoice = trpc.tasks.parseVoice.useMutation({

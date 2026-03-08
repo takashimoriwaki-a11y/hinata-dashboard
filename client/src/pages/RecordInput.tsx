@@ -317,7 +317,10 @@ export default function RecordInput() {
   );
 
   // 全利用者リスト（音声入力時のマッチング用）
-  const { data: allPatients = [] } = trpc.patients.list.useQuery({});
+  // チーム選択時はそのチームの利用者のみに自動絞り込み
+  const { data: allPatients = [] } = trpc.patients.list.useQuery(
+    { team: team as Team || undefined }
+  );
   const allPatientsRef = useRef<typeof allPatients>([]);
   useEffect(() => { allPatientsRef.current = allPatients; }, [allPatients]);
 
