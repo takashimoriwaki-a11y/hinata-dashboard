@@ -1154,22 +1154,37 @@ export default function ScheduleChange() {
       }
       if (f.reason) { setReason(f.reason); applied++; }
 
-      // 利用者名処理: patientLastNameがあれば登録利用者から検索して連携
+      // 利用者名処理: patientLastName または patientName で登録利用者から検索して連携
+      // ※ 苗字だけ伝えた場合も含め、常に登録利用者から検索し、直接転記しない
       const lastName = (f as Record<string, unknown>).patientLastName as string | null;
-      if (lastName) {
-        // 苗字で先頭一致検索
+      const searchKey = lastName || f.patientName || null;
+
+      if (searchKey) {
+        // 1. 苗字の先頭一致検索（スペース区切りの最初のトークン）
         const exactMatches = patientList.filter((p: PatientItem) => {
           const parts = p.name.split(/[　 ]/);
-          return parts[0] === lastName;
+          return parts[0] === searchKey;
         });
-        const candidates = exactMatches.length > 0
-          ? exactMatches
-          : patientList.filter((p: PatientItem) => p.name.includes(lastName));
+        // 2. 完全一致検索（フルネームが渡された場合）
+        const fullNameMatches = patientList.filter((p: PatientItem) => p.name === searchKey);
+        // 3. 部分一致検索（フォールバック）
+        const partialMatches = patientList.filter((p: PatientItem) => p.name.includes(searchKey));
+
+        // 優先順位: フルネーム完全一致 > 苗字先頭一致 > 部分一致
+        const candidates = fullNameMatches.length > 0
+          ? fullNameMatches
+          : exactMatches.length > 0
+            ? exactMatches
+            : partialMatches;
 
         if (candidates.length === 1) {
           // 1件一致 → 即転記
           setPatientName(candidates[0].name);
           applied++;
+          // チームも自動セット（未選択の場合）
+          if (!team && candidates[0].team) {
+            setTeam(candidates[0].team as Team);
+          }
           setIsParsingVoice(false);
           toast.success(`音声内容を${applied}項目に自動転記しました`);
         } else if (candidates.length > 1) {
@@ -1180,18 +1195,17 @@ export default function ScheduleChange() {
           setIsParsingVoice(false);
           // 候補選択待ちのときはトーストなし（ダイアログが表示される）
         } else {
-          // 候補なし → AI返却の姓名をそのまま転記
+          // 候補なし → 登録外の利用者として AI 返却値をそのまま転記
           if (f.patientName) { setPatientName(f.patientName); applied++; }
           setIsParsingVoice(false);
           if (applied > 0) {
-            toast.success(`音声内容を${applied}項目に自動転記しました`);
+            toast.success(`音声内容を${applied}項目に自動転記しました（利用者は登録外）`);
           } else {
             toast("認識できた項目がありませんでした。もう一度お試しください。");
           }
         }
       } else {
         // 利用者名なしのケース
-        if (f.patientName) { setPatientName(f.patientName); applied++; }
         setIsParsingVoice(false);
         if (applied > 0) {
           toast.success(`音声内容を${applied}項目に自動転記しました`);
