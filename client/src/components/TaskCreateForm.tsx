@@ -82,6 +82,9 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
   // スタッフ一覧（個人指定用）
   const { data: staff = [] } = trpc.tasks.getStaff.useQuery();
 
+  // 全利用者一覧（音声転記AI用）
+  const { data: allPatients = [] } = trpc.patients.list.useQuery({});
+
   // parseVoice mutation
   const parseVoice = trpc.tasks.parseVoice.useMutation({
     onSuccess: (data) => {
@@ -132,10 +135,28 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
 
       // 利用者名自動転記（空欄のみ上書き）
       if (f.patientName && !patientName.trim()) {
-        // 苗字で検索して候補を絞り込む
-        const lastName = f.patientName.trim();
-        // サーバー側で検索するため、一時的にクエリをセットして候補を取得する
-        setPendingPatientSearch(lastName);
+        const aiName = f.patientName.trim();
+        // AIが利用者リストから正式名を返した場合は直接設定
+        const exactMatch = allPatients.find((p) => p.name === aiName);
+        if (exactMatch) {
+          setPatientName(exactMatch.name);
+          toast.success(`利用者「${exactMatch.name}」を自動選択しました`);
+        } else {
+          // 完全一致しない場合は部分一致で検索
+          const partialMatch = allPatients.filter(
+            (p) => p.name.includes(aiName) || aiName.includes(p.name.split('\u3000')[0].split(' ')[0])
+          );
+          if (partialMatch.length === 1) {
+            setPatientName(partialMatch[0].name);
+            toast.success(`利用者「${partialMatch[0].name}」を自動選択しました`);
+          } else if (partialMatch.length > 1) {
+            setPatientCandidates(partialMatch);
+            setShowCandidateDialog(true);
+          } else {
+            // 一致なし→サーバー検索にフォールバック
+            setPendingPatientSearch(aiName);
+          }
+        }
       }
 
       setMissingFields(missing);
@@ -155,7 +176,11 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
       setLastVoiceText(text);
       setIsAnalyzing(true);
       setVoiceError(null);
-      parseVoice.mutate({ text });
+      parseVoice.mutate({
+        text,
+        patientNames: allPatients.map((p) => p.name),
+        staffNames: staff.map((s) => s.name).filter(Boolean) as string[],
+      });
     },
   });
 
@@ -165,7 +190,11 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     setLastVoiceText(example);
     setIsAnalyzing(true);
     setVoiceError(null);
-    parseVoice.mutate({ text: example });
+    parseVoice.mutate({
+      text: example,
+      patientNames: allPatients.map((p) => p.name),
+      staffNames: staff.map((s) => s.name).filter(Boolean) as string[],
+    });
   };
 
   // エラー時リトライ
@@ -173,7 +202,11 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     if (!lastVoiceText) return;
     setIsAnalyzing(true);
     setVoiceError(null);
-    parseVoice.mutate({ text: lastVoiceText });
+    parseVoice.mutate({
+      text: lastVoiceText,
+      patientNames: allPatients.map((p) => p.name),
+      staffNames: staff.map((s) => s.name).filter(Boolean) as string[],
+    });
   };
 
   const handleDismissHint = () => {

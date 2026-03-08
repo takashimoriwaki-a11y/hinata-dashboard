@@ -826,21 +826,31 @@ export const appRouter = router({
     }),
     // 音声入力テキストからタスク内容・期日・指定先をAI解析
     parseVoice: protectedProcedure
-      .input(z.object({ text: z.string().min(1) }))
+      .input(z.object({
+        text: z.string().min(1),
+        patientNames: z.array(z.string()).optional(),
+        staffNames: z.array(z.string()).optional(),
+      }))
       .mutation(async ({ input }) => {
         const { invokeLLM } = await import("./_core/llm");
         const today = new Date();
         const todayStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
+        const patientListStr = input.patientNames && input.patientNames.length > 0
+          ? `\n\n登録済み利用者リスト（この中から最も近い名前を選んでpatientNameに返すこと）:\n${input.patientNames.join('、')}`
+          : '';
+        const staffListStr = input.staffNames && input.staffNames.length > 0
+          ? `\n\n登録済みスタッフリスト（assignPersonNameはこの中から選ぶこと）:\n${input.staffNames.join('、')}`
+          : '';
         const systemPrompt = `あなたは訪問看護ステーションの業務アシスタントです。スタッフが音声で伝えた内容から、タスクの各項目を抽出してJSONで返してください。
 今日は${todayStr}です。日時は「明日」「来週月曜」「今月末」などの相対表現も解釈してYYYY-MM-DD形式で返してください。
 抽出項目:
 - text: タスク内容・やることの説明（必須）
 - dueDateStr: 期日日付（YYYY-MM-DD形式）。不明な場合はnull
-- assignType: 指定先の種別。「全員」「全スタッフ」「全体」など→all、「身体」「天理」「郡山北部」「郡山南部」などチーム名→team、特定の人名が含まれる場合→personal。不明な場合はall
-- assignTeam: assignTypeがteamの場合のチーム名（身体/天理/郡山北部/郡山南部のいずれか）。不明な場合はnull
-- assignPersonName: assignTypeがpersonalの場合の担当者名（姓のみで可）。不明な場合はnull
-- patientName: 利用者（患者）の名前。「○○さん」「○○の」など利用者を指す表現から抽出。姓のみでも可。担当スタッフ名と混同しないこと。不明な場合はnull
-不明な項目はnullを返してください。必ず有効なJSONのみを返してください。`;
+- assignType: 指定先の種別。「全員」「全スタッフ」「全体」など→all、「身体チーム」「身体」「天理チーム」「天理」「郡山北部チーム」「北部」「郡山南部チーム」「南部」などチームを指す表現→team、特定の人名が含まれる場合→personal。不明な場合はall
+- assignTeam: assignTypeがteamの場合のチーム名。「身体」「身体チーム」→身体、「天理」「天理チーム」→天理、「郡山北部」「北部」「北部チーム」→郡山北部、「郡山南部」「南部」「南部チーム」→郡山南部。不明な場合はnull
+- assignPersonName: assignTypeがpersonalの場合の担当者名（姓のみで可）。スタッフリストがある場合はリストから最も近い名前を選ぶ。不明な場合はnull
+- patientName: 利用者（患者）の名前。「○○さん」「○○の」など利用者を指す表現から抽出。利用者リストがある場合はリストから最も近い名前を完全な形で返す（姓のみで言及されても正式名を返す）。担当スタッフ名と混同しないこと。不明な場合はnull
+不明な項目はnullを返してください。必ず有効なJSONのみを返してください。${patientListStr}${staffListStr}`;
         const res = await invokeLLM({
           messages: [
             { role: "system", content: systemPrompt },
