@@ -262,20 +262,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     <div className="flex h-screen overflow-hidden bg-background">
 
       {/* ========== PC用サイドバー（md以上で表示） ========== */}
-      <aside
-        className={cn(
-          "relative hidden md:flex flex-col h-full transition-all duration-300 ease-in-out z-30 flex-shrink-0",
-          "bg-sidebar text-sidebar-foreground border-r border-sidebar-border",
-          collapsed ? "w-[60px]" : "w-56"
-        )}
-      >
-        <SidebarContent />
+      <div className="relative hidden md:flex flex-shrink-0 h-full">
+        <aside
+          className={cn(
+            "flex flex-col h-full transition-all duration-300 ease-in-out z-30 overflow-hidden",
+            "bg-sidebar text-sidebar-foreground border-r border-sidebar-border",
+            collapsed ? "w-0" : "w-56"
+          )}
+        >
+          <SidebarContent />
+        </aside>
 
-        {/* 折りたたみトグルボタン */}
+        {/* 折りたたみトグルボタン（サイドバー外に浮かせて常に表示） */}
         <button
           onClick={() => setCollapsed(!collapsed)}
           className={cn(
-            "absolute -right-3 top-[68px] z-40",
+            "absolute top-[68px] z-40",
+            collapsed ? "-right-3" : "-right-3",
             "w-6 h-6 rounded-full bg-card border border-border shadow-md",
             "flex items-center justify-center",
             "text-muted-foreground hover:text-primary hover:shadow-lg transition-all duration-200"
@@ -287,7 +290,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             : <ChevronLeft className="w-3.5 h-3.5" />
           }
         </button>
-      </aside>
+      </div>
 
       {/* ========== モバイル用ドロワーオーバーレイ ========== */}
       {mobileOpen && (
