@@ -9,7 +9,8 @@
  */
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Task } from "../../../drizzle/schema";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -28,6 +29,7 @@ import {
   X,
   Check,
   UserRound,
+  Filter,
 } from "lucide-react";
 import TaskCreateForm from "@/components/TaskCreateForm";
 import { toast } from "sonner";
@@ -112,6 +114,12 @@ function toTimeInputValue(date: Date | string | null | undefined): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+// 日付フィルターの種類
+type DateFilter = "all" | "overdue" | "today" | "tomorrow" | "this_week" | "no_date";
+
+// チームフィルターの種類（null = 全員）
+type TeamFilter = Team | "all_team" | "personal" | null;
+
 export default function Tasks() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
@@ -122,13 +130,23 @@ export default function Tasks() {
   // スタッフ一覧（個人指定用）
   const { data: staff = [] } = trpc.tasks.getStaff.useQuery();
 
-  // フィルター
+  // 完了フィルター
   const [filter, setFilter] = useState<"all" | "active" | "done">("active");
+
+  // 日付フィルター
+  const [dateFilter, setDateFilter] = useState<DateFilter>("all");
+
+  // チームフィルター
+  const [teamFilter, setTeamFilter] = useState<TeamFilter>(null);
+
+  // 利用者名フィルター
+  const [patientFilter, setPatientFilter] = useState<string | null>(null);
+
+  // フィルターパネルの開閉
+  const [showFilters, setShowFilters] = useState(false);
 
   // 新規作成フォームの開閉
   const [showForm, setShowForm] = useState(false);
-
-
 
   // 編集中のタスクID
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -153,10 +171,6 @@ export default function Tasks() {
     { team: editAssignTeam },
     { enabled: editAssignType === "team" }
   );
-  // 利用者名フィルター
-  const [patientFilter, setPatientFilter] = useState<string | null>(null);
-
-
 
   // タスク完了切り替え
   const toggleTask = trpc.tasks.toggle.useMutation({
@@ -195,7 +209,7 @@ export default function Tasks() {
   });
 
   // 編集開始
-  const startEdit = (task: typeof tasks[number]) => {
+  const startEdit = (task: Task) => {
     setEditingId(task.id);
     setEditText(task.text);
     setEditDueDate(toDateInputValue(task.dueDate));
@@ -204,7 +218,7 @@ export default function Tasks() {
     setEditAssignTeam((task.assignTeam as Team) ?? "身体");
     setEditAssignUserId(task.assignUserId ?? null);
     setEditAssignUserName(task.assignUserName ?? "");
-    setEditPatientName((task as any).patientName ?? "");
+    setEditPatientName(task.patientName ?? "");
     setEditPatientQuery("");
     setEditPatientOpen(false);
   };
@@ -237,25 +251,121 @@ export default function Tasks() {
     });
   };
 
+  // 日付フィルターのロジック
+  const matchesDateFilter = (task: Task): boolean => {
+    if (dateFilter === "all") return true;
+    if (dateFilter === "no_date") return !task.dueDate;
+    if (!task.dueDate) return false;
+
+    const d = new Date(task.dueDate);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const diff = Math.floor((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (dateFilter === "overdue") return diff < 0;
+    if (dateFilter === "today") return diff === 0;
+    if (dateFilter === "tomorrow") return diff === 1;
+    if (dateFilter === "this_week") return diff >= 0 && diff <= 6;
+    return true;
+  };
+
+  // チームフィルターのロジック
+  const matchesTeamFilter = (task: Task): boolean => {
+    if (teamFilter === null) return true;
+    if (teamFilter === "all_team") return task.assignType === "all";
+    if (teamFilter === "personal") return task.assignType === "personal";
+    // チーム名指定
+    return task.assignType === "team" && task.assignTeam === teamFilter;
+  };
+
   const filtered = useMemo(() => {
     return tasks.filter((t) => {
       if (filter === "active" && t.done !== 0) return false;
       if (filter === "done" && t.done !== 1) return false;
-      if (patientFilter && (t as any).patientName !== patientFilter) return false;
+      if (!matchesDateFilter(t)) return false;
+      if (!matchesTeamFilter(t)) return false;
+      if (patientFilter && t.patientName !== patientFilter) return false;
       return true;
     });
-  }, [tasks, filter, patientFilter]);
+  }, [tasks, filter, dateFilter, teamFilter, patientFilter]);
 
   // タスクに含まれる利用者名の一覧（重複なし）
   const patientNames = useMemo(() => {
     const names = tasks
-      .map((t) => (t as any).patientName as string | null | undefined)
+      .map((t) => t.patientName)
       .filter((n): n is string => !!n);
     return Array.from(new Set(names));
   }, [tasks]);
 
   const activeCount = tasks.filter((t) => t.done === 0).length;
   const doneCount = tasks.filter((t) => t.done === 1).length;
+
+  // 各日付フィルターの件数（完了フィルター適用後）
+  const dateFilterCounts = useMemo(() => {
+    const base = tasks.filter((t) => {
+      if (filter === "active" && t.done !== 0) return false;
+      if (filter === "done" && t.done !== 1) return false;
+      return true;
+    });
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const count = (fn: (t: Task) => boolean) => base.filter(fn).length;
+    return {
+      all: base.length,
+      overdue: count((t) => {
+        if (!t.dueDate) return false;
+        const d = new Date(t.dueDate);
+        const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        return Math.floor((target.getTime() - today.getTime()) / 86400000) < 0;
+      }),
+      today: count((t) => {
+        if (!t.dueDate) return false;
+        const d = new Date(t.dueDate);
+        const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        return Math.floor((target.getTime() - today.getTime()) / 86400000) === 0;
+      }),
+      tomorrow: count((t) => {
+        if (!t.dueDate) return false;
+        const d = new Date(t.dueDate);
+        const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        return Math.floor((target.getTime() - today.getTime()) / 86400000) === 1;
+      }),
+      this_week: count((t) => {
+        if (!t.dueDate) return false;
+        const d = new Date(t.dueDate);
+        const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const diff = Math.floor((target.getTime() - today.getTime()) / 86400000);
+        return diff >= 0 && diff <= 6;
+      }),
+      no_date: count((t) => !t.dueDate),
+    };
+  }, [tasks, filter]);
+
+  // 各チームフィルターの件数（完了フィルター適用後）
+  const teamFilterCounts = useMemo(() => {
+    const base = tasks.filter((t) => {
+      if (filter === "active" && t.done !== 0) return false;
+      if (filter === "done" && t.done !== 1) return false;
+      return true;
+    });
+    return {
+      all: base.length,
+      all_team: base.filter((t) => t.assignType === "all").length,
+      personal: base.filter((t) => t.assignType === "personal").length,
+      身体: base.filter((t) => t.assignType === "team" && t.assignTeam === "身体").length,
+      天理: base.filter((t) => t.assignType === "team" && t.assignTeam === "天理").length,
+      郡山北部: base.filter((t) => t.assignType === "team" && t.assignTeam === "郡山北部").length,
+      郡山南部: base.filter((t) => t.assignType === "team" && t.assignTeam === "郡山南部").length,
+    };
+  }, [tasks, filter]);
+
+  // アクティブなフィルター数（バッジ表示用）
+  const activeFilterCount = [
+    dateFilter !== "all",
+    teamFilter !== null,
+    patientFilter !== null,
+  ].filter(Boolean).length;
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto">
@@ -266,8 +376,8 @@ export default function Tasks() {
         <Badge variant="secondary" className="ml-auto">{activeCount}件未完了</Badge>
       </div>
 
-      {/* フィルター */}
-      <div className="flex flex-wrap gap-2">
+      {/* 完了フィルター */}
+      <div className="flex flex-wrap gap-2 items-center">
         {(["active", "all", "done"] as const).map((f) => (
           <Button
             key={f}
@@ -283,39 +393,214 @@ export default function Tasks() {
               : `完了 (${doneCount})`}
           </Button>
         ))}
+        {/* フィルターパネル開閉ボタン */}
+        <button
+          onClick={() => setShowFilters((v) => !v)}
+          className={cn(
+            "ml-auto flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg border transition-colors",
+            showFilters || activeFilterCount > 0
+              ? "bg-primary/10 border-primary/40 text-primary"
+              : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary"
+          )}
+        >
+          <Filter className="w-3.5 h-3.5" />
+          絞り込み
+          {activeFilterCount > 0 && (
+            <span className="ml-0.5 w-4 h-4 rounded-full bg-primary text-white text-[10px] flex items-center justify-center font-bold">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
       </div>
 
-      {/* 利用者名フィルター */}
-      {patientNames.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 items-center">
-          <span className="text-[11px] text-muted-foreground flex items-center gap-0.5">
-            <UserRound className="w-3 h-3" />利用者フィルター:
-          </span>
-          <button
-            onClick={() => setPatientFilter(null)}
-            className={cn(
-              "text-[11px] px-2 py-0.5 rounded-full border transition-colors",
-              patientFilter === null
-                ? "bg-violet-600 text-white border-violet-600"
-                : "border-border text-muted-foreground hover:border-violet-400 hover:text-violet-600"
+      {/* フィルターパネル */}
+      {showFilters && (
+        <Card className="shadow-sm border-primary/20">
+          <CardContent className="p-3 space-y-3">
+            {/* 日付フィルター */}
+            <div>
+              <div className="flex items-center gap-1 mb-1.5">
+                <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground">期日フィルター</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {([
+                  { value: "all", label: "すべて" },
+                  { value: "overdue", label: "期限切れ" },
+                  { value: "today", label: "今日" },
+                  { value: "tomorrow", label: "明日" },
+                  { value: "this_week", label: "今週" },
+                  { value: "no_date", label: "期日なし" },
+                ] as const).map(({ value, label }) => {
+                  const count = dateFilterCounts[value];
+                  const isActive = dateFilter === value;
+                  return (
+                    <button
+                      key={value}
+                      onClick={() => setDateFilter(value)}
+                      className={cn(
+                        "text-[11px] px-2 py-0.5 rounded-full border transition-colors flex items-center gap-0.5",
+                        isActive
+                          ? value === "overdue"
+                            ? "bg-red-500 text-white border-red-500"
+                            : value === "today"
+                            ? "bg-orange-500 text-white border-orange-500"
+                            : "bg-primary text-white border-primary"
+                          : value === "overdue" && count > 0
+                          ? "border-red-400 text-red-600 hover:bg-red-50"
+                          : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary"
+                      )}
+                    >
+                      {label}
+                      {count > 0 && (
+                        <span className={cn(
+                          "text-[10px] font-bold",
+                          isActive ? "opacity-80" : ""
+                        )}>
+                          ({count})
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* チームフィルター */}
+            <div>
+              <div className="flex items-center gap-1 mb-1.5">
+                <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground">指定先フィルター</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {([
+                  { value: null, label: "すべて" },
+                  { value: "all_team", label: "全員向け" },
+                  { value: "身体", label: "身体チーム" },
+                  { value: "天理", label: "天理チーム" },
+                  { value: "郡山北部", label: "郡山北部チーム" },
+                  { value: "郡山南部", label: "郡山南部チーム" },
+                  { value: "personal", label: "個人指定" },
+                ] as const).map(({ value, label }) => {
+                  const countKey = value === null ? "all" : value;
+                  const count = teamFilterCounts[countKey as keyof typeof teamFilterCounts];
+                  const isActive = teamFilter === value;
+                  return (
+                    <button
+                      key={String(value)}
+                      onClick={() => setTeamFilter(value)}
+                      className={cn(
+                        "text-[11px] px-2 py-0.5 rounded-full border transition-colors flex items-center gap-0.5",
+                        isActive
+                          ? "bg-primary text-white border-primary"
+                          : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary"
+                      )}
+                    >
+                      {label}
+                      {count > 0 && (
+                        <span className="text-[10px] font-bold">({count})</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 利用者名フィルター */}
+            {patientNames.length > 0 && (
+              <div>
+                <div className="flex items-center gap-1 mb-1.5">
+                  <UserRound className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-xs font-medium text-muted-foreground">利用者フィルター</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    onClick={() => setPatientFilter(null)}
+                    className={cn(
+                      "text-[11px] px-2 py-0.5 rounded-full border transition-colors",
+                      patientFilter === null
+                        ? "bg-violet-600 text-white border-violet-600"
+                        : "border-border text-muted-foreground hover:border-violet-400 hover:text-violet-600"
+                    )}
+                  >
+                    すべて
+                  </button>
+                  {patientNames.map((name) => {
+                    const count = tasks.filter((t) => t.patientName === name).length;
+                    return (
+                      <button
+                        key={name}
+                        onClick={() => setPatientFilter(patientFilter === name ? null : name)}
+                        className={cn(
+                          "text-[11px] px-2 py-0.5 rounded-full border transition-colors flex items-center gap-0.5",
+                          patientFilter === name
+                            ? "bg-violet-600 text-white border-violet-600"
+                            : "border-border text-muted-foreground hover:border-violet-400 hover:text-violet-600"
+                        )}
+                      >
+                        {name}
+                        <span className="text-[10px] font-bold">({count})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             )}
-          >
-            すべて
-          </button>
-          {patientNames.map((name) => (
-            <button
-              key={name}
-              onClick={() => setPatientFilter(patientFilter === name ? null : name)}
-              className={cn(
-                "text-[11px] px-2 py-0.5 rounded-full border transition-colors",
-                patientFilter === name
-                  ? "bg-violet-600 text-white border-violet-600"
-                  : "border-border text-muted-foreground hover:border-violet-400 hover:text-violet-600"
-              )}
-            >
-              {name}
-            </button>
-          ))}
+
+            {/* フィルターリセット */}
+            {activeFilterCount > 0 && (
+              <button
+                onClick={() => {
+                  setDateFilter("all");
+                  setTeamFilter(null);
+                  setPatientFilter(null);
+                }}
+                className="text-[11px] text-muted-foreground hover:text-destructive flex items-center gap-0.5 transition-colors"
+              >
+                <X className="w-3 h-3" />すべてのフィルターをリセット
+              </button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* アクティブなフィルターのサマリーバッジ */}
+      {!showFilters && activeFilterCount > 0 && (
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-[11px] text-muted-foreground">絞り込み中:</span>
+          {dateFilter !== "all" && (
+            <span className="flex items-center gap-0.5 text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+              <Calendar className="w-2.5 h-2.5" />
+              {dateFilter === "overdue" ? "期限切れ"
+                : dateFilter === "today" ? "今日"
+                : dateFilter === "tomorrow" ? "明日"
+                : dateFilter === "this_week" ? "今週"
+                : "期日なし"}
+              <button onClick={() => setDateFilter("all")} className="ml-0.5 hover:text-destructive">
+                <X className="w-2.5 h-2.5" />
+              </button>
+            </span>
+          )}
+          {teamFilter !== null && (
+            <span className="flex items-center gap-0.5 text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+              <Users className="w-2.5 h-2.5" />
+              {teamFilter === "all_team" ? "全員向け"
+                : teamFilter === "personal" ? "個人指定"
+                : `${teamFilter}チーム`}
+              <button onClick={() => setTeamFilter(null)} className="ml-0.5 hover:text-destructive">
+                <X className="w-2.5 h-2.5" />
+              </button>
+            </span>
+          )}
+          {patientFilter !== null && (
+            <span className="flex items-center gap-0.5 text-[11px] px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 border border-violet-200">
+              <UserRound className="w-2.5 h-2.5" />
+              {patientFilter}
+              <button onClick={() => setPatientFilter(null)} className="ml-0.5 hover:text-destructive">
+                <X className="w-2.5 h-2.5" />
+              </button>
+            </span>
+          )}
         </div>
       )}
 
@@ -326,7 +611,11 @@ export default function Tasks() {
             <p className="text-sm text-muted-foreground text-center py-6">読み込み中...</p>
           ) : filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">
-              {filter === "active" ? "未完了のタスクはありません" : "タスクはありません"}
+              {activeFilterCount > 0
+                ? "条件に一致するタスクはありません"
+                : filter === "active"
+                ? "未完了のタスクはありません"
+                : "タスクはありません"}
             </p>
           ) : (
             filtered.map((task) => (
@@ -491,7 +780,7 @@ export default function Tasks() {
                           )}
                           {editPatientOpen && editPatientResults.length > 0 && (
                             <div className="absolute z-50 left-0 right-0 mt-1 bg-background border border-border rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                              {editPatientResults.map((p: any) => (
+                              {editPatientResults.map((p) => (
                                 <button
                                   key={p.id}
                                   type="button"
@@ -572,18 +861,18 @@ export default function Tasks() {
                         {task.repeatType && task.repeatType !== "none" && (
                           <span className="text-[10px] text-primary/80 font-medium" title={
                             task.repeatType === "weekly"
-                              ? `毎週${["\u65e5","\u6708","\u706b","\u6c34","\u6728","\u91d1","\u571f"][task.repeatDayOfWeek ?? 1]}曜日繰り返し`
+                              ? `毎週${["日","月","火","水","木","金","土"][task.repeatDayOfWeek ?? 1]}曜日繰り返し`
                               : `毎月${task.repeatDayOfMonth ?? 1}日繰り返し`
                           }>
                             🔄 {task.repeatType === "weekly"
-                              ? `毎週${["\u65e5","\u6708","\u706b","\u6c34","\u6728","\u91d1","\u571f"][task.repeatDayOfWeek ?? 1]}`
+                              ? `毎週${["日","月","火","水","木","金","土"][task.repeatDayOfWeek ?? 1]}`
                               : `毎月${task.repeatDayOfMonth ?? 1}日`}
                           </span>
                         )}
                         {/* 利用者名 */}
-                        {(task as any).patientName && (
+                        {task.patientName && (
                           <span className="flex items-center gap-0.5 text-[11px] text-violet-600 dark:text-violet-400 font-medium">
-                            <UserRound className="w-3 h-3" />{(task as any).patientName}
+                            <UserRound className="w-3 h-3" />{task.patientName}
                           </span>
                         )}
                         {/* 作成者 */}
