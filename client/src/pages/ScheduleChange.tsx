@@ -1139,9 +1139,16 @@ export default function ScheduleChange() {
         setChangeType(f.changeType as ChangeType);
         applied++;
       }
-      if (f.team && ["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"].includes(f.team)) {
-        setTeam(f.team as Team);
-        applied++;
+      if (f.team) {
+        if (["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"].includes(f.team)) {
+          setTeam(f.team as Team);
+          applied++;
+        } else {
+          // チーム名が認識できなかった場合はエラーを表示して処理を中断
+          setIsParsingVoice(false);
+          setVoiceError("チーム名が聞き取れませんでした。もう一度お試しください");
+          return;
+        }
       }
       if (f.fromDatetime) { setFromDatetime(f.fromDatetime); applied++; }
       if (f.toDatetime) { setToDatetime(f.toDatetime); applied++; }

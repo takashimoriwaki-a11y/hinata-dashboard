@@ -970,6 +970,61 @@ export const appRouter = router({
         );
         return result;
       }),
+    // 音声テキストからメッセージ各項目を抽出する
+    parseVoice: protectedProcedure
+      .input(z.object({ text: z.string().min(1) }))
+      .mutation(async ({ input }) => {
+        const { invokeLLM } = await import("./_core/llm");
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
+        const systemPrompt = `あなたは訪問看護ステーションの業務アシスタントです。スタッフが音声で伝えた内容から、申し送りメッセージの各項目を抽出してJSONで返してください。
+今日は${todayStr}です。日時は「明日」「来週月曜」「今月末」などの相対表現も解釈してYYYY-MM-DD形式、時刻はHH:mm形式で返してください。
+抽出項目:
+- text: メッセージ本文（必須）。音声から読み取れる内容を自然な文章にまとめてください
+- displayFromDate: 表示開始日（YYYY-MM-DD形式）。「〜から表示」「〜以降」などが含まれる場合に抽出。不明な場合はnull
+- displayFromTime: 表示開始時刻（HH:mm形式）。不明な場合はnull
+- displayUntilDate: 表示終了日（YYYY-MM-DD形式）。「〜まで」「〜以降は削除」などが含まれる場合に抽出。不明な場合はnull
+- displayUntilTime: 表示終了時刻（HH:mm形式）。不明な場合はnull
+- scheduledAtDate: 予約送信日（YYYY-MM-DD形式）。「〜に送信」「〜に投稿」などが含まれる場合に抽出。不明な場合はnull
+- scheduledAtTime: 予約送信時刻（HH:mm形式）。不明な場合はnull
+不明な項目はnullを返してください。必ず有効なJSONのみを返してください。`;
+        const res = await invokeLLM({
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: input.text },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "message_fields",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  text: { type: "string" },
+                  displayFromDate: { type: ["string", "null"] },
+                  displayFromTime: { type: ["string", "null"] },
+                  displayUntilDate: { type: ["string", "null"] },
+                  displayUntilTime: { type: ["string", "null"] },
+                  scheduledAtDate: { type: ["string", "null"] },
+                  scheduledAtTime: { type: ["string", "null"] },
+                },
+                required: ["text", "displayFromDate", "displayFromTime", "displayUntilDate", "displayUntilTime", "scheduledAtDate", "scheduledAtTime"],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+        const rawContent = res.choices?.[0]?.message?.content;
+        const content = typeof rawContent === "string" ? rawContent : null;
+        if (!content) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI解析に失敗しました" });
+        try {
+          const parsed = JSON.parse(content);
+          return { success: true, fields: parsed };
+        } catch {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AIの応答を解析できませんでした" });
+        }
+      }),
   }),  // ========== Web Push通知 ==========
   push: router({
     // VAPID公開鍵を返す

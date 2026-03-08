@@ -1918,9 +1918,44 @@ function MessageBoard({ title }: { title: string }) {
   const [displayUntilTime, setDisplayUntilTime] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
   const [scheduledAtTime, setScheduledAtTime] = useState("");
-  // 音声入力（interimTextを直接取得するためuseVoiceInputを直接使用）
+  // 音声入力 AI 自動転記
+  const [isAnalyzingMsg, setIsAnalyzingMsg] = useState(false);
+  const [msgVoiceError, setMsgVoiceError] = useState<string | null>(null);
+  const [lastMsgVoiceText, setLastMsgVoiceText] = useState<string | null>(null);
+  const [missingMsgFields, setMissingMsgFields] = useState<string[]>([]);
   const msgVoice = useVoiceInput({
-    onResult: (text: string) => setNewMsg(prev => prev + (prev ? " " : "") + text),
+    onResult: (text: string) => {
+      setLastMsgVoiceText(text);
+      setIsAnalyzingMsg(true);
+      setMsgVoiceError(null);
+      setMissingMsgFields([]);
+      parseMsgVoice.mutate({ text });
+    },
+  });
+  const parseMsgVoice = trpc.messages.parseVoice.useMutation({
+    onSuccess: (data) => {
+      setIsAnalyzingMsg(false);
+      const f = data.fields;
+      const missing: string[] = [];
+      // 本文
+      if (f.text) setNewMsg(f.text);
+      else missing.push("メッセージ本文");
+      // 表示開始
+      if (f.displayFromDate) { setDisplayFrom(f.displayFromDate); if (f.displayFromTime) setDisplayFromTime(f.displayFromTime); }
+      // 表示終了
+      if (f.displayUntilDate) { setDisplayUntil(f.displayUntilDate); if (f.displayUntilTime) setDisplayUntilTime(f.displayUntilTime); }
+      // 予約送信
+      if (f.scheduledAtDate) { setScheduledAt(f.scheduledAtDate); if (f.scheduledAtTime) setScheduledAtTime(f.scheduledAtTime); }
+      setMissingMsgFields(missing);
+      if (missing.length === 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (toast as any).success("AIが各項目に転記しました");
+      }
+    },
+    onError: (e) => {
+      setIsAnalyzingMsg(false);
+      setMsgVoiceError(e.message || "AI解析に失敗しました。もう一度お試しください");
+    },
   });
 
   // メッセージ作成
@@ -2035,70 +2070,101 @@ function MessageBoard({ title }: { title: string }) {
         {/* 投稿フォーム */}
         {showForm && (
           <div className="border border-primary/20 rounded-xl p-4 space-y-3 bg-primary/5">
-            <div className="flex gap-2">
-              <div className="flex-1 space-y-1.5">
-                <Textarea
-                  placeholder="メッセージを入力..."
-                  value={newMsg}
-                  onChange={(e) => setNewMsg(e.target.value)}
-                  className="text-sm min-h-[80px] resize-none w-full"
-                />
-                {/* 音声認識中の暫定テキストプレビュー */}
-                {msgVoice.isRecording && (
-                  <div className={cn(
-                    "px-2 py-1.5 rounded-md border min-h-[28px]",
-                    msgVoice.silenceCountdown !== null && msgVoice.silenceCountdown <= 5
-                      ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
-                      : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
-                  )}>
-                    {msgVoice.interimText ? (
-                      <p className="text-xs text-red-600 dark:text-red-400 italic leading-relaxed">
-                        🎤 {msgVoice.interimText}
+            {/* ===== 音声入力 AI カード ===== */}
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onPointerDown={(e) => { e.preventDefault(); if (!isAnalyzingMsg) msgVoice.toggleVoice(); }}
+                  disabled={isAnalyzingMsg}
+                  className={cn(
+                    "relative inline-flex items-center justify-center flex-shrink-0 h-11 w-11 rounded-2xl",
+                    "border-2 transition-all duration-200 select-none touch-manipulation",
+                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                    isAnalyzingMsg
+                      ? "bg-muted border-muted-foreground/30 text-muted-foreground cursor-wait"
+                      : msgVoice.isRecording
+                        ? (msgVoice.silenceCountdown !== null && msgVoice.silenceCountdown <= 5
+                            ? "bg-orange-500 border-orange-400 text-white shadow-lg shadow-orange-500/40"
+                            : "bg-red-500 border-red-400 text-white shadow-lg shadow-red-500/40")
+                        : "bg-primary border-primary text-white hover:bg-primary/90 active:scale-95 shadow-md shadow-primary/30"
+                  )}
+                  aria-label={msgVoice.isRecording ? "録音停止" : "音声入力開始"}
+                >
+                  {msgVoice.isRecording && (
+                    <span className="absolute inset-0 rounded-[inherit] overflow-hidden pointer-events-none">
+                      <span className={cn("absolute inset-0 animate-ping rounded-[inherit] opacity-25",
+                        msgVoice.silenceCountdown !== null && msgVoice.silenceCountdown <= 5 ? "bg-orange-400" : "bg-red-400")} />
+                    </span>
+                  )}
+                  {isAnalyzingMsg ? (
+                    <svg className="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                  ) : msgVoice.isRecording && msgVoice.silenceCountdown !== null && msgVoice.silenceCountdown <= 5 ? (
+                    <span className="text-sm font-bold leading-none">{msgVoice.silenceCountdown}</span>
+                  ) : msgVoice.isRecording ? (
+                    <span className="flex items-end justify-center gap-px h-5">
+                      {[0,1,2,3].map((i) => (
+                        <span key={i} className="w-0.5 bg-white rounded-full" style={{ height: "60%", animation: "voiceBar 0.5s ease-in-out infinite alternate", animationDelay: `${i * 0.12}s` }} />
+                      ))}
+                    </span>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+                  )}
+                </button>
+                <div className="flex-1 min-w-0">
+                  {isAnalyzingMsg ? (
+                    <p className="text-xs text-primary font-medium animate-pulse">AIが解析中...</p>
+                  ) : msgVoice.isRecording ? (
+                    <div>
+                      <p className="text-xs font-medium text-red-600 dark:text-red-400">
+                        {msgVoice.silenceCountdown !== null && msgVoice.silenceCountdown <= 5
+                          ? `あと${msgVoice.silenceCountdown}秒で自動停止`
+                          : "話してください..."}
                       </p>
-                    ) : msgVoice.silenceCountdown !== null && msgVoice.silenceCountdown <= 5 ? (
-                      <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
-                        あと{msgVoice.silenceCountdown}秒で自動停止します
-                      </p>
-                    ) : (
-                      <p className="text-xs text-muted-foreground italic">話してください...</p>
-                    )}
-                  </div>
-                )}
+                      {msgVoice.interimText && (
+                        <p className="text-xs text-muted-foreground italic truncate">{msgVoice.interimText}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-xs font-medium text-foreground">音声入力でAI自動転記</p>
+                      <p className="text-xs text-muted-foreground">マイクをタップして話すと各項目に転記</p>
+                    </div>
+                  )}
+                </div>
               </div>
-              <button
-                type="button"
-                onPointerDown={(e) => { e.preventDefault(); msgVoice.toggleVoice(); }}
-                className={cn(
-                  "relative inline-flex items-center justify-center flex-shrink-0 h-10 w-10 rounded-xl self-end",
-                  "border transition-all duration-200 select-none touch-manipulation",
-                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                  msgVoice.isRecording
-                    ? (msgVoice.silenceCountdown !== null && msgVoice.silenceCountdown <= 5
-                        ? "bg-orange-500 border-orange-400 text-white shadow-md shadow-orange-500/40"
-                        : "bg-red-500 border-red-400 text-white shadow-md shadow-red-500/40")
-                    : "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 active:scale-95"
-                )}
-                aria-label={msgVoice.isRecording ? "録音停止" : "音声入力開始"}
-                title={msgVoice.isRecording && msgVoice.silenceCountdown !== null && msgVoice.silenceCountdown <= 5 ? `あと${msgVoice.silenceCountdown}秒で自動停止` : undefined}
-              >
-                {msgVoice.isRecording && (
-                  <span className="absolute inset-0 rounded-[inherit] overflow-hidden pointer-events-none">
-                    <span className={cn("absolute inset-0 animate-ping rounded-[inherit] opacity-25", msgVoice.silenceCountdown !== null && msgVoice.silenceCountdown <= 5 ? "bg-orange-400" : "bg-red-400")} />
-                  </span>
-                )}
-                {msgVoice.isRecording && msgVoice.silenceCountdown !== null && msgVoice.silenceCountdown <= 5 ? (
-                  <span className="text-[10px] font-bold leading-none">{msgVoice.silenceCountdown}</span>
-                ) : msgVoice.isRecording ? (
-                  <span className="flex items-end justify-center gap-px h-4">
-                    {[0,1,2,3].map((i) => (
-                      <span key={i} className="w-0.5 bg-white rounded-full" style={{ height: "60%", animation: "voiceBar 0.5s ease-in-out infinite alternate", animationDelay: `${i * 0.12}s` }} />
+              {/* エラーバナー */}
+              {msgVoiceError && (
+                <div className="rounded-lg bg-destructive/10 border border-destructive/30 px-3 py-2 flex items-center justify-between gap-2">
+                  <p className="text-xs text-destructive">{msgVoiceError}</p>
+                  {lastMsgVoiceText && (
+                    <button type="button" onClick={() => { setIsAnalyzingMsg(true); setMsgVoiceError(null); parseMsgVoice.mutate({ text: lastMsgVoiceText! }); }}
+                      className="text-xs text-destructive font-medium underline underline-offset-2 flex-shrink-0">
+                      もう一度試す
+                    </button>
+                  )}
+                </div>
+              )}
+              {/* 未転記項目バナー */}
+              {missingMsgFields.length > 0 && (
+                <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2 space-y-1.5">
+                  <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">聞き取れなかった項目があります</p>
+                  <div className="flex flex-wrap gap-1">
+                    {missingMsgFields.map((f) => (
+                      <span key={f} className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 font-medium">{f}</span>
                     ))}
-                  </span>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
-                )}
-              </button>
+                  </div>
+                  <p className="text-[10px] text-amber-700 dark:text-amber-400">上記の項目だけもう一度マイクで話してください</p>
+                </div>
+              )}
             </div>
+            {/* テキストエリア */}
+            <Textarea
+              placeholder="メッセージを入力..."
+              value={newMsg}
+              onChange={(e) => setNewMsg(e.target.value)}
+              className="text-sm min-h-[80px] resize-none w-full"
+            />
             {/* 表示期間・予約 */}
             {(() => {
               const timeOptions = Array.from({ length: 24 * 6 }, (_, i) => {
