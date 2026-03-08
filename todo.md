@@ -574,3 +574,13 @@
 - [x] DashboardLayout.tsxのナビゲーションに「変更連絡」を追加
 - [x] テスト作成（scheduleChanges.test.ts 12件合格）
 - [x] TypeScriptエラー0件確認
+
+## スケジュール変更連絡：スプレッドシート新規作成・履歴一覧（2026-03-08）
+
+- [x] Google Sheets APIでスケジュール変更連絡専用スプレッドシートを新規作成しヘッダー行を初期設定した
+- [x] routers.tsの転記先スプレッドシートIDを新規作成したIDに更新した
+- [x] ScheduleChangeHistory.tsxページを新規作成（変更連絡履歴一覧・フィルタ・スプレッドシートリンク）
+- [x] App.tsxに/schedule-change-historyルートを追加
+- [x] DashboardLayout.tsxのナビゲーションに「変更履歴」を追加
+- [x] TypeScriptエラー0件確認
+- [x] テスト126件全件合格確認

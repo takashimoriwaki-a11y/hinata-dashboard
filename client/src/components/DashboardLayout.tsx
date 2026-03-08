@@ -24,6 +24,7 @@ import {
   Menu,
   X,
   CalendarClock,
+  History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,7 @@ const navItems = [
   { href: "/record", icon: ClipboardEdit, label: "記録" },
   { href: "/tasks", icon: CheckSquare, label: "タスク" },
   { href: "/schedule-change", icon: CalendarClock, label: "変更連絡" },
+  { href: "/schedule-change-history", icon: History, label: "変更履歴" },
 ];
 
 const externalTools = [

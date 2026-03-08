@@ -1668,7 +1668,7 @@ export const appRouter = router({
         const record = await getScheduleChangeById(input.id);
         if (!record) throw new TRPCError({ code: "NOT_FOUND", message: "記録が見つかりません" });
 
-        const CHANGE_SHEET_ID = input.spreadsheetId ?? "1rS_ZMccLCy-XcRxbxlhTfNwhaCesdX7DBSZggjQUH58";
+        const CHANGE_SHEET_ID = input.spreadsheetId ?? "1ki462aQRaNTj5FrI_1MJ1OyATFGqODz6HCtmuriIDEU";
         const SHEET_NAME = input.sheetName ?? "スケジュール変更連絡";
 
         const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
@@ -1814,7 +1814,7 @@ export const appRouter = router({
         const record = await getScheduleChangeById(id);
         if (!record) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "作成した記録が見つかりません" });
 
-        const CHANGE_SHEET_ID = input.spreadsheetId ?? "1rS_ZMccLCy-XcRxbxlhTfNwhaCesdX7DBSZggjQUH58";
+        const CHANGE_SHEET_ID = input.spreadsheetId ?? "1ki462aQRaNTj5FrI_1MJ1OyATFGqODz6HCtmuriIDEU";
         const SHEET_NAME = input.sheetName ?? "スケジュール変更連絡";
 
         const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
