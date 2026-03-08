@@ -129,6 +129,72 @@ export default function RecordInput() {
     setEditingPreview(null);
   };
 
+  // 個別項目の音声再入力用state
+  const [reInputField, setReInputField] = useState<string | null>(null); // 現在再入力中の項目名
+  const [isParsingReInput, setIsParsingReInput] = useState(false);
+
+  // 個別項目の音声再入力用tRPCミューテーション
+  const parseReInputMutation = trpc.visitRecords.parseVisitVoice.useMutation({
+    onSuccess: (result, variables) => {
+      const f = result.fields;
+      const field = (variables as { text: string; patientNames?: string[]; targetField?: string }).targetField;
+      setEditingPreview((p) => {
+        if (!p) return p;
+        if (field === "patientName" && f.patientName) {
+          const matched = (patientsRef.current ?? []).find(
+            (pt) => pt.name === f.patientName || pt.name.includes(f.patientName!) || f.patientName!.includes(pt.name)
+          );
+          return { ...p, patientName: matched ? matched.name : f.patientName, patientId: matched ? matched.id : null };
+        }
+        if (field === "visitDate" && f.visitDate) return { ...p, visitDate: f.visitDate };
+        if (field === "visitTime" && f.visitTime) return { ...p, visitTime: f.visitTime };
+        if (field === "visitDateTime") {
+          return { ...p, ...(f.visitDate ? { visitDate: f.visitDate } : {}), ...(f.visitTime ? { visitTime: f.visitTime } : {}) };
+        }
+        if (field === "notifiedTo" && f.notifiedTo) return { ...p, notifiedTo: f.notifiedTo, ...(f.notifiedToOther ? { notifiedToOther: f.notifiedToOther } : {}) };
+        if (field === "notifyMethod" && f.notifyMethod) return { ...p, notifyMethod: f.notifyMethod, ...(f.notifyMethodOther ? { notifyMethodOther: f.notifyMethodOther } : {}) };
+        return p;
+      });
+      setIsParsingReInput(false);
+      setReInputField(null);
+      toast.success("再入力しました");
+    },
+    onError: (err) => {
+      setIsParsingReInput(false);
+      setReInputField(null);
+      toast.error(`再入力エラー: ${err.message}`);
+    },
+  });
+
+  // 個別音声再入力用フック（利用者名）
+  const reInputPatientVoice = useVoiceInput({
+    onResult: (text) => {
+      setIsParsingReInput(true);
+      parseReInputMutation.mutate({ text, patientNames: patientsRef.current.map((p) => p.name), targetField: "patientName" } as { text: string; patientNames: string[]; targetField: string });
+    },
+  });
+  // 個別音声再入力用フック（次回訪問日時）
+  const reInputDateTimeVoice = useVoiceInput({
+    onResult: (text) => {
+      setIsParsingReInput(true);
+      parseReInputMutation.mutate({ text, patientNames: [], targetField: "visitDateTime" } as { text: string; patientNames: string[]; targetField: string });
+    },
+  });
+  // 個別音声再入力用フック（伝達先）
+  const reInputNotifiedToVoice = useVoiceInput({
+    onResult: (text) => {
+      setIsParsingReInput(true);
+      parseReInputMutation.mutate({ text, patientNames: [], targetField: "notifiedTo" } as { text: string; patientNames: string[]; targetField: string });
+    },
+  });
+  // 個別音声再入力用フック（伝達方法）
+  const reInputNotifyMethodVoice = useVoiceInput({
+    onResult: (text) => {
+      setIsParsingReInput(true);
+      parseReInputMutation.mutate({ text, patientNames: [], targetField: "notifyMethod" } as { text: string; patientNames: string[]; targetField: string });
+    },
+  });
+
   // 次回訪問日時音声入力用tRPCミューテーション
   const parseVisitVoiceMutation = trpc.visitRecords.parseVisitVoice.useMutation({
     onSuccess: (result) => {
@@ -568,6 +634,18 @@ ${clinicalNotes}`);
                   <div className="flex items-center gap-1.5">
                     <label className={cn("text-[10px] font-medium", missingPatient ? "text-red-500" : "text-muted-foreground")}>利用者名</label>
                     {missingPatient && <span className="text-[9px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
+                    <span className="ml-auto">
+                      {isParsingReInput && reInputField === "patientName" ? (
+                        <span className="text-[9px] text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />解析中...</span>
+                      ) : (
+                        <VoiceMicButton
+                          size="sm"
+                          onResult={(text) => { setReInputField("patientName"); setIsParsingReInput(true); parseReInputMutation.mutate({ text, patientNames: patientsRef.current.map((p) => p.name), targetField: "patientName" } as { text: string; patientNames: string[]; targetField: string }); }}
+                          previewMode="tooltip"
+                          className="rounded-full"
+                        />
+                      )}
+                    </span>
                   </div>
                   <Input
                     className={cn("text-sm h-8", missingPatient && "border-red-400 focus-visible:ring-red-400")}
@@ -578,30 +656,48 @@ ${clinicalNotes}`);
                 </div>
 
                 {/* 次回訪問日時 */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <label className={cn("text-[10px] font-medium", missingDate ? "text-red-500" : "text-muted-foreground")}>次回訪問日</label>
-                      {missingDate && <span className="text-[9px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
-                    </div>
-                    <Input
-                      type="date"
-                      className={cn("text-sm h-8", missingDate && "border-red-400 focus-visible:ring-red-400")}
-                      value={editingPreview.visitDate ?? ""}
-                      onChange={(e) => setEditingPreview((p) => p ? { ...p, visitDate: e.target.value } : p)}
-                    />
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <label className={cn("text-[10px] font-medium", (missingDate || missingTime) ? "text-red-500" : "text-muted-foreground")}>次回訪問日時</label>
+                    {(missingDate || missingTime) && <span className="text-[9px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
+                    <span className="ml-auto">
+                      {isParsingReInput && reInputField === "visitDateTime" ? (
+                        <span className="text-[9px] text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />解析中...</span>
+                      ) : (
+                        <VoiceMicButton
+                          size="sm"
+                          onResult={(text) => { setReInputField("visitDateTime"); setIsParsingReInput(true); parseReInputMutation.mutate({ text, patientNames: [], targetField: "visitDateTime" } as { text: string; patientNames: string[]; targetField: string }); }}
+                          previewMode="tooltip"
+                          className="rounded-full"
+                        />
+                      )}
+                    </span>
                   </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <label className={cn("text-[10px] font-medium", missingTime ? "text-red-500" : "text-muted-foreground")}>次回訪問時刻</label>
-                      {missingTime && <span className="text-[9px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1">
+                        <label className={cn("text-[9px] text-muted-foreground", missingDate && "text-red-400")}>日付</label>
+                        {missingDate && <span className="text-[9px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
+                      </div>
+                      <Input
+                        type="date"
+                        className={cn("text-sm h-8", missingDate && "border-red-400 focus-visible:ring-red-400")}
+                        value={editingPreview.visitDate ?? ""}
+                        onChange={(e) => setEditingPreview((p) => p ? { ...p, visitDate: e.target.value } : p)}
+                      />
                     </div>
-                    <Input
-                      type="time"
-                      className={cn("text-sm h-8", missingTime && "border-red-400 focus-visible:ring-red-400")}
-                      value={editingPreview.visitTime ?? ""}
-                      onChange={(e) => setEditingPreview((p) => p ? { ...p, visitTime: e.target.value } : p)}
-                    />
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1">
+                        <label className={cn("text-[9px] text-muted-foreground", missingTime && "text-red-400")}>時刻</label>
+                        {missingTime && <span className="text-[9px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
+                      </div>
+                      <Input
+                        type="time"
+                        className={cn("text-sm h-8", missingTime && "border-red-400 focus-visible:ring-red-400")}
+                        value={editingPreview.visitTime ?? ""}
+                        onChange={(e) => setEditingPreview((p) => p ? { ...p, visitTime: e.target.value } : p)}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -610,6 +706,18 @@ ${clinicalNotes}`);
                   <div className="flex items-center gap-1.5">
                     <label className={cn("text-[10px] font-medium", missingNotifiedTo ? "text-red-500" : "text-muted-foreground")}>伝達先</label>
                     {missingNotifiedTo && <span className="text-[9px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
+                    <span className="ml-auto">
+                      {isParsingReInput && reInputField === "notifiedTo" ? (
+                        <span className="text-[9px] text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />解析中...</span>
+                      ) : (
+                        <VoiceMicButton
+                          size="sm"
+                          onResult={(text) => { setReInputField("notifiedTo"); setIsParsingReInput(true); parseReInputMutation.mutate({ text, patientNames: [], targetField: "notifiedTo" } as { text: string; patientNames: string[]; targetField: string }); }}
+                          previewMode="tooltip"
+                          className="rounded-full"
+                        />
+                      )}
+                    </span>
                   </div>
                   <div className={cn("flex flex-wrap gap-1.5 p-1.5 rounded-lg border", missingNotifiedTo ? "border-red-400 bg-red-50/50 dark:bg-red-950/10" : "border-transparent")}>
                     {NOTIFY_TO_OPTIONS.map((opt) => (
@@ -641,6 +749,18 @@ ${clinicalNotes}`);
                   <div className="flex items-center gap-1.5">
                     <label className={cn("text-[10px] font-medium", missingNotifyMethod ? "text-red-500" : "text-muted-foreground")}>伝達方法</label>
                     {missingNotifyMethod && <span className="text-[9px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
+                    <span className="ml-auto">
+                      {isParsingReInput && reInputField === "notifyMethod" ? (
+                        <span className="text-[9px] text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />解析中...</span>
+                      ) : (
+                        <VoiceMicButton
+                          size="sm"
+                          onResult={(text) => { setReInputField("notifyMethod"); setIsParsingReInput(true); parseReInputMutation.mutate({ text, patientNames: [], targetField: "notifyMethod" } as { text: string; patientNames: string[]; targetField: string }); }}
+                          previewMode="tooltip"
+                          className="rounded-full"
+                        />
+                      )}
+                    </span>
                   </div>
                   <div className={cn("flex flex-wrap gap-1.5 p-1.5 rounded-lg border", missingNotifyMethod ? "border-red-400 bg-red-50/50 dark:bg-red-950/10" : "border-transparent")}>
                     {NOTIFY_METHOD_OPTIONS.map((opt) => (
