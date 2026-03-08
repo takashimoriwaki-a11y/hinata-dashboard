@@ -140,6 +140,16 @@ export default function Tasks() {
   const [editAssignTeam, setEditAssignTeam] = useState<Team>("身体");
   const [editAssignUserId, setEditAssignUserId] = useState<number | null>(null);
   const [editAssignUserName, setEditAssignUserName] = useState<string>("");
+  // 編集フォームの利用者名
+  const [editPatientName, setEditPatientName] = useState<string>("");
+  const [editPatientQuery, setEditPatientQuery] = useState<string>("");
+  const [editPatientOpen, setEditPatientOpen] = useState(false);
+  const { data: editPatientResults = [] } = trpc.patients.search.useQuery(
+    { query: editPatientQuery },
+    { enabled: editPatientQuery.length >= 1 }
+  );
+  // 利用者名フィルター
+  const [patientFilter, setPatientFilter] = useState<string | null>(null);
 
 
 
@@ -189,6 +199,9 @@ export default function Tasks() {
     setEditAssignTeam((task.assignTeam as Team) ?? "身体");
     setEditAssignUserId(task.assignUserId ?? null);
     setEditAssignUserName(task.assignUserName ?? "");
+    setEditPatientName((task as any).patientName ?? "");
+    setEditPatientQuery("");
+    setEditPatientOpen(false);
   };
 
   // 編集保存
@@ -215,16 +228,26 @@ export default function Tasks() {
       assignTeam: editAssignType === "team" ? editAssignTeam : null,
       assignUserId: editAssignType === "personal" && editAssignUserId ? editAssignUserId : null,
       assignUserName: editAssignType === "personal" ? editAssignUserName : null,
+      patientName: editPatientName.trim() || null,
     });
   };
 
   const filtered = useMemo(() => {
     return tasks.filter((t) => {
-      if (filter === "active") return t.done === 0;
-      if (filter === "done") return t.done === 1;
+      if (filter === "active" && t.done !== 0) return false;
+      if (filter === "done" && t.done !== 1) return false;
+      if (patientFilter && (t as any).patientName !== patientFilter) return false;
       return true;
     });
-  }, [tasks, filter]);
+  }, [tasks, filter, patientFilter]);
+
+  // タスクに含まれる利用者名の一覧（重複なし）
+  const patientNames = useMemo(() => {
+    const names = tasks
+      .map((t) => (t as any).patientName as string | null | undefined)
+      .filter((n): n is string => !!n);
+    return Array.from(new Set(names));
+  }, [tasks]);
 
   const activeCount = tasks.filter((t) => t.done === 0).length;
   const doneCount = tasks.filter((t) => t.done === 1).length;
@@ -239,7 +262,7 @@ export default function Tasks() {
       </div>
 
       {/* フィルター */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {(["active", "all", "done"] as const).map((f) => (
           <Button
             key={f}
@@ -256,6 +279,40 @@ export default function Tasks() {
           </Button>
         ))}
       </div>
+
+      {/* 利用者名フィルター */}
+      {patientNames.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-[11px] text-muted-foreground flex items-center gap-0.5">
+            <UserRound className="w-3 h-3" />利用者フィルター:
+          </span>
+          <button
+            onClick={() => setPatientFilter(null)}
+            className={cn(
+              "text-[11px] px-2 py-0.5 rounded-full border transition-colors",
+              patientFilter === null
+                ? "bg-violet-600 text-white border-violet-600"
+                : "border-border text-muted-foreground hover:border-violet-400 hover:text-violet-600"
+            )}
+          >
+            すべて
+          </button>
+          {patientNames.map((name) => (
+            <button
+              key={name}
+              onClick={() => setPatientFilter(patientFilter === name ? null : name)}
+              className={cn(
+                "text-[11px] px-2 py-0.5 rounded-full border transition-colors",
+                patientFilter === name
+                  ? "bg-violet-600 text-white border-violet-600"
+                  : "border-border text-muted-foreground hover:border-violet-400 hover:text-violet-600"
+              )}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* タスク一覧 */}
       <Card className="shadow-sm">
@@ -368,6 +425,59 @@ export default function Tasks() {
                             </option>
                           ))}
                         </select>
+                      )}
+                    </div>
+
+                    {/* 利用者名 */}
+                    <div className="relative">
+                      <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                        <UserRound className="w-3 h-3 inline mr-0.5" />利用者名（任意）
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={editPatientOpen ? editPatientQuery : editPatientName}
+                          onChange={(e) => {
+                            setEditPatientQuery(e.target.value);
+                            setEditPatientName(e.target.value);
+                            setEditPatientOpen(true);
+                          }}
+                          onFocus={() => {
+                            setEditPatientQuery(editPatientName);
+                            setEditPatientOpen(true);
+                          }}
+                          onBlur={() => setTimeout(() => setEditPatientOpen(false), 150)}
+                          placeholder="利用者名を入力または検索..."
+                          className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-violet-500 pr-8"
+                        />
+                        {editPatientName && (
+                          <button
+                            type="button"
+                            onClick={() => { setEditPatientName(""); setEditPatientQuery(""); }}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      {editPatientOpen && editPatientResults.length > 0 && (
+                        <div className="absolute z-50 left-0 right-0 mt-1 bg-background border border-border rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                          {editPatientResults.map((p: any) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onMouseDown={() => {
+                                setEditPatientName(p.name);
+                                setEditPatientQuery("");
+                                setEditPatientOpen(false);
+                              }}
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+                            >
+                              {p.name}
+                              {p.nameKana && <span className="text-xs text-muted-foreground ml-1">({p.nameKana})</span>}
+                            </button>
+                          ))}
+                        </div>
                       )}
                     </div>
 
