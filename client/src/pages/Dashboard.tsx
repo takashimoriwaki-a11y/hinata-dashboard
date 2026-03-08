@@ -1782,7 +1782,15 @@ function TasksCard() {
 
   // DBから未完了タスクを取得
   const { data: tasks = [] } = trpc.tasks.getMine.useQuery();
-  const incomplete = tasks.filter((t) => t.done === 0);
+  const incomplete = tasks
+    .filter((t) => t.done === 0)
+    .sort((a, b) => {
+      // 期日なしは常に末尾、期日ありは昇順
+      if (!a.dueDate && !b.dueDate) return 0;
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+    });
 
   const toggleTask = trpc.tasks.toggle.useMutation({
     onMutate: async ({ id, done }) => {
