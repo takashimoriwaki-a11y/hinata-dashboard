@@ -14,6 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import {
   CalendarClock,
@@ -27,6 +29,8 @@ import {
   ChevronDown,
   Save,
   RotateCcw,
+  Calendar as CalendarIcon,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -484,6 +488,245 @@ function StaffAutocomplete({
             )}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ========== DateTimePickerコンポーネント ==========
+function DateTimePicker({
+  value,
+  onChange,
+  label,
+  required,
+  placeholder = "日時を選択",
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  label?: string;
+  required?: boolean;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [hour, setHour] = useState(() => {
+    if (!value) return "09";
+    return String(new Date(value).getHours()).padStart(2, "0");
+  });
+  const [minute, setMinute] = useState(() => {
+    if (!value) return "00";
+    return String(new Date(value).getMinutes()).padStart(2, "0");
+  });
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => {
+    if (!value) return undefined;
+    return new Date(value);
+  });
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+
+  const applyDateTime = (date: Date | undefined, h: string, m: string) => {
+    if (!date) return;
+    const d = new Date(date);
+    d.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
+    const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${h}:${m}`;
+    onChange(iso);
+  };
+
+  const handleDaySelect = (day: Date | undefined) => {
+    setSelectedDate(day);
+    applyDateTime(day, hour, minute);
+  };
+
+  const handleHourChange = (h: string) => {
+    setHour(h);
+    applyDateTime(selectedDate, h, minute);
+  };
+
+  const handleMinuteChange = (m: string) => {
+    setMinute(m);
+    applyDateTime(selectedDate, hour, m);
+  };
+
+  const displayValue = value
+    ? formatDatetime(value.includes("T") ? new Date(value).toISOString() : value)
+    : "";
+
+  const hours = Array.from({ length: 24 }, (_, i) => pad(i));
+  const minutes = ["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"];
+
+  return (
+    <div className="space-y-1">
+      {label && (
+        <Label className="text-xs text-muted-foreground">
+          {label}{required && <span className="text-destructive ml-1">*</span>}
+        </Label>
+      )}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className={cn(
+              "w-full justify-start text-left font-normal h-10",
+              !value && "text-muted-foreground"
+            )}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+            <span className="flex-1 truncate">{displayValue || placeholder}</span>
+            {value && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onChange(""); setSelectedDate(undefined); }}
+                className="ml-1 hover:text-destructive"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <div className="p-3 space-y-3">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={handleDaySelect}
+              locale={undefined}
+              className="rounded-md border-0"
+            />
+            <div className="border-t pt-3">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                <span className="text-sm font-medium">時刻</span>
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <Select value={hour} onValueChange={handleHourChange}>
+                  <SelectTrigger className="w-20 h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-48">
+                    {hours.map(h => (
+                      <SelectItem key={h} value={h}>{h}時</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-muted-foreground font-medium">:</span>
+                <Select value={minute} onValueChange={handleMinuteChange}>
+                  <SelectTrigger className="w-20 h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-48">
+                    {minutes.map(m => (
+                      <SelectItem key={m} value={m}>{m}分</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  className="ml-auto"
+                  onClick={() => setOpen(false)}
+                >
+                  決定
+                </Button>
+              </div>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+// ========== 会議参加スタッフ複数選択オートコンプリート ==========
+type StaffItem2 = { id: number; name: string; team?: string | null };
+
+function MultiStaffAutocomplete({
+  staffList,
+  selected,
+  onToggle,
+}: {
+  staffList: StaffItem2[];
+  selected: string[];
+  onToggle: (name: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [manualInput, setManualInput] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return staffList;
+    const q = query.toLowerCase();
+    return staffList.filter(s => s.name.toLowerCase().includes(q));
+  }, [staffList, query]);
+
+  const handleAddManual = () => {
+    const val = manualInput.trim();
+    if (val && !selected.includes(val)) {
+      onToggle(val);
+      setManualInput("");
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* 選択済みスタッフのバッジ表示 */}
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 p-2 bg-primary/5 rounded-lg border border-primary/20">
+          {selected.map((name) => (
+            <Badge
+              key={name}
+              variant="secondary"
+              className="gap-1 cursor-pointer bg-primary/10 text-primary hover:bg-destructive/10 hover:text-destructive transition-colors"
+              onClick={() => onToggle(name)}
+            >
+              {name}
+              <X className="w-3 h-3" />
+            </Badge>
+          ))}
+        </div>
+      )}
+
+      {/* 検索入力 */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        <Input
+          className="pl-9"
+          placeholder="スタッフ名で絞り込み..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
+
+      {/* スタッフ一覧 */}
+      <div className="grid grid-cols-2 gap-1.5 max-h-44 overflow-y-auto">
+        {filtered.length === 0 ? (
+          <p className="col-span-2 text-center text-sm text-muted-foreground py-3">該当なし</p>
+        ) : (
+          filtered.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => onToggle(s.name)}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-all text-left",
+                selected.includes(s.name)
+                  ? "bg-primary/10 border-primary text-primary font-medium"
+                  : "bg-card border-border text-foreground hover:bg-muted"
+              )}
+            >
+              {selected.includes(s.name) && <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />}
+              <span className="truncate">{s.name}</span>
+            </button>
+          ))
+        )}
+      </div>
+
+      {/* 手動入力 */}
+      <div>
+        <Label className="text-xs text-muted-foreground">一覧にない場合は手動入力</Label>
+        <div className="flex gap-2 mt-1">
+          <Input
+            placeholder="スタッフ名を入力..."
+            value={manualInput}
+            onChange={(e) => setManualInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddManual(); } }}
+          />
+          <Button variant="outline" size="sm" onClick={handleAddManual}>追加</Button>
+        </div>
       </div>
     </div>
   );
@@ -981,27 +1224,21 @@ export default function ScheduleChange() {
               <CardTitle className="text-sm font-semibold">日時</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">
-                  変更前の日時{(changeType === "visit_change" || changeType === "visit_cancel") && <span className="text-destructive ml-1">*</span>}
-                </Label>
-                <Input
-                  type="datetime-local"
-                  value={fromDatetime}
-                  onChange={(e) => { setFromDatetime(e.target.value); triggerDraftSave({ fromDatetime: e.target.value }); }}
-                />
-              </div>
+              <DateTimePicker
+                value={fromDatetime}
+                onChange={(v) => { setFromDatetime(v); triggerDraftSave({ fromDatetime: v }); }}
+                label={(changeType === "visit_change" || changeType === "visit_cancel") ? "変更前の日時" : "変更前の日時"}
+                required={changeType === "visit_change" || changeType === "visit_cancel"}
+                placeholder="変更前の日時を選択"
+              />
               {changeType !== "visit_cancel" && (
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">
-                    変更後の日時{changeType === "visit_add" && <span className="text-destructive ml-1">*</span>}
-                  </Label>
-                  <Input
-                    type="datetime-local"
-                    value={toDatetime}
-                    onChange={(e) => { setToDatetime(e.target.value); triggerDraftSave({ toDatetime: e.target.value }); }}
-                  />
-                </div>
+                <DateTimePicker
+                  value={toDatetime}
+                  onChange={(v) => { setToDatetime(v); triggerDraftSave({ toDatetime: v }); }}
+                  label="変更後の日時"
+                  required={changeType === "visit_add"}
+                  placeholder="変更後の日時を選択"
+                />
               )}
             </CardContent>
           </Card>
@@ -1098,29 +1335,24 @@ export default function ScheduleChange() {
             </CardHeader>
             <CardContent className="space-y-3">
               {changeType === "meeting_change" && (
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">変更前の日時</Label>
-                  <Input
-                    type="datetime-local"
-                    value={fromDatetime}
-                    onChange={(e) => setFromDatetime(e.target.value)}
-                  />
-                </div>
-              )}
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">
-                  {changeType === "meeting_change" ? "変更後の日時" : "開催日時"}
-                </Label>
-                <Input
-                  type="datetime-local"
-                  value={toDatetime}
-                  onChange={(e) => setToDatetime(e.target.value)}
+                <DateTimePicker
+                  value={fromDatetime}
+                  onChange={(v) => { setFromDatetime(v); triggerDraftSave({ fromDatetime: v }); }}
+                  label="変更前の日時"
+                  placeholder="変更前の日時を選択"
                 />
-              </div>
+              )}
+              <DateTimePicker
+                value={toDatetime}
+                onChange={(v) => { setToDatetime(v); triggerDraftSave({ toDatetime: v }); }}
+                label={changeType === "meeting_change" ? "変更後の日時" : "開催日時"}
+                required
+                placeholder="日時を選択"
+              />
             </CardContent>
           </Card>
 
-          {/* 参加スタッフ（複数選択） */}
+          {/* 参加スタッフ（オートコンプリート複数選択） */}
           <Card>
             <CardHeader className="pb-2 pt-4">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -1131,72 +1363,17 @@ export default function ScheduleChange() {
                 )}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {meetingStaff.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 p-2 bg-muted/50 rounded-lg">
-                  {meetingStaff.map((name) => (
-                    <Badge
-                      key={name}
-                      variant="secondary"
-                      className="gap-1 cursor-pointer hover:bg-destructive/10"
-                      onClick={() => toggleMeetingStaff(name)}
-                    >
-                      {name}
-                      <X className="w-3 h-3" />
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-1.5 max-h-52 overflow-y-auto">
-                {staffList.map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => toggleMeetingStaff(s.name)}
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-all text-left",
-                      meetingStaff.includes(s.name)
-                        ? "bg-primary/10 border-primary text-primary font-medium"
-                        : "bg-card border-border text-foreground hover:bg-muted"
-                    )}
-                  >
-                    {meetingStaff.includes(s.name) && <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />}
-                    <span className="truncate">{s.name}</span>
-                  </button>
-                ))}
-              </div>
-              {/* 手動入力（スタッフ一覧にない場合） */}
-              <div className="pt-1">
-                <Label className="text-xs text-muted-foreground">一覧にない場合は手動入力</Label>
-                <div className="flex gap-2 mt-1">
-                  <Input
-                    id="manual-staff-input"
-                    placeholder="スタッフ名を入力..."
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        const val = (e.target as HTMLInputElement).value.trim();
-                        if (val && !meetingStaff.includes(val)) {
-                          setMeetingStaff(prev => [...prev, val]);
-                          (e.target as HTMLInputElement).value = "";
-                        }
-                      }
-                    }}
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const input = document.getElementById("manual-staff-input") as HTMLInputElement;
-                      const val = input?.value.trim();
-                      if (val && !meetingStaff.includes(val)) {
-                        setMeetingStaff(prev => [...prev, val]);
-                        input.value = "";
-                      }
-                    }}
-                  >
-                    追加
-                  </Button>
-                </div>
-              </div>
+            <CardContent>
+              <MultiStaffAutocomplete
+                staffList={staffList}
+                selected={meetingStaff}
+                onToggle={(name) => {
+                  setMeetingStaff(prev =>
+                    prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
+                  );
+                  triggerDraftSave({ meetingStaff: meetingStaff.includes(name) ? meetingStaff.filter(n => n !== name) : [...meetingStaff, name] });
+                }}
+              />
             </CardContent>
           </Card>
 
