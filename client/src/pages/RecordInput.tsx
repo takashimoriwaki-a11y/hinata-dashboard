@@ -93,6 +93,23 @@ export default function RecordInput() {
   const parseVisitVoiceMutation = trpc.visitRecords.parseVisitVoice.useMutation({
     onSuccess: (result) => {
       const f = result.fields;
+      // 利用者名を転記（候補リストから一致するものを探す）
+      if (f.patientName) {
+        const matched = (patientsRef.current ?? []).find(
+          (p) => p.name === f.patientName || p.name.includes(f.patientName!) || f.patientName!.includes(p.name)
+        );
+        if (matched) {
+          setPatientId(matched.id);
+          setPatientName(matched.name);
+          setSearchQuery(matched.name);
+          setShowPatientList(false);
+        } else {
+          // 候補にない場合は標準入力にセット
+          setPatientName(f.patientName);
+          setSearchQuery(f.patientName);
+          setShowPatientList(true);
+        }
+      }
       if (f.visitDate) setNextVisitDate(f.visitDate);
       if (f.visitTime) setNextVisitTime(f.visitTime);
       if (f.notifiedTo && NOTIFY_TO_OPTIONS.includes(f.notifiedTo as typeof NOTIFY_TO_OPTIONS[number])) {
@@ -111,11 +128,14 @@ export default function RecordInput() {
     },
   });
 
+  // 利用者リストをrefで保持（音声入力時に最新値を参照するため）
+  const patientsRef = useRef<typeof patients>([]);
+
   const handleVisitVoiceResult = (text: string) => {
     setVisitVoiceText(text);
     setVisitVoiceError(null);
     setIsParsingVisitVoice(true);
-    parseVisitVoiceMutation.mutate({ text });
+    parseVisitVoiceMutation.mutate({ text, patientNames: patientsRef.current.map((p) => p.name) });
   };
 
   const visitVoice = useVoiceInput({
@@ -176,6 +196,9 @@ export default function RecordInput() {
     { query: searchQuery, team: team as Team || undefined },
     { enabled: showPatientList || searchQuery.length > 0 }
   );
+
+  // patientsRefを最新のpatientsで同期
+  useEffect(() => { patientsRef.current = patients; }, [patients]);
 
   const createRecord = trpc.visitRecords.create.useMutation({
     onSuccess: (data) => {
@@ -331,6 +354,143 @@ ${clinicalNotes}`);
           <CardTitle className="text-sm font-semibold">① 利用者・次回訪問日時</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+
+          {/* 一括音声入力エリア（最上部） */}
+          <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-primary">🎤 一括音声入力</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">利用者名・次回日時・伝達先・伝達方法を一度に入力</p>
+              </div>
+              <button
+                type="button"
+                onPointerDown={(e) => { e.preventDefault(); visitVoice.toggleVoice(); }}
+                className={cn(
+                  "relative inline-flex items-center justify-center flex-shrink-0 h-14 w-14 rounded-full",
+                  "border-2 transition-all duration-200 select-none touch-manipulation",
+                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                  visitVoice.isRecording
+                    ? (visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5
+                        ? "bg-orange-500 border-orange-400 text-white shadow-lg shadow-orange-500/40"
+                        : "bg-red-500 border-red-400 text-white shadow-lg shadow-red-500/40")
+                    : "bg-primary border-primary text-primary-foreground hover:bg-primary/90 active:scale-95 shadow-md"
+                )}
+                aria-label={visitVoice.isRecording ? "録音停止" : "音声入力開始"}
+                disabled={isParsingVisitVoice}
+              >
+                {visitVoice.isRecording && (
+                  <span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
+                    <span className={cn("absolute inset-0 animate-ping rounded-full opacity-30", visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5 ? "bg-orange-400" : "bg-red-400")} />
+                  </span>
+                )}
+                {isParsingVisitVoice ? (
+                  <span className="inline-block w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                ) : visitVoice.isRecording && visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5 ? (
+                  <span className="text-sm font-bold leading-none">{visitVoice.silenceCountdown}</span>
+                ) : visitVoice.isRecording ? (
+                  <span className="flex items-end justify-center gap-0.5 h-4">
+                    {[0,1,2,3].map((i) => (
+                      <span key={i} className="w-1 bg-white rounded-full" style={{ height: "60%", animation: "voiceBar 0.5s ease-in-out infinite alternate", animationDelay: `${i * 0.12}s` }} />
+                    ))}
+                  </span>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+                )}
+              </button>
+            </div>
+
+            {/* 録音中の暫定テキストプレビュー */}
+            {visitVoice.isRecording && (
+              <div className={cn(
+                "px-3 py-2 rounded-lg border min-h-[36px]",
+                visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5
+                  ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
+                  : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
+              )}>
+                {visitVoice.interimText ? (
+                  <p className="text-xs text-red-600 dark:text-red-400 italic leading-relaxed">
+                    🎤 {visitVoice.interimText}
+                  </p>
+                ) : visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5 ? (
+                  <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+                    あと{visitVoice.silenceCountdown}秒で自動停止します
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">話しかけてください...</p>
+                )}
+              </div>
+            )}
+
+            {/* AI解析中 */}
+            {isParsingVisitVoice && (
+              <div className="flex items-center gap-2 text-xs text-primary">
+                <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <span>AIが音声内容を解析して各項目に転記中...</span>
+              </div>
+            )}
+
+            {/* AI解析失敗時 */}
+            {visitVoiceError && !isParsingVisitVoice && (
+              <div className="flex items-start gap-3 p-2 bg-destructive/10 border border-destructive/30 rounded-lg">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-destructive">⚠️ AI解析に失敗しました</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{visitVoiceError}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setVisitVoiceError(null); if (visitVoiceText) handleVisitVoiceResult(visitVoiceText); }}
+                  className="text-[10px] text-primary hover:underline whitespace-nowrap"
+                >
+                  再試行
+                </button>
+              </div>
+            )}
+
+            {/* 例文ヒント */}
+            {!visitVoice.isRecording && !isParsingVisitVoice && !visitVoiceText && (
+              <button
+                type="button"
+                onClick={() => setShowVisitVoiceHint((v) => !v)}
+                className="text-[10px] text-primary hover:underline flex items-center gap-1"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                話しかけの例文を見る
+              </button>
+            )}
+            {showVisitVoiceHint && !visitVoice.isRecording && !isParsingVisitVoice && (
+              <div>
+                <p className="text-[10px] font-medium text-muted-foreground mb-1.5">話しかけの例（タップでそのままAI転記）</p>
+                <div className="flex flex-col gap-1.5">
+                  {[
+                    { label: "利用者＋日時＋伝達", text: "山田さんの次回訪問は明日の午後2時、本人に口頭で伝えた" },
+                    { label: "日時＋伝達先＋伝達方法", text: "来週月曜の10時から、家族にカレンダーに記入してもらった" },
+                    { label: "利用者＋伝達先のみ", text: "田中さんに付箋で伝えた" },
+                    { label: "日時のみ", text: "明後日の午前10時に次回訪問" },
+                  ].map((ex) => (
+                    <button
+                      key={ex.label}
+                      type="button"
+                      onClick={() => { setShowVisitVoiceHint(false); handleVisitVoiceResult(ex.text); }}
+                      className={cn(
+                        "w-full text-left rounded-lg bg-background/70 border border-border px-3 py-2",
+                        "hover:bg-primary/5 hover:border-primary/40 active:scale-[0.98] transition-all duration-150",
+                        "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <span className="inline-block text-[9px] font-semibold text-primary bg-primary/10 rounded px-1.5 py-0.5 mr-2 leading-none">{ex.label}</span>
+                          <span className="text-[11px] text-muted-foreground leading-snug">{ex.text}</span>
+                        </div>
+                        <span className="flex-shrink-0 text-[9px] font-medium text-primary bg-primary/10 border border-primary/20 rounded px-1.5 py-0.5 whitespace-nowrap">例文から入力</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* チーム選択 */}
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">チーム</label>
@@ -415,141 +575,12 @@ ${clinicalNotes}`);
             )}
           </div>
 
-          {/* 次回訪問日時 + 音声入力 */}
+          {/* 次回訪問日時 */}
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-medium text-muted-foreground">
-                <Calendar className="w-3 h-3 inline mr-1" />
-                次回訪問日時
-              </label>
-              {/* 音声入力ボタン */}
-              <button
-                type="button"
-                onPointerDown={(e) => { e.preventDefault(); visitVoice.toggleVoice(); }}
-                className={cn(
-                  "relative inline-flex items-center justify-center flex-shrink-0 h-8 w-8 rounded-lg",
-                  "border transition-all duration-200 select-none touch-manipulation",
-                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                  visitVoice.isRecording
-                    ? (visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5
-                        ? "bg-orange-500 border-orange-400 text-white shadow-md shadow-orange-500/40"
-                        : "bg-red-500 border-red-400 text-white shadow-md shadow-red-500/40")
-                    : "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 active:scale-95"
-                )}
-                aria-label={visitVoice.isRecording ? "録音停止" : "音声入力開始"}
-                disabled={isParsingVisitVoice}
-              >
-                {visitVoice.isRecording && (
-                  <span className="absolute inset-0 rounded-[inherit] overflow-hidden pointer-events-none">
-                    <span className={cn("absolute inset-0 animate-ping rounded-[inherit] opacity-25", visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5 ? "bg-orange-400" : "bg-red-400")} />
-                  </span>
-                )}
-                {isParsingVisitVoice ? (
-                  <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                ) : visitVoice.isRecording && visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5 ? (
-                  <span className="text-[9px] font-bold leading-none">{visitVoice.silenceCountdown}</span>
-                ) : visitVoice.isRecording ? (
-                  <span className="flex items-end justify-center gap-px h-3">
-                    {[0,1,2,3].map((i) => (
-                      <span key={i} className="w-0.5 bg-white rounded-full" style={{ height: "60%", animation: "voiceBar 0.5s ease-in-out infinite alternate", animationDelay: `${i * 0.12}s` }} />
-                    ))}
-                  </span>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
-                )}
-              </button>
-            </div>
-
-            {/* 音声認識中の暫定テキストプレビュー */}
-            {visitVoice.isRecording && (
-              <div className={cn(
-                "mb-2 px-2 py-1.5 rounded-md border min-h-[32px]",
-                visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5
-                  ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
-                  : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
-              )}>
-                {visitVoice.interimText ? (
-                  <p className="text-xs text-red-600 dark:text-red-400 italic leading-relaxed">
-                    🎤 {visitVoice.interimText}
-                  </p>
-                ) : visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5 ? (
-                  <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
-                    あと{visitVoice.silenceCountdown}秒で自動停止します
-                  </p>
-                ) : (
-                  <p className="text-xs text-muted-foreground italic">話しかけてください...</p>
-                )}
-              </div>
-            )}
-
-            {/* AI解析中 */}
-            {isParsingVisitVoice && (
-              <div className="mb-2 flex items-center gap-2 text-xs text-primary">
-                <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                <span>AIが音声内容を解析して各項目に転記中...</span>
-              </div>
-            )}
-
-            {/* AI解析失敗時 */}
-            {visitVoiceError && !isParsingVisitVoice && (
-              <div className="mb-2 flex items-start gap-3 p-2 bg-destructive/10 border border-destructive/30 rounded-lg">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-destructive">⚠️ AI解析に失敗しました</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{visitVoiceError}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => { setVisitVoiceError(null); if (visitVoiceText) handleVisitVoiceResult(visitVoiceText); }}
-                  className="text-[10px] text-primary hover:underline whitespace-nowrap"
-                >
-                  再試行
-                </button>
-              </div>
-            )}
-
-            {/* 例文ヒントトグル */}
-            {!visitVoice.isRecording && !isParsingVisitVoice && !visitVoiceText && (
-              <button
-                type="button"
-                onClick={() => setShowVisitVoiceHint((v) => !v)}
-                className="mb-2 text-[10px] text-primary hover:underline flex items-center gap-1"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                話しかけの例文を見る
-              </button>
-            )}
-            {showVisitVoiceHint && !visitVoice.isRecording && !isParsingVisitVoice && (
-              <div className="mb-2">
-                <p className="text-[10px] font-medium text-muted-foreground mb-1.5">話しかけの例（タップでそのままAI転記）</p>
-                <div className="flex flex-col gap-1.5">
-                  {[
-                    { label: "日時のみ", text: "明日の午後2時に次回訪問、本人に口頭で伝えた" },
-                    { label: "日時＋伝達先＋伝達方法", text: "来週月曜の10時から、家族にカレンダーに記入してもらった" },
-                    { label: "伝達先のみ", text: "本人に付箋で伝えた" },
-                    { label: "伝達方法のみ", text: "電話で家族に連絡した" },
-                  ].map((ex) => (
-                    <button
-                      key={ex.label}
-                      type="button"
-                      onClick={() => { setShowVisitVoiceHint(false); handleVisitVoiceResult(ex.text); }}
-                      className={cn(
-                        "w-full text-left rounded-lg bg-background/70 border border-border px-3 py-2",
-                        "hover:bg-primary/5 hover:border-primary/40 active:scale-[0.98] transition-all duration-150",
-                        "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <span className="inline-block text-[9px] font-semibold text-primary bg-primary/10 rounded px-1.5 py-0.5 mr-2 leading-none">{ex.label}</span>
-                          <span className="text-[11px] text-muted-foreground leading-snug">{ex.text}</span>
-                        </div>
-                        <span className="flex-shrink-0 text-[9px] font-medium text-primary bg-primary/10 border border-primary/20 rounded px-1.5 py-0.5 whitespace-nowrap">例文から入力</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              <Calendar className="w-3 h-3 inline mr-1" />
+              次回訪問日時
+            </label>
 
             {/* 日付・時刻入力 */}
             <div className="flex gap-2">

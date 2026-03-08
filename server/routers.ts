@@ -1417,16 +1417,20 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    // 音声テキストをLLMで解析し次回訪問日時・伝達先・伝達方法を抽出する
+    // 音声テキストをLLMで解析し利用者名・次回訪問日時・伝達先・伝達方法を抽出する
     parseVisitVoice: protectedProcedure
-      .input(z.object({ text: z.string().min(1) }))
+      .input(z.object({ text: z.string().min(1), patientNames: z.array(z.string()).optional() }))
       .mutation(async ({ input }) => {
         const { invokeLLM } = await import("./_core/llm");
         const today = new Date();
         const todayStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
-        const systemPrompt = `あなたは訪問看護ステーションの業務アシスタントです。スタッフが音声で伝えた内容から、次回訪問日時・伝達先・伝達方法を抽出してJSONで返してください。
-今日は${todayStr}です。日付は「明日」「明後日」「今日」などの相対表現も解釈してYYYY-MM-DD形式で返してください。時刻はHH:mm形式で返してください。
+        const patientListHint = input.patientNames && input.patientNames.length > 0
+          ? `\n利用者名の候補リスト（音声から最も近い名前を選んでください）: ${input.patientNames.join("、")}`
+          : "";
+        const systemPrompt = `あなたは訪問看護ステーションの業務アシスタントです。スタッフが音声で伝えた内容から、利用者名・次回訪問日時・伝達先・伝達方法を抽出してJSONで返してください。
+今日は${todayStr}です。日付は「明日」「明後日」「今日」などの相対表現も解釈してYYYY-MM-DD形式で返してください。時刻はHH:mm形式で返してください。${patientListHint}
 抽出項目:
+- patientName: 利用者名（音声中に人名が含まれる場合。候補リストがある場合は最も近い名前を選択。不明ならnull）
 - visitDate: 次回訪問日（YYYY-MM-DD形式）
 - visitTime: 次回訪問時刻（HH:mm形式）
 - notifiedTo: 伝達先。「本人」「家族」「その他」のいずれか。不明ならnull
@@ -1447,6 +1451,7 @@ export const appRouter = router({
               schema: {
                 type: "object",
                 properties: {
+                  patientName: { type: ["string", "null"] },
                   visitDate: { type: ["string", "null"] },
                   visitTime: { type: ["string", "null"] },
                   notifiedTo: { type: ["string", "null"] },
@@ -1454,7 +1459,7 @@ export const appRouter = router({
                   notifyMethod: { type: ["string", "null"] },
                   notifyMethodOther: { type: ["string", "null"] },
                 },
-                required: ["visitDate", "visitTime", "notifiedTo", "notifiedToOther", "notifyMethod", "notifyMethodOther"],
+                required: ["patientName", "visitDate", "visitTime", "notifiedTo", "notifiedToOther", "notifyMethod", "notifyMethodOther"],
                 additionalProperties: false,
               },
             },
@@ -1465,6 +1470,7 @@ export const appRouter = router({
         if (!content) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI解析に失敗しました" });
         try {
           const parsed = JSON.parse(content) as {
+            patientName: string | null;
             visitDate: string | null;
             visitTime: string | null;
             notifiedTo: string | null;
