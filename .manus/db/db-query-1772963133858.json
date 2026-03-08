@@ -1,0 +1,18 @@
+{
+  "query": "SHOW COLUMNS FROM users WHERE Field = 'team';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SHOW COLUMNS FROM users WHERE Field = 'team';",
+  "rows": [
+    {
+      "Field": "team",
+      "Type": "enum('身体','天理','郡山北部','郡山南部','事務員','全チーム')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "身体",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\nteam\tenum('身体','天理','郡山北部','郡山南部','事務員','全チーム')\tYES\t\t身体\t\n",
+  "stderr": "",
+  "execution_time_ms": 1565
+}

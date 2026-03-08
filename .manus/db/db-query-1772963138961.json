@@ -1,0 +1,14 @@
+{
+  "query": "SELECT COLUMN_NAME, COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'users' AND COLUMN_NAME = 'team';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT COLUMN_NAME, COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'users' AND COLUMN_NAME = 'team';",
+  "rows": [
+    {
+      "COLUMN_NAME": "team",
+      "COLUMN_TYPE": "enum('身体','天理','郡山北部','郡山南部','事務員','全チーム')"
+    }
+  ],
+  "messages": [],
+  "stdout": "COLUMN_NAME\tCOLUMN_TYPE\nteam\tenum('身体','天理','郡山北部','郡山南部','事務員','全チーム')\n",
+  "stderr": "",
+  "execution_time_ms": 1576
+}

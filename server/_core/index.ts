@@ -169,7 +169,7 @@ async function startServer() {
       const sheetName = wb.SheetNames[0];
       const ws = wb.Sheets[sheetName];
       const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { range: 2, defval: "" });
-      const VALID_TEAMS = ["身体", "天理", "郡山北部", "郡山南部"];
+      const VALID_TEAMS = ["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"];
       const staffList: Array<{ name: string; email: string; password: string; team: string; role: "admin" | "user" }> = [];
       const errors: string[] = [];
       for (let i = 0; i < rows.length; i++) {
@@ -183,7 +183,7 @@ async function startServer() {
         if (!name) continue;
         if (!email || !email.includes("@")) { errors.push(`${i + 4}行目: メールアドレスが無効です`); continue; }
         if (!password || password.length < 4) { errors.push(`${i + 4}行目: パスワードが短すぎます（4文字以上）`); continue; }
-        if (!VALID_TEAMS.includes(team)) { errors.push(`${i + 4}行目: チーム「${team}」は無効です`); continue; }
+        if (!VALID_TEAMS.includes(team)) { errors.push(`${i + 4}行目: チーム「${team}」は無効です（身体/天理/郡山北部/郡山南部/事務員/全チーム）`); continue; }
         staffList.push({ name, email, password, team, role });
       }
       if (staffList.length === 0 && errors.length > 0) {
