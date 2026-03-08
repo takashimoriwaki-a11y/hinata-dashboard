@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +15,17 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { CalendarClock, Send, CheckCircle2, X, Users, FileText, Plus } from "lucide-react";
+import {
+  CalendarClock,
+  Send,
+  CheckCircle2,
+  X,
+  Users,
+  FileText,
+  Plus,
+  Search,
+  ChevronDown,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // 変更種別の定義
@@ -48,6 +58,259 @@ function formatDatetime(iso: string): string {
   }
 }
 
+// ========== 利用者オートコンプリートコンポーネント ==========
+type PatientItem = {
+  id: number;
+  name: string;
+  nameKana?: string | null;
+  team: string;
+};
+
+function PatientAutocomplete({
+  patientList,
+  value,
+  onChange,
+}: {
+  patientList: PatientItem[];
+  value: string;
+  onChange: (name: string) => void;
+}) {
+  const [query, setQuery] = useState(value);
+  const [open, setOpen] = useState(false);
+  const [highlighted, setHighlighted] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // 外側クリックで閉じる
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // 親からvalueが変わったとき（リセット時など）queryも同期
+  useEffect(() => {
+    setQuery(value);
+  }, [value]);
+
+  // フィルタリング
+  const filtered = useMemo(() => {
+    if (!query) return patientList.slice(0, 50);
+    const q = query.toLowerCase();
+    return patientList.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        (p.nameKana && p.nameKana.toLowerCase().includes(q))
+    ).slice(0, 20);
+  }, [patientList, query]);
+
+  const handleSelect = (patient: PatientItem) => {
+    setQuery(patient.name);
+    onChange(patient.name);
+    setOpen(false);
+    inputRef.current?.blur();
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setQuery(val);
+    onChange(val); // 手入力も許可
+    setOpen(true);
+    setHighlighted(0);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!open) {
+      if (e.key === "ArrowDown" || e.key === "Enter") {
+        setOpen(true);
+        return;
+      }
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlighted((h) => Math.min(h + 1, filtered.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlighted((h) => Math.max(h - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (filtered[highlighted]) {
+        handleSelect(filtered[highlighted]);
+      }
+    } else if (e.key === "Escape") {
+      setOpen(false);
+    }
+  };
+
+  // ハイライト行が見えるようにスクロール
+  useEffect(() => {
+    if (listRef.current) {
+      const item = listRef.current.querySelector(`[data-index="${highlighted}"]`) as HTMLElement;
+      if (item) {
+        item.scrollIntoView({ block: "nearest" });
+      }
+    }
+  }, [highlighted]);
+
+  // チームごとにグループ化
+  const grouped = useMemo(() => {
+    const map = new Map<string, PatientItem[]>();
+    for (const p of filtered) {
+      if (!map.has(p.team)) map.set(p.team, []);
+      map.get(p.team)!.push(p);
+    }
+    return map;
+  }, [filtered]);
+
+  let globalIndex = 0;
+
+  return (
+    <Card>
+      <CardHeader className="pb-2 pt-4">
+        <CardTitle className="text-sm font-semibold">
+          利用者名 <span className="text-destructive">*</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div ref={containerRef} className="relative">
+          {/* 入力フィールド */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={handleInputChange}
+              onFocus={() => setOpen(true)}
+              onKeyDown={handleKeyDown}
+              placeholder="利用者名またはカナで検索..."
+              className={cn(
+                "w-full pl-9 pr-9 py-2.5 text-sm rounded-lg border border-input bg-background",
+                "focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent",
+                "transition-all placeholder:text-muted-foreground",
+                value && "border-primary/60 bg-primary/5"
+              )}
+              autoComplete="off"
+            />
+            {/* クリアボタン / ドロップダウン矢印 */}
+            {value ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setQuery("");
+                  onChange("");
+                  setOpen(false);
+                  inputRef.current?.focus();
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen((o) => !o);
+                  inputRef.current?.focus();
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ChevronDown className={cn("w-4 h-4 transition-transform", open && "rotate-180")} />
+              </button>
+            )}
+          </div>
+
+          {/* 選択済み表示 */}
+          {value && (
+            <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-primary/10 rounded-lg border border-primary/20">
+              <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
+              <span className="text-sm font-medium text-primary">{value}</span>
+              <span className="text-xs text-muted-foreground ml-auto">選択済み</span>
+            </div>
+          )}
+
+          {/* ドロップダウンリスト */}
+          {open && (
+            <div
+              ref={listRef}
+              className={cn(
+                "absolute z-50 w-full mt-1 bg-popover border border-border rounded-xl shadow-lg",
+                "max-h-72 overflow-y-auto"
+              )}
+            >
+              {filtered.length === 0 ? (
+                <div className="py-6 text-center text-sm text-muted-foreground">
+                  {query ? `「${query}」に一致する利用者が見つかりません` : "利用者が登録されていません"}
+                </div>
+              ) : (
+                <>
+                  {/* 検索ヒット数 */}
+                  {query && (
+                    <div className="px-3 py-1.5 text-xs text-muted-foreground border-b bg-muted/30">
+                      {filtered.length}件ヒット
+                    </div>
+                  )}
+                  {/* チームごとにグループ表示 */}
+                  {Array.from(grouped.entries()).map(([teamName, patients]) => (
+                    <div key={teamName}>
+                      <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/40 sticky top-0">
+                        {teamName}チーム
+                      </div>
+                      {patients.map((p) => {
+                        const idx = globalIndex++;
+                        return (
+                          <button
+                            key={p.id}
+                            data-index={idx}
+                            type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault(); // blur前にonMouseDownで確定
+                              handleSelect(p);
+                            }}
+                            onMouseEnter={() => setHighlighted(idx)}
+                            className={cn(
+                              "w-full text-left px-4 py-2.5 text-sm transition-colors",
+                              "flex items-center justify-between gap-2",
+                              highlighted === idx
+                                ? "bg-primary/10 text-primary"
+                                : "hover:bg-muted/60 text-foreground"
+                            )}
+                          >
+                            <span className="font-medium">{p.name}</span>
+                            {p.nameKana && (
+                              <span className="text-xs text-muted-foreground flex-shrink-0">
+                                {p.nameKana}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 利用者が0件のとき案内 */}
+        {patientList.length === 0 && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            ※ チームを選択すると利用者が絞り込まれます。利用者マスタに登録がない場合は直接入力できます。
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ========== メインコンポーネント ==========
+
 export default function ScheduleChange() {
   const { user } = useAuth();
 
@@ -55,7 +318,6 @@ export default function ScheduleChange() {
   const [changeType, setChangeType] = useState<ChangeType | "">("");
   const [team, setTeam] = useState<Team | "">("");
   const [patientName, setPatientName] = useState("");
-  const [patientSearch, setPatientSearch] = useState("");
   const [fromDatetime, setFromDatetime] = useState("");
   const [toDatetime, setToDatetime] = useState("");
   const [staffBefore, setStaffBefore] = useState("");
@@ -89,14 +351,6 @@ export default function ScheduleChange() {
     { team: patientTeam },
     { enabled: changeType === "visit_change" || changeType === "visit_cancel" || changeType === "visit_add" }
   );
-
-  // 利用者フィルタリング
-  const filteredPatients = useMemo(() => {
-    if (!patientSearch) return patientList;
-    return patientList.filter(p =>
-      p.name.includes(patientSearch) || (p.nameKana && p.nameKana.includes(patientSearch))
-    );
-  }, [patientList, patientSearch]);
 
   // 送信ミューテーション
   const createAndExport = trpc.scheduleChanges.createAndExport.useMutation({
@@ -167,7 +421,6 @@ export default function ScheduleChange() {
     setChangeType("");
     setTeam("");
     setPatientName("");
-    setPatientSearch("");
     setFromDatetime("");
     setToDatetime("");
     setStaffBefore("");
@@ -263,7 +516,7 @@ export default function ScheduleChange() {
             )}
             {lastRecord.reason && (
               <div className="flex items-start gap-2">
-                <span className="text-muted-foreground w-24 flex-shrink-0">理由・備考</span>
+                <span className="text-muted-foreground w-24 flex-shrink-0">変更理由</span>
                 <span className="font-medium">{lastRecord.reason}</span>
               </div>
             )}
@@ -304,7 +557,6 @@ export default function ScheduleChange() {
                 setChangeType(type.value);
                 // 種別変更時に関連フィールドをリセット
                 setPatientName("");
-                setPatientSearch("");
                 setFromDatetime("");
                 setToDatetime("");
                 setStaffBefore("");
@@ -351,7 +603,6 @@ export default function ScheduleChange() {
                     onClick={() => {
                       setTeam(t);
                       setPatientName("");
-                      setPatientSearch("");
                     }}
                     className={cn(
                       "px-3 py-1.5 rounded-full text-sm font-medium border transition-all",
@@ -367,62 +618,12 @@ export default function ScheduleChange() {
             </CardContent>
           </Card>
 
-          {/* 利用者選択 */}
-          <Card>
-            <CardHeader className="pb-2 pt-4">
-              <CardTitle className="text-sm font-semibold">
-                利用者名 <span className="text-destructive">*</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Input
-                placeholder="利用者名を入力または検索..."
-                value={patientName || patientSearch}
-                onChange={(e) => {
-                  setPatientSearch(e.target.value);
-                  setPatientName(e.target.value);
-                }}
-              />
-              {filteredPatients.length > 0 && patientSearch && !patientName && (
-                <div className="border rounded-xl overflow-hidden">
-                  {filteredPatients.slice(0, 8).map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => {
-                        setPatientName(p.name);
-                        setPatientSearch(p.name);
-                      }}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors border-b last:border-b-0"
-                    >
-                      <span className="font-medium">{p.name}</span>
-                      {p.nameKana && <span className="text-muted-foreground ml-2 text-xs">{p.nameKana}</span>}
-                      <Badge variant="outline" className="ml-2 text-xs">{p.team}</Badge>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {patientList.length > 0 && !patientSearch && (
-                <div className="border rounded-xl overflow-hidden max-h-48 overflow-y-auto">
-                  {patientList.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => {
-                        setPatientName(p.name);
-                        setPatientSearch(p.name);
-                      }}
-                      className={cn(
-                        "w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors border-b last:border-b-0",
-                        patientName === p.name && "bg-primary/5"
-                      )}
-                    >
-                      <span className="font-medium">{p.name}</span>
-                      {p.nameKana && <span className="text-muted-foreground ml-2 text-xs">{p.nameKana}</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* 利用者選択（オートコンプリート） */}
+          <PatientAutocomplete
+            patientList={patientList}
+            value={patientName}
+            onChange={setPatientName}
+          />
 
           {/* 日時変更 */}
           <Card>
