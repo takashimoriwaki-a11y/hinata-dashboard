@@ -1937,15 +1937,24 @@ function MessageBoard({ title }: { title: string }) {
       setIsAnalyzingMsg(false);
       const f = data.fields;
       const missing: string[] = [];
-      // 本文
-      if (f.text) setNewMsg(f.text);
+      // 本文（空欄のみ上書き）
+      if (f.text) setNewMsg(prev => prev.trim() ? prev : f.text!);
       else missing.push("メッセージ本文");
-      // 表示開始
-      if (f.displayFromDate) { setDisplayFrom(f.displayFromDate); if (f.displayFromTime) setDisplayFromTime(f.displayFromTime); }
-      // 表示終了
-      if (f.displayUntilDate) { setDisplayUntil(f.displayUntilDate); if (f.displayUntilTime) setDisplayUntilTime(f.displayUntilTime); }
-      // 予約送信
-      if (f.scheduledAtDate) { setScheduledAt(f.scheduledAtDate); if (f.scheduledAtTime) setScheduledAtTime(f.scheduledAtTime); }
+      // 表示開始（空欄のみ上書き）
+      if (f.displayFromDate) {
+        setDisplayFrom(prev => prev.trim() ? prev : f.displayFromDate!);
+        if (f.displayFromTime) setDisplayFromTime(prev => prev.trim() ? prev : f.displayFromTime!);
+      }
+      // 表示終了（空欄のみ上書き）
+      if (f.displayUntilDate) {
+        setDisplayUntil(prev => prev.trim() ? prev : f.displayUntilDate!);
+        if (f.displayUntilTime) setDisplayUntilTime(prev => prev.trim() ? prev : f.displayUntilTime!);
+      }
+      // 予約送信（空欄のみ上書き）
+      if (f.scheduledAtDate) {
+        setScheduledAt(prev => prev.trim() ? prev : f.scheduledAtDate!);
+        if (f.scheduledAtTime) setScheduledAtTime(prev => prev.trim() ? prev : f.scheduledAtTime!);
+      }
       setMissingMsgFields(missing);
       if (missing.length === 0) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -2148,23 +2157,43 @@ function MessageBoard({ title }: { title: string }) {
               {/* 未転記項目バナー */}
               {missingMsgFields.length > 0 && (
                 <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2 space-y-1.5">
-                  <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">聞き取れなかった項目があります</p>
+                  <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">聴き取れなかった項目があります</p>
                   <div className="flex flex-wrap gap-1">
-                    {missingMsgFields.map((f) => (
-                      <span key={f} className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 font-medium">{f}</span>
-                    ))}
+                    {missingMsgFields.map((fieldName) => {
+                      const fieldIdMap: Record<string, string> = {
+                        "メッセージ本文": "msg-content-textarea",
+                        "表示開始": "msg-display-from",
+                        "表示終了": "msg-display-until",
+                        "予約送信": "msg-scheduled-at",
+                      };
+                      const targetId = fieldIdMap[fieldName];
+                      return (
+                        <button
+                          key={fieldName}
+                          type="button"
+                          onClick={() => {
+                            if (targetId) {
+                              const el = document.getElementById(targetId);
+                              if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); el.focus(); }
+                            }
+                          }}
+                          className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 font-medium hover:bg-amber-300 dark:hover:bg-amber-700 transition-colors cursor-pointer underline underline-offset-2"
+                        >
+                          {fieldName} →
+                        </button>
+                      );
+                    })}
                   </div>
-                  <p className="text-[10px] text-amber-700 dark:text-amber-400">上記の項目だけもう一度マイクで話してください</p>
+                  <p className="text-[10px] text-amber-700 dark:text-amber-400">項目をタップすると入力欄に移動します。マイクで話すか手動入力で補完できます</p>
                 </div>
               )}
-            </div>
-            {/* テキストエリア */}
+            </div>            {/* テキストエリア */}
             <Textarea
+              id="msg-content-textarea"
               placeholder="メッセージを入力..."
               value={newMsg}
               onChange={(e) => setNewMsg(e.target.value)}
-              className="text-sm min-h-[80px] resize-none w-full"
-            />
+              className="text-sm min-h-[80px] resize-none w-full" />
             {/* 表示期間・予約 */}
             {(() => {
               const timeOptions = Array.from({ length: 24 * 6 }, (_, i) => {
@@ -2178,7 +2207,7 @@ function MessageBoard({ title }: { title: string }) {
                   <div>
                     <label className="text-xs font-medium text-foreground block mb-1">表示開始（任意）</label>
                     <div className="flex items-center gap-1.5">
-                      <input type="date" value={displayFrom} onChange={(e) => setDisplayFrom(e.target.value)}
+                      <input id="msg-display-from" type="date" value={displayFrom} onChange={(e) => setDisplayFrom(e.target.value)}
                         className="flex-1 text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                       {displayFrom && (
                         <button type="button" onPointerDown={(e) => { e.preventDefault(); setDisplayFrom(""); setDisplayFromTime(""); }}
@@ -2206,7 +2235,7 @@ function MessageBoard({ title }: { title: string }) {
                   <div>
                     <label className="text-xs font-medium text-foreground block mb-1">表示終了（任意）</label>
                     <div className="flex items-center gap-1.5">
-                      <input type="date" value={displayUntil} onChange={(e) => setDisplayUntil(e.target.value)}
+                      <input id="msg-display-until" type="date" value={displayUntil} onChange={(e) => setDisplayUntil(e.target.value)}
                         className="flex-1 text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                       {displayUntil && (
                         <button type="button" onPointerDown={(e) => { e.preventDefault(); setDisplayUntil(""); setDisplayUntilTime(""); }}
@@ -2234,7 +2263,7 @@ function MessageBoard({ title }: { title: string }) {
                   <div>
                     <label className="text-xs font-medium text-foreground block mb-1">予約送信（任意）</label>
                     <div className="flex items-center gap-1.5">
-                      <input type="date" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)}
+                      <input id="msg-scheduled-at" type="date" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)}
                         className="flex-1 text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                       {scheduledAt && (
                         <button type="button" onPointerDown={(e) => { e.preventDefault(); setScheduledAt(""); setScheduledAtTime(""); }}

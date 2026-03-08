@@ -317,13 +317,35 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
           {/* 未転記項目バナー */}
           {missingFields.length > 0 && (
             <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2 space-y-1.5">
-              <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">聞き取れなかった項目があります</p>
+              <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">聴き取れなかった項目があります</p>
               <div className="flex flex-wrap gap-1">
-                {missingFields.map((field) => (
-                  <span key={field} className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 font-medium">{field}</span>
-                ))}
+                {missingFields.map((field) => {
+                  const fieldIdMap: Record<string, string> = {
+                    "タスク内容": "task-content-textarea",
+                    "期日": "task-due-date",
+                    "指定先": "task-assign-type",
+                    "チーム名": "task-assign-team",
+                    "担当者": "task-assign-user",
+                  };
+                  const targetId = fieldIdMap[field];
+                  return (
+                    <button
+                      key={field}
+                      type="button"
+                      onClick={() => {
+                        if (targetId) {
+                          const el = document.getElementById(targetId);
+                          if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); el.focus(); }
+                        }
+                      }}
+                      className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 font-medium hover:bg-amber-300 dark:hover:bg-amber-700 transition-colors cursor-pointer underline underline-offset-2"
+                    >
+                      {field} →
+                    </button>
+                  );
+                })}
               </div>
-              <p className="text-[10px] text-amber-700 dark:text-amber-400">上記の項目だけもう一度マイクで話してください</p>
+              <p className="text-[10px] text-amber-700 dark:text-amber-400">項目をタップすると入力欄に移動します。マイクで話すか手動入力で補完できます</p>
             </div>
           )}
 
@@ -358,6 +380,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1 block">内容 *</label>
           <textarea
+            id="task-content-textarea"
             placeholder="タスクの内容を入力..."
             value={newText}
             onChange={(e) => setNewText(e.target.value)}
@@ -374,6 +397,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
             </label>
             <div className="flex items-center gap-1.5">
               <input
+                id="task-due-date"
                 type="date"
                 value={newDueDate}
                 onChange={(e) => setNewDueDate(e.target.value)}
@@ -430,7 +454,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
         {/* 指定先 */}
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1 block">指定先</label>
-          <div className="flex gap-2 mb-2">
+          <div id="task-assign-type" className="flex gap-2 mb-2">
             {([
               { value: "all", label: "全員", icon: Globe },
               { value: "team", label: "チーム", icon: Users },
@@ -454,7 +478,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
 
           {/* チーム選択 */}
           {newAssignType === "team" && (
-            <div className="flex flex-wrap gap-1.5">
+            <div id="task-assign-team" className="flex flex-wrap gap-1.5">
               {TEAMS.map((team) => (
                 <button
                   key={team}
@@ -475,6 +499,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
           {/* 個人選択 */}
           {newAssignType === "personal" && (
             <select
+              id="task-assign-user"
               value={newAssignUserId ?? ""}
               onChange={(e) => {
                 const id = Number(e.target.value);

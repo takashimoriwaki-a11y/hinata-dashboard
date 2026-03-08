@@ -82,11 +82,13 @@ function PatientAutocomplete({
   value,
   onChange,
   onTeamSelect,
+  id,
 }: {
   patientList: PatientItem[];
   value: string;
   onChange: (name: string) => void;
   onTeamSelect?: (team: string) => void;
+  id?: string;
 }) {
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
@@ -246,6 +248,7 @@ function PatientAutocomplete({
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               <input
                 ref={inputRef}
+                id={id}
                 type="text"
                 value={query}
                 onChange={handleInputChange}
@@ -1510,13 +1513,41 @@ export default function ScheduleChange() {
           {/* 未転記項目バナー */}
           {missingVoiceFields.length > 0 && !isParsingVoice && (
             <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2.5 space-y-1.5">
-              <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">💬 聞き取れなかった項目があります</p>
+              <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">💬 聴き取れなかった項目があります</p>
               <div className="flex flex-wrap gap-1">
-                {missingVoiceFields.map((field) => (
-                  <span key={field} className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 font-medium">{field}</span>
-                ))}
+                {missingVoiceFields.map((field) => {
+                  const fieldIdMap: Record<string, string> = {
+                    "変更種別（日時変更・キャンセル・追加等）": "sc-change-type-card",
+                    "チーム名（身体・天理・郡山北部・郡山南部）": "sc-team-card",
+                    "変更前日時": "sc-datetime-card",
+                    "利用者名": "sc-patient-input",
+                  };
+                  const targetId = fieldIdMap[field];
+                  return (
+                    <button
+                      key={field}
+                      type="button"
+                      onClick={() => {
+                        if (!targetId) return;
+                        const el = document.getElementById(targetId);
+                        if (!el) return;
+                        el.scrollIntoView({ behavior: "smooth", block: "center" });
+                        if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+                          setTimeout(() => el.focus(), 300);
+                        }
+                      }}
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-medium transition-all ${
+                        targetId
+                          ? "bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 cursor-pointer hover:bg-amber-300 dark:hover:bg-amber-700 active:scale-95"
+                          : "bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 cursor-default"
+                      }`}
+                    >
+                      {targetId ? "👉 " : ""}{field}
+                    </button>
+                  );
+                })}
               </div>
-              <p className="text-[10px] text-amber-700 dark:text-amber-400">上記の項目だけもう一度マイクで話してください</p>
+              <p className="text-[10px] text-amber-700 dark:text-amber-400">項目をタップすると入力欄に移動します。またはマイクで話しかけて追加入力もできます。</p>
             </div>
           )}
 
@@ -1579,7 +1610,7 @@ export default function ScheduleChange() {
       )}
 
       {/* 変更種別選択 */}
-      <Card>
+      <Card id="sc-change-type-card">
         <CardHeader className="pb-2 pt-4">
           <CardTitle className="text-sm font-semibold">変更の種別を選択</CardTitle>
         </CardHeader>
@@ -1626,7 +1657,7 @@ export default function ScheduleChange() {
       {isVisitType && (
         <>
           {/* チーム選択 */}
-          <Card>
+          <Card id="sc-team-card">
             <CardHeader className="pb-2 pt-4">
               <CardTitle className="text-sm font-semibold">チーム</CardTitle>
             </CardHeader>
@@ -1656,6 +1687,7 @@ export default function ScheduleChange() {
 
           {/* 利用者選択（オートコンプリート） */}
           <PatientAutocomplete
+            id="sc-patient-input"
             patientList={patientList}
             value={patientName}
             onChange={(v) => { setPatientName(v); triggerDraftSave({ patientName: v }); }}
@@ -1669,7 +1701,7 @@ export default function ScheduleChange() {
           />
 
           {/* 日時変更 */}
-          <Card>
+          <Card id="sc-datetime-card">
             <CardHeader className="pb-2 pt-4">
               <CardTitle className="text-sm font-semibold">日時</CardTitle>
             </CardHeader>
@@ -1732,7 +1764,7 @@ export default function ScheduleChange() {
           )}
 
           {/* 変更理由 / キャンセル理由 */}
-          <Card>
+          <Card id="sc-reason-card">
             <CardHeader className="pb-2 pt-4">
               <CardTitle className="text-sm font-semibold">
                 {changeType === "visit_cancel" ? "キャンセル理由・備考" : "変更理由・備考"}
@@ -1755,7 +1787,7 @@ export default function ScheduleChange() {
       {isMeetingType && (
         <>
           {/* チーム選択 */}
-          <Card>
+          <Card id="sc-team-card">
             <CardHeader className="pb-2 pt-4">
               <CardTitle className="text-sm font-semibold">対象チーム</CardTitle>
             </CardHeader>
@@ -1780,7 +1812,7 @@ export default function ScheduleChange() {
           </Card>
 
           {/* 会議名 */}
-          <Card>
+          <Card id="sc-meeting-name-card">
             <CardHeader className="pb-2 pt-4">
               <CardTitle className="text-sm font-semibold">
                 会議名 <span className="text-destructive">*</span>
@@ -1796,7 +1828,7 @@ export default function ScheduleChange() {
           </Card>
 
           {/* 日時 */}
-          <Card>
+          <Card id="sc-datetime-card">
             <CardHeader className="pb-2 pt-4">
               <CardTitle className="text-sm font-semibold">日時</CardTitle>
             </CardHeader>
@@ -1846,7 +1878,7 @@ export default function ScheduleChange() {
           </Card>
 
           {/* 備考 */}
-          <Card>
+          <Card id="sc-reason-card">
             <CardHeader className="pb-2 pt-4">
               <CardTitle className="text-sm font-semibold">備考</CardTitle>
             </CardHeader>
