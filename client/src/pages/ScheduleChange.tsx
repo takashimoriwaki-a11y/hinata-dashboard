@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +25,8 @@ import {
   Plus,
   Search,
   ChevronDown,
+  Save,
+  RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -487,10 +489,70 @@ function StaffAutocomplete({
   );
 }
 
+// ========== 下書き自動保存のキー ==========
+const DRAFT_KEY = "hinata_schedule_change_draft";
+
+type DraftData = {
+  changeType: ChangeType | "";
+  team: Team | "";
+  patientName: string;
+  fromDatetime: string;
+  toDatetime: string;
+  staffBefore: string;
+  staffAfter: string;
+  meetingName: string;
+  meetingStaff: string[];
+  reason: string;
+  savedAt: number;
+};
+
+function loadDraft(): DraftData | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as DraftData;
+  } catch {
+    return null;
+  }
+}
+
+function saveDraft(data: Omit<DraftData, "savedAt">) {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...data, savedAt: Date.now() }));
+  } catch {
+    // localStorageが使えない場合は無視
+  }
+}
+
+function clearDraft() {
+  try {
+    localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // 無視
+  }
+}
+
+function formatSavedAt(ts: number): string {
+  const d = new Date(ts);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getMonth() + 1}月${d.getDate()}日 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 // ========== メインコンポーネント ==========
 
 export default function ScheduleChange() {
   const { user } = useAuth();
+
+  // 初期値：下書きがあれば後で復元バナーを表示する
+  const [hasDraft, setHasDraft] = useState(() => {
+    const d = loadDraft();
+    return d !== null && (d.changeType !== "" || d.patientName !== "" || d.meetingName !== "");
+  });
+  const [draftSavedAt, setDraftSavedAt] = useState<number | null>(() => {
+    const d = loadDraft();
+    return d ? d.savedAt : null;
+  });
+  const [draftRestored, setDraftRestored] = useState(false);
 
   // フォーム状態
   const [changeType, setChangeType] = useState<ChangeType | "">("");
@@ -504,6 +566,20 @@ export default function ScheduleChange() {
   const [meetingStaff, setMeetingStaff] = useState<string[]>([]);
   const [reason, setReason] = useState("");
   const [submitted, setSubmitted] = useState(false);
+
+  // 下書き自動保存（入力変更から800msデバウンス）
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleDraftSave = (data: Omit<DraftData, "savedAt">) => {
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    draftTimerRef.current = setTimeout(() => {
+      const hasContent = data.changeType !== "" || data.patientName !== "" || data.meetingName !== "";
+      if (hasContent) {
+        saveDraft(data);
+        setDraftSavedAt(Date.now());
+        setHasDraft(false); // 復元バナーは非表示に（既に復元済みまたは新規入力中）
+      }
+    }, 800);
+  };
   const [lastRecord, setLastRecord] = useState<{
     changeType: string;
     team?: string;
@@ -530,9 +606,54 @@ export default function ScheduleChange() {
     { enabled: changeType === "visit_change" || changeType === "visit_cancel" || changeType === "visit_add" }
   );
 
+  // 下書き保存のトリガー（各入力変更時に呼び出す）
+  const triggerDraftSave = useCallback((overrides?: Partial<Omit<DraftData, "savedAt">>) => {
+    scheduleDraftSave({
+      changeType: overrides?.changeType ?? changeType,
+      team: overrides?.team ?? team,
+      patientName: overrides?.patientName ?? patientName,
+      fromDatetime: overrides?.fromDatetime ?? fromDatetime,
+      toDatetime: overrides?.toDatetime ?? toDatetime,
+      staffBefore: overrides?.staffBefore ?? staffBefore,
+      staffAfter: overrides?.staffAfter ?? staffAfter,
+      meetingName: overrides?.meetingName ?? meetingName,
+      meetingStaff: overrides?.meetingStaff ?? meetingStaff,
+      reason: overrides?.reason ?? reason,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [changeType, team, patientName, fromDatetime, toDatetime, staffBefore, staffAfter, meetingName, meetingStaff, reason]);
+
+  // 下書き復元処理
+  const handleRestoreDraft = () => {
+    const draft = loadDraft();
+    if (!draft) return;
+    setChangeType(draft.changeType);
+    setTeam(draft.team);
+    setPatientName(draft.patientName);
+    setFromDatetime(draft.fromDatetime);
+    setToDatetime(draft.toDatetime);
+    setStaffBefore(draft.staffBefore);
+    setStaffAfter(draft.staffAfter);
+    setMeetingName(draft.meetingName);
+    setMeetingStaff(draft.meetingStaff);
+    setReason(draft.reason);
+    setHasDraft(false);
+    setDraftRestored(true);
+    toast.success("下書きを復元しました");
+  };
+
+  const handleDiscardDraft = () => {
+    clearDraft();
+    setHasDraft(false);
+    setDraftSavedAt(null);
+    toast("下書きを削除しました");
+  };
+
   // 送信ミューテーション
   const createAndExport = trpc.scheduleChanges.createAndExport.useMutation({
     onSuccess: (data) => {
+      clearDraft(); // 送信完了時に下書き削除
+      setDraftSavedAt(null);
       if (data.exported) {
         toast.success("スケジュール変更連絡を送信し、スプレッドシートに転記しました");
       } else {
@@ -596,6 +717,9 @@ export default function ScheduleChange() {
   };
 
   const handleReset = () => {
+    clearDraft(); // リセット時に下書き削除
+    setDraftSavedAt(null);
+    setDraftRestored(false);
     setChangeType("");
     setTeam("");
     setPatientName("");
@@ -716,11 +840,57 @@ export default function ScheduleChange() {
         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
           <CalendarClock className="w-5 h-5 text-primary" />
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <h1 className="text-lg font-bold text-foreground">スケジュール変更連絡</h1>
           <p className="text-xs text-muted-foreground">入力後、スプレッドシートに自動転記されます</p>
         </div>
+        {/* 自動保存インジケーター */}
+        {draftSavedAt && !hasDraft && (
+          <div className="flex items-center gap-1 text-xs text-muted-foreground flex-shrink-0">
+            <Save className="w-3 h-3" />
+            <span>{formatSavedAt(draftSavedAt)}保存</span>
+          </div>
+        )}
       </div>
+
+      {/* 下書き復元バナー */}
+      {hasDraft && draftSavedAt && (
+        <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+          <RotateCcw className="w-4 h-4 text-amber-600 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-amber-800">下書きがあります</p>
+            <p className="text-xs text-amber-600">{formatSavedAt(draftSavedAt)}に保存された入力内容</p>
+          </div>
+          <div className="flex gap-2 flex-shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs h-7 px-2 border-amber-300 text-amber-700 hover:bg-amber-100"
+              onClick={handleDiscardDraft}
+            >
+              削除
+            </Button>
+            <Button
+              size="sm"
+              className="text-xs h-7 px-2 bg-amber-500 hover:bg-amber-600 text-white"
+              onClick={handleRestoreDraft}
+            >
+              復元する
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* 復元完了メッセージ */}
+      {draftRestored && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700">
+          <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+          <span>下書きを復元しました。内容を確認して送信してください。</span>
+          <button onClick={() => setDraftRestored(false)} className="ml-auto">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* 変更種別選択 */}
       <Card>
@@ -742,6 +912,7 @@ export default function ScheduleChange() {
                 setMeetingName("");
                 setMeetingStaff([]);
                 setReason("");
+                triggerDraftSave({ changeType: type.value, patientName: "", fromDatetime: "", toDatetime: "", staffBefore: "", staffAfter: "", meetingName: "", meetingStaff: [], reason: "" });
               }}
               className={cn(
                 "flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all",
@@ -781,6 +952,7 @@ export default function ScheduleChange() {
                     onClick={() => {
                       setTeam(t);
                       setPatientName("");
+                      triggerDraftSave({ team: t, patientName: "" });
                     }}
                     className={cn(
                       "px-3 py-1.5 rounded-full text-sm font-medium border transition-all",
@@ -800,7 +972,7 @@ export default function ScheduleChange() {
           <PatientAutocomplete
             patientList={patientList}
             value={patientName}
-            onChange={setPatientName}
+            onChange={(v) => { setPatientName(v); triggerDraftSave({ patientName: v }); }}
           />
 
           {/* 日時変更 */}
@@ -816,7 +988,7 @@ export default function ScheduleChange() {
                 <Input
                   type="datetime-local"
                   value={fromDatetime}
-                  onChange={(e) => setFromDatetime(e.target.value)}
+                  onChange={(e) => { setFromDatetime(e.target.value); triggerDraftSave({ fromDatetime: e.target.value }); }}
                 />
               </div>
               {changeType !== "visit_cancel" && (
@@ -827,7 +999,7 @@ export default function ScheduleChange() {
                   <Input
                     type="datetime-local"
                     value={toDatetime}
-                    onChange={(e) => setToDatetime(e.target.value)}
+                    onChange={(e) => { setToDatetime(e.target.value); triggerDraftSave({ toDatetime: e.target.value }); }}
                   />
                 </div>
               )}
@@ -843,14 +1015,14 @@ export default function ScheduleChange() {
               <StaffAutocomplete
                 staffList={staffList}
                 value={staffBefore}
-                onChange={setStaffBefore}
+                onChange={(v) => { setStaffBefore(v); triggerDraftSave({ staffBefore: v }); }}
                 label="変更前の担当スタッフ"
                 placeholder="スタッフ名で検索..."
               />
               <StaffAutocomplete
                 staffList={staffList}
                 value={staffAfter}
-                onChange={setStaffAfter}
+                onChange={(v) => { setStaffAfter(v); triggerDraftSave({ staffAfter: v }); }}
                 label="変更後の担当スタッフ"
                 placeholder="スタッフ名で検索..."
               />
@@ -866,7 +1038,7 @@ export default function ScheduleChange() {
               <Textarea
                 placeholder="変更の理由や特記事項を入力してください..."
                 value={reason}
-                onChange={(e) => setReason(e.target.value)}
+                onChange={(e) => { setReason(e.target.value); triggerDraftSave({ reason: e.target.value }); }}
                 rows={3}
                 className="resize-none"
               />
