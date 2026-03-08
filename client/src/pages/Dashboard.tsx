@@ -52,6 +52,7 @@ import {
   ChevronUp,
   Pencil,
   ListTodo,
+  UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -1834,6 +1835,11 @@ function TasksCard() {
                   <span className={cn("text-sm block", task.done ? "line-through text-muted-foreground" : "text-foreground")}>
                     {task.text}
                   </span>
+                  {(task as any).patientName && (
+                    <span className="flex items-center gap-0.5 text-[11px] mt-0.5 text-violet-600 dark:text-violet-400 font-medium">
+                      <UserRound className="w-3 h-3" />{(task as any).patientName}
+                    </span>
+                  )}
                   {task.dueDate && (
                     <span className={cn(
                       "flex items-center gap-0.5 text-[11px] mt-0.5",

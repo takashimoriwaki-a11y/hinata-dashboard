@@ -729,6 +729,7 @@ export const appRouter = router({
           assignTeam: z.enum(["身体", "天理", "郡山北部", "郡山南部"]).optional(),
           assignUserId: z.number().optional(),
           assignUserName: z.string().optional(),
+          patientName: z.string().optional(),
           repeatType: z.enum(["none", "weekly", "monthly"]).default("none"),
           repeatDayOfWeek: z.number().min(0).max(6).optional(),
           repeatDayOfMonth: z.number().min(1).max(31).optional(),
@@ -742,6 +743,7 @@ export const appRouter = router({
           assignTeam: input.assignTeam,
           assignUserId: input.assignUserId,
           assignUserName: input.assignUserName,
+          patientName: input.patientName,
           repeatType: input.repeatType,
           repeatDayOfWeek: input.repeatDayOfWeek,
           repeatDayOfMonth: input.repeatDayOfMonth,
@@ -795,6 +797,7 @@ export const appRouter = router({
           assignTeam: z.enum(["身体", "天理", "郡山北部", "郡山南部"]).nullable().optional(),
           assignUserId: z.number().nullable().optional(),
           assignUserName: z.string().nullable().optional(),
+          patientName: z.string().nullable().optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {

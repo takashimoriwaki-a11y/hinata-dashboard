@@ -141,6 +141,13 @@
       "when": 1772965398573,
       "tag": "0019_tricky_punisher",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "5",
+      "when": 1772984485403,
+      "tag": "0020_bizarre_doctor_doom",
+      "breakpoints": true
     }
   ]
 }

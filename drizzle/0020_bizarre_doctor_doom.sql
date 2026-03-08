@@ -1,0 +1,1 @@
+ALTER TABLE `tasks` ADD `patientName` varchar(100);

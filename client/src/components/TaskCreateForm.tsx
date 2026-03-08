@@ -14,6 +14,7 @@ import {
   X,
   Lightbulb,
   Loader2,
+  UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -53,6 +54,11 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
   const [newAssignTeam, setNewAssignTeam] = useState<Team>("身体");
   const [newAssignUserId, setNewAssignUserId] = useState<number | null>(null);
   const [newAssignUserName, setNewAssignUserName] = useState<string>("");
+
+  // 利用者名選択
+  const [patientName, setPatientName] = useState("");
+  const [patientQuery, setPatientQuery] = useState("");
+  const [showPatientDropdown, setShowPatientDropdown] = useState(false);
 
   // 繰り返し設定
   const [repeatType, setRepeatType] = useState<RepeatType>("none");
@@ -162,6 +168,12 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     try { localStorage.setItem("taskVoiceHintDismissed", "1"); } catch {}
   };
 
+  // 利用者検索クエリ
+  const { data: patientResults = [] } = trpc.patients.search.useQuery(
+    { query: patientQuery },
+    { enabled: patientQuery.length >= 1 }
+  );
+
   const handleClear = () => {
     setNewText("");
     setNewDueDate("");
@@ -170,6 +182,8 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     setNewAssignTeam("身体");
     setNewAssignUserId(null);
     setNewAssignUserName("");
+    setPatientName("");
+    setPatientQuery("");
     setRepeatType("none");
     setRepeatDayOfWeek(1);
     setRepeatDayOfMonth(1);
@@ -204,6 +218,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
       assignTeam: newAssignType === "team" ? newAssignTeam : undefined,
       assignUserId: newAssignType === "personal" && newAssignUserId ? newAssignUserId : undefined,
       assignUserName: newAssignType === "personal" ? newAssignUserName : undefined,
+      patientName: patientName.trim() || undefined,
       repeatType,
       repeatDayOfWeek: repeatType === "weekly" ? repeatDayOfWeek : undefined,
       repeatDayOfMonth: repeatType === "monthly" ? repeatDayOfMonth : undefined,
@@ -459,6 +474,59 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
               )}
             </div>
           </div>
+        </div>
+
+        {/* 利用者名（任意） */}
+        <div id="task-patient-name" className="relative">
+          <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
+            <UserRound className="w-3.5 h-3.5" />利用者名（任意）
+          </label>
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              placeholder="利用者名を入力または検索..."
+              value={patientName}
+              onChange={(e) => {
+                setPatientName(e.target.value);
+                setPatientQuery(e.target.value);
+                setShowPatientDropdown(true);
+              }}
+              onFocus={() => { if (patientQuery) setShowPatientDropdown(true); }}
+              onBlur={() => setTimeout(() => setShowPatientDropdown(false), 150)}
+              className="flex-1 text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            {patientName && (
+              <button
+                type="button"
+                onClick={() => { setPatientName(""); setPatientQuery(""); }}
+                className="w-7 h-7 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          {/* 検索結果ドロップダウン */}
+          {showPatientDropdown && patientResults.length > 0 && (
+            <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+              {patientResults.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    setPatientName(p.name);
+                    setPatientQuery("");
+                    setShowPatientDropdown(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors flex items-center justify-between"
+                >
+                  <span>{p.name}</span>
+                  {p.nameKana && <span className="text-xs text-muted-foreground">{p.nameKana}</span>}
+                  {p.team && <span className="text-xs text-muted-foreground ml-auto pl-2">{p.team}</span>}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* 指定先 */}

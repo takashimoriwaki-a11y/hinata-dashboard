@@ -447,6 +447,7 @@ export async function updateTask(
     assignTeam?: "身体" | "天理" | "郡山北部" | "郡山南部" | null;
     assignUserId?: number | null;
     assignUserName?: string | null;
+    patientName?: string | null;
   }
 ) {
   const db = await getDb();

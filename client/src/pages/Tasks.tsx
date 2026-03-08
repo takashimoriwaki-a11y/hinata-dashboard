@@ -27,6 +27,7 @@ import {
   Pencil,
   X,
   Check,
+  UserRound,
 } from "lucide-react";
 import TaskCreateForm from "@/components/TaskCreateForm";
 import { toast } from "sonner";
@@ -436,6 +437,12 @@ export default function Tasks() {
                             🔄 {task.repeatType === "weekly"
                               ? `毎週${["\u65e5","\u6708","\u706b","\u6c34","\u6728","\u91d1","\u571f"][task.repeatDayOfWeek ?? 1]}`
                               : `毎月${task.repeatDayOfMonth ?? 1}日`}
+                          </span>
+                        )}
+                        {/* 利用者名 */}
+                        {(task as any).patientName && (
+                          <span className="flex items-center gap-0.5 text-[11px] text-violet-600 dark:text-violet-400 font-medium">
+                            <UserRound className="w-3 h-3" />{(task as any).patientName}
                           </span>
                         )}
                         {/* 作成者 */}

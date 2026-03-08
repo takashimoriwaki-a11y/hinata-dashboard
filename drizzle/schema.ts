@@ -145,6 +145,8 @@ export const tasks = mysqlTable("tasks", {
   repeatDayOfMonth: int("repeatDayOfMonth"),
   /** 繰り返し元のタスクID（自動生成タスクの場合に設定） */
   repeatParentId: int("repeatParentId"),
+  /** 関連する利用者名（任意） */
+  patientName: varchar("patientName", { length: 100 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
