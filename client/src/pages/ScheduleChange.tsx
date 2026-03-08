@@ -1209,7 +1209,7 @@ export default function ScheduleChange() {
           {/* 例文一覧 */}
           {!isParsingVoice && !voiceText && (
             <div>
-              <p className="text-[10px] font-medium text-muted-foreground mb-1.5">話しかけの例</p>
+              <p className="text-[10px] font-medium text-muted-foreground mb-1.5">話しかけの例（タップでそのままAI転記）</p>
               <div className="flex flex-col gap-1.5">
                 {[
                   { label: "訪問日時変更", text: "郡山南部チームの山田さんの訪問を明日の10時から午後2時に変更、担当は田中から鈴木に変更" },
@@ -1217,13 +1217,24 @@ export default function ScheduleChange() {
                   { label: "訪問追加", text: "天理チームの中村さんに明後日の14時から訪問を追加、担当は鈴木" },
                   { label: "会議追加", text: "全チーム対象のケア会議を来週月曜の13時から開催、参加は森脇・田中・鈴木" },
                 ].map((ex) => (
-                  <div
+                  <button
                     key={ex.label}
-                    className="rounded-lg bg-background/70 border border-border px-3 py-2"
+                    type="button"
+                    onClick={() => handleVoiceResult(ex.text)}
+                    className={cn(
+                      "w-full text-left rounded-lg bg-background/70 border border-border px-3 py-2",
+                      "hover:bg-primary/5 hover:border-primary/40 active:scale-[0.98] transition-all duration-150",
+                      "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    )}
                   >
-                    <span className="inline-block text-[9px] font-semibold text-primary bg-primary/10 rounded px-1.5 py-0.5 mr-2 leading-none">{ex.label}</span>
-                    <span className="text-[11px] text-muted-foreground leading-snug">{ex.text}</span>
-                  </div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <span className="inline-block text-[9px] font-semibold text-primary bg-primary/10 rounded px-1.5 py-0.5 mr-2 leading-none">{ex.label}</span>
+                        <span className="text-[11px] text-muted-foreground leading-snug">{ex.text}</span>
+                      </div>
+                      <span className="flex-shrink-0 text-[9px] font-medium text-primary bg-primary/10 border border-primary/20 rounded px-1.5 py-0.5 whitespace-nowrap">例文から入力</span>
+                    </div>
+                  </button>
                 ))}
               </div>
             </div>
