@@ -7,7 +7,7 @@
  * - 自分に関係するタスクのみ表示
  * - 作成者のみ編集・削除可能
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import type { Task } from "../../../drizzle/schema";
 import { Card, CardContent } from "@/components/ui/card";
@@ -146,8 +146,16 @@ export default function Tasks() {
   // 日付フィルター
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
 
-  // チームフィルター
+  // チームフィルター（ログインユーザーの所属チームを初期値に自動設定）
   const [teamFilter, setTeamFilter] = useState<TeamFilter>(null);
+
+  useEffect(() => {
+    if (!user?.team) return;
+    const validTeams: Team[] = ["身体", "天理", "郡山北部", "郡山南部"];
+    if (validTeams.includes(user.team as Team)) {
+      setTeamFilter(prev => prev === null ? user.team as Team : prev);
+    }
+  }, [user?.team]);
 
   // 利用者名フィルター
   const [patientFilter, setPatientFilter] = useState<string | null>(null);
