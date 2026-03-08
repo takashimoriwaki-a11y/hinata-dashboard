@@ -1183,7 +1183,7 @@ export default function ScheduleChange() {
 
       {/* 音声入力カード */}
       <Card className="border-2 border-primary/20 bg-primary/5">
-        <CardContent className="p-4">
+        <CardContent className="p-4 space-y-3">
           <div className="flex items-center gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
@@ -1205,8 +1205,32 @@ export default function ScheduleChange() {
               previewMode="tooltip"
             />
           </div>
+
+          {/* 例文一覧 */}
+          {!isParsingVoice && !voiceText && (
+            <div>
+              <p className="text-[10px] font-medium text-muted-foreground mb-1.5">話しかけの例</p>
+              <div className="flex flex-col gap-1.5">
+                {[
+                  { label: "訪問日時変更", text: "郡山南部チームの山田さんの訪問を明日の10時から午後2時に変更、担当は田中から鈴木に変更" },
+                  { label: "訪問キャンセル", text: "郡山北部チームの佐藤さんの明日午剉15時の訪問をキャンセル、利用者都合により" },
+                  { label: "訪問追加", text: "天理チームの中村さんに明後日の14時から訪問を追加、担当は鈴木" },
+                  { label: "会議追加", text: "全チーム対象のケア会議を来週月曜の13時から開催、参加は森脇・田中・鈴木" },
+                ].map((ex) => (
+                  <div
+                    key={ex.label}
+                    className="rounded-lg bg-background/70 border border-border px-3 py-2"
+                  >
+                    <span className="inline-block text-[9px] font-semibold text-primary bg-primary/10 rounded px-1.5 py-0.5 mr-2 leading-none">{ex.label}</span>
+                    <span className="text-[11px] text-muted-foreground leading-snug">{ex.text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {isParsingVoice && (
-            <div className="mt-2 flex items-center gap-2 text-xs text-primary">
+            <div className="flex items-center gap-2 text-xs text-primary">
               <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               <span>AIが音声内容を解析して各項目に転記中...</span>
             </div>
