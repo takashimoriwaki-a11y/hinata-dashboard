@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -810,6 +811,7 @@ function formatSavedAt(ts: number): string {
 
 export default function ScheduleChange() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
 
   // 初期値：下書きがあれば後で復元バナーを表示する
   const [hasDraft, setHasDraft] = useState(() => {
@@ -1093,10 +1095,19 @@ export default function ScheduleChange() {
           </CardContent>
         </Card>
 
-        <Button onClick={handleReset} className="w-full" size="lg">
-          <Plus className="w-4 h-4 mr-2" />
-          続けて入力する
-        </Button>
+        <div className="flex gap-3">
+          <Button onClick={handleReset} className="flex-1" size="lg" variant="outline">
+            <Plus className="w-4 h-4 mr-2" />
+            続けて入力する
+          </Button>
+          <Button
+            onClick={() => setLocation("/")}
+            className="flex-1"
+            size="lg"
+          >
+            ホームへ戻る
+          </Button>
+        </div>
       </div>
     );
   }
