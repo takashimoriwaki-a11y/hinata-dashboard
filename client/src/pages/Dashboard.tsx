@@ -2121,17 +2121,11 @@ function MessageBoard({ title }: { title: string }) {
   return (
     <Card className="fade-in-up stagger-4 shadow-sm flex flex-col h-full">
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <MessageSquare className="w-4 h-4 text-primary" />
             {title}
           </CardTitle>
-          <button
-            onClick={() => setShowForm((v) => !v)}
-            className="text-xs text-primary hover:underline flex items-center gap-0.5"
-          >
-            <Plus className="w-3.5 h-3.5" />投稿
-          </button>
         </div>
       </CardHeader>
       <CardContent className="space-y-2 flex-1 overflow-auto">
@@ -2491,6 +2485,14 @@ function MessageBoard({ title }: { title: string }) {
             })}
           </div>
         )}
+        {/* 新しい投稿ボタン */}
+        <button
+          onClick={() => setShowForm((v) => !v)}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-primary/30 text-primary hover:border-primary hover:bg-primary/5 transition-colors text-sm font-medium mt-2"
+        >
+          {showForm ? <ChevronUp className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+          {showForm ? "フォームを閉じる" : "新しい投稿"}
+        </button>
       </CardContent>
     </Card>
   );
