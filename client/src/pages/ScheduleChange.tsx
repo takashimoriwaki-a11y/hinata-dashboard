@@ -572,26 +572,30 @@ function DateTimePicker({
         </Label>
       )}
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            className={cn(
-              "w-full justify-start text-left font-normal h-10",
-              !value && "text-muted-foreground"
-            )}
-          >
-            <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
-            <span className="flex-1 truncate">{displayValue || placeholder}</span>
-            {value && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onChange(""); setSelectedDate(undefined); }}
-                className="ml-1 hover:text-destructive"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </Button>
-        </PopoverTrigger>
+        <div className="flex items-center gap-1">
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className={cn(
+                "flex-1 flex items-center h-10 px-3 rounded-md border border-input bg-background text-sm text-left font-normal hover:bg-accent hover:text-accent-foreground transition-colors",
+                !value && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+              <span className="flex-1 truncate">{displayValue || placeholder}</span>
+            </button>
+          </PopoverTrigger>
+          {value && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onChange(""); setSelectedDate(undefined); }}
+              className="h-10 w-10 flex items-center justify-center rounded-md border border-input bg-background hover:bg-destructive/10 hover:text-destructive transition-colors flex-shrink-0"
+              aria-label="日時をクリア"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
         <PopoverContent className="w-auto p-0" align="start">
           <div className="p-3 space-y-3">
             <Calendar
