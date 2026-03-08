@@ -821,9 +821,59 @@ export const appRouter = router({
       }).from(users);
       return allUsers;
     }),
+    // 音声入力テキストからタスク内容・期日・指定先をAI解析
+    parseVoice: protectedProcedure
+      .input(z.object({ text: z.string().min(1) }))
+      .mutation(async ({ input }) => {
+        const { invokeLLM } = await import("./_core/llm");
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
+        const systemPrompt = `あなたは訪問看護ステーションの業務アシスタントです。スタッフが音声で伝えた内容から、タスクの各項目を抽出してJSONで返してください。
+今日は${todayStr}です。日時は「明日」「来週月曜」「今月末」などの相対表現も解釈してYYYY-MM-DD形式で返してください。
+抽出項目:
+- text: タスク内容・やることの説明（必須）
+- dueDateStr: 期日日付（YYYY-MM-DD形式）。不明な場合はnull
+- assignType: 指定先の種別。「全員」「全スタッフ」「全体」など→all、「身体」「天理」「郡山北部」「郡山南部」などチーム名→team、特定の人名が含まれる場合→personal。不明な場合はall
+- assignTeam: assignTypeがteamの場合のチーム名（身体/天理/郡山北部/郡山南部のいずれか）。不明な場合はnull
+- assignPersonName: assignTypeがpersonalの場合の担当者名（姓のみで可）。不明な場合はnull
+不明な項目はnullを返してください。必ず有効なJSONのみを返してください。`;
+        const res = await invokeLLM({
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: input.text },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "task_fields",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  text: { type: "string" },
+                  dueDateStr: { type: ["string", "null"] },
+                  assignType: { type: "string", enum: ["all", "team", "personal"] },
+                  assignTeam: { type: ["string", "null"] },
+                  assignPersonName: { type: ["string", "null"] },
+                },
+                required: ["text", "dueDateStr", "assignType", "assignTeam", "assignPersonName"],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+        const rawContent = res.choices?.[0]?.message?.content;
+        const content = typeof rawContent === "string" ? rawContent : null;
+        if (!content) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI解析に失敗しました" });
+        try {
+          const parsed = JSON.parse(content);
+          return { success: true, fields: parsed };
+        } catch {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AIの応答を解析できませんでした" });
+        }
+      }),
   }),
-
-  // ========== メッセージ ==========
+  // ========== メッセージ ===========
   messages: router({
     // 現在表示すべきメッセージ一覧（リアクション付き）
     getActive: protectedProcedure.query(async () => {
@@ -1798,7 +1848,7 @@ export const appRouter = router({
 - staffAfter: 変更後担当スタッフ名
 - meetingName: 会議名
 - meetingStaff: 参加スタッフ名の配列（例: ["森脇", "田中"]）
-- reason: 備考・変更理由
+- reason: 変更理由・備考。「〜のため」「〜なので」「〜だから」「〜の都合」「体調不良」「急用」「病院受診」「家族の都合」「仕事の都合」など、理由・事情を示す語句や文を抽出してください。理由が明示されていない場合はnullを返してください。
 
 不明な項目はnullを返してください。必ず有効なJSONのみを返してください。`;
 

@@ -2,7 +2,7 @@
  * TaskCreateForm - タスク新規作成フォーム（共通コンポーネント）
  * Tasks.tsx と Dashboard.tsx の両方から利用する
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,14 +11,14 @@ import {
   User,
   Users,
   Globe,
-  ChevronUp,
   X,
+  Lightbulb,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { VoiceMicButton } from "@/components/VoiceMicButton";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 
 type AssignType = "all" | "team" | "personal";
@@ -26,6 +26,14 @@ type RepeatType = "none" | "weekly" | "monthly";
 const TEAMS = ["身体", "天理", "郡山北部", "郡山南部"] as const;
 type Team = typeof TEAMS[number];
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"] as const;
+
+/** 音声入力の例文 */
+const VOICE_EXAMPLES = [
+  "○○さんの自立支援医療受給者証を写真撮る",
+  "○○さんの上限管理表に×月×日□□円と記入する",
+  "○○さんに×月×日誕生日プレゼントを渡す",
+  "○○さんに×月×日の訪問時間が△時でいいか確認する",
+];
 
 interface TaskCreateFormProps {
   /** フォームを閉じるときに呼ばれるコールバック */
@@ -39,11 +47,6 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
   const utils = trpc.useUtils();
 
   const [newText, setNewText] = useState("");
-
-  // 音声入力（interimTextを直接取得）
-  const taskVoice = useVoiceInput({
-    onResult: (text: string) => setNewText(prev => prev + (prev ? " " : "") + text),
-  });
   const [newDueDate, setNewDueDate] = useState("");
   const [newDueTime, setNewDueTime] = useState("");
   const [newAssignType, setNewAssignType] = useState<AssignType>("all");
@@ -53,23 +56,81 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
 
   // 繰り返し設定
   const [repeatType, setRepeatType] = useState<RepeatType>("none");
-  const [repeatDayOfWeek, setRepeatDayOfWeek] = useState<number>(1); // 月曜日デフォルト
-  const [repeatDayOfMonth, setRepeatDayOfMonth] = useState<number>(1); // 1日デフォルト
+  const [repeatDayOfWeek, setRepeatDayOfWeek] = useState<number>(1);
+  const [repeatDayOfMonth, setRepeatDayOfMonth] = useState<number>(1);
 
-
+  // AI解析状態
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [lastVoiceText, setLastVoiceText] = useState<string | null>(null);
+  const [showHint, setShowHint] = useState(() => {
+    try { return !localStorage.getItem("taskVoiceHintDismissed"); } catch { return true; }
+  });
 
   // スタッフ一覧（個人指定用）
   const { data: staff = [] } = trpc.tasks.getStaff.useQuery();
 
-  const createTask = trpc.tasks.create.useMutation({
-    onSuccess: () => {
-      utils.tasks.getMine.invalidate();
-      toast.success("タスクを追加しました");
-      onSuccess?.();
-      onClose();
+  // parseVoice mutation
+  const parseVoice = trpc.tasks.parseVoice.useMutation({
+    onSuccess: (data) => {
+      setIsAnalyzing(false);
+      setVoiceError(null);
+      const f = data.fields;
+      if (f.text) setNewText(f.text);
+      if (f.dueDateStr) setNewDueDate(f.dueDateStr);
+      if (f.assignType) setNewAssignType(f.assignType as AssignType);
+      if (f.assignTeam && TEAMS.includes(f.assignTeam as Team)) {
+        setNewAssignTeam(f.assignTeam as Team);
+      }
+      if (f.assignPersonName && f.assignType === "personal") {
+        // スタッフ名から部分一致で検索
+        const found = staff.find(s => s.name && s.name.includes(f.assignPersonName));
+        if (found) {
+          setNewAssignUserId(found.id);
+          setNewAssignUserName(found.name ?? "");
+        } else {
+          setNewAssignUserName(f.assignPersonName);
+        }
+      }
+      toast.success("AI解析完了！内容を確認してください");
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => {
+      setIsAnalyzing(false);
+      setVoiceError(e.message ?? "AI解析に失敗しました");
+    },
   });
+
+  // 音声入力（認識完了後にAI解析へ）
+  const taskVoice = useVoiceInput({
+    onResult: (text: string) => {
+      setLastVoiceText(text);
+      setIsAnalyzing(true);
+      setVoiceError(null);
+      parseVoice.mutate({ text });
+    },
+  });
+
+  // 例文タップでAI解析
+  const handleExampleTap = (example: string) => {
+    if (isAnalyzing || taskVoice.isRecording) return;
+    setLastVoiceText(example);
+    setIsAnalyzing(true);
+    setVoiceError(null);
+    parseVoice.mutate({ text: example });
+  };
+
+  // エラー時リトライ
+  const handleRetry = () => {
+    if (!lastVoiceText) return;
+    setIsAnalyzing(true);
+    setVoiceError(null);
+    parseVoice.mutate({ text: lastVoiceText });
+  };
+
+  const handleDismissHint = () => {
+    setShowHint(false);
+    try { localStorage.setItem("taskVoiceHintDismissed", "1"); } catch {}
+  };
 
   const handleClear = () => {
     setNewText("");
@@ -82,7 +143,19 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     setRepeatType("none");
     setRepeatDayOfWeek(1);
     setRepeatDayOfMonth(1);
+    setVoiceError(null);
+    setLastVoiceText(null);
   };
+
+  const createTask = trpc.tasks.create.useMutation({
+    onSuccess: () => {
+      utils.tasks.getMine.invalidate();
+      toast.success("タスクを追加しました");
+      onSuccess?.();
+      onClose();
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   const handleAdd = () => {
     if (!newText.trim()) {
@@ -116,74 +189,138 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* タスク内容 */}
-        <div>
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">内容 *</label>
-          <div className="flex gap-1.5">
-            <div className="flex-1 space-y-1.5">
-              <textarea
-                placeholder="タスクの内容を入力..."
-                value={newText}
-                onChange={(e) => setNewText(e.target.value)}
-                rows={2}
-                className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-              />
-              {/* 音声認識中の暫定テキストプレビュー */}
-              {taskVoice.isRecording && (
-                <div className={cn(
-                  "px-2 py-1.5 rounded-md border min-h-[28px]",
-                  taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5
-                    ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
-                    : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
-                )}>
-                  {taskVoice.interimText ? (
-                    <p className="text-xs text-red-600 dark:text-red-400 italic leading-relaxed">
-                      🎤 {taskVoice.interimText}
-                    </p>
-                  ) : taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5 ? (
-                    <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
-                      あと{taskVoice.silenceCountdown}秒で自動停止します
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground italic">話してください...</p>
-                  )}
-                </div>
-              )}
+
+        {/* ===== 音声入力AIカード ===== */}
+        <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
+          {/* ヒントバナー（初回のみ） */}
+          {showHint && (
+            <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2 text-xs text-amber-800 dark:text-amber-300 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold flex items-center gap-1"><Lightbulb className="w-3.5 h-3.5" />音声入力のコツ</span>
+                <button type="button" onClick={handleDismissHint} className="text-amber-600 hover:text-amber-900 dark:hover:text-amber-100 transition-colors"><X className="w-3.5 h-3.5" /></button>
+              </div>
+              <ul className="list-disc list-inside space-y-0.5 pl-1">
+                <li>利用者名・期日・担当者を一言で話すだけでOK</li>
+                <li>「○○さんの△△を来週金曜までに」のように話す</li>
+                <li>下の例文をタップしてお試しください</li>
+              </ul>
+              <button type="button" onClick={handleDismissHint} className="mt-1 text-amber-700 dark:text-amber-400 font-medium underline underline-offset-2">わかりました！</button>
             </div>
+          )}
+
+          {/* マイクボタン + 状態表示 */}
+          <div className="flex items-center gap-3">
             <button
               type="button"
-              onPointerDown={(e) => { e.preventDefault(); taskVoice.toggleVoice(); }}
+              onPointerDown={(e) => { e.preventDefault(); if (!isAnalyzing) taskVoice.toggleVoice(); }}
+              disabled={isAnalyzing}
               className={cn(
-                "relative inline-flex items-center justify-center flex-shrink-0 h-10 w-10 rounded-xl self-end",
-                "border transition-all duration-200 select-none touch-manipulation",
+                "relative inline-flex items-center justify-center flex-shrink-0 h-12 w-12 rounded-2xl",
+                "border-2 transition-all duration-200 select-none touch-manipulation",
                 "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                taskVoice.isRecording
-                  ? (taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5
-                      ? "bg-orange-500 border-orange-400 text-white shadow-md shadow-orange-500/40"
-                      : "bg-red-500 border-red-400 text-white shadow-md shadow-red-500/40")
-                  : "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 active:scale-95"
+                isAnalyzing
+                  ? "bg-muted border-muted-foreground/30 text-muted-foreground cursor-wait"
+                  : taskVoice.isRecording
+                    ? (taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5
+                        ? "bg-orange-500 border-orange-400 text-white shadow-lg shadow-orange-500/40"
+                        : "bg-red-500 border-red-400 text-white shadow-lg shadow-red-500/40")
+                    : "bg-primary border-primary text-white hover:bg-primary/90 active:scale-95 shadow-md shadow-primary/30"
               )}
               aria-label={taskVoice.isRecording ? "録音停止" : "音声入力開始"}
-              title={taskVoice.isRecording && taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5 ? `あと${taskVoice.silenceCountdown}秒で自動停止` : undefined}
             >
               {taskVoice.isRecording && (
                 <span className="absolute inset-0 rounded-[inherit] overflow-hidden pointer-events-none">
-                  <span className={cn("absolute inset-0 animate-ping rounded-[inherit] opacity-25", taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5 ? "bg-orange-400" : "bg-red-400")} />
+                  <span className={cn("absolute inset-0 animate-ping rounded-[inherit] opacity-25",
+                    taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5 ? "bg-orange-400" : "bg-red-400")} />
                 </span>
               )}
-              {taskVoice.isRecording && taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5 ? (
-                <span className="text-[10px] font-bold leading-none">{taskVoice.silenceCountdown}</span>
+              {isAnalyzing ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : taskVoice.isRecording && taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5 ? (
+                <span className="text-sm font-bold leading-none">{taskVoice.silenceCountdown}</span>
               ) : taskVoice.isRecording ? (
-                <span className="flex items-end justify-center gap-px h-4">
+                <span className="flex items-end justify-center gap-px h-5">
                   {[0,1,2,3].map((i) => (
                     <span key={i} className="w-0.5 bg-white rounded-full" style={{ height: "60%", animation: "voiceBar 0.5s ease-in-out infinite alternate", animationDelay: `${i * 0.12}s` }} />
                   ))}
                 </span>
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
               )}
             </button>
+            <div className="flex-1 min-w-0">
+              {isAnalyzing ? (
+                <p className="text-xs text-primary font-medium animate-pulse">AIが解析中...</p>
+              ) : taskVoice.isRecording ? (
+                <div>
+                  <p className="text-xs font-medium text-red-600 dark:text-red-400">
+                    {taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5
+                      ? `あと${taskVoice.silenceCountdown}秒で自動停止`
+                      : "話してください..."}
+                  </p>
+                  {taskVoice.interimText && (
+                    <p className="text-xs text-muted-foreground italic truncate">{taskVoice.interimText}</p>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <p className="text-xs font-medium text-foreground">音声入力でAI自動転記</p>
+                  <p className="text-xs text-muted-foreground">マイクをタップして話すと各項目に転記</p>
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* エラーバナー */}
+          {voiceError && (
+            <div className="rounded-lg bg-destructive/10 border border-destructive/30 px-3 py-2 flex items-center justify-between gap-2">
+              <p className="text-xs text-destructive">{voiceError}</p>
+              {lastVoiceText && (
+                <button type="button" onClick={handleRetry}
+                  className="text-xs text-destructive font-medium underline underline-offset-2 flex-shrink-0">
+                  もう一度試す
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* 例文タップ */}
+          {!taskVoice.isRecording && !isAnalyzing && (
+            <div className="space-y-1">
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">例文をタップして試す</p>
+              <div className="flex flex-col gap-1">
+                {VOICE_EXAMPLES.map((ex, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => handleExampleTap(ex)}
+                    className="text-left text-xs px-2.5 py-1.5 rounded-lg border border-primary/20 bg-background hover:bg-primary/10 hover:border-primary/40 text-muted-foreground hover:text-foreground transition-all duration-150 active:scale-[0.98]"
+                  >
+                    {ex}
+                  </button>
+                ))}
+              </div>
+              {!showHint && (
+                <button type="button"
+                  onClick={() => { setShowHint(true); try { localStorage.removeItem("taskVoiceHintDismissed"); } catch {} }}
+                  className="text-[10px] text-primary/60 hover:text-primary underline underline-offset-2 transition-colors">
+                  💡 ヒントを見る
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* タスク内容 */}
+        <div>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">内容 *</label>
+          <textarea
+            placeholder="タスクの内容を入力..."
+            value={newText}
+            onChange={(e) => setNewText(e.target.value)}
+            rows={2}
+            className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+          />
         </div>
 
         {/* 期日・時刻 */}
