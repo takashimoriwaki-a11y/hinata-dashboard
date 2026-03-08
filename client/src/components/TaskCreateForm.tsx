@@ -60,6 +60,8 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
   const [showCandidateDialog, setShowCandidateDialog] = useState(false);
   // 音声転記待機検索クエリ
   const [pendingPatientSearch, setPendingPatientSearch] = useState<string | null>(null);
+  // AIが返した利用者名（allPatientsロード後にマッチング処理するために保持）
+  const [pendingAiPatientName, setPendingAiPatientName] = useState<string | null>(null);
 
   // 繰り返し設定
   const [repeatType, setRepeatType] = useState<RepeatType>("none");
@@ -141,30 +143,9 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
         }
       }
 
-      // 利用者名自動転記（空欄のみ上書き）
+      // 利用者名自動転記: AIが返した名前をstateに保持し、useEffectでallPatientsロード後にマッチング
       if (f.patientName && !patientName.trim()) {
-        const aiName = f.patientName.trim();
-        // AIが利用者リストから正式名を返した場合は直接設定
-        const exactMatch = allPatients.find((p) => p.name === aiName);
-        if (exactMatch) {
-          setPatientName(exactMatch.name);
-          toast.success(`利用者「${exactMatch.name}」を自動選択しました`);
-        } else {
-          // 完全一致しない場合は部分一致で検索
-          const partialMatch = allPatients.filter(
-            (p) => p.name.includes(aiName) || aiName.includes(p.name.split('\u3000')[0].split(' ')[0])
-          );
-          if (partialMatch.length === 1) {
-            setPatientName(partialMatch[0].name);
-            toast.success(`利用者「${partialMatch[0].name}」を自動選択しました`);
-          } else if (partialMatch.length > 1) {
-            setPatientCandidates(partialMatch);
-            setShowCandidateDialog(true);
-          } else {
-            // 一致なし→サーバー検索にフォールバック
-            setPendingPatientSearch(aiName);
-          }
-        }
+        setPendingAiPatientName(f.patientName.trim());
       }
 
       setMissingFields(missing);
@@ -223,6 +204,38 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     { enabled: !!pendingPatientSearch }
   );
 
+  // AIが返した利用者名をallPatientsが揃ってからマッチング（クロージャ問題の回避）
+  useEffect(() => {
+    if (!pendingAiPatientName || patientName.trim()) return;
+    if (allPatients.length === 0) return; // まだロードされていない
+    const aiName = pendingAiPatientName;
+    // 完全一致
+    const exactMatch = allPatients.find((p) => p.name === aiName);
+    if (exactMatch) {
+      setPatientName(exactMatch.name);
+      toast.success(`利用者「${exactMatch.name}」を自動選択しました`);
+      setPendingAiPatientName(null);
+      return;
+    }
+    // 部分一致
+    const partialMatch = allPatients.filter(
+      (p) => p.name.includes(aiName) || aiName.includes(p.name.split('\u3000')[0].split(' ')[0])
+    );
+    if (partialMatch.length === 1) {
+      setPatientName(partialMatch[0].name);
+      toast.success(`利用者「${partialMatch[0].name}」を自動選択しました`);
+      setPendingAiPatientName(null);
+    } else if (partialMatch.length > 1) {
+      setPatientCandidates(partialMatch);
+      setShowCandidateDialog(true);
+      setPendingAiPatientName(null);
+    } else {
+      // 一致なし→サーバー検索にフォールバック
+      setPendingPatientSearch(aiName);
+      setPendingAiPatientName(null);
+    }
+  }, [pendingAiPatientName, allPatients, patientName]);
+
   // pendingPatientSearchの結果が返ったら自動選択 or 候補ダイアログ表示
   useEffect(() => {
     if (!pendingPatientSearch || !pendingSearchFetched) return;
@@ -256,6 +269,8 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     setRepeatDayOfMonth(1);
     setVoiceError(null);
     setLastVoiceText(null);
+    setPendingAiPatientName(null);
+    setPendingPatientSearch(null);
   };
 
   const createTask = trpc.tasks.create.useMutation({
