@@ -1465,6 +1465,23 @@ export default function ScheduleChange() {
               </button>
             </div>
           )}
+
+          {/* 「ヒントを見る」リンク（ヒント非表示中のみ表示） */}
+          {!showVoiceHint && !isParsingVoice && (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowVoiceHint(true);
+                  try { localStorage.removeItem("hinata_voice_hint_seen"); } catch {}
+                }}
+                className="flex items-center gap-1 text-[10px] text-primary/60 hover:text-primary transition-colors"
+              >
+                <span>💡</span>
+                ヒントを見る
+              </button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
