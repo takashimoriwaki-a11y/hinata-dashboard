@@ -152,9 +152,32 @@ export default function Tasks() {
   // 利用者名フィルター
   const [patientFilter, setPatientFilter] = useState<string | null>(null);
 
-  // 並び替え
-  const [sortKey, setSortKey] = useState<SortKey>("dueDate");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  // 並び替え（localStorageで永続化）
+  const [sortKey, setSortKeyRaw] = useState<SortKey>(() => {
+    try {
+      const saved = localStorage.getItem("tasks_sortKey");
+      if (saved === "dueDate" || saved === "createdAt" || saved === "assignType") return saved;
+    } catch {}
+    return "dueDate";
+  });
+  const [sortDir, setSortDirRaw] = useState<SortDir>(() => {
+    try {
+      const saved = localStorage.getItem("tasks_sortDir");
+      if (saved === "asc" || saved === "desc") return saved;
+    } catch {}
+    return "asc";
+  });
+  const setSortKey = (key: SortKey) => {
+    setSortKeyRaw(key);
+    try { localStorage.setItem("tasks_sortKey", key); } catch {}
+  };
+  const setSortDir = (dir: SortDir | ((prev: SortDir) => SortDir)) => {
+    setSortDirRaw((prev) => {
+      const next = typeof dir === "function" ? dir(prev) : dir;
+      try { localStorage.setItem("tasks_sortDir", next); } catch {}
+      return next;
+    });
+  };
 
   // フィルターパネルの開閉
   const [showFilters, setShowFilters] = useState(false);
