@@ -332,6 +332,20 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
             </div>
           )}
 
+          {/* チーム未選択時のヒント（利用者指定時のみ表示） */}
+          {newAssignType === "team" && !taskVoice.isRecording && !isAnalyzing && (
+            <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600 dark:text-blue-400 flex-shrink-0"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+              <p className="text-[10px] text-blue-700 dark:text-blue-300">「{newAssignTeam}」の利用者のみで認識します（精度向上）</p>
+            </div>
+          )}
+          {newAssignType !== "team" && !taskVoice.isRecording && !isAnalyzing && (
+            <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-600 dark:text-amber-400 flex-shrink-0"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+              <p className="text-[10px] text-amber-700 dark:text-amber-300">チームを先に選ぶと利用者名の認識精度が上がります</p>
+            </div>
+          )}
+
           {/* マイクボタン + 状態表示 */}
           <div className="flex items-center gap-3">
             <button
