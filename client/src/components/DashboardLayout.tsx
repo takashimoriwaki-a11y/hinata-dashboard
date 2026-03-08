@@ -277,18 +277,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <button
           onClick={() => setCollapsed(!collapsed)}
           className={cn(
-            "absolute top-[68px] z-40",
-            collapsed ? "-right-3" : "-right-3",
-            "w-6 h-6 rounded-full bg-card border border-border shadow-md",
-            "flex items-center justify-center",
-            "text-muted-foreground hover:text-primary hover:shadow-lg transition-all duration-200"
+            "absolute top-1/2 -translate-y-1/2 z-40 right-0 translate-x-full",
+            "flex flex-col items-center justify-center gap-1",
+            collapsed
+              ? "w-7 h-20 rounded-r-xl bg-primary text-primary-foreground shadow-lg hover:w-9 hover:h-24"
+              : "w-5 h-14 rounded-r-lg bg-muted text-muted-foreground shadow-md hover:bg-primary hover:text-primary-foreground",
+            "transition-all duration-200"
           )}
           title={collapsed ? "サイドバーを開く" : "サイドバーを閉じる"}
         >
-          {collapsed
-            ? <ChevronRight className="w-3.5 h-3.5" />
-            : <ChevronLeft className="w-3.5 h-3.5" />
-          }
+          {collapsed ? (
+            <>
+              <ChevronRight className="w-4 h-4" />
+              <span className="text-[9px] font-bold leading-tight [writing-mode:vertical-rl]">メニュー</span>
+            </>
+          ) : (
+            <ChevronLeft className="w-3.5 h-3.5" />
+          )}
         </button>
       </div>
 
