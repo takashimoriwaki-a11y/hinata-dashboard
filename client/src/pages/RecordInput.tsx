@@ -627,33 +627,9 @@ ${clinicalNotes}`);
             )}
             {showVisitVoiceHint && !visitVoice.isRecording && !isParsingVisitVoice && (
               <div>
-                <p className="text-[10px] font-medium text-muted-foreground mb-1.5">話しかけの例（タップでそのままAI転記）</p>
-                <div className="flex flex-col gap-1.5">
-                  {[
-                    { label: "利用者＋日時＋伝達", text: "山田さんの次回訪問は明日の午後2時、本人に口頭で伝えた" },
-                    { label: "日時＋伝達先＋伝達方法", text: "来週月曜の10時から、家族にカレンダーに記入してもらった" },
-                    { label: "利用者＋伝達先のみ", text: "田中さんに付箋で伝えた" },
-                    { label: "日時のみ", text: "明後日の午前10時に次回訪問" },
-                  ].map((ex) => (
-                    <button
-                      key={ex.label}
-                      type="button"
-                      onClick={() => { setShowVisitVoiceHint(false); handleVisitVoiceResult(ex.text); }}
-                      className={cn(
-                        "w-full text-left rounded-lg bg-background/70 border border-border px-3 py-2",
-                        "hover:bg-primary/5 hover:border-primary/40 active:scale-[0.98] transition-all duration-150",
-                        "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <span className="inline-block text-[9px] font-semibold text-primary bg-primary/10 rounded px-1.5 py-0.5 mr-2 leading-none">{ex.label}</span>
-                          <span className="text-[11px] text-muted-foreground leading-snug">{ex.text}</span>
-                        </div>
-                        <span className="flex-shrink-0 text-[9px] font-medium text-primary bg-primary/10 border border-primary/20 rounded px-1.5 py-0.5 whitespace-nowrap">例文から入力</span>
-                      </div>
-                    </button>
-                  ))}
+                <p className="text-[10px] font-medium text-muted-foreground mb-1.5">話しかけの例</p>
+                <div className="rounded-lg bg-background/70 border border-border px-3 py-2">
+                  <span className="text-[11px] text-muted-foreground leading-snug">山田さんの次回訪問は明日の午後2時、本人に口頭で伝えた</span>
                 </div>
               </div>
             )}

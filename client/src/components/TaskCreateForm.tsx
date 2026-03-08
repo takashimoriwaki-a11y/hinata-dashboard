@@ -31,9 +31,6 @@ const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"] as const;
 /** 音声入力の例文 */
 const VOICE_EXAMPLES = [
   "○○チームの○○さんの自立支援医療受給者証を写真撮る",
-  "○○チームの○○さんの上限管理表に×月×日□□円と記入する",
-  "○○チームの○○さんに×月×日誕生日プレゼントを渡す",
-  "○○チームの○○さんに×月×日の訪問時間が△時でいいか確認する",
 ];
 
 interface TaskCreateFormProps {
@@ -199,19 +196,6 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     },
   });
 
-  // 例文タップでAI解析
-  const handleExampleTap = (example: string) => {
-    if (isAnalyzing || taskVoice.isRecording) return;
-    setLastVoiceText(example);
-    setIsAnalyzing(true);
-    setVoiceError(null);
-    parseVoice.mutate({
-      text: example,
-      patientNames: allPatients.map((p) => p.name),
-      staffNames: staff.map((s) => s.name).filter(Boolean) as string[],
-    });
-  };
-
   // エラー時リトライ
   const handleRetry = () => {
     if (!lastVoiceText) return;
@@ -338,7 +322,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
               <ul className="list-disc list-inside space-y-0.5 pl-1">
                 <li>利用者名・期日・担当者を一言で話すだけでOK</li>
                 <li>「○○さんの△△を来週金曜までに」のように話す</li>
-                <li>下の例文をタップしてお試しください</li>
+                <li>下の例文を参考に話しかけてみてください</li>
               </ul>
               <button type="button" onClick={handleDismissHint} className="mt-1 text-amber-700 dark:text-amber-400 font-medium underline underline-offset-2">わかりました！</button>
             </div>
@@ -479,29 +463,20 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
             </div>
           )}
 
-          {/* 例文タップ */}
+          {/* 例文（表示のみ） */}
           {!taskVoice.isRecording && !isAnalyzing && (
             <div className="space-y-1">
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">例文をタップして試す</p>
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">例文</p>
               <div className="flex flex-col gap-1">
                 {VOICE_EXAMPLES.map((ex, i) => (
-                  <button
+                  <p
                     key={i}
-                    type="button"
-                    onClick={() => handleExampleTap(ex)}
-                    className="text-left text-xs px-2.5 py-1.5 rounded-lg border border-primary/20 bg-background hover:bg-primary/10 hover:border-primary/40 text-muted-foreground hover:text-foreground transition-all duration-150 active:scale-[0.98]"
+                    className="text-left text-xs px-2.5 py-1.5 rounded-lg border border-primary/20 bg-background text-muted-foreground select-text"
                   >
                     {ex}
-                  </button>
+                  </p>
                 ))}
               </div>
-              {!showHint && (
-                <button type="button"
-                  onClick={() => { setShowHint(true); try { localStorage.removeItem("taskVoiceHintDismissed"); } catch {} }}
-                  className="text-[10px] text-primary/60 hover:text-primary underline underline-offset-2 transition-colors">
-                  💡 ヒントを見る
-                </button>
-              )}
             </div>
           )}
         </div>

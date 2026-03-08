@@ -1444,37 +1444,12 @@ export default function ScheduleChange() {
             </div>
           )}
 
-          {/* 例文一覧 */}
+          {/* 例文（表示のみ） */}
           {!isParsingVoice && !voiceText && (
             <div>
-              <p className="text-[10px] font-medium text-muted-foreground mb-1.5">話しかけの例（タップでそのままAI転記）</p>
-              <div className="flex flex-col gap-1.5">
-                {[
-                  { label: "訪問日時変更", text: "郡山南部チームの○○さんの訪問を明日の10時から午後2時に変更、利用者の希望のため" },
-                  { label: "訪問キャンセル（訪問拒否）", text: "身体チームの○○さんの来週月曜の訪問をキャンセル、訪問拒否のため" },
-                  { label: "訪問キャンセル（入院）", text: "天理チームの○○さんが入院のため今月の訪問をすべて中止" },
-                  { label: "訪問追加", text: "郡山北部チームの○○さんに明後日の14時から訪問を追加、担当は○○" },
-                  { label: "会議追加", text: "全チーム対象のケア会議を来週木曜の14時から開催、参加は○○・○○・○○" },
-                ].map((ex) => (
-                  <button
-                    key={ex.label}
-                    type="button"
-                    onClick={() => handleVoiceResult(ex.text)}
-                    className={cn(
-                      "w-full text-left rounded-lg bg-background/70 border border-border px-3 py-2",
-                      "hover:bg-primary/5 hover:border-primary/40 active:scale-[0.98] transition-all duration-150",
-                      "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    )}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <span className="inline-block text-[9px] font-semibold text-primary bg-primary/10 rounded px-1.5 py-0.5 mr-2 leading-none">{ex.label}</span>
-                        <span className="text-[11px] text-muted-foreground leading-snug">{ex.text}</span>
-                      </div>
-                      <span className="flex-shrink-0 text-[9px] font-medium text-primary bg-primary/10 border border-primary/20 rounded px-1.5 py-0.5 whitespace-nowrap">例文から入力</span>
-                    </div>
-                  </button>
-                ))}
+              <p className="text-[10px] font-medium text-muted-foreground mb-1.5">話しかけの例</p>
+              <div className="rounded-lg bg-background/70 border border-border px-3 py-2">
+                <span className="text-[11px] text-muted-foreground leading-snug">郡山南部チームの○○さんの訪問を明日の10時から午後2時に変更、利用者の希望のため</span>
               </div>
             </div>
           )}
