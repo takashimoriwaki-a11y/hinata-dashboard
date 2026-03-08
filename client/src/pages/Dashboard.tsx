@@ -777,7 +777,7 @@ function ScheduleCommentSection({ team, day }: { team: string; day: string }) {
 // ========== ZESTスクリーンショットカード（tRPC+S3+DB版）==========
 
 function ScheduleScreenshotCard() {
-  const { user } = { user: null as null | { id: number; name: string | null; team: string | null } }; // useAuthは後で使う
+  const { user } = useAuth();
   const [selectedTeam, setSelectedTeam] = useState<TeamType>("身体");
   // デフォルトで全チームモードを有効にする
   const [selectedDay, setSelectedDay] = useState<DayType>("今日");
@@ -806,11 +806,20 @@ function ScheduleScreenshotCard() {
   });
 
   // ユーザーのチームが取得できたらデフォルト選択を更新
+  // 全チームモードを解除して個人チームを表示
   useEffect(() => {
-    if (myTeamData?.team) {
-      setSelectedTeam(myTeamData.team as TeamType);
+    const validTeams: TeamType[] = ["身体", "天理", "郡山北部", "郡山南部"];
+    // auth.meのteamを優先、なければuserSettings.getMyTeamを使用
+    const team = (user?.team && validTeams.includes(user.team as TeamType))
+      ? user.team as TeamType
+      : (myTeamData?.team && validTeams.includes(myTeamData.team as TeamType))
+        ? myTeamData.team as TeamType
+        : null;
+    if (team) {
+      setSelectedTeam(team);
+      setShowAllTeams(false); // 個人チームが判明したら全チームモードを解除
     }
-  }, [myTeamData?.team]);
+  }, [user?.team, myTeamData?.team]);
 
   // 全スクショ一覧を取得（30秒ごとに自動更新）
   const { data: screenshots, isLoading: screenshotsLoading } = trpc.schedule.getAll.useQuery(undefined, {
