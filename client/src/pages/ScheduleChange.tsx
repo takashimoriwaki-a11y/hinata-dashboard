@@ -1243,9 +1243,9 @@ export default function ScheduleChange() {
               <DateTimePicker
                 value={fromDatetime}
                 onChange={(v) => { setFromDatetime(v); triggerDraftSave({ fromDatetime: v }); }}
-                label={(changeType === "visit_change" || changeType === "visit_cancel") ? "変更前の日時" : "変更前の日時"}
+                label={changeType === "visit_cancel" ? "キャンセルの日" : "変更前の日時"}
                 required={changeType === "visit_change" || changeType === "visit_cancel"}
-                placeholder="変更前の日時を選択"
+                placeholder={changeType === "visit_cancel" ? "キャンセルの日を選択" : "変更前の日時を選択"}
               />
               {changeType !== "visit_cancel" && (
                 <DateTimePicker
@@ -1259,37 +1259,41 @@ export default function ScheduleChange() {
             </CardContent>
           </Card>
 
-          {/* 担当スタッフ変更（オートコンプリート） */}
-          <Card>
-            <CardHeader className="pb-2 pt-4">
-              <CardTitle className="text-sm font-semibold">担当スタッフ</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <StaffAutocomplete
-                staffList={staffList}
-                value={staffBefore}
-                onChange={(v) => { setStaffBefore(v); triggerDraftSave({ staffBefore: v }); }}
-                label="変更前の担当スタッフ"
-                placeholder="スタッフ名で検索..."
-              />
-              <StaffAutocomplete
-                staffList={staffList}
-                value={staffAfter}
-                onChange={(v) => { setStaffAfter(v); triggerDraftSave({ staffAfter: v }); }}
-                label="変更後の担当スタッフ"
-                placeholder="スタッフ名で検索..."
-              />
-            </CardContent>
-          </Card>
+          {/* 担当スタッフ変更（オートコンプリート） - キャンセル以外のみ表示 */}
+          {changeType !== "visit_cancel" && (
+            <Card>
+              <CardHeader className="pb-2 pt-4">
+                <CardTitle className="text-sm font-semibold">担当スタッフ</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <StaffAutocomplete
+                  staffList={staffList}
+                  value={staffBefore}
+                  onChange={(v) => { setStaffBefore(v); triggerDraftSave({ staffBefore: v }); }}
+                  label="変更前の担当スタッフ"
+                  placeholder="スタッフ名で検索..."
+                />
+                <StaffAutocomplete
+                  staffList={staffList}
+                  value={staffAfter}
+                  onChange={(v) => { setStaffAfter(v); triggerDraftSave({ staffAfter: v }); }}
+                  label="変更後の担当スタッフ"
+                  placeholder="スタッフ名で検索..."
+                />
+              </CardContent>
+            </Card>
+          )}
 
-          {/* 変更理由 */}
+          {/* 変更理由 / キャンセル理由 */}
           <Card>
             <CardHeader className="pb-2 pt-4">
-              <CardTitle className="text-sm font-semibold">変更理由・備考</CardTitle>
+              <CardTitle className="text-sm font-semibold">
+                {changeType === "visit_cancel" ? "キャンセル理由・備考" : "変更理由・備考"}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <Textarea
-                placeholder="変更の理由や特記事項を入力してください..."
+                placeholder={changeType === "visit_cancel" ? "キャンセルの理由や特記事項を入力してください..." : "変更の理由や特記事項を入力してください..."}
                 value={reason}
                 onChange={(e) => { setReason(e.target.value); triggerDraftSave({ reason: e.target.value }); }}
                 rows={3}
@@ -1449,7 +1453,7 @@ export default function ScheduleChange() {
                   </div>
                 ) : fromDatetime ? (
                   <div className="bg-red-500/10 border border-red-400/30 rounded-lg px-3 py-2">
-                    <p className="text-xs text-red-400 font-semibold mb-0.5">変更前（キャンセル）</p>
+                    <p className="text-xs text-red-400 font-semibold mb-0.5">キャンセルの日</p>
                     <p className="font-semibold text-foreground text-sm">{formatDatetime(new Date(fromDatetime).toISOString())}</p>
                   </div>
                 ) : (
@@ -1498,7 +1502,7 @@ export default function ScheduleChange() {
             {/* 変更理由 */}
             {reason && (
               <div className="rounded-xl border border-border bg-background p-3">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">変更理由・備考</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{changeType === "visit_cancel" ? "キャンセル理由・備考" : "変更理由・備考"}</p>
                 <p className="text-sm text-foreground">{reason}</p>
               </div>
             )}
