@@ -826,13 +826,13 @@ function ScheduleScreenshotCard() {
 
   // ユーザーのデフォルトチームを取得
   const { data: myTeamData } = trpc.userSettings.getMyTeam.useQuery();
-  const setMyTeamMutation = trpc.userSettings.setMyTeam.useMutation({
-    onSuccess: () => utils.userSettings.getMyTeam.invalidate(),
-  });
-
-  // ユーザーのチームが取得できたらデフォルト選択を更新
-  // 全チームモードを解除して個人チームを表示
+  // invalidateしない：チーム切替後にmyTeamDataが再取得されてuseEffectが再実行されるのを防ぐ
+  const setMyTeamMutation = trpc.userSettings.setMyTeam.useMutation();
+  // 初回のみデフォルトチームを設定するフラグ（手動切替後は上書きしない）
+  const teamInitializedRef = useRef(false);
+  // ユーザーのチームが取得できたら初回のみデフォルト選択を更新
   useEffect(() => {
+    if (teamInitializedRef.current) return; // 既に初期化済みなら何もしない
     const validTeams: TeamType[] = ["身体", "天理", "郡山北部", "郡山南部"];
     // auth.meのteamを優先、なければuserSettings.getMyTeamを使用
     const team = (user?.team && validTeams.includes(user.team as TeamType))
@@ -841,8 +841,19 @@ function ScheduleScreenshotCard() {
         ? myTeamData.team as TeamType
         : null;
     if (team) {
-      setSelectedTeam(team);
-      setShowAllTeams(false); // 個人チームが判明したら全チームモードを解除
+      teamInitializedRef.current = true;
+      // localStorageに保存済みの場合はその値を尊重（手動変更を上書きしない）
+      const hasSavedPrefs = (() => {
+        try {
+          return localStorage.getItem("hinata_schedule_team") !== null ||
+                 localStorage.getItem("hinata_schedule_all_teams") !== null;
+        } catch { return false; }
+      })();
+      if (!hasSavedPrefs) {
+        // 初回アクセス（localStorage未保存）の場合のみデフォルト設定
+        setSelectedTeam(team);
+        setShowAllTeams(false);
+      }
     }
   }, [user?.team, myTeamData?.team]);
 
