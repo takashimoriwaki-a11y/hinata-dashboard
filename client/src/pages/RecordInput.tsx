@@ -24,6 +24,7 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { VoiceMicButton } from "@/components/VoiceMicButton";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
+import { VoiceHelpDialog } from "@/components/VoiceHelpDialog";
 
 const TEAMS = ["身体", "天理", "郡山北部", "郡山南部"] as const;
 type Team = typeof TEAMS[number];
@@ -159,6 +160,24 @@ export default function RecordInput() {
     if (preview.notifyMethodOther) setNotifyMethodOther(preview.notifyMethodOther);
     setVoicePreview(null);
     setEditingPreview(null);
+    // 転記されたフィールドを黄色フラッシュでハイライト
+    setTimeout(() => {
+      const flashTargets = [
+        preview.patientName ? "record-patient-search" : null,
+        preview.visitDate ? "record-next-visit-date" : null,
+        preview.notifiedTo ? "record-notified-to" : null,
+        preview.notifyMethod ? "record-notify-method" : null,
+      ].filter(Boolean) as string[];
+      flashTargets.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.classList.remove("field-flash");
+          void el.offsetWidth;
+          el.classList.add("field-flash");
+          el.addEventListener("animationend", () => el.classList.remove("field-flash"), { once: true });
+        }
+      });
+    }, 100);
   };
 
   // 個別項目の音声再入力用state
@@ -527,7 +546,10 @@ ${clinicalNotes}`);
           )}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
+                  {!visitVoice.isRecording && !isParsingVisitVoice && <VoiceHelpDialog mode="record" />}
+                </div>
                 {visitVoice.isRecording ? (
                   <p className={cn(
                     "text-xs font-medium mt-0.5",
@@ -905,6 +927,7 @@ ${clinicalNotes}`);
                   <div className="relative flex-1">
                     <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
                     <Input
+                      id="record-patient-search"
                       className="pl-8 text-sm"
                       placeholder="名前で検索..."
                       value={searchQuery}
@@ -965,6 +988,7 @@ ${clinicalNotes}`);
             {/* 日付・時刻入力 */}
             <div className="flex gap-2">
               <Input
+                id="record-next-visit-date"
                 type="date"
                 className="text-sm flex-1"
                 value={nextVisitDate}
@@ -1008,7 +1032,7 @@ ${clinicalNotes}`);
             <p className="text-xs font-medium text-muted-foreground">次回訪問日時の伝達</p>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">伝達先</label>
-              <div className="flex gap-2 flex-wrap">
+              <div id="record-notified-to" className="flex gap-2 flex-wrap">
                 {NOTIFY_TO_OPTIONS.map((opt) => (
                   <button
                     key={opt}
@@ -1030,7 +1054,7 @@ ${clinicalNotes}`);
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">伝達方法</label>
-              <div className="flex gap-2 flex-wrap">
+              <div id="record-notify-method" className="flex gap-2 flex-wrap">
                 {NOTIFY_METHOD_OPTIONS.map((opt) => (
                   <button
                     key={opt}

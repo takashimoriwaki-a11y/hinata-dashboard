@@ -251,4 +251,25 @@
   .highlight-pulse {
     animation: highlightPulse 1.4s ease-in-out;
   }
+
+  /* Voice recording outer ring wave animation */
+  @keyframes voiceRing {
+    0%   { transform: scale(1);   opacity: 0.7; }
+    100% { transform: scale(1.7); opacity: 0; }
+  }
+  @keyframes voiceRing2 {
+    0%   { transform: scale(1);   opacity: 0.5; }
+    100% { transform: scale(1.9); opacity: 0; }
+  }
+
+  /* Field flash highlight animation (after voice transcription) */
+  @keyframes fieldFlash {
+    0%   { background-color: transparent; }
+    20%  { background-color: oklch(0.97 0.12 85); }
+    60%  { background-color: oklch(0.97 0.12 85); }
+    100% { background-color: transparent; }
+  }
+  .field-flash {
+    animation: fieldFlash 1.2s ease-in-out;
+  }
 }

@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { VoiceMicButton } from "@/components/VoiceMicButton";
+import { VoiceHelpDialog } from "@/components/VoiceHelpDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1206,6 +1207,24 @@ export default function ScheduleChange() {
           if (missing.length === 0) {
             toast.success(`音声内容を${applied}項目に自動転記しました`);
           }
+          // 転記されたフィールドを黄色フラッシュでハイライト
+          const flashScIds: string[] = [];
+          if (f.changeType) flashScIds.push("sc-change-type-card");
+          if (f.team) flashScIds.push("sc-team-card");
+          if (f.patientName || searchKey) flashScIds.push("sc-patient-input");
+          if (f.fromDatetime) flashScIds.push("sc-datetime-card");
+          if (f.reason) flashScIds.push("sc-reason-card");
+          setTimeout(() => {
+            flashScIds.forEach((id) => {
+              const el = document.getElementById(id);
+              if (el) {
+                el.classList.remove("field-flash");
+                void el.offsetWidth;
+                el.classList.add("field-flash");
+                el.addEventListener("animationend", () => el.classList.remove("field-flash"), { once: true });
+              }
+            });
+          }, 100);
         } else if (candidates.length > 1) {
           // 複数候補 → 候補選択ダイアログ
           setPendingVoiceFields({ appliedCount: applied });
@@ -1390,7 +1409,10 @@ export default function ScheduleChange() {
         <CardContent className="p-4 space-y-3">
           <div className="flex items-center gap-3">
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
+                {!isVoiceRecording && !isParsingVoice && <VoiceHelpDialog mode="schedule" />}
+              </div>
               {isVoiceRecording ? (
                 <p className="text-xs font-medium text-red-600 dark:text-red-400 animate-pulse mt-0.5">
                   🎙️ 話してください...

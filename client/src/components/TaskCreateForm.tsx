@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
+import { VoiceHelpDialog } from "@/components/VoiceHelpDialog";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 
@@ -187,6 +188,24 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
       if (missing.length === 0) {
         toast.success("AI解析完了！内容を確認してください");
       }
+      // 転記されたフィールドを黄色フラッシュでハイライト
+      const flashIds: string[] = [];
+      if (f.text) flashIds.push("task-content-textarea");
+      if (f.dueDateStr) flashIds.push("task-due-date");
+      if (f.assignType && f.assignType !== "all") flashIds.push("task-assign-type");
+      if (f.assignTeam) flashIds.push("task-assign-team");
+      if (f.patientName) flashIds.push("task-patient-name");
+      setTimeout(() => {
+        flashIds.forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.classList.remove("field-flash");
+            void el.offsetWidth;
+            el.classList.add("field-flash");
+            el.addEventListener("animationend", () => el.classList.remove("field-flash"), { once: true });
+          }
+        });
+      }, 100);
     },
     onError: (e) => {
       setIsAnalyzing(false);
@@ -398,7 +417,10 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
                 </div>
               ) : (
                 <div>
-                  <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
+                    <VoiceHelpDialog mode="task" />
+                  </div>
                   <p className="text-xs text-muted-foreground mt-0.5">マイクをタップして話すと各項目に転記</p>
                 </div>
               )}

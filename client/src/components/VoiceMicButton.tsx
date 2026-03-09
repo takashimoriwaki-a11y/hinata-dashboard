@@ -5,7 +5,7 @@
  * アプリ内の全ての音声入力ボタンはこのコンポーネントを使用する。
  *
  * - タップ1回でON/OFFトグル
- * - 録音中: 赤背景 + 波形バーアニメーション + ping
+ * - 録音中: 赤背景 + 波形バーアニメーション + ping + 外側リング波形
  * - 処理中: スピナー表示
  * - 通常時: マイクアイコン
  * - 録音中は interimText（暫定テキスト）をボタン横にリアルタイム表示
@@ -44,6 +44,7 @@ const sizeConfig = {
     barWidth: "w-0.5",
     previewText: "text-xs",
     countdown: "text-[9px]",
+    ringRadius: "rounded-lg",
   },
   md: {
     button: "h-10 w-10 rounded-xl",
@@ -52,6 +53,7 @@ const sizeConfig = {
     barWidth: "w-0.5",
     previewText: "text-sm",
     countdown: "text-[10px]",
+    ringRadius: "rounded-xl",
   },
   lg: {
     button: "h-14 w-14 rounded-full",
@@ -60,6 +62,7 @@ const sizeConfig = {
     barWidth: "w-0.5",
     previewText: "text-sm",
     countdown: "text-sm",
+    ringRadius: "rounded-full",
   },
 };
 
@@ -86,7 +89,7 @@ export function VoiceMicButton({
     toggleVoice();
   };
 
-  const button = (
+  const innerButton = (
     <button
       type="button"
       onPointerDown={handlePointerDown}
@@ -197,11 +200,38 @@ export function VoiceMicButton({
     </button>
   );
 
+  // 外側リング波形アニメーション付きラッパー
+  const buttonWithRings = (
+    <span className="relative inline-flex items-center justify-center flex-shrink-0">
+      {/* 外側リング（1枚目）: 録音中かつカウントダウンなし */}
+      {isRecording && !showCountdown && (
+        <span
+          className={cn("absolute inset-0 pointer-events-none", cfg.ringRadius)}
+          style={{
+            animation: "voiceRing 1.4s ease-out infinite",
+            backgroundColor: "rgba(239, 68, 68, 0.35)",
+          }}
+        />
+      )}
+      {/* 外側リング（2枚目）: 0.5秒遅延 */}
+      {isRecording && !showCountdown && (
+        <span
+          className={cn("absolute inset-0 pointer-events-none", cfg.ringRadius)}
+          style={{
+            animation: "voiceRing2 1.4s ease-out 0.5s infinite",
+            backgroundColor: "rgba(239, 68, 68, 0.25)",
+          }}
+        />
+      )}
+      {innerButton}
+    </span>
+  );
+
   // inline モード: ボタン + テキストを横並びで返す
   if (previewMode === "inline") {
     return (
       <span className="inline-flex items-center gap-2 min-w-0">
-        {button}
+        {buttonWithRings}
         {isRecording && interimText && (
           <span
             className={cn(
@@ -227,5 +257,5 @@ export function VoiceMicButton({
     );
   }
 
-  return button;
+  return buttonWithRings;
 }

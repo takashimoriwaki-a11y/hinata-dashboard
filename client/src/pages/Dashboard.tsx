@@ -62,6 +62,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import TaskCreateForm from "@/components/TaskCreateForm";
 import { VoiceMicButton } from "@/components/VoiceMicButton";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
+import { VoiceHelpDialog } from "@/components/VoiceHelpDialog";
 
 // ========== データ定義 ==========
 
@@ -2019,6 +2020,23 @@ function MessageBoard({ title }: { title: string }) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (toast as any).success("AIが各項目に転記しました");
       }
+      // 転記されたフィールドを黄色フラッシュでハイライト
+      const flashMsgIds: string[] = [];
+      if (f.text) flashMsgIds.push("msg-content-textarea");
+      if (f.displayFromDate) flashMsgIds.push("msg-display-from");
+      if (f.displayUntilDate) flashMsgIds.push("msg-display-until");
+      if (f.scheduledAtDate) flashMsgIds.push("msg-scheduled-at");
+      setTimeout(() => {
+        flashMsgIds.forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.classList.remove("field-flash");
+            void el.offsetWidth;
+            el.classList.add("field-flash");
+            el.addEventListener("animationend", () => el.classList.remove("field-flash"), { once: true });
+          }
+        });
+      }, 100);
     },
     onError: (e) => {
       setIsAnalyzingMsg(false);
@@ -2166,7 +2184,10 @@ function MessageBoard({ title }: { title: string }) {
                     </div>
                   ) : (
                     <div>
-                      <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
+                        <VoiceHelpDialog mode="message" />
+                      </div>
                       <p className="text-xs text-muted-foreground mt-0.5">マイクをタップして話すと各項目に転記</p>
                     </div>
                   )}
