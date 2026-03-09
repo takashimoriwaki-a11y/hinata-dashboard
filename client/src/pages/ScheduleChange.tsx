@@ -1046,14 +1046,26 @@ export default function ScheduleChange() {
   // 送信ミューテーション
   const createAndExport = trpc.scheduleChanges.createAndExport.useMutation({
     onSuccess: (data) => {
-      clearDraft(); // 送信完了時に下書き削除
-      setDraftSavedAt(null);
       if (data.exported) {
         toast.success("スケジュール変更連絡を送信し、スプレッドシートに転記しました");
       } else {
         toast.success("スケジュール変更連絡を送信しました（スプレッドシート転記は後で実行されます）");
       }
       setSubmitted(true);
+      // 転送後にフォームを自動リセット（送信完了画面はそのまま表示し、入力内容のみクリア）
+      clearDraft();
+      setDraftSavedAt(null);
+      setDraftRestored(false);
+      setChangeType("");
+      setTeam("");
+      setPatientName("");
+      setFromDatetime("");
+      setToDatetime("");
+      setStaffBefore("");
+      setStaffAfter("");
+      setMeetingName("");
+      setMeetingStaff([]);
+      setReason("");
     },
     onError: (err) => {
       toast.error(`送信に失敗しました: ${err.message}`);
