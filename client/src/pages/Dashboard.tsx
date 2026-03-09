@@ -64,7 +64,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useTheme } from "@/contexts/ThemeContext";
 import TaskCreateForm from "@/components/TaskCreateForm";
 import { VoiceMicButton } from "@/components/VoiceMicButton";
@@ -1990,6 +1990,7 @@ function MessageBoard({ title }: { title: string }) {
   const utils = trpc.useUtils();
   const { user } = useAuth();
   const { isNight } = useTheme();
+  const [, navigate] = useLocation();
 
   // DBからメッセージ取得
   const { data: messages = [], isLoading } = trpc.messages.getActive.useQuery(undefined, {
@@ -2085,7 +2086,9 @@ function MessageBoard({ title }: { title: string }) {
       setDisplayFrom(""); setDisplayFromTime("");
       setDisplayUntil(""); setDisplayUntilTime("");
       setScheduledAt(""); setScheduledAtTime("");
-      // フォームは開いたままにして入力内容のみリセット
+      setShowForm(false);
+      // ホーム画面へ遷移
+      navigate("/");
     },
     onError: (e) => toast.error(e.message),
   });
