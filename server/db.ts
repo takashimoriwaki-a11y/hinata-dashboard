@@ -1,4 +1,4 @@
-import { and, eq, or, isNull, desc, lte, gte, lt, sql } from "drizzle-orm";
+import { and, eq, or, isNull, isNotNull, desc, lte, gte, gt, lt, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot, myLinks, InsertMyLink, spreadsheetLinks, InsertSpreadsheetLink, tasks, InsertTask, messages, InsertMessage, messageReactions, InsertMessageReaction, patients, InsertPatient, visitRecords, InsertVisitRecord, appNotifications, InsertAppNotification } from "../drizzle/schema";
 import { screenshotUploadLogs, InsertScreenshotUploadLog, appSettings } from "../drizzle/schema";
@@ -495,6 +495,29 @@ export async function getActiveMessages() {
       )
     )
     .orderBy(desc(messages.createdAt));
+}
+
+/**
+ * 予約送信待ちのメッセージ一覧を取得する
+ * 条件:
+ *   - deletedAt IS NULL
+ *   - scheduledAt IS NOT NULL AND scheduledAt > now（まだ送信されていない）
+ */
+export async function getPendingMessages() {
+  const db = await getDb();
+  if (!db) return [];
+  const now = new Date();
+  return db
+    .select()
+    .from(messages)
+    .where(
+      and(
+        isNull(messages.deletedAt),
+        isNotNull(messages.scheduledAt),
+        gt(messages.scheduledAt, now)
+      )
+    )
+    .orderBy(messages.scheduledAt);
 }
 
 /** メッセージを作成する */

@@ -1989,6 +1989,12 @@ function MessageBoard({ title }: { title: string }) {
     refetchInterval: 30000, // 30秒ごとに自動更新
   });
 
+  // 予約送信待ちメッセージ
+  const { data: pendingMessages = [] } = trpc.messages.getPending.useQuery(undefined, {
+    refetchInterval: 30000,
+  });
+  const [showPending, setShowPending] = useState(false);
+
   const [newMsg, setNewMsg] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [displayFrom, setDisplayFrom] = useState("");
@@ -2072,7 +2078,7 @@ function MessageBoard({ title }: { title: string }) {
       setDisplayFrom(""); setDisplayFromTime("");
       setDisplayUntil(""); setDisplayUntilTime("");
       setScheduledAt(""); setScheduledAtTime("");
-      setShowForm(false);
+      // フォームは開いたままにして入力内容のみリセット
     },
     onError: (e) => toast.error(e.message),
   });
@@ -2585,6 +2591,77 @@ function MessageBoard({ title }: { title: string }) {
             })}
           </div>
         )}
+        {/* 予約送信確認セクション */}
+        {pendingMessages.length > 0 && (
+          <div className="mt-2">
+            <button
+              onClick={() => setShowPending((v) => !v)}
+              className={cn(
+                "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors",
+                isNight
+                  ? "bg-blue-900/30 text-blue-300 hover:bg-blue-900/50"
+                  : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+              )}
+            >
+              <div className="flex items-center gap-1.5">
+                <CalendarClock className="w-3.5 h-3.5" />
+                <span>予約送信待ち</span>
+                <span className={cn(
+                  "inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full",
+                  isNight ? "bg-blue-700 text-white" : "bg-blue-600 text-white"
+                )}>{pendingMessages.length}</span>
+              </div>
+              {showPending ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+            {showPending && (
+              <div className={cn(
+                "mt-1.5 rounded-xl border p-3 space-y-2",
+                isNight ? "border-blue-800/50 bg-blue-950/30" : "border-blue-100 bg-blue-50/50"
+              )}>
+                {pendingMessages.map((msg) => (
+                  <div key={msg.id} className={cn(
+                    "p-2.5 rounded-lg border",
+                    isNight ? "border-blue-800/40 bg-blue-900/20" : "border-blue-100 bg-white"
+                  )}>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <div className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center text-[9px] font-bold text-blue-600">
+                        {(msg.createdByName ?? "不明")[0]}
+                      </div>
+                      <span className="text-[11px] font-semibold text-foreground">
+                        {(() => {
+                          const parts = (msg.createdByName ?? "不明").trim().split(/\s+/);
+                          return parts.length >= 2 ? `${parts[parts.length - 1]} ${parts.slice(0, -1).join(" ")}` : (msg.createdByName ?? "不明");
+                        })()}
+                      </span>
+                      <span className={cn(
+                        "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
+                        isNight ? "bg-blue-800/60 text-blue-300" : "bg-blue-100 text-blue-700"
+                      )}>
+                        送信予定: {new Date(msg.scheduledAt!).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    </div>
+                    <p className="text-xs text-foreground/80 leading-relaxed pl-6.5">{msg.text}</p>
+                    {(msg.displayFrom || msg.displayUntil) && (
+                      <div className="flex flex-wrap gap-1 mt-1 pl-6.5">
+                        {msg.displayFrom && (
+                          <span className="text-[10px] text-muted-foreground">
+                            表示開始: {new Date(msg.displayFrom).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        )}
+                        {msg.displayUntil && (
+                          <span className="text-[10px] text-muted-foreground">
+                            表示終了: {new Date(msg.displayUntil).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* 新しい投稿ボタン */}
         <button
           onClick={() => setShowForm((v) => !v)}

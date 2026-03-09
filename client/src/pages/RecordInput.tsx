@@ -180,9 +180,24 @@ export default function RecordInput() {
       setSearchQuery(preview.patientName ?? "");
       setShowPatientList(false);
     } else if (preview.patientName) {
-      setPatientName(preview.patientName);
-      setSearchQuery(preview.patientName);
-      setShowPatientList(true);
+      // patientIdがない場合、利用者リストから再マッチングを試みる
+      const src = allPatientsRef.current.length > 0 ? allPatientsRef.current : patientsRef.current;
+      const aiName = preview.patientName;
+      const exact = src.find((p) => p.name === aiName);
+      const partial = !exact ? src.filter((p) =>
+        p.name.includes(aiName) || aiName.includes(p.name.split('\u3000')[0].split(' ')[0])
+      ) : null;
+      const matched = exact ?? (partial && partial.length === 1 ? partial[0] : undefined);
+      if (matched) {
+        setPatientId(matched.id);
+        setPatientName(matched.name);
+        setSearchQuery(matched.name);
+        setShowPatientList(false);
+      } else {
+        setPatientName(aiName);
+        setSearchQuery(aiName);
+        setShowPatientList(true);
+      }
     }
     if (preview.visitDate) setNextVisitDate(preview.visitDate);
     if (preview.visitTime) setNextVisitTime(preview.visitTime);
@@ -542,7 +557,7 @@ export default function RecordInput() {
     // 病状の経過テキストを構築してコピー
     const lines: string[] = [];
     if (patientName) lines.push(`利用者：${patientName}`);
-    if (team) lines.push(`チーム：${team}`);
+    // チーム名はコピー内容から除外
     if (clinicalNotes) lines.push(`
 【病状の経過】
 ${clinicalNotes}`);

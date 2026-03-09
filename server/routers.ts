@@ -30,6 +30,7 @@ import {
   getTaskById,
   updateTask,
   getActiveMessages,
+  getPendingMessages,
   createMessage,
   softDeleteMessage,
   updateMessage,
@@ -911,6 +912,12 @@ export const appRouter = router({
         ...m,
         reactions: reactions.filter((r) => r.messageId === m.id),
       }));
+    }),
+
+    // 予約送信待ちメッセージ一覧（まだ送信されていないもの）
+    getPending: protectedProcedure.query(async () => {
+      const msgs = await getPendingMessages();
+      return msgs;
     }),
 
     // メッセージを作成する
