@@ -2,7 +2,7 @@
  * TaskCreateForm - タスク新規作成フォーム（共通コンポーネント）
  * Tasks.tsx と Dashboard.tsx の両方から利用する
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -89,11 +89,11 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
   // スタッフ一覧（個人指定用）
   const { data: staff = [] } = trpc.tasks.getStaff.useQuery();
 
-  // 全利用者一覧（音声転記AI用）
-  // チーム選択時はそのチームの利用者のみに自動絞り込み
-  const { data: allPatients = [] } = trpc.patients.list.useQuery(
-    { team: newAssignType === "team" ? newAssignTeam : undefined }
-  );
+  // 全利用者一覧（音声転記AI用）— チーム絞り込みなし、常に全件取得
+  const { data: allPatients = [] } = trpc.patients.list.useQuery({});
+  // allPatientsRef: クロージャ問題を回避するために最新値をRefで保持
+  const allPatientsRef = useRef(allPatients);
+  useEffect(() => { allPatientsRef.current = allPatients; }, [allPatients]);
 
   // parseVoice mutation
   const parseVoice = trpc.tasks.parseVoice.useMutation({
@@ -102,8 +102,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
       setVoiceError(null);
       const f = data.fields;
       const missing: string[] = [];
-
-      // タスク内容（空欄のみ上書き）
+      // タスク内容（空欄のみ上書き））
       if (f.text) {
         setNewText(prev => prev.trim() ? prev : f.text!);
       } else {
@@ -143,9 +142,40 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
         }
       }
 
-      // 利用者名自動転記: AIが返した名前をstateに保持し、useEffectでallPatientsロード後にマッチング
-      if (f.patientName && !patientName.trim()) {
-        setPendingAiPatientName(f.patientName.trim());
+      // 利用者名自動転記: AIが返した名前を最新のallPatientsで即座にマッチング
+      if (f.patientName) {
+        const aiName = f.patientName.trim();
+        const latestPatients = allPatientsRef.current;
+        const applyPatient = (name: string) => {
+          setPatientName(name);
+          // チーム指定モードの場合、利用者が別チームの可能性があるためフリーテキスト入力モードに切り替え
+          setNewAssignType("all");
+          toast.success(`利用者「${name}」を自動選択しました`);
+        };
+        if (latestPatients.length > 0) {
+          // 完全一致
+          const exactMatch = latestPatients.find((p) => p.name === aiName);
+          if (exactMatch) {
+            applyPatient(exactMatch.name);
+          } else {
+            // 部分一致
+            const partialMatch = latestPatients.filter(
+              (p) => p.name.includes(aiName) || aiName.includes(p.name.split('\u3000')[0].split(' ')[0])
+            );
+            if (partialMatch.length === 1) {
+              applyPatient(partialMatch[0].name);
+            } else if (partialMatch.length > 1) {
+              setPatientCandidates(partialMatch);
+              setShowCandidateDialog(true);
+            } else {
+              // 一致なし→useEffectフォールバックへ
+              setPendingAiPatientName(aiName);
+            }
+          }
+        } else {
+          // まだロードされていない→useEffectフォールバックへ
+          setPendingAiPatientName(aiName);
+        }
       }
 
       setMissingFields(missing);
@@ -209,12 +239,16 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     if (!pendingAiPatientName || patientName.trim()) return;
     if (allPatients.length === 0) return; // まだロードされていない
     const aiName = pendingAiPatientName;
+    const applyPatientEffect = (name: string) => {
+      setPatientName(name);
+      setNewAssignType("all"); // 別チームの利用者でも表示できるようフリーテキストモードに切り替え
+      toast.success(`利用者「${name}」を自動選択しました`);
+      setPendingAiPatientName(null);
+    };
     // 完全一致
     const exactMatch = allPatients.find((p) => p.name === aiName);
     if (exactMatch) {
-      setPatientName(exactMatch.name);
-      toast.success(`利用者「${exactMatch.name}」を自動選択しました`);
-      setPendingAiPatientName(null);
+      applyPatientEffect(exactMatch.name);
       return;
     }
     // 部分一致
@@ -222,9 +256,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
       (p) => p.name.includes(aiName) || aiName.includes(p.name.split('\u3000')[0].split(' ')[0])
     );
     if (partialMatch.length === 1) {
-      setPatientName(partialMatch[0].name);
-      toast.success(`利用者「${partialMatch[0].name}」を自動選択しました`);
-      setPendingAiPatientName(null);
+      applyPatientEffect(partialMatch[0].name);
     } else if (partialMatch.length > 1) {
       setPatientCandidates(partialMatch);
       setShowCandidateDialog(true);
@@ -242,6 +274,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     if (pendingSearchResults.length === 1) {
       // 1件のみ→自動選択
       setPatientName(pendingSearchResults[0].name);
+      setNewAssignType("all"); // 別チームの利用者でも表示できるようフリーテキストモードに切り替え
       toast.success(`利用者「${pendingSearchResults[0].name}」を自動選択しました`);
     } else if (pendingSearchResults.length > 1) {
       // 複数候補→候補ダイアログ表示
@@ -250,6 +283,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     } else {
       // 該当なし→入力欄に苗字をそのまま設定
       setPatientName(pendingPatientSearch);
+      setNewAssignType("all");
     }
     setPendingPatientSearch(null);
   }, [pendingPatientSearch, pendingSearchFetched, pendingSearchResults]);
