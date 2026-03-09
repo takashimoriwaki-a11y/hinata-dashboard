@@ -60,8 +60,8 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
   const [showCandidateDialog, setShowCandidateDialog] = useState(false);
   // 音声転記待機検索クエリ
   const [pendingPatientSearch, setPendingPatientSearch] = useState<string | null>(null);
-  // AIが返した利用者名（allPatientsロード後にマッチング処理するために保持）
-  const [pendingAiPatientName, setPendingAiPatientName] = useState<string | null>(null);
+  // AIが返した利用者名（allPatientsロード後にマッチング処理するために保持）— チーム情報も保持
+  const [pendingAiPatient, setPendingAiPatient] = useState<{ name: string; assignType: AssignType; assignTeam: Team | null } | null>(null);
 
   // 繰り返し設定
   const [repeatType, setRepeatType] = useState<RepeatType>("none");
@@ -148,8 +148,13 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
         const latestPatients = allPatientsRef.current;
         const applyPatient = (name: string) => {
           setPatientName(name);
-          // チーム指定モードの場合、利用者が別チームの可能性があるためフリーテキスト入力モードに切り替え
-          setNewAssignType("all");
+          // AIが「○○チーム」を明示した場合はチーム情報を保持、それ以外はフリーテキストモードに切り替え
+          if (assignType === "team" && f.assignTeam && TEAMS.includes(f.assignTeam as Team)) {
+            setNewAssignType("team");
+            setNewAssignTeam(f.assignTeam as Team);
+          } else {
+            setNewAssignType("all");
+          }
           toast.success(`利用者「${name}」を自動選択しました`);
         };
         if (latestPatients.length > 0) {
@@ -168,13 +173,13 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
               setPatientCandidates(partialMatch);
               setShowCandidateDialog(true);
             } else {
-              // 一致なし→useEffectフォールバックへ
-              setPendingAiPatientName(aiName);
+              // 一致なし→useEffectフォールバックへ（チーム情報も保持）
+              setPendingAiPatient({ name: aiName, assignType, assignTeam: (f.assignTeam as Team | null) ?? null });
             }
           }
         } else {
-          // まだロードされていない→useEffectフォールバックへ
-          setPendingAiPatientName(aiName);
+          // まだロードされていない→useEffectフォールバックへ（チーム情報も保持）
+          setPendingAiPatient({ name: aiName, assignType, assignTeam: (f.assignTeam as Team | null) ?? null });
         }
       }
 
@@ -236,14 +241,20 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
 
   // AIが返した利用者名をallPatientsが揃ってからマッチング（クロージャ問題の回避）
   useEffect(() => {
-    if (!pendingAiPatientName || patientName.trim()) return;
+    if (!pendingAiPatient || patientName.trim()) return;
     if (allPatients.length === 0) return; // まだロードされていない
-    const aiName = pendingAiPatientName;
+    const { name: aiName, assignType: pendingAssignType, assignTeam: pendingAssignTeam } = pendingAiPatient;
     const applyPatientEffect = (name: string) => {
       setPatientName(name);
-      setNewAssignType("all"); // 別チームの利用者でも表示できるようフリーテキストモードに切り替え
+      // AIがチームを明示した場合はチーム情報を保持、それ以外はフリーテキストモードに切り替え
+      if (pendingAssignType === "team" && pendingAssignTeam && TEAMS.includes(pendingAssignTeam)) {
+        setNewAssignType("team");
+        setNewAssignTeam(pendingAssignTeam);
+      } else {
+        setNewAssignType("all");
+      }
       toast.success(`利用者「${name}」を自動選択しました`);
-      setPendingAiPatientName(null);
+      setPendingAiPatient(null);
     };
     // 完全一致
     const exactMatch = allPatients.find((p) => p.name === aiName);
@@ -260,13 +271,13 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     } else if (partialMatch.length > 1) {
       setPatientCandidates(partialMatch);
       setShowCandidateDialog(true);
-      setPendingAiPatientName(null);
+      setPendingAiPatient(null);
     } else {
       // 一致なし→サーバー検索にフォールバック
       setPendingPatientSearch(aiName);
-      setPendingAiPatientName(null);
+      setPendingAiPatient(null);
     }
-  }, [pendingAiPatientName, allPatients, patientName]);
+  }, [pendingAiPatient, allPatients, patientName]);
 
   // pendingPatientSearchの結果が返ったら自動選択 or 候補ダイアログ表示
   useEffect(() => {
@@ -303,7 +314,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     setRepeatDayOfMonth(1);
     setVoiceError(null);
     setLastVoiceText(null);
-    setPendingAiPatientName(null);
+    setPendingAiPatient(null);
     setPendingPatientSearch(null);
   };
 
