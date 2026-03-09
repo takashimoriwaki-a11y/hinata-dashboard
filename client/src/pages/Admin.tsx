@@ -1964,6 +1964,7 @@ function QuickAccessLinksPanel() {
   const [newCategory, setNewCategory] = useState<QuickAccessCategory>("スプレッドシート");
   const [newLabel, setNewLabel] = useState("");
   const [newHref, setNewHref] = useState("");
+  const [newEmoji, setNewEmoji] = useState("");
   const [newColor, setNewColor] = useState("text-blue-600");
   const [newSortOrder, setNewSortOrder] = useState(0);
 
@@ -1971,6 +1972,7 @@ function QuickAccessLinksPanel() {
   const [editCategory, setEditCategory] = useState<QuickAccessCategory>("スプレッドシート");
   const [editLabel, setEditLabel] = useState("");
   const [editHref, setEditHref] = useState("");
+  const [editEmoji, setEditEmoji] = useState("");
   const [editColor, setEditColor] = useState("text-blue-600");
   const [editSortOrder, setEditSortOrder] = useState(0);
 
@@ -1978,15 +1980,17 @@ function QuickAccessLinksPanel() {
     setNewCategory("スプレッドシート");
     setNewLabel("");
     setNewHref("");
+    setNewEmoji("");
     setNewColor("text-blue-600");
     setNewSortOrder(0);
   }
 
-  function startEdit(link: { id: number; category: string; label: string; href: string; color: string; sortOrder: number }) {
+  function startEdit(link: { id: number; category: string; label: string; href: string; emoji: string; color: string; sortOrder: number }) {
     setEditingId(link.id);
     setEditCategory(link.category as QuickAccessCategory);
     setEditLabel(link.label);
     setEditHref(link.href);
+    setEditEmoji(link.emoji ?? "");
     setEditColor(link.color);
     setEditSortOrder(link.sortOrder);
   }
@@ -2043,6 +2047,16 @@ function QuickAccessLinksPanel() {
                 </div>
               </div>
               <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">絵文字アイコン（任意）</label>
+                <input
+                  type="text"
+                  value={newEmoji}
+                  onChange={(e) => setNewEmoji(e.target.value)}
+                  placeholder="例：📄 📊 📝"
+                  className="w-full h-8 px-3 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div>
                 <label className="text-xs font-medium text-muted-foreground block mb-1">表示名</label>
                 <input
                   type="text"
@@ -2074,7 +2088,7 @@ function QuickAccessLinksPanel() {
               <div className="flex gap-2 pt-1">
                 <Button
                   size="sm"
-                  onClick={() => createMutation.mutate({ category: newCategory, label: newLabel, href: newHref, color: newColor, sortOrder: newSortOrder })}
+                  onClick={() => createMutation.mutate({ category: newCategory, label: newLabel, href: newHref, emoji: newEmoji, color: newColor, sortOrder: newSortOrder })}
                   disabled={createMutation.isPending || !newLabel.trim() || !newHref.trim()}
                 >
                   {createMutation.isPending ? "追加中..." : "追加する"}
@@ -2131,6 +2145,13 @@ function QuickAccessLinksPanel() {
                               </div>
                               <input
                                 type="text"
+                                value={editEmoji}
+                                onChange={(e) => setEditEmoji(e.target.value)}
+                                placeholder="絵文字（任意）"
+                                className="w-full h-7 px-2 rounded border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                              />
+                              <input
+                                type="text"
                                 value={editLabel}
                                 onChange={(e) => setEditLabel(e.target.value)}
                                 placeholder="表示名"
@@ -2156,7 +2177,7 @@ function QuickAccessLinksPanel() {
                                 <Button
                                   size="sm"
                                   className="h-7 text-xs"
-                                  onClick={() => updateMutation.mutate({ id: link.id, category: editCategory, label: editLabel, href: editHref, color: editColor, sortOrder: editSortOrder })}
+                                  onClick={() => updateMutation.mutate({ id: link.id, category: editCategory, label: editLabel, href: editHref, emoji: editEmoji, color: editColor, sortOrder: editSortOrder })}
                                   disabled={updateMutation.isPending || !editLabel.trim() || !editHref.trim()}
                                 >
                                   {updateMutation.isPending ? "保存中..." : "保存"}
@@ -2169,6 +2190,7 @@ function QuickAccessLinksPanel() {
                           ) : (
                             // 表示行
                             <div className="flex items-center gap-3">
+                              {link.emoji && <span className="text-lg flex-shrink-0">{link.emoji}</span>}
                               <div className="flex-1 min-w-0">
                                 <p className={cn("text-sm font-medium truncate", link.color)}>{link.label}</p>
                                 <p className="text-xs text-muted-foreground truncate">{link.href}</p>

@@ -1,0 +1,1 @@
+ALTER TABLE `quick_access_links` ADD `emoji` varchar(10) DEFAULT '' NOT NULL;

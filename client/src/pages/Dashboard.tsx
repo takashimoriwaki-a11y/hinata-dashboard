@@ -1594,14 +1594,14 @@ function ToolsCard() {
 
   // クイックアクセスリンク（tRPC + DB）
   const { data: quickLinks } = trpc.quickAccessLinks.list.useQuery();
-  const docLinks: { label: string; href: string; color: string }[] = quickLinks
-    ? quickLinks.filter((l) => l.category === "ドキュメント").map((l) => ({ label: l.label, href: l.href, color: l.color }))
+  const docLinks: { label: string; href: string; color: string; emoji?: string }[] = quickLinks
+    ? quickLinks.filter((l) => l.category === "ドキュメント").map((l) => ({ label: l.label, href: l.href, color: l.color, emoji: l.emoji || undefined }))
     : documentLinks;
-  const frmLinks: { label: string; href: string; color: string }[] = quickLinks
-    ? quickLinks.filter((l) => l.category === "フォーム").map((l) => ({ label: l.label, href: l.href, color: l.color }))
+  const frmLinks: { label: string; href: string; color: string; emoji?: string }[] = quickLinks
+    ? quickLinks.filter((l) => l.category === "フォーム").map((l) => ({ label: l.label, href: l.href, color: l.color, emoji: l.emoji || undefined }))
     : formLinks;
-  const othLinks: { label: string; href: string; color: string }[] = quickLinks
-    ? quickLinks.filter((l) => l.category === "その他").map((l) => ({ label: l.label, href: l.href, color: l.color }))
+  const othLinks: { label: string; href: string; color: string; emoji?: string }[] = quickLinks
+    ? quickLinks.filter((l) => l.category === "その他").map((l) => ({ label: l.label, href: l.href, color: l.color, emoji: l.emoji || undefined }))
     : otherLinks;
 
   // マイリンク（tRPC + DB）
@@ -1679,13 +1679,20 @@ function ToolsCard() {
           {/* スプレッドシート */}
           {activeTab === "sheet" && (
             <>
-              {sheetLinks && sheetLinks.length > 0
-                ? sheetLinks.map((link) => (
-                    <LinkRow key={link.id} href={link.url} label={link.label} color={link.color ?? "text-emerald-600"} />
-                  ))
-                : spreadsheetLinks.map((link) => (
-                    <LinkRow key={link.label} href={link.href} label={link.label} color={link.color} />
-                  ))
+              {/* quick_access_linksのスプレッドシートカテゴリから取得 */}
+              {quickLinks && quickLinks.filter((l) => l.category === "スプレッドシート").length > 0
+                ? quickLinks
+                    .filter((l) => l.category === "スプレッドシート")
+                    .map((link) => (
+                      <LinkRow key={link.id} href={link.href} label={link.label} color={link.color} emoji={link.emoji || undefined} />
+                    ))
+                : sheetLinks && sheetLinks.length > 0
+                  ? sheetLinks.map((link) => (
+                      <LinkRow key={link.id} href={link.url} label={link.label} color={link.color ?? "text-emerald-600"} />
+                    ))
+                  : spreadsheetLinks.map((link) => (
+                      <LinkRow key={link.label} href={link.href} label={link.label} color={link.color} />
+                    ))
               }
             </>
           )}
@@ -1695,7 +1702,7 @@ function ToolsCard() {
             <>
               {docLinks.length > 0
                 ? docLinks.map((link) => (
-                    <LinkRow key={link.href} href={link.href} label={link.label} color={link.color} />
+                    <LinkRow key={link.href} href={link.href} label={link.label} color={link.color} emoji={link.emoji} />
                   ))
                 : <p className="text-xs text-muted-foreground text-center py-4">ドキュメントリンクはまだありません</p>
               }
@@ -1707,7 +1714,7 @@ function ToolsCard() {
             <>
               {frmLinks.length > 0
                 ? frmLinks.map((link) => (
-                    <LinkRow key={link.href} href={link.href} label={link.label} color={link.color} />
+                    <LinkRow key={link.href} href={link.href} label={link.label} color={link.color} emoji={link.emoji} />
                   ))
                 : <p className="text-xs text-muted-foreground text-center py-4">フォームリンクはまだありません</p>
               }
@@ -1718,7 +1725,7 @@ function ToolsCard() {
           {activeTab === "other" && (
             <>
               {othLinks.map((link) => (
-                <LinkRow key={link.href} href={link.href} label={link.label} color={link.color} />
+                <LinkRow key={link.href} href={link.href} label={link.label} color={link.color} emoji={link.emoji} />
               ))}
             </>
           )}

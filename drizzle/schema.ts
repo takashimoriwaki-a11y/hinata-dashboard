@@ -445,6 +445,8 @@ export const quickAccessLinks = mysqlTable("quick_access_links", {
   label: varchar("label", { length: 200 }).notNull(),
   /** リンクURL */
   href: varchar("href", { length: 2000 }).notNull(),
+  /** 絵文字アイコン（例: 📄） */
+  emoji: varchar("emoji", { length: 10 }).default("").notNull(),
   /** テキスト色クラス（例: text-emerald-600） */
   color: varchar("color", { length: 100 }).default("text-blue-600").notNull(),
   /** 表示順（小さいほど上） */

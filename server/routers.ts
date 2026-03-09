@@ -2277,6 +2277,7 @@ export const appRouter = router({
         category: z.enum(["スプレッドシート", "ドキュメント", "フォーム", "その他"]),
         label: z.string().min(1).max(200),
         href: z.string().url(),
+        emoji: z.string().max(10).default(""),
         color: z.string().max(100).default("text-blue-600"),
         sortOrder: z.number().int().default(0),
       }))
@@ -2295,6 +2296,7 @@ export const appRouter = router({
         category: z.enum(["スプレッドシート", "ドキュメント", "フォーム", "その他"]).optional(),
         label: z.string().min(1).max(200).optional(),
         href: z.string().url().optional(),
+        emoji: z.string().max(10).optional(),
         color: z.string().max(100).optional(),
         sortOrder: z.number().int().optional(),
       }))

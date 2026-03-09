@@ -917,3 +917,15 @@
 - [x] server/routers.tsにquickAccessLinksルーター追加（list/create/update/delete）
 - [x] Admin.tsxにクイックアクセス管理UIを追加（カテゴリ別タブ・追加・編集・削除）
 - [x] Dashboard.tsxのクイックアクセスをDBデータで動的表示に変更（コードハードコードを削除）
+
+## クイックアクセス3点改善（2026-03-09）
+
+- [ ] ①管理画面のクイックアクセスリンク追加・編集・削除が正常動作するか確認・修正
+- [ ] ②quick_access_linksテーブルにemojiフィールドを追加（Admin.tsx・Dashboard.tsx対応）
+- [ ] ③スプレッドシートタブをquick_access_linksに統合（月次管理は廃止、通常リンク管理に統一）
+
+## クイックアクセス3点改善（2026-03-09）
+
+- [x] 管理画面のクイックアクセスタブで全カテゴリのリンク追加・編集・削除が可能
+- [x] 絵文字フィールドをquick_access_links・Admin.tsx・Dashboard.tsxに追加
+- [x] スプレッドシートタブをquick_access_linksに統合（既存データを自動移行）
