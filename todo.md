@@ -1053,3 +1053,7 @@
 - [x] ヘッダー行の高さを36pxに設定する
 - [x] オートフィルターを全列に設定する
 - [x] ヘッダー行を固定（フリーズ）する
+
+## 変更連絡 転送時刻JST修正（2026-03-09）
+
+- [x] createAndExportのfmtDt関数をJST（UTC+9）変換対応に修正する（createdAt・fromDatetime・toDatetimeすべて）

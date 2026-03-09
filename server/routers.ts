@@ -2183,16 +2183,18 @@ export const appRouter = router({
             meeting_change: "会議変更",
           };
 
-          const fmtDt = (dt: string | null | undefined) => {
+          // 日時フォーマット（JST: UTC+9 に変換して書き込む）
+          const fmtDt = (dt: string | Date | null | undefined) => {
             if (!dt) return "";
             try {
-              const d = new Date(dt);
-              const pad = (n: number) => String(n).padStart(2, "0");
-              return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-            } catch { return dt ?? ""; }
+              const d = dt instanceof Date ? dt : new Date(dt);
+              // UTC+9（JST）に変換
+              const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+              return `${jst.getUTCFullYear()}/${String(jst.getUTCMonth()+1).padStart(2,"0")}/${String(jst.getUTCDate()).padStart(2,"0")} ${String(jst.getUTCHours()).padStart(2,"0")}:${String(jst.getUTCMinutes()).padStart(2,"0")}`;
+            } catch { return String(dt ?? ""); }
           };
 
-          const createdAt = record.createdAt ? fmtDt(record.createdAt.toISOString()) : "";
+          const createdAt = record.createdAt ? fmtDt(record.createdAt) : "";
 
           const row = [
             createdAt,
