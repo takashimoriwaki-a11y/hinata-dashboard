@@ -986,3 +986,9 @@
 - [x] 長文モードオプションをuseVoiceInputフックに追加（longTextMode・ maxRecordingMs）
 - [x] 録音経過時間のリアルタイム表示（elapsedSeconds・formatElapsedTime）
 - [x] 長文モード用UIボタン（②病状の経過欄のCardHeaderに長文ON/OFFボタン・経過時間表示）
+
+## 音声入力波形アニメーション追加（2026-03-09）
+
+- [x] VoiceMicButtonに波形アニメーション確認（ボタン内4本バー・外側リング波形・ pingアニメーション実装済み）
+- [x] TaskCreateForm.tsxのマイクボタンに外側リング波形を追加
+- [x] Dashboard.tsxのメッセージ欄マイクボタンに外側リング波形を追加

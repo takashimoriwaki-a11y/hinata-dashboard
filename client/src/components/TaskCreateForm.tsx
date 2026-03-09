@@ -423,6 +423,14 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
                 </div>
               )}
             </div>
+            {/* 外側リング波形ラッパー */}
+            <span className="relative inline-flex items-center justify-center flex-shrink-0">
+              {taskVoice.isRecording && !( taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5) && (
+                <>
+                  <span className="absolute inset-0 pointer-events-none rounded-full" style={{ animation: "voiceRing 1.4s ease-out infinite", backgroundColor: "rgba(239, 68, 68, 0.35)" }} />
+                  <span className="absolute inset-0 pointer-events-none rounded-full" style={{ animation: "voiceRing2 1.4s ease-out 0.5s infinite", backgroundColor: "rgba(239, 68, 68, 0.25)" }} />
+                </>
+              )}
             <button
               type="button"
               onPointerDown={(e) => { e.preventDefault(); if (!isAnalyzing) taskVoice.toggleVoice(); }}
@@ -461,6 +469,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
                 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
               )}
             </button>
+            </span>
           </div>
 
           {/* 録音中の入力テキストボックス */}
