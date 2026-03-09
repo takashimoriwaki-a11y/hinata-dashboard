@@ -517,9 +517,8 @@ ${clinicalNotes}`);
           {/* 一括音声入力エリア（最上部） */}
           <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-3 space-y-2">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-primary">🎤 一括音声入力</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">利用者名・次回日時・伝達先・伝達方法を一度に入力</p>
+              <div>                <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
+                <p className="text-xs text-muted-foreground mt-0.5">マイクをタップして話すと各項目に転記</p>
               </div>
               <button
                 type="button"

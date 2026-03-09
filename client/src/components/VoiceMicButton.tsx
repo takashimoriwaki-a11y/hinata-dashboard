@@ -52,12 +52,12 @@ const sizeConfig = {
     countdown: "text-[10px]",
   },
   lg: {
-    button: "h-10 w-10 rounded-xl",
-    icon: "w-4 h-4",
-    bars: "h-4",
+    button: "h-14 w-14 rounded-full",
+    icon: "w-5 h-5",
+    bars: "h-5",
     barWidth: "w-0.5",
     previewText: "text-sm",
-    countdown: "text-[10px]",
+    countdown: "text-sm",
   },
 };
 

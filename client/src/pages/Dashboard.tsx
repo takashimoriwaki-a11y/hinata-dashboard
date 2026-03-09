@@ -2134,13 +2134,35 @@ function MessageBoard({ title }: { title: string }) {
           <div className="border border-primary/20 rounded-xl p-4 space-y-3 bg-primary/5">
             {/* ===== 音声入力 AI カード ===== */}
             <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  {isAnalyzingMsg ? (
+                    <p className="text-xs text-primary font-medium animate-pulse">AIが解析中...</p>
+                  ) : msgVoice.isRecording ? (
+                    <div>
+                      <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
+                      <p className="text-xs font-medium text-red-600 dark:text-red-400 mt-0.5">
+                        {msgVoice.silenceCountdown !== null && msgVoice.silenceCountdown <= 5
+                          ? `あと${msgVoice.silenceCountdown}秒で自動停止`
+                          : "話してください..."}
+                      </p>
+                      {msgVoice.interimText && (
+                        <p className="text-xs text-muted-foreground italic truncate mt-0.5">{msgVoice.interimText}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">マイクをタップして話すと各項目に転記</p>
+                    </div>
+                  )}
+                </div>
                 <button
                   type="button"
                   onPointerDown={(e) => { e.preventDefault(); if (!isAnalyzingMsg) msgVoice.toggleVoice(); }}
                   disabled={isAnalyzingMsg}
                   className={cn(
-                    "relative inline-flex items-center justify-center flex-shrink-0 h-11 w-11 rounded-2xl",
+                    "relative inline-flex items-center justify-center flex-shrink-0 h-14 w-14 rounded-full",
                     "border-2 transition-all duration-200 select-none touch-manipulation",
                     "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                     isAnalyzingMsg
@@ -2154,13 +2176,13 @@ function MessageBoard({ title }: { title: string }) {
                   aria-label={msgVoice.isRecording ? "録音停止" : "音声入力開始"}
                 >
                   {msgVoice.isRecording && (
-                    <span className="absolute inset-0 rounded-[inherit] overflow-hidden pointer-events-none">
-                      <span className={cn("absolute inset-0 animate-ping rounded-[inherit] opacity-25",
+                    <span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
+                      <span className={cn("absolute inset-0 animate-ping rounded-full opacity-25",
                         msgVoice.silenceCountdown !== null && msgVoice.silenceCountdown <= 5 ? "bg-orange-400" : "bg-red-400")} />
                     </span>
                   )}
                   {isAnalyzingMsg ? (
-                    <svg className="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                    <svg className="w-5 h-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                   ) : msgVoice.isRecording && msgVoice.silenceCountdown !== null && msgVoice.silenceCountdown <= 5 ? (
                     <span className="text-sm font-bold leading-none">{msgVoice.silenceCountdown}</span>
                   ) : msgVoice.isRecording ? (
@@ -2170,30 +2192,9 @@ function MessageBoard({ title }: { title: string }) {
                       ))}
                     </span>
                   ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
                   )}
                 </button>
-                <div className="flex-1 min-w-0">
-                  {isAnalyzingMsg ? (
-                    <p className="text-xs text-primary font-medium animate-pulse">AIが解析中...</p>
-                  ) : msgVoice.isRecording ? (
-                    <div>
-                      <p className="text-xs font-medium text-red-600 dark:text-red-400">
-                        {msgVoice.silenceCountdown !== null && msgVoice.silenceCountdown <= 5
-                          ? `あと${msgVoice.silenceCountdown}秒で自動停止`
-                          : "話してください..."}
-                      </p>
-                      {msgVoice.interimText && (
-                        <p className="text-xs text-muted-foreground italic truncate">{msgVoice.interimText}</p>
-                      )}
-                    </div>
-                  ) : (
-                    <div>
-                      <p className="text-xs font-medium text-foreground">音声入力でAI自動転記</p>
-                      <p className="text-xs text-muted-foreground">マイクをタップして話すと各項目に転記</p>
-                    </div>
-                  )}
-                </div>
               </div>
               {/* エラーバナー */}
               {msgVoiceError && (

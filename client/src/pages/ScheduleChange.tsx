@@ -1382,16 +1382,13 @@ export default function ScheduleChange() {
         <CardContent className="p-4 space-y-3">
           <div className="flex items-center gap-3">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-0.5">
-                <Sparkles className="w-4 h-4 text-primary flex-shrink-0" />
-                <span className="text-sm font-semibold text-primary">音声入力で自動転記</span>
-              </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
                 {isParsingVoice
-                  ? "AIが内容を解析中..."
+                  ? "AIが解析中..."
                   : voiceText
                   ? `「${voiceText.slice(0, 40)}${voiceText.length > 40 ? "..." : ""}」`
-                  : "マイクボタンをタップして話すと各項目に自動入力されます"}
+                  : "マイクをタップして話すと各項目に転記"}
               </p>
             </div>
             <VoiceMicButton
