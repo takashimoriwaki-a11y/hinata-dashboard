@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   ClipboardEdit, Send, Search, Calendar,
   User, ChevronDown, Loader2, FileSpreadsheet, CheckCircle2, ExternalLink
@@ -122,6 +123,38 @@ export default function RecordInput() {
   const [visitVoiceText, setVisitVoiceText] = useState("");
   const [isParsingVisitVoice, setIsParsingVisitVoice] = useState(false);
   const [visitVoiceError, setVisitVoiceError] = useState<string | null>(null);
+
+  // 誤変換フィードバックダイアログ用state
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
+  const [feedbackWrongText, setFeedbackWrongText] = useState("");
+  const [feedbackCorrectedText, setFeedbackCorrectedText] = useState("");
+  const [feedbackVoiceHook, setFeedbackVoiceHook] = useState<"visitVoice" | "notesVoice">("visitVoice");
+  const [isSendingFeedback, setIsSendingFeedback] = useState(false);
+
+  const openFeedbackDialog = (wrongText: string, hook: "visitVoice" | "notesVoice") => {
+    setFeedbackWrongText(wrongText);
+    setFeedbackCorrectedText(wrongText);
+    setFeedbackVoiceHook(hook);
+    setFeedbackDialogOpen(true);
+  };
+
+  const handleSendFeedback = async () => {
+    if (!feedbackCorrectedText.trim() || feedbackCorrectedText === feedbackWrongText) {
+      setFeedbackDialogOpen(false);
+      return;
+    }
+    setIsSendingFeedback(true);
+    try {
+      const hook = feedbackVoiceHook === "visitVoice" ? visitVoice : notesVoice;
+      await hook.reportMistranscription(feedbackWrongText, feedbackCorrectedText.trim());
+      toast.success("フィードバックありがとうございます！次回から改善されます。");
+    } catch {
+      toast.error("フィードバックの送信に失敗しました。");
+    } finally {
+      setIsSendingFeedback(false);
+      setFeedbackDialogOpen(false);
+    }
+  };
 
   // 音声転記確認パネル用state
   type VoicePreview = {
@@ -548,6 +581,7 @@ ${clinicalNotes}`);
   };
 
   return (
+    <>
     <div className="p-4 max-w-2xl mx-auto space-y-4 pb-20">
       <div className="flex items-center gap-2 mb-2">
         <ClipboardEdit className="w-5 h-5 text-primary" />
@@ -697,12 +731,7 @@ ${clinicalNotes}`);
                     {/* 誤変換フィードバックボタン */}
                     <button
                       type="button"
-                      onClick={() => {
-                        const corrected = window.prompt("正しい認識結果を入力してください（次回から改善されます）", visitVoiceText);
-                        if (corrected && corrected !== visitVoiceText) {
-                          visitVoice.reportMistranscription(visitVoiceText, corrected);
-                        }
-                      }}
+                      onClick={() => openFeedbackDialog(visitVoiceText, "visitVoice")}
                       className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -1252,7 +1281,30 @@ ${clinicalNotes}`);
         <CardContent className="space-y-3">
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-medium text-muted-foreground">本日観察・収集した情報</label>
+              <div className="flex-1 min-w-0">
+                <label className="text-xs font-medium text-muted-foreground">本日観察・収集した情報</label>
+                {/* リアルタイムステータス表示 */}
+                {notesVoice.transcriptionStatus === "recording" || notesVoice.isRecording ? (
+                  <p className={cn(
+                    "text-xs font-medium mt-0.5",
+                    notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
+                      ? "text-orange-600 dark:text-orange-400"
+                      : "text-red-600 dark:text-red-400 animate-pulse"
+                  )}>
+                    {notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
+                      ? `あと${notesVoice.silenceCountdown}秒で自動停止`
+                      : "🎤 話してください..."}
+                  </p>
+                ) : notesVoice.transcriptionStatus === "uploading" ? (
+                  <p className="text-xs text-blue-600 dark:text-blue-400 font-medium animate-pulse mt-0.5">⬆️ 音声を受信中...</p>
+                ) : notesVoice.transcriptionStatus === "analyzing" ? (
+                  <p className="text-xs text-primary font-medium animate-pulse mt-0.5">🔬 医療用語を解析中...</p>
+                ) : notesVoice.transcriptionStatus === "done" ? (
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">✅ 転記完了</p>
+                ) : notesVoice.transcriptionStatus === "error" ? (
+                  <p className="text-xs text-red-600 dark:text-red-400 font-medium mt-0.5">❌ 認識エラー</p>
+                ) : null}
+              </div>
               <button
                 type="button"
                 onPointerDown={(e) => { e.preventDefault(); notesVoice.toggleVoice(); }}
@@ -1294,25 +1346,46 @@ ${clinicalNotes}`);
                 onChange={(e) => setClinicalNotes(e.target.value)}
                 className="min-h-[120px] text-sm"
               />
-              {/* 音声認識中の暫定テキストプレビュー */}
-              {notesVoice.isRecording && (
+              {/* 音声認識中の暑定テキストプレビュー */}
+              {(notesVoice.isRecording || notesVoice.lastTranscribedText) && (
                 <div className={cn(
                   "mt-1.5 px-2 py-1.5 rounded-md border min-h-[32px]",
-                  notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
-                    ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
-                    : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
+                  notesVoice.isRecording
+                    ? (notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
+                        ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
+                        : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800")
+                    : "bg-muted/40 border-border"
                 )}>
-                  {notesVoice.interimText ? (
-                    <p className="text-xs text-red-600 dark:text-red-400 italic leading-relaxed">
-                      🎤 {notesVoice.interimText}
-                    </p>
-                  ) : notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5 ? (
-                    <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
-                      あと{notesVoice.silenceCountdown}秒で自動停止します
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground italic">話してください...</p>
-                  )}
+                  {notesVoice.isRecording ? (
+                    notesVoice.interimText ? (
+                      <p className="text-xs text-red-600 dark:text-red-400 italic leading-relaxed">
+                        🎤 {notesVoice.interimText}
+                      </p>
+                    ) : notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5 ? (
+                      <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+                        あと{notesVoice.silenceCountdown}秒で自動停止します
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">話してください...</p>
+                    )
+                  ) : notesVoice.lastTranscribedText ? (
+                    <div className="space-y-1.5">
+                      <div className="flex items-start gap-1.5">
+                        <p className="text-xs text-muted-foreground leading-relaxed flex-1">
+                          🎤 {notesVoice.lastTranscribedText}
+                        </p>
+                      </div>
+                      {/* 誤変換フィードバックボタン */}
+                      <button
+                        type="button"
+                        onClick={() => openFeedbackDialog(notesVoice.lastTranscribedText, "notesVoice")}
+                        className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        誤変換を報告して次回から改善
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               )}
             </div>
@@ -1327,5 +1400,55 @@ ${clinicalNotes}`);
         </CardContent>
       </Card>
     </div>
+
+    {/* 誤変換フィードバックダイアログ */}
+    <Dialog open={feedbackDialogOpen} onOpenChange={setFeedbackDialogOpen}>
+      <DialogContent className="max-w-sm mx-4">
+        <DialogHeader>
+          <DialogTitle className="text-sm">📝 誤変換を報告</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">認識されたテキスト</label>
+            <p className="mt-1 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2 leading-relaxed">{feedbackWrongText}</p>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-foreground">正しいテキストに修正</label>
+            <Textarea
+              value={feedbackCorrectedText}
+              onChange={(e) => setFeedbackCorrectedText(e.target.value)}
+              className="mt-1 min-h-[80px] text-sm"
+              placeholder="正しい認識結果を入力してください..."
+              autoFocus
+            />
+          </div>
+          <p className="text-[10px] text-muted-foreground">専門用語の誤認識を報告することで、次回からの音声認識精度が向上します。</p>
+        </div>
+        <DialogFooter className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setFeedbackDialogOpen(false)}
+            disabled={isSendingFeedback}
+            className="flex-1"
+          >
+            キャンセル
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleSendFeedback}
+            disabled={isSendingFeedback || !feedbackCorrectedText.trim() || feedbackCorrectedText === feedbackWrongText}
+            className="flex-1"
+          >
+            {isSendingFeedback ? (
+              <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" />送信中...</>
+            ) : (
+              "報告する"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
