@@ -979,3 +979,10 @@
 
 - [x] ②病状の経過欄の音声入力にリアルタイムステータス表示を追加
 - [x] 誤変換フィードバックをshadcn Dialogに変更しトーストを確実に表示
+
+## 音声入力長文対応強化（2026-03-09）
+
+- [x] 最大録音時間を延長（長文モード時は無音自動停歐60秒・最大3分対応）
+- [x] 長文モードオプションをuseVoiceInputフックに追加（longTextMode・ maxRecordingMs）
+- [x] 録音経過時間のリアルタイム表示（elapsedSeconds・formatElapsedTime）
+- [x] 長文モード用UIボタン（②病状の経過欄のCardHeaderに長文ON/OFFボタン・経過時間表示）

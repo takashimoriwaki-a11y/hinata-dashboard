@@ -8,22 +8,29 @@
  * 機能:
  * - Web Speech API によるリアルタイム音声認識
  * - 非対応環境では MediaRecorder + /api/transcribe (Gemini Audio API) にフォールバック
- * - 30秒間無音が続いた場合に自動停止（タイマーは発話のたびにリセット）
+ * - 通常モード: 30秒間無音で自動停止
+ * - 長文モード: 60秒間無音で自動停止、最大3分まで録音可能
+ * - elapsedSeconds: 録音開始からの経過秒数をリアルタイムで返す
  * - interimText: 認識中の暫定テキストをリアルタイムで返す
  * - transcriptionStatus: 認識フェーズをリアルタイムで返す
  * - lastTranscribedText: 最後に認識されたテキストを返す（フィードバック用）
  *
  * 使い方:
- *   const { isRecording, startVoice, stopVoice, isProcessing, interimText, transcriptionStatus } = useVoiceInput({
+ *   const { isRecording, startVoice, stopVoice, isProcessing, interimText, transcriptionStatus, elapsedSeconds } = useVoiceInput({
  *     onResult: (text) => setMyText(prev => prev + text),
+ *     longTextMode: true, // 長文モードを有効化
  *   });
  */
 
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
-/** 無音自動停止までの秒数 */
+/** 無音自動停止までのミリ秒（通常モード） */
 const SILENCE_TIMEOUT_MS = 30_000;
+/** 無音自動停止までのミリ秒（長文モード） */
+const SILENCE_TIMEOUT_LONG_MS = 60_000;
+/** 最大録音時間（ミリ秒） */
+const MAX_RECORDING_MS = 180_000;
 
 /**
  * 音声認識のフェーズ
@@ -44,10 +51,20 @@ interface UseVoiceInputOptions {
   /** 言語（デフォルト: ja-JP） */
   lang?: string;
   /**
-   * 無音自動停止までのミリ秒（デフォルト: 30000ms = 30秒）
-   * 0 を指定すると自動停止を無効化
+   * 無音自動停止までのミリ秒（明示指定する場合）
+   * 省略時は longTextMode に応じて自動設定
    */
   silenceTimeoutMs?: number;
+  /**
+   * 長文モード（trueの場合、無音タイムアウトを60秒に延長し最大3分まで録音可能）
+   * デフォルト: false
+   */
+  longTextMode?: boolean;
+  /**
+   * 最大録音時間（ミリ秒）。この時間に達したら強制停止。
+   * デフォルト: 180000ms = 3分
+   */
+  maxRecordingMs?: number;
   /**
    * 音声認識のコンテキスト（画面ごとの医療用語プロンプト最適化用）
    * 'clinical_notes' | 'task' | 'schedule_change' | 'message' | 'general'
@@ -61,6 +78,8 @@ interface UseVoiceInputReturn {
   isRecording: boolean;
   /** Whisperへのアップロード・文字起こし処理中かどうか */
   isProcessing: boolean;
+  /** 録音開始からの経過秒数（録音中のみ更新、停止後は0にリセット） */
+  elapsedSeconds: number;
   /** 音声入力を開始する */
   startVoice: () => void;
   /** 音声入力を停止する */
@@ -135,19 +154,66 @@ function getSpeechRecognitionClass(): SpeechRecognitionConstructor | null {
   return w.SpeechRecognition || w.webkitSpeechRecognition || null;
 }
 
+/** 秒数を mm:ss 形式にフォーマット */
+export function formatElapsedTime(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
 export function useVoiceInput({
   onResult,
   onRecordingChange,
   lang = "ja-JP",
-  silenceTimeoutMs = SILENCE_TIMEOUT_MS,
+  silenceTimeoutMs,
+  longTextMode = false,
+  maxRecordingMs = MAX_RECORDING_MS,
   context = "general",
 }: UseVoiceInputOptions): UseVoiceInputReturn {
+  // 長文モードの場合は無音タイムアウトを長文用に延長
+  const effectiveSilenceTimeoutMs = silenceTimeoutMs ?? (longTextMode ? SILENCE_TIMEOUT_LONG_MS : SILENCE_TIMEOUT_MS);
+
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [interimText, setInterimText] = useState("");
   const [silenceCountdown, setSilenceCountdown] = useState<number | null>(null);
   const [transcriptionStatus, setTranscriptionStatus] = useState<TranscriptionStatus>("idle");
   const [lastTranscribedText, setLastTranscribedText] = useState("");
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  // 録音経過時間タイマー用
+  const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const maxRecordingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const elapsedSecondsRef = useRef(0);
+
+  const startElapsedTimer = useCallback((stopFn: () => void) => {
+    elapsedSecondsRef.current = 0;
+    setElapsedSeconds(0);
+    elapsedTimerRef.current = setInterval(() => {
+      elapsedSecondsRef.current += 1;
+      setElapsedSeconds(elapsedSecondsRef.current);
+    }, 1000);
+    // 最大録音時間タイマー
+    if (maxRecordingMs > 0) {
+      maxRecordingTimerRef.current = setTimeout(() => {
+        toast.info(`最大録音時間（${Math.floor(maxRecordingMs / 60000)}分）に達したため自動停止しました`, { duration: 5000 });
+        stopFn();
+      }, maxRecordingMs);
+    }
+  }, [maxRecordingMs]);
+
+  const stopElapsedTimer = useCallback(() => {
+    if (elapsedTimerRef.current) {
+      clearInterval(elapsedTimerRef.current);
+      elapsedTimerRef.current = null;
+    }
+    if (maxRecordingTimerRef.current) {
+      clearTimeout(maxRecordingTimerRef.current);
+      maxRecordingTimerRef.current = null;
+    }
+    setElapsedSeconds(0);
+    elapsedSecondsRef.current = 0;
+  }, []);
 
   // onRecordingChangeコールバックをrefで保持（クロージャ問題回避）
   const onRecordingChangeRef = useRef(onRecordingChange);
@@ -186,18 +252,25 @@ export function useVoiceInput({
     setSilenceCountdown(null);
   }, []);
 
+  // 無音タイムアウト時のメッセージ
+  const getAutoStopMessage = useCallback(() => {
+    return longTextMode
+      ? "60秒間無音のため自動停止しました"
+      : "30秒間無音のため自動停止しました";
+  }, [longTextMode]);
+
   /**
    * 無音タイマーをリセット（発話検出のたびに呼ぶ）
-   * silenceTimeoutMs が 0 の場合は何もしない
+   * effectiveSilenceTimeoutMs が 0 の場合は何もしない
    */
   const resetSilenceTimer = useCallback((stopFn: () => void) => {
-    if (!silenceTimeoutMs) return;
+    if (!effectiveSilenceTimeoutMs) return;
 
     // 既存タイマーをクリア
     clearSilenceTimer();
 
     // カウントダウン表示を初期化
-    const totalSec = Math.ceil(silenceTimeoutMs / 1000);
+    const totalSec = Math.ceil(effectiveSilenceTimeoutMs / 1000);
     setSilenceCountdown(totalSec);
 
     // 1秒ごとにカウントダウンを更新
@@ -208,15 +281,15 @@ export function useVoiceInput({
       });
     }, 1000);
 
-    // 30秒後に自動停止
+    // 無音タイムアウト後に自動停止
     silenceTimerRef.current = setTimeout(() => {
       autoStoppedRef.current = true;
       clearInterval(countdownIntervalRef.current!);
       countdownIntervalRef.current = null;
       setSilenceCountdown(null);
       stopFn();
-    }, silenceTimeoutMs);
-  }, [silenceTimeoutMs, clearSilenceTimer]);
+    }, effectiveSilenceTimeoutMs);
+  }, [effectiveSilenceTimeoutMs, clearSilenceTimer]);
 
   // ---- Web Speech API 実装 ----
   const startSpeechRecognition = useCallback((): boolean => {
@@ -270,6 +343,7 @@ export function useVoiceInput({
 
       recognition.onend = () => {
         clearSilenceTimer();
+        stopElapsedTimer();
         setRecording(false);
         setInterimText("");
         const finalText = (confirmedText + lastBlockText).trim();
@@ -278,7 +352,7 @@ export function useVoiceInput({
           setLastTranscribedText(finalText);
           setTranscriptionStatus("done");
           if (autoStoppedRef.current) {
-            toast.info("30秒間無音のため自動停止しました", { duration: 4000 });
+            toast.info(getAutoStopMessage(), { duration: 4000 });
           } else {
             toast.success("✅ 転記完了");
           }
@@ -286,7 +360,7 @@ export function useVoiceInput({
           setTimeout(() => setTranscriptionStatus("idle"), 5000);
         } else if (autoStoppedRef.current) {
           setTranscriptionStatus("idle");
-          toast.info("30秒間無音のため自動停止しました", { duration: 4000 });
+          toast.info(getAutoStopMessage(), { duration: 4000 });
         } else {
           setTranscriptionStatus("idle");
         }
@@ -296,6 +370,7 @@ export function useVoiceInput({
 
       recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         clearSilenceTimer();
+        stopElapsedTimer();
         setRecording(false);
         setInterimText("");
         setTranscriptionStatus("error");
@@ -320,15 +395,17 @@ export function useVoiceInput({
 
       // 録音開始直後からタイマーをスタート
       resetSilenceTimer(stopFromTimer);
+      startElapsedTimer(stopFromTimer);
 
       return true;
     } catch {
       return false;
     }
-  }, [lang, onResult, resetSilenceTimer, clearSilenceTimer]);
+  }, [lang, onResult, resetSilenceTimer, clearSilenceTimer, stopElapsedTimer, startElapsedTimer, getAutoStopMessage]);
 
   const stopSpeechRecognition = useCallback(() => {
     clearSilenceTimer();
+    stopElapsedTimer();
     if (recognitionRef.current) {
       recognitionRef.current.stop();
       recognitionRef.current = null;
@@ -336,7 +413,7 @@ export function useVoiceInput({
     setRecording(false);
     setInterimText("");
     setTranscriptionStatus("idle");
-  }, [clearSilenceTimer]);
+  }, [clearSilenceTimer, stopElapsedTimer]);
 
   // ---- MediaRecorder + Gemini Audio API フォールバック実装 ----
   const startMediaRecorder = useCallback(async () => {
@@ -378,6 +455,7 @@ export function useVoiceInput({
 
       recorder.onstop = async () => {
         clearSilenceTimer();
+        stopElapsedTimer();
         streamRef.current?.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
 
@@ -387,7 +465,7 @@ export function useVoiceInput({
 
         if (blob.size === 0) {
           if (autoStoppedRef.current) {
-            toast.info("30秒間無音のため自動停止しました", { duration: 4000 });
+            toast.info(getAutoStopMessage(), { duration: 4000 });
           } else {
             toast.error("録音データが空です。もう一度お試しください。");
           }
@@ -409,7 +487,7 @@ export function useVoiceInput({
         setTranscriptionStatus("uploading");
 
         if (autoStoppedRef.current) {
-          toast.info("30秒間無音のため自動停止しました。解析中...", { duration: 4000 });
+          toast.info(`${getAutoStopMessage()}。解析中...`, { duration: 4000 });
         } else {
           toast.info("⬆️ 音声を受信中...");
         }
@@ -468,6 +546,7 @@ export function useVoiceInput({
 
       // 録音開始直後からタイマーをスタート
       resetSilenceTimer(stopFromTimer);
+      startElapsedTimer(stopFromTimer);
     } catch (err) {
       setTranscriptionStatus("error");
       setTimeout(() => setTranscriptionStatus("idle"), 3000);
@@ -477,16 +556,17 @@ export function useVoiceInput({
         toast.error("マイクの起動に失敗しました。");
       }
     }
-  }, [onResult, resetSilenceTimer, clearSilenceTimer, context]);
+  }, [onResult, resetSilenceTimer, clearSilenceTimer, stopElapsedTimer, startElapsedTimer, context, getAutoStopMessage]);
 
   const stopMediaRecorder = useCallback(() => {
     clearSilenceTimer();
+    stopElapsedTimer();
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
       mediaRecorderRef.current = null;
     }
     setRecording(false);
-  }, [clearSilenceTimer]);
+  }, [clearSilenceTimer, stopElapsedTimer]);
 
   // ---- 公開 API ----
   const startVoice = useCallback(async () => {
@@ -503,7 +583,7 @@ export function useVoiceInput({
     } else {
       stopMediaRecorder();
     }
-  }, [clearSilenceTimer, stopSpeechRecognition, stopMediaRecorder]);
+  }, [stopSpeechRecognition, stopMediaRecorder]);
 
   const toggleVoice = useCallback(() => {
     if (isRecording) {
@@ -525,7 +605,7 @@ export function useVoiceInput({
         credentials: "include",
         body: JSON.stringify({ wrongText, correctedText, context }),
       });
-      toast.success("フィードバックを送信しました。次回から改善されます。");
+      toast.success("フィードバックありがとうございます！次回からの音声認識精度向上に活用します。");
     } catch {
       toast.error("フィードバックの送信に失敗しました。");
     }
@@ -534,6 +614,7 @@ export function useVoiceInput({
   return {
     isRecording,
     isProcessing,
+    elapsedSeconds,
     startVoice,
     stopVoice,
     toggleVoice,

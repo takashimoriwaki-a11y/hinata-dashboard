@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { VoiceMicButton } from "@/components/VoiceMicButton";
-import { useVoiceInput } from "@/hooks/useVoiceInput";
+import { useVoiceInput, formatElapsedTime } from "@/hooks/useVoiceInput";
 import { VoiceHelpDialog } from "@/components/VoiceHelpDialog";
 
 const TEAMS = ["身体", "天理", "郡山北部", "郡山南部"] as const;
@@ -114,9 +114,11 @@ export default function RecordInput() {
   // 利用者名検索用
   const voicePatient = { onResult: (text: string) => { setSearchQuery(text.trim()); setShowPatientList(true); } };
   // 病状の経過用（interimTextを直接取得するためuseVoiceInputを直接使用）
+  const [notesLongTextMode, setNotesLongTextMode] = useState(false);
   const notesVoice = useVoiceInput({
     onResult: (text: string) => { setClinicalNotes(prev => prev + (prev ? "\n" : "") + text.trim()); },
     context: "clinical_notes",
+    longTextMode: notesLongTextMode,
   });
 
   // 次回訪問日時・伝達先・伝達方法の音声入力用state
@@ -1276,7 +1278,33 @@ ${clinicalNotes}`);
       {/* ② 病状の経過 */}
       <Card className="shadow-sm">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">② 病状の経過</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold">② 病状の経過</CardTitle>
+            <div className="flex items-center gap-2">
+              {/* 録音経過時間表示 */}
+              {notesVoice.isRecording && (
+                <span className="text-xs font-mono font-medium text-red-600 dark:text-red-400 tabular-nums">
+                  {formatElapsedTime(notesVoice.elapsedSeconds)} / 3:00
+                </span>
+              )}
+              {/* 長文モード切り替えボタン */}
+              <button
+                type="button"
+                onClick={() => setNotesLongTextMode(prev => !prev)}
+                disabled={notesVoice.isRecording}
+                className={cn(
+                  "text-[10px] px-2 py-0.5 rounded-full border font-medium transition-all",
+                  notesLongTextMode
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-muted text-muted-foreground border-border hover:border-primary/50",
+                  notesVoice.isRecording && "opacity-50 cursor-not-allowed"
+                )}
+                title={notesLongTextMode ? "長文モード: ON（無音自動停止 60秒・最大3分）" : "通常モード（無音自動停止 30秒）"}
+              >
+                {notesLongTextMode ? "📝 長文 ON" : "📝 長文"}
+              </button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
           <div>
