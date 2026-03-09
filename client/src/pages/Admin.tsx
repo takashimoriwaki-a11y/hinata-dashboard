@@ -14,7 +14,7 @@ import {
   Plus, Trash2, ExternalLink, Settings, ClipboardPaste,
   CheckCircle2, AlertCircle, ChevronDown, ChevronUp,
   Users, Pencil, X, ChevronRight, UserPlus, Key, Shield, ShieldCheck,
-  FileSpreadsheet, Upload, Download, LogOut, RotateCcw, Mail,
+  FileSpreadsheet, Upload, Download, LogOut, RotateCcw, Mail, Link,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -759,7 +759,7 @@ export default function Admin() {
   }, []);
 
   // セクション切り替え
-  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings">("sheets");
+  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess">("sheets");
   const { user: currentUser } = useAuth();
 
   return (
@@ -823,6 +823,19 @@ export default function Admin() {
             )}
           >
             一括インポート
+          </button>
+        )}
+        {currentUser?.role === "admin" && (
+          <button
+            onClick={() => setActiveSection("quickaccess")}
+            className={cn(
+              "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
+              activeSection === "quickaccess"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            クイックアクセス
           </button>
         )}
         {currentUser?.role === "admin" && (
@@ -1032,6 +1045,9 @@ export default function Admin() {
 
       {/* システム設定セクション */}
       {activeSection === "settings" && <SystemSettingsPanel />}
+
+      {/* クイックアクセスリンク管理セクション */}
+      {activeSection === "quickaccess" && <QuickAccessLinksPanel />}
     </div>
   );
 }
@@ -1901,6 +1917,286 @@ function SystemSettingsPanel() {
             <p>・例：保持期間7日の場合、3月1日13:00の行は3月8日0:00に削除されます</p>
             <p>・次回訪問日時が空欄の行は削除されません</p>
           </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ============================
+// クイックアクセスリンク管理パネル
+// ============================
+
+const QUICK_ACCESS_CATEGORIES = ["スプレッドシート", "ドキュメント", "フォーム", "その他"] as const;
+type QuickAccessCategory = typeof QUICK_ACCESS_CATEGORIES[number];
+
+const COLOR_OPTIONS = [
+  { value: "text-blue-600", label: "青" },
+  { value: "text-emerald-600", label: "緑" },
+  { value: "text-purple-600", label: "紫" },
+  { value: "text-orange-500", label: "オレンジ" },
+  { value: "text-rose-500", label: "赤" },
+  { value: "text-amber-500", label: "黄" },
+  { value: "text-cyan-600", label: "シアン" },
+  { value: "text-slate-600", label: "グレー" },
+];
+
+function QuickAccessLinksPanel() {
+  const utils = trpc.useUtils();
+  const { data: links, isLoading } = trpc.quickAccessLinks.list.useQuery();
+  const createMutation = trpc.quickAccessLinks.create.useMutation({
+    onSuccess: () => { utils.quickAccessLinks.list.invalidate(); toast.success("リンクを追加しました"); setShowAddForm(false); resetForm(); },
+    onError: (e) => toast.error(`追加失敗: ${e.message}`),
+  });
+  const updateMutation = trpc.quickAccessLinks.update.useMutation({
+    onSuccess: () => { utils.quickAccessLinks.list.invalidate(); toast.success("リンクを更新しました"); setEditingId(null); },
+    onError: (e) => toast.error(`更新失敗: ${e.message}`),
+  });
+  const deleteMutation = trpc.quickAccessLinks.delete.useMutation({
+    onSuccess: () => { utils.quickAccessLinks.list.invalidate(); toast.success("リンクを削除しました"); },
+    onError: (e) => toast.error(`削除失敗: ${e.message}`),
+  });
+
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+
+  // 追加フォーム
+  const [newCategory, setNewCategory] = useState<QuickAccessCategory>("スプレッドシート");
+  const [newLabel, setNewLabel] = useState("");
+  const [newHref, setNewHref] = useState("");
+  const [newColor, setNewColor] = useState("text-blue-600");
+  const [newSortOrder, setNewSortOrder] = useState(0);
+
+  // 編集フォーム
+  const [editCategory, setEditCategory] = useState<QuickAccessCategory>("スプレッドシート");
+  const [editLabel, setEditLabel] = useState("");
+  const [editHref, setEditHref] = useState("");
+  const [editColor, setEditColor] = useState("text-blue-600");
+  const [editSortOrder, setEditSortOrder] = useState(0);
+
+  function resetForm() {
+    setNewCategory("スプレッドシート");
+    setNewLabel("");
+    setNewHref("");
+    setNewColor("text-blue-600");
+    setNewSortOrder(0);
+  }
+
+  function startEdit(link: { id: number; category: string; label: string; href: string; color: string; sortOrder: number }) {
+    setEditingId(link.id);
+    setEditCategory(link.category as QuickAccessCategory);
+    setEditLabel(link.label);
+    setEditHref(link.href);
+    setEditColor(link.color);
+    setEditSortOrder(link.sortOrder);
+  }
+
+  const grouped = QUICK_ACCESS_CATEGORIES.map((cat) => ({
+    category: cat,
+    items: (links ?? []).filter((l) => l.category === cat),
+  }));
+
+  return (
+    <div className="space-y-4">
+      <Card className="shadow-sm">
+        <CardHeader className="pb-2 pt-4">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Link className="w-4 h-4 text-primary" />
+              クイックアクセスリンク管理
+            </CardTitle>
+            <Button size="sm" onClick={() => { setShowAddForm(!showAddForm); setEditingId(null); }}>
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              追加
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">
+            ホーム画面のクイックアクセスに表示するリンクを管理します。追加・編集・削除が即座に反映されます。
+          </p>
+        </CardHeader>
+
+        {/* 追加フォーム */}
+        {showAddForm && (
+          <CardContent className="border-t border-border pt-4">
+            <p className="text-sm font-semibold mb-3">新しいリンクを追加</p>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">カテゴリ</label>
+                  <select
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value as QuickAccessCategory)}
+                    className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    {QUICK_ACCESS_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">色</label>
+                  <select
+                    value={newColor}
+                    onChange={(e) => setNewColor(e.target.value)}
+                    className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    {COLOR_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">表示名</label>
+                <input
+                  type="text"
+                  value={newLabel}
+                  onChange={(e) => setNewLabel(e.target.value)}
+                  placeholder="例：業務日報"
+                  className="w-full h-8 px-3 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">URL</label>
+                <input
+                  type="url"
+                  value={newHref}
+                  onChange={(e) => setNewHref(e.target.value)}
+                  placeholder="https://docs.google.com/..."
+                  className="w-full h-8 px-3 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">表示順（数字が小さいほど上に表示）</label>
+                <input
+                  type="number"
+                  value={newSortOrder}
+                  onChange={(e) => setNewSortOrder(Number(e.target.value))}
+                  className="w-24 h-8 px-3 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button
+                  size="sm"
+                  onClick={() => createMutation.mutate({ category: newCategory, label: newLabel, href: newHref, color: newColor, sortOrder: newSortOrder })}
+                  disabled={createMutation.isPending || !newLabel.trim() || !newHref.trim()}
+                >
+                  {createMutation.isPending ? "追加中..." : "追加する"}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => { setShowAddForm(false); resetForm(); }}>
+                  キャンセル
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        )}
+
+        {/* リスト */}
+        <CardContent className={showAddForm ? "border-t border-border pt-4" : "pt-0"}>
+          {isLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => <div key={i} className="h-10 bg-muted animate-pulse rounded-md" />)}
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {grouped.map(({ category, items }) => (
+                <div key={category}>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{category}</p>
+                  {items.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic pl-2">登録なし</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {items.map((link) => (
+                        <div key={link.id} className="rounded-lg border border-border bg-card p-3">
+                          {editingId === link.id ? (
+                            // 編集フォーム
+                            <div className="space-y-2">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-xs text-muted-foreground block mb-1">カテゴリ</label>
+                                  <select
+                                    value={editCategory}
+                                    onChange={(e) => setEditCategory(e.target.value as QuickAccessCategory)}
+                                    className="w-full h-7 px-2 rounded border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                                  >
+                                    {QUICK_ACCESS_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="text-xs text-muted-foreground block mb-1">色</label>
+                                  <select
+                                    value={editColor}
+                                    onChange={(e) => setEditColor(e.target.value)}
+                                    className="w-full h-7 px-2 rounded border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                                  >
+                                    {COLOR_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                                  </select>
+                                </div>
+                              </div>
+                              <input
+                                type="text"
+                                value={editLabel}
+                                onChange={(e) => setEditLabel(e.target.value)}
+                                placeholder="表示名"
+                                className="w-full h-7 px-2 rounded border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                              />
+                              <input
+                                type="url"
+                                value={editHref}
+                                onChange={(e) => setEditHref(e.target.value)}
+                                placeholder="URL"
+                                className="w-full h-7 px-2 rounded border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                              />
+                              <div className="flex items-center gap-2">
+                                <label className="text-xs text-muted-foreground">表示順</label>
+                                <input
+                                  type="number"
+                                  value={editSortOrder}
+                                  onChange={(e) => setEditSortOrder(Number(e.target.value))}
+                                  className="w-16 h-7 px-2 rounded border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                  onClick={() => updateMutation.mutate({ id: link.id, category: editCategory, label: editLabel, href: editHref, color: editColor, sortOrder: editSortOrder })}
+                                  disabled={updateMutation.isPending || !editLabel.trim() || !editHref.trim()}
+                                >
+                                  {updateMutation.isPending ? "保存中..." : "保存"}
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setEditingId(null)}>
+                                  キャンセル
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            // 表示行
+                            <div className="flex items-center gap-3">
+                              <div className="flex-1 min-w-0">
+                                <p className={cn("text-sm font-medium truncate", link.color)}>{link.label}</p>
+                                <p className="text-xs text-muted-foreground truncate">{link.href}</p>
+                              </div>
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <span className="text-xs text-muted-foreground mr-1">順{link.sortOrder}</span>
+                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(link)}>
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7 text-destructive hover:text-destructive"
+                                  onClick={() => { if (confirm(`「${link.label}」を削除しますか？`)) deleteMutation.mutate({ id: link.id }); }}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

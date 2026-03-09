@@ -2263,6 +2263,62 @@ export const appRouter = router({
         return { success: true, days: input.days };
       }),
   }),
+
+  // ========== クイックアクセスリンク ==========
+  quickAccessLinks: router({
+    /** 全クイックアクセスリンクを取得 */
+    list: protectedProcedure.query(async () => {
+      const { getAllQuickAccessLinks } = await import("./db");
+      return getAllQuickAccessLinks();
+    }),
+    /** クイックアクセスリンクを作成（adminのみ） */
+    create: protectedProcedure
+      .input(z.object({
+        category: z.enum(["スプレッドシート", "ドキュメント", "フォーム", "その他"]),
+        label: z.string().min(1).max(200),
+        href: z.string().url(),
+        color: z.string().max(100).default("text-blue-600"),
+        sortOrder: z.number().int().default(0),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
+        }
+        const { createQuickAccessLink } = await import("./db");
+        const id = await createQuickAccessLink(input);
+        return { success: true, id };
+      }),
+    /** クイックアクセスリンクを更新（adminのみ） */
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number().int(),
+        category: z.enum(["スプレッドシート", "ドキュメント", "フォーム", "その他"]).optional(),
+        label: z.string().min(1).max(200).optional(),
+        href: z.string().url().optional(),
+        color: z.string().max(100).optional(),
+        sortOrder: z.number().int().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
+        }
+        const { updateQuickAccessLink } = await import("./db");
+        const { id, ...data } = input;
+        await updateQuickAccessLink(id, data);
+        return { success: true };
+      }),
+    /** クイックアクセスリンクを削除（adminのみ） */
+    delete: protectedProcedure
+      .input(z.object({ id: z.number().int() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
+        }
+        const { deleteQuickAccessLink } = await import("./db");
+        await deleteQuickAccessLink(input.id);
+        return { success: true };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

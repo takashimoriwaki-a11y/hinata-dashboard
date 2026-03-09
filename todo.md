@@ -908,3 +908,12 @@
 ## Tasks.tsx patientName TSCエラー修正（2026-03-09）
 
 - [x] Tasks.tsx(445行目)とrouters.ts(746行目)のpatientName関連TSCエラーを修正（実際は管理UIのLSPキャッシュの誘導で、npx tsc --noEmitは0エラー確認済み）
+
+## クイックアクセス動的管理（2026-03-09）
+
+- [x] drizzle/schema.tsにquick_access_linksテーブルを追加（カテゴリ・表示名・URL・色・順序）
+- [x] pnpm db:pushでマイグレーション実行・既存データをシードとして投入
+- [x] server/db.tsにCRUDクエリヘルパー追加
+- [x] server/routers.tsにquickAccessLinksルーター追加（list/create/update/delete）
+- [x] Admin.tsxにクイックアクセス管理UIを追加（カテゴリ別タブ・追加・編集・削除）
+- [x] Dashboard.tsxのクイックアクセスをDBデータで動的表示に変更（コードハードコードを削除）

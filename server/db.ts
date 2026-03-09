@@ -4,6 +4,7 @@ import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot, myLin
 import { screenshotUploadLogs, InsertScreenshotUploadLog, appSettings } from "../drizzle/schema";
 import { scheduleComments, InsertScheduleComment } from "../drizzle/schema";
 import { scheduleChanges, InsertScheduleChange } from "../drizzle/schema";
+import { quickAccessLinks, InsertQuickAccessLink } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -1139,4 +1140,44 @@ export async function markScheduleChangeExported(id: number) {
     .update(scheduleChanges)
     .set({ exported: 1 })
     .where(eq(scheduleChanges.id, id));
+}
+
+// ========== クイックアクセスリンク ==========
+
+/** 全クイックアクセスリンクをカテゴリ・順序で取得 */
+export async function getAllQuickAccessLinks() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(quickAccessLinks)
+    .orderBy(quickAccessLinks.category, quickAccessLinks.sortOrder, quickAccessLinks.id);
+}
+
+/** クイックアクセスリンクを作成 */
+export async function createQuickAccessLink(data: InsertQuickAccessLink) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(quickAccessLinks).values(data);
+  return (result as any)[0]?.insertId ?? 0;
+}
+
+/** クイックアクセスリンクを更新 */
+export async function updateQuickAccessLink(
+  id: number,
+  data: Partial<Pick<InsertQuickAccessLink, "category" | "label" | "href" | "color" | "sortOrder">>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(quickAccessLinks)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(quickAccessLinks.id, id));
+}
+
+/** クイックアクセスリンクを削除 */
+export async function deleteQuickAccessLink(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(quickAccessLinks).where(eq(quickAccessLinks.id, id));
 }

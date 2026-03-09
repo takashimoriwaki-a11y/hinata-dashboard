@@ -430,3 +430,28 @@ export const scheduleChanges = mysqlTable("schedule_changes", {
 
 export type ScheduleChange = typeof scheduleChanges.$inferSelect;
 export type InsertScheduleChange = typeof scheduleChanges.$inferInsert;
+
+/**
+ * クイックアクセスリンクテーブル
+ * ホーム画面の業務ツールクイックアクセスに表示するリンクを管理する
+ * - category: スプレッドシート / ドキュメント / フォーム / その他
+ * - sortOrder: 表示順（小さいほど上に表示）
+ */
+export const quickAccessLinks = mysqlTable("quick_access_links", {
+  id: int("id").autoincrement().primaryKey(),
+  /** カテゴリ */
+  category: mysqlEnum("category", ["スプレッドシート", "ドキュメント", "フォーム", "その他"]).notNull(),
+  /** 表示名 */
+  label: varchar("label", { length: 200 }).notNull(),
+  /** リンクURL */
+  href: varchar("href", { length: 2000 }).notNull(),
+  /** テキスト色クラス（例: text-emerald-600） */
+  color: varchar("color", { length: 100 }).default("text-blue-600").notNull(),
+  /** 表示順（小さいほど上） */
+  sortOrder: int("sortOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type QuickAccessLink = typeof quickAccessLinks.$inferSelect;
+export type InsertQuickAccessLink = typeof quickAccessLinks.$inferInsert;

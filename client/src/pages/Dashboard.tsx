@@ -1592,6 +1592,18 @@ function ToolsCard() {
   // 当月スプレッドシートリンク（tRPC + DB）
   const { data: sheetLinks } = trpc.spreadsheetLinks.getCurrent.useQuery();
 
+  // クイックアクセスリンク（tRPC + DB）
+  const { data: quickLinks } = trpc.quickAccessLinks.list.useQuery();
+  const docLinks: { label: string; href: string; color: string }[] = quickLinks
+    ? quickLinks.filter((l) => l.category === "ドキュメント").map((l) => ({ label: l.label, href: l.href, color: l.color }))
+    : documentLinks;
+  const frmLinks: { label: string; href: string; color: string }[] = quickLinks
+    ? quickLinks.filter((l) => l.category === "フォーム").map((l) => ({ label: l.label, href: l.href, color: l.color }))
+    : formLinks;
+  const othLinks: { label: string; href: string; color: string }[] = quickLinks
+    ? quickLinks.filter((l) => l.category === "その他").map((l) => ({ label: l.label, href: l.href, color: l.color }))
+    : otherLinks;
+
   // マイリンク（tRPC + DB）
   const utils = trpc.useUtils();
   const { data: myLinksData, isLoading: linksLoading } = trpc.myLinks.list.useQuery(undefined, { retry: false });
@@ -1681,9 +1693,9 @@ function ToolsCard() {
           {/* ドキュメント */}
           {activeTab === "doc" && (
             <>
-              {documentLinks.length > 0
-                ? documentLinks.map((link) => (
-                    <LinkRow key={link.label} href={link.href} label={link.label} color={link.color} />
+              {docLinks.length > 0
+                ? docLinks.map((link) => (
+                    <LinkRow key={link.href} href={link.href} label={link.label} color={link.color} />
                   ))
                 : <p className="text-xs text-muted-foreground text-center py-4">ドキュメントリンクはまだありません</p>
               }
@@ -1693,9 +1705,9 @@ function ToolsCard() {
           {/* フォーム */}
           {activeTab === "form" && (
             <>
-              {formLinks.length > 0
-                ? formLinks.map((link) => (
-                    <LinkRow key={link.label} href={link.href} label={link.label} color={link.color} />
+              {frmLinks.length > 0
+                ? frmLinks.map((link) => (
+                    <LinkRow key={link.href} href={link.href} label={link.label} color={link.color} />
                   ))
                 : <p className="text-xs text-muted-foreground text-center py-4">フォームリンクはまだありません</p>
               }
@@ -1705,8 +1717,8 @@ function ToolsCard() {
           {/* その他 */}
           {activeTab === "other" && (
             <>
-              {otherLinks.map((link) => (
-                <LinkRow key={link.label} href={link.href} label={link.label} color={link.color} />
+              {othLinks.map((link) => (
+                <LinkRow key={link.href} href={link.href} label={link.label} color={link.color} />
               ))}
             </>
           )}
