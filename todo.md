@@ -896,3 +896,7 @@
 ## 音声入力訂正表現の拡充（2026-03-09）
 
 - [x] parseVisitVoice・parseTaskVoice・scheduleChanges.parseVoiceのLLMプロンプトに自然な訂正表現を大幅追加
+
+## 音声入力訂正表現の追加拡充（2026-03-09）
+
+- [x] 「ちょっと待って」「もう一度」など現場でよく使う訂正表現を3つのparseVoiceルーターに追加
