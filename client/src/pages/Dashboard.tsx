@@ -2109,7 +2109,7 @@ function MessageBoard({ title }: { title: string }) {
     onSettled: () => utils.messages.getActive.invalidate(),
   });
 
-  // メッセージ削除
+  // メッセージ削除（通常削除・予約送信キャンセル共用）
   const deleteMsg = trpc.messages.delete.useMutation({
     onMutate: async ({ id }) => {
       await utils.messages.getActive.cancel();
@@ -2121,8 +2121,15 @@ function MessageBoard({ title }: { title: string }) {
       if (ctx?.prev) utils.messages.getActive.setData(undefined, ctx.prev);
       toast.error("削除に失敗しました");
     },
-    onSettled: () => utils.messages.getActive.invalidate(),
+    onSettled: () => {
+      utils.messages.getActive.invalidate();
+      utils.messages.getPending.invalidate();
+    },
   });
+
+  // 予約送信キャンセル確認ダイアログ用state
+  const [cancelTargetId, setCancelTargetId] = useState<number | null>(null);
+  const [cancelTargetText, setCancelTargetText] = useState("");
 
   // リアクショントグル
   const toggleReaction = trpc.messages.toggleReaction.useMutation({
@@ -2639,6 +2646,24 @@ function MessageBoard({ title }: { title: string }) {
                       )}>
                         送信予定: {new Date(msg.scheduledAt!).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                       </span>
+                      {/* 自分の予約送信のみキャンセルボタンを表示 */}
+                      {msg.createdBy === user?.id && (
+                        <button
+                          type="button"
+                          className={cn(
+                            "ml-auto text-[10px] px-2 py-0.5 rounded-full font-medium border transition-colors",
+                            isNight
+                              ? "border-red-700/50 text-red-400 hover:bg-red-900/40"
+                              : "border-red-200 text-red-500 hover:bg-red-50"
+                          )}
+                          onClick={() => {
+                            setCancelTargetId(msg.id);
+                            setCancelTargetText(msg.text);
+                          }}
+                        >
+                          キャンセル
+                        </button>
+                      )}
                     </div>
                     <p className="text-xs text-foreground/80 leading-relaxed pl-6.5">{msg.text}</p>
                     {(msg.displayFrom || msg.displayUntil) && (
@@ -2671,10 +2696,54 @@ function MessageBoard({ title }: { title: string }) {
           {showForm ? "フォームを閉じる" : "新しい投稿"}
         </button>
       </CardContent>
+
+      {/* 予約送信キャンセル確認ダイアログ */}
+      <Dialog open={cancelTargetId !== null} onOpenChange={(open) => { if (!open) { setCancelTargetId(null); setCancelTargetText(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base">予約送信をキャンセルしますか？</DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <p className="text-sm text-muted-foreground mb-3">以下のメッセージの予約送信をキャンセルします。この操作は元に戻せません。</p>
+            <div className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-foreground/80 line-clamp-3">
+              {cancelTargetText}
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setCancelTargetId(null); setCancelTargetText(""); }}
+            >
+              戻る
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={deleteMsg.isPending}
+              onClick={() => {
+                if (cancelTargetId === null) return;
+                deleteMsg.mutate(
+                  { id: cancelTargetId },
+                  {
+                    onSuccess: () => {
+                      toast.success("予約送信をキャンセルしました");
+                      setCancelTargetId(null);
+                      setCancelTargetText("");
+                    },
+                    onError: (e) => toast.error(e.message),
+                  }
+                );
+              }}
+            >
+              {deleteMsg.isPending ? "キャンセル中…" : "キャンセルする"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
-
 // ========== メインページ ==========
 
 function getGreeting(): string {
