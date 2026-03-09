@@ -576,7 +576,7 @@ ${clinicalNotes}`);
       {/* ① 利用者・次回訪問日時 */}
       <Card className="shadow-sm">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">① 利用者・次回訪問日時</CardTitle>
+          <CardTitle className="text-sm font-semibold">① 次回訪問日時</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
 
@@ -597,7 +597,7 @@ ${clinicalNotes}`);
                   <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
                   <VoiceHelpDialog mode="record" />
                 </div>
-                {visitVoice.isRecording ? (
+                {visitVoice.transcriptionStatus === "recording" || visitVoice.isRecording ? (
                   <p className={cn(
                     "text-xs font-medium mt-0.5",
                     visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5
@@ -606,12 +606,18 @@ ${clinicalNotes}`);
                   )}>
                     {visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5
                       ? `あと${visitVoice.silenceCountdown}秒で自動停止`
-                      : "🎙️ 話してください..."}
+                      : "🎤 話してください..."}
                   </p>
-                ) : isParsingVisitVoice ? (
-                  <p className="text-xs text-primary font-medium animate-pulse mt-0.5">AIが解析中...</p>
+                ) : visitVoice.transcriptionStatus === "uploading" ? (
+                  <p className="text-xs text-blue-600 dark:text-blue-400 font-medium animate-pulse mt-0.5">⬆️ 音声を受信中...</p>
+                ) : visitVoice.transcriptionStatus === "analyzing" || isParsingVisitVoice ? (
+                  <p className="text-xs text-primary font-medium animate-pulse mt-0.5">🔬 医療用語を解析中...</p>
+                ) : visitVoice.transcriptionStatus === "done" ? (
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">✅ 転記完了</p>
+                ) : visitVoice.transcriptionStatus === "error" ? (
+                  <p className="text-xs text-red-600 dark:text-red-400 font-medium mt-0.5">❌ 認識エラー</p>
                 ) : (
-                  <p className="text-xs text-muted-foreground mt-0.5">マイクをタップして話すと各項目に転記</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 whitespace-nowrap">マイクをタップして話すと各項目に転記</p>
                 )}
               </div>
               <button
@@ -674,17 +680,33 @@ ${clinicalNotes}`);
                     <p className="text-xs text-muted-foreground italic">話しかけてください...</p>
                   )
                 ) : visitVoiceText ? (
-                  <div className="flex items-start gap-1.5">
-                    <p className="text-xs text-muted-foreground leading-relaxed flex-1">
-                      🎤 {visitVoiceText}
-                    </p>
+                  <div className="space-y-1.5">
+                    <div className="flex items-start gap-1.5">
+                      <p className="text-xs text-muted-foreground leading-relaxed flex-1">
+                        🎤 {visitVoiceText}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setVisitVoiceText("")}
+                        className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors mt-0.5"
+                        title="クリア"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    </div>
+                    {/* 誤変換フィードバックボタン */}
                     <button
                       type="button"
-                      onClick={() => setVisitVoiceText("")}
-                      className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors mt-0.5"
-                      title="クリア"
+                      onClick={() => {
+                        const corrected = window.prompt("正しい認識結果を入力してください（次回から改善されます）", visitVoiceText);
+                        if (corrected && corrected !== visitVoiceText) {
+                          visitVoice.reportMistranscription(visitVoiceText, corrected);
+                        }
+                      }}
+                      className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      誤変換を報告して次回から改善
                     </button>
                   </div>
                 ) : null}

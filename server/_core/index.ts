@@ -314,6 +314,28 @@ ${medicalPrompt}`;
     }
   });
 
+  // 音声認識誤変換フィードバックエンドポイント /api/voice-feedback
+  // 誤変換を記録し、次回の認識精度向上に活用する
+  app.post("/api/voice-feedback", async (req, res) => {
+    try {
+      const { wrongText, correctedText, context } = req.body as {
+        wrongText: string;
+        correctedText: string;
+        context?: string;
+      };
+      if (!wrongText || !correctedText) {
+        res.status(400).json({ error: "wrongText と correctedText は必須です" });
+        return;
+      }
+      // フィードバックをログに記録（将来的にDBや補正辞書に保存可能）
+      console.log(`[voice-feedback] context=${context || "general"} | wrong: "${wrongText}" → corrected: "${correctedText}"`);
+      res.json({ ok: true });
+    } catch (e) {
+      console.error("[voice-feedback] error:", e);
+      res.status(500).json({ error: "内部エラー" });
+    }
+  });
+
   // スクリーンショット画像取得エンドポイント（Base64データをDBから取得して返す）
   app.get("/api/screenshot/:id", async (req, res) => {
     try {

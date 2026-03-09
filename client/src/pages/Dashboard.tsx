@@ -1951,28 +1951,28 @@ function TasksCard() {
               </div>
             ))
           )}
+
+          {/* カード内の新規追加ボタン */}
+          <button
+            onClick={() => setShowForm((v) => !v)}
+            className="w-full flex items-center justify-center gap-2 py-2 mt-1 rounded-lg border border-dashed border-primary/40 text-primary hover:border-primary hover:bg-primary/5 transition-colors text-xs font-medium"
+          >
+            {showForm ? (
+              <><X className="w-3.5 h-3.5" />フォームを閉じる</>
+            ) : (
+              <><Plus className="w-3.5 h-3.5" />新しいタスクを追加</>
+            )}
+          </button>
+
+          {/* 詳細フォーム */}
+          {showForm && (
+            <TaskCreateForm
+              onClose={() => setShowForm(false)}
+              onSuccess={() => utils.tasks.getMine.invalidate()}
+            />
+          )}
         </CardContent>
       </Card>
-
-      {/* 新規追加ボタン */}
-      <button
-        onClick={() => setShowForm((v) => !v)}
-        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-primary/30 text-primary hover:border-primary hover:bg-primary/5 transition-colors text-sm font-medium"
-      >
-        {showForm ? (
-          <><X className="w-4 h-4" />フォームを閉じる</>
-        ) : (
-          <><Plus className="w-4 h-4" />新しいタスクを追加</>
-        )}
-      </button>
-
-      {/* 詳細フォーム */}
-      {showForm && (
-        <TaskCreateForm
-          onClose={() => setShowForm(false)}
-          onSuccess={() => utils.tasks.getMine.invalidate()}
-        />
-      )}
     </div>
   );
 }

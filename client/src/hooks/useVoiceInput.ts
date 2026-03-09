@@ -2,17 +2,19 @@
  * useVoiceInput
  *
  * Web Speech API (SpeechRecognition) を第一選択で使用し、
- * 非対応環境では MediaRecorder + Whisper API にフォールバックする
+ * 非対応環境では MediaRecorder + Gemini Audio API (Whisper フォールバック) にフォールバックする
  * 共通音声入力カスタムフック。
  *
  * 機能:
  * - Web Speech API によるリアルタイム音声認識
- * - 非対応環境では MediaRecorder + Whisper API にフォールバック
+ * - 非対応環境では MediaRecorder + /api/transcribe (Gemini Audio API) にフォールバック
  * - 30秒間無音が続いた場合に自動停止（タイマーは発話のたびにリセット）
  * - interimText: 認識中の暫定テキストをリアルタイムで返す
+ * - transcriptionStatus: 認識フェーズをリアルタイムで返す
+ * - lastTranscribedText: 最後に認識されたテキストを返す（フィードバック用）
  *
  * 使い方:
- *   const { isRecording, startVoice, stopVoice, isProcessing, interimText } = useVoiceInput({
+ *   const { isRecording, startVoice, stopVoice, isProcessing, interimText, transcriptionStatus } = useVoiceInput({
  *     onResult: (text) => setMyText(prev => prev + text),
  *   });
  */
@@ -22,6 +24,17 @@ import { toast } from "sonner";
 
 /** 無音自動停止までの秒数 */
 const SILENCE_TIMEOUT_MS = 30_000;
+
+/**
+ * 音声認識のフェーズ
+ * - idle: 待機中
+ * - recording: 録音中（Web Speech API または MediaRecorder）
+ * - uploading: サーバーへ音声データ送信中
+ * - analyzing: Gemini/Whisperが医療用語を解析中
+ * - done: 転記完了
+ * - error: エラー
+ */
+export type TranscriptionStatus = "idle" | "recording" | "uploading" | "analyzing" | "done" | "error";
 
 interface UseVoiceInputOptions {
   /** 認識結果テキストを受け取るコールバック */
@@ -58,6 +71,12 @@ interface UseVoiceInputReturn {
   interimText: string;
   /** 無音タイマーの残り秒数（録音中のみ更新、0=タイムアウト直前） */
   silenceCountdown: number | null;
+  /** 認識フェーズ（UIステータス表示用） */
+  transcriptionStatus: TranscriptionStatus;
+  /** 最後に認識されたテキスト（誤変換フィードバック用） */
+  lastTranscribedText: string;
+  /** 誤変換フィードバックを送信する */
+  reportMistranscription: (wrongText: string, correctedText: string) => Promise<void>;
 }
 
 // SpeechRecognition の型定義（ブラウザ互換）
@@ -127,6 +146,8 @@ export function useVoiceInput({
   const [isProcessing, setIsProcessing] = useState(false);
   const [interimText, setInterimText] = useState("");
   const [silenceCountdown, setSilenceCountdown] = useState<number | null>(null);
+  const [transcriptionStatus, setTranscriptionStatus] = useState<TranscriptionStatus>("idle");
+  const [lastTranscribedText, setLastTranscribedText] = useState("");
 
   // onRecordingChangeコールバックをrefで保持（クロージャ問題回避）
   const onRecordingChangeRef = useRef(onRecordingChange);
@@ -210,7 +231,6 @@ export function useVoiceInput({
       recognition.maxAlternatives = 1;
 
       // 確定済テキストの累積（訂正サポート）
-      // 最後の発話ブロックは上書き可能にするため、確定済テキストを「それまでの確定」と「最後の確定ブロック」に分けて管理する
       let confirmedText = "";   // 最後のブロック以前の確定済テキスト
       let lastBlockText = "";   // 最後の確定ブロック（訂正で上書きされる可能性あり）
       let lastFinalResultIndex = -1; // 最後の確定結果のresultIndex
@@ -229,12 +249,9 @@ export function useVoiceInput({
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
-            // 訂正サポート: 同じresultIndexの確定結果が再度届いた場合は上書き
             if (i === lastFinalResultIndex) {
-              // 直前の確定ブロックを上書き（訂正された）
               lastBlockText = transcript;
             } else if (i > lastFinalResultIndex) {
-              // 新しい確定ブロック: 前のブロックをconfirmedTextに移動して新しいブロックを開始
               if (lastFinalResultIndex >= 0) {
                 confirmedText += lastBlockText;
               }
@@ -248,8 +265,6 @@ export function useVoiceInput({
         }
 
         setInterimText(currentInterim);
-
-        // 発話を検出したらタイマーをリセット
         resetSilenceTimer(stopFromTimer);
       };
 
@@ -257,17 +272,23 @@ export function useVoiceInput({
         clearSilenceTimer();
         setRecording(false);
         setInterimText("");
-        // confirmedText + lastBlockTextで最終テキストを構築（訂正サポート）
         const finalText = (confirmedText + lastBlockText).trim();
         if (finalText) {
           onResult(finalText);
+          setLastTranscribedText(finalText);
+          setTranscriptionStatus("done");
           if (autoStoppedRef.current) {
             toast.info("30秒間無音のため自動停止しました", { duration: 4000 });
           } else {
-            toast.success("音声入力完了");
+            toast.success("✅ 転記完了");
           }
+          // 5秒後にステータスをidleに戻す
+          setTimeout(() => setTranscriptionStatus("idle"), 5000);
         } else if (autoStoppedRef.current) {
+          setTranscriptionStatus("idle");
           toast.info("30秒間無音のため自動停止しました", { duration: 4000 });
+        } else {
+          setTranscriptionStatus("idle");
         }
         autoStoppedRef.current = false;
         recognitionRef.current = null;
@@ -277,8 +298,10 @@ export function useVoiceInput({
         clearSilenceTimer();
         setRecording(false);
         setInterimText("");
+        setTranscriptionStatus("error");
         autoStoppedRef.current = false;
         recognitionRef.current = null;
+        setTimeout(() => setTranscriptionStatus("idle"), 3000);
         if (event.error === "not-allowed") {
           toast.error("マイクのアクセスが許可されていません。ブラウザの設定を確認してください。");
         } else if (event.error === "no-speech") {
@@ -293,8 +316,9 @@ export function useVoiceInput({
       recognition.start();
       recognitionRef.current = recognition;
       setRecording(true);
+      setTranscriptionStatus("recording");
 
-      // 録音開始直後からタイマーをスタート（最初の発話がなくても30秒で停止）
+      // 録音開始直後からタイマーをスタート
       resetSilenceTimer(stopFromTimer);
 
       return true;
@@ -311,9 +335,10 @@ export function useVoiceInput({
     }
     setRecording(false);
     setInterimText("");
+    setTranscriptionStatus("idle");
   }, [clearSilenceTimer]);
 
-  // ---- MediaRecorder + Whisper フォールバック実装 ----
+  // ---- MediaRecorder + Gemini Audio API フォールバック実装 ----
   const startMediaRecorder = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -368,20 +393,25 @@ export function useVoiceInput({
           }
           autoStoppedRef.current = false;
           setIsProcessing(false);
+          setTranscriptionStatus("idle");
           return;
         }
 
         if (blob.size > 16 * 1024 * 1024) {
           toast.error("音声ファイルが大きすぎます（16MB以下）");
           setIsProcessing(false);
+          setTranscriptionStatus("error");
+          setTimeout(() => setTranscriptionStatus("idle"), 3000);
           return;
         }
 
         setIsProcessing(true);
+        setTranscriptionStatus("uploading");
+
         if (autoStoppedRef.current) {
-          toast.info("30秒間無音のため自動停止しました。文字起こし中...", { duration: 4000 });
+          toast.info("30秒間無音のため自動停止しました。解析中...", { duration: 4000 });
         } else {
-          toast.info("文字起こし中...");
+          toast.info("⬆️ 音声を受信中...");
         }
         autoStoppedRef.current = false;
 
@@ -391,6 +421,10 @@ export function useVoiceInput({
           formData.append("audio", blob, `recording.${ext}`);
           formData.append("language", "ja");
           formData.append("context", context);
+
+          // アップロード完了 → 解析フェーズへ
+          setTranscriptionStatus("analyzing");
+          toast.info("🔬 医療用語を解析中...", { id: "analyzing-toast" });
 
           const res = await fetch("/api/transcribe", {
             method: "POST",
@@ -406,13 +440,21 @@ export function useVoiceInput({
           const data = await res.json() as { text: string };
           if (data.text?.trim()) {
             onResult(data.text.trim());
-            toast.success("音声入力完了");
+            setLastTranscribedText(data.text.trim());
+            setTranscriptionStatus("done");
+            toast.success("✅ 転記完了", { id: "analyzing-toast" });
+            // 5秒後にステータスをidleに戻す
+            setTimeout(() => setTranscriptionStatus("idle"), 5000);
           } else {
-            toast.error("音声を認識できませんでした。もう一度お試しください。");
+            setTranscriptionStatus("error");
+            toast.error("音声を認識できませんでした。もう一度お試しください。", { id: "analyzing-toast" });
+            setTimeout(() => setTranscriptionStatus("idle"), 3000);
           }
         } catch (err) {
           const msg = err instanceof Error ? err.message : "不明なエラー";
-          toast.error(`音声入力エラー: ${msg}`);
+          setTranscriptionStatus("error");
+          toast.error(`音声入力エラー: ${msg}`, { id: "analyzing-toast" });
+          setTimeout(() => setTranscriptionStatus("idle"), 3000);
         } finally {
           setIsProcessing(false);
         }
@@ -422,17 +464,20 @@ export function useVoiceInput({
       recorder.start(250);
       mediaRecorderRef.current = recorder;
       setRecording(true);
+      setTranscriptionStatus("recording");
 
       // 録音開始直後からタイマーをスタート
       resetSilenceTimer(stopFromTimer);
     } catch (err) {
+      setTranscriptionStatus("error");
+      setTimeout(() => setTranscriptionStatus("idle"), 3000);
       if (err instanceof DOMException && err.name === "NotAllowedError") {
         toast.error("マイクのアクセスが許可されていません。ブラウザの設定を確認してください。");
       } else {
         toast.error("マイクの起動に失敗しました。");
       }
     }
-  }, [onResult, resetSilenceTimer, clearSilenceTimer]);
+  }, [onResult, resetSilenceTimer, clearSilenceTimer, context]);
 
   const stopMediaRecorder = useCallback(() => {
     clearSilenceTimer();
@@ -444,20 +489,18 @@ export function useVoiceInput({
   }, [clearSilenceTimer]);
 
   // ---- 公開 API ----
-  const startVoice = useCallback(() => {
-    // Web Speech API が使えれば優先使用
+  const startVoice = useCallback(async () => {
+    setTranscriptionStatus("recording");
     const usedSpeechAPI = startSpeechRecognition();
     if (!usedSpeechAPI) {
-      // フォールバック: MediaRecorder
-      startMediaRecorder();
+      await startMediaRecorder();
     }
   }, [startSpeechRecognition, startMediaRecorder]);
 
   const stopVoice = useCallback(() => {
-    clearSilenceTimer();
     if (recognitionRef.current) {
       stopSpeechRecognition();
-    } else if (mediaRecorderRef.current) {
+    } else {
       stopMediaRecorder();
     }
   }, [clearSilenceTimer, stopSpeechRecognition, stopMediaRecorder]);
@@ -470,6 +513,24 @@ export function useVoiceInput({
     }
   }, [isRecording, startVoice, stopVoice]);
 
+  /**
+   * 誤変換フィードバックをサーバーに送信する
+   * サーバー側でコンテキスト別の補正辞書に追加し、次回の認識精度を向上させる
+   */
+  const reportMistranscription = useCallback(async (wrongText: string, correctedText: string) => {
+    try {
+      await fetch("/api/voice-feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ wrongText, correctedText, context }),
+      });
+      toast.success("フィードバックを送信しました。次回から改善されます。");
+    } catch {
+      toast.error("フィードバックの送信に失敗しました。");
+    }
+  }, [context]);
+
   return {
     isRecording,
     isProcessing,
@@ -478,5 +539,8 @@ export function useVoiceInput({
     toggleVoice,
     interimText,
     silenceCountdown,
+    transcriptionStatus,
+    lastTranscribedText,
+    reportMistranscription,
   };
 }
