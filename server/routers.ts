@@ -1239,11 +1239,13 @@ export const appRouter = router({
         const token = await client.getAccessToken();
         if (!token.token) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "認証トークン取得失敗" });
 
-        // 日時フォーマット
+        // 日時フォーマット（JST: UTC+9 に変換して書き込む）
         const formatDate = (val: Date | number | null | undefined) => {
           if (!val) return "";
           const d = val instanceof Date ? val : new Date(val);
-          return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+          // UTC+9（JST）に変換
+          const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+          return `${jst.getUTCFullYear()}/${String(jst.getUTCMonth()+1).padStart(2,"0")}/${String(jst.getUTCDate()).padStart(2,"0")} ${String(jst.getUTCHours()).padStart(2,"0")}:${String(jst.getUTCMinutes()).padStart(2,"0")}`;
         };
 
         // ヘッダー行の定義（ダッシュボード入力項目と整合）
