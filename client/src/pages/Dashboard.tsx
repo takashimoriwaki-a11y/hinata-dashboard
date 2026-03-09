@@ -2631,13 +2631,13 @@ export default function Dashboard() {
             <p className="text-xl md:text-3xl font-extrabold text-white leading-tight tracking-wide whitespace-nowrap" style={{textShadow: '0 2px 8px rgba(0,0,0,0.2)'}}>{userName}<span className="text-lg md:text-2xl">さん</span></p>
             <p className="text-xl md:text-3xl font-extrabold text-white/90 whitespace-nowrap" style={{textShadow: '0 1px 4px rgba(0,0,0,0.2)'}}>{greeting}</p>
           </div>
-          {/* ショートカットボタン（モバイル中央・PC右寄せ） */}
-          <div className="flex flex-row items-center gap-2 justify-center md:justify-end">
+          {/* ショートカットボタン（モバイル横スクロール・PC右寄せ） */}
+          <div className="flex flex-row items-center gap-2 justify-start md:justify-end overflow-x-auto pb-0.5 scrollbar-none" style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
             <a
               href="https://gemini.google.com/app"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm" style={{backgroundColor: '#9b7fd4'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#8a6ec3')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#9b7fd4')}
+              className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm whitespace-nowrap flex-shrink-0" style={{backgroundColor: '#9b7fd4'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#8a6ec3')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#9b7fd4')}
             >
               <span className="text-sm leading-none">✨</span>
               Gemini
@@ -2646,7 +2646,7 @@ export default function Dashboard() {
               href="https://homecare.zest.jp/login"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm" style={{backgroundColor: '#00b5a3'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#009e8e')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#00b5a3')}
+              className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm whitespace-nowrap flex-shrink-0" style={{backgroundColor: '#00b5a3'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#009e8e')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#00b5a3')}
             >
               <Calendar className="w-3.5 h-3.5" />
               ZEST
@@ -2655,20 +2655,20 @@ export default function Dashboard() {
               href="https://login.ibowservice.jp/?action=logout"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm" style={{backgroundColor: '#4a90d9'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#3a7fc8')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#4a90d9')}
+              className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm whitespace-nowrap flex-shrink-0" style={{backgroundColor: '#4a90d9'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#3a7fc8')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#4a90d9')}
             >
               <ClipboardList className="w-3.5 h-3.5" />
               iBow
             </a>
             <Link href="/record">
-              <span className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm cursor-pointer" style={{backgroundColor: '#e06060'}}>
+              <span className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm cursor-pointer whitespace-nowrap flex-shrink-0" style={{backgroundColor: '#e06060'}}>
                 <ClipboardEdit className="w-3.5 h-3.5" />
                 記録
               </span>
             </Link>
             <Link href="/schedule-change">
               <span
-                className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm cursor-pointer"
+                className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm cursor-pointer whitespace-nowrap flex-shrink-0"
                 style={{backgroundColor: '#f59e0b'}}
                 onMouseEnter={e => (e.currentTarget.style.backgroundColor='#d97706')}
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor='#f59e0b')}
@@ -2679,7 +2679,7 @@ export default function Dashboard() {
             </Link>
             <Link href="/tasks">
               <span
-                className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm cursor-pointer"
+                className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm cursor-pointer whitespace-nowrap flex-shrink-0"
                 style={{backgroundColor: '#6366f1'}}
                 onMouseEnter={e => (e.currentTarget.style.backgroundColor='#4f46e5')}
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor='#6366f1')}
