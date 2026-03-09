@@ -265,11 +265,10 @@ export default function RecordInput() {
     onResult: (text) => {
       setIsParsingReInput(true);
       // 全利用者リストを渡す（検索結果ではなく全件）
-      const names = allPatientsRef.current.length > 0
-        ? allPatientsRef.current.map((p) => p.name)
-        : patientsRef.current.map((p) => p.name);
+      const src = allPatientsRef.current.length > 0 ? allPatientsRef.current : patientsRef.current;
+      const namesWithKana = src.map((p) => ({ name: p.name, kana: p.nameKana ?? '' }));
       reInputTargetFieldRef.current = "patientName"; // refに保持
-      parseReInputMutation.mutate({ text, patientNames: names });
+      parseReInputMutation.mutate({ text, patientNamesWithKana: namesWithKana });
     },
   });
   // 個別音声再入力用フック（次回訪問日時）
@@ -345,10 +344,9 @@ export default function RecordInput() {
     setVisitVoiceError(null);
     setIsParsingVisitVoice(true);
     // 全利用者リストを渡す（検索結果ではなく全件）
-    const names = allPatientsRef.current.length > 0
-      ? allPatientsRef.current.map((p) => p.name)
-      : patientsRef.current.map((p) => p.name);
-    parseVisitVoiceMutation.mutate({ text, patientNames: names });
+    const src = allPatientsRef.current.length > 0 ? allPatientsRef.current : patientsRef.current;
+    const namesWithKana = src.map((p) => ({ name: p.name, kana: p.nameKana ?? '' }));
+    parseVisitVoiceMutation.mutate({ text, patientNamesWithKana: namesWithKana });
   };
 
   const visitVoice = useVoiceInput({
@@ -670,9 +668,19 @@ ${clinicalNotes}`);
                     <p className="text-xs text-muted-foreground italic">話しかけてください...</p>
                   )
                 ) : visitVoiceText ? (
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    🎤 {visitVoiceText}
-                  </p>
+                  <div className="flex items-start gap-1.5">
+                    <p className="text-xs text-muted-foreground leading-relaxed flex-1">
+                      🎤 {visitVoiceText}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setVisitVoiceText("")}
+                      className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors mt-0.5"
+                      title="クリア"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                  </div>
                 ) : null}
               </div>
             )}
@@ -773,7 +781,7 @@ ${clinicalNotes}`);
                       ) : (
                         <VoiceMicButton
                           size="sm"
-                          onResult={(text) => { setReInputField("patientName"); setIsParsingReInput(true); reInputTargetFieldRef.current = "patientName"; parseReInputMutation.mutate({ text, patientNames: patientsRef.current.map((p) => p.name) }); }}
+                          onResult={(text) => { setReInputField("patientName"); setIsParsingReInput(true); reInputTargetFieldRef.current = "patientName"; const src2 = allPatientsRef.current.length > 0 ? allPatientsRef.current : patientsRef.current; parseReInputMutation.mutate({ text, patientNamesWithKana: src2.map((p) => ({ name: p.name, kana: p.nameKana ?? '' })) }); }}
                           previewMode="tooltip"
                           className="rounded-full"
                         />

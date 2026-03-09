@@ -202,7 +202,11 @@ export function useVoiceInput({
       recognition.interimResults = true;  // 暫定結果も取得（リアルタイムプレビュー）
       recognition.maxAlternatives = 1;
 
-      let accumulatedFinalText = "";
+      // 確定済テキストの累積（訂正サポート）
+      // 最後の発話ブロックは上書き可能にするため、確定済テキストを「それまでの確定」と「最後の確定ブロック」に分けて管理する
+      let confirmedText = "";   // 最後のブロック以前の確定済テキスト
+      let lastBlockText = "";   // 最後の確定ブロック（訂正で上書きされる可能性あり）
+      let lastFinalResultIndex = -1; // 最後の確定結果のresultIndex
       autoStoppedRef.current = false;
 
       // 停止関数（タイマーから呼ぶ用）
@@ -218,7 +222,18 @@ export function useVoiceInput({
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
-            accumulatedFinalText += transcript;
+            // 訂正サポート: 同じresultIndexの確定結果が再度届いた場合は上書き
+            if (i === lastFinalResultIndex) {
+              // 直前の確定ブロックを上書き（訂正された）
+              lastBlockText = transcript;
+            } else if (i > lastFinalResultIndex) {
+              // 新しい確定ブロック: 前のブロックをconfirmedTextに移動して新しいブロックを開始
+              if (lastFinalResultIndex >= 0) {
+                confirmedText += lastBlockText;
+              }
+              lastBlockText = transcript;
+              lastFinalResultIndex = i;
+            }
             currentInterim = "";
           } else {
             currentInterim += transcript;
@@ -235,8 +250,10 @@ export function useVoiceInput({
         clearSilenceTimer();
         setRecording(false);
         setInterimText("");
-        if (accumulatedFinalText.trim()) {
-          onResult(accumulatedFinalText.trim());
+        // confirmedText + lastBlockTextで最終テキストを構築（訂正サポート）
+        const finalText = (confirmedText + lastBlockText).trim();
+        if (finalText) {
+          onResult(finalText);
           if (autoStoppedRef.current) {
             toast.info("30秒間無音のため自動停止しました", { duration: 4000 });
           } else {

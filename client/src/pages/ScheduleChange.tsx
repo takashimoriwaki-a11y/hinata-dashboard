@@ -1468,9 +1468,19 @@ export default function ScheduleChange() {
                   <p className="text-xs text-muted-foreground italic">話しかけてください...</p>
                 )
               ) : voiceText ? (
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  🎤 {voiceText}
-                </p>
+                <div className="flex items-start gap-1.5">
+                  <p className="text-xs text-muted-foreground leading-relaxed flex-1">
+                    🎤 {voiceText}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setVoiceText("")}
+                    className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors mt-0.5"
+                    title="クリア"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
               ) : null}
             </div>
           )}

@@ -829,15 +829,22 @@ export const appRouter = router({
       .input(z.object({
         text: z.string().min(1),
         patientNames: z.array(z.string()).optional(),
+        patientNamesWithKana: z.array(z.object({ name: z.string(), kana: z.string() })).optional(),
         staffNames: z.array(z.string()).optional(),
       }))
       .mutation(async ({ input }) => {
         const { invokeLLM } = await import("./_core/llm");
         const today = new Date();
         const todayStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
-        const patientListStr = input.patientNames && input.patientNames.length > 0
-          ? `\n\n登録済み利用者リスト（この中から最も近い名前を選んでpatientNameに返すこと）:\n${input.patientNames.join('、')}`
-          : '';
+        let patientListStr = '';
+        if (input.patientNamesWithKana && input.patientNamesWithKana.length > 0) {
+          const entries = input.patientNamesWithKana
+            .map(p => p.kana ? `${p.name}（${p.kana}）` : p.name)
+            .join('、');
+          patientListStr = `\n\n登録済利用者リスト（この中から最も近い名前を選んでpatientNameに正式名を返すこと。姓のみ・読み仮名・略称で言及されても正式名を返すこと）:\n${entries}`;
+        } else if (input.patientNames && input.patientNames.length > 0) {
+          patientListStr = `\n\n登録済利用者リスト（この中から最も近い名前を選んでpatientNameに返すこと）:\n${input.patientNames.join('、')}`;
+        }
         const staffListStr = input.staffNames && input.staffNames.length > 0
           ? `\n\n登録済みスタッフリスト（assignPersonNameはこの中から選ぶこと）:\n${input.staffNames.join('、')}`
           : '';
@@ -1432,19 +1439,27 @@ export const appRouter = router({
       .input(z.object({
         text: z.string().min(1),
         patientNames: z.array(z.string()).optional(),
+        patientNamesWithKana: z.array(z.object({ name: z.string(), kana: z.string() })).optional(),
         staffNames: z.array(z.string()).optional(),
       }))
       .mutation(async ({ input }) => {
         const { invokeLLM } = await import("./_core/llm");
         const today = new Date();
         const todayStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
-        const patientListStr = input.patientNames && input.patientNames.length > 0
-          ? `\n\n登録済み利用者リスト（この中から最も近い名前を選んでpatientNameに返すこと。姓のみで言及されても正式名を返すこと）:\n${input.patientNames.join('、')}`
-          : '';
+        // 読み仮名付き利用者リストを構築（読み仮名があれば「正式名（読み）」形式で表示）
+        let patientListStr = '';
+        if (input.patientNamesWithKana && input.patientNamesWithKana.length > 0) {
+          const entries = input.patientNamesWithKana
+            .map(p => p.kana ? `${p.name}（${p.kana}）` : p.name)
+            .join('、');
+          patientListStr = `\n\n登録済利用者リスト（この中から最も近い名前を選んでpatientNameに正式名を返すこと。姓のみ・読み仮名・略称で言及されても正式名を返すこと）:\n${entries}`;
+        } else if (input.patientNames && input.patientNames.length > 0) {
+          patientListStr = `\n\n登録済利用者リスト（この中から最も近い名前を選んでpatientNameに返すこと。姓のみで言及されても正式名を返すこと）:\n${input.patientNames.join('、')}`;
+        }
         const systemPrompt = `あなたは訪問看護ステーションの業務アシスタントです。スタッフが音声で伝えた内容から、利用者名・次回訪問日時・伝達先・伝達方法を抽出してJSONで返してください。
 今日は${todayStr}です。日付は「明日」「明後日」「今日」などの相対表現も解釈してYYYY-MM-DD形式で返してください。時刻はHH:mm形式で返してください。
 抽出項目:
-- patientName: 利用者名。「○○さん」「○○の」など利用者を指す表現から抽出。利用者リストがある場合はリストから最も近い名前を完全な形で返す（姓のみで言及されても正式名を返す）。不明ならnull
+- patientName: 利用者名。「○○さん」「○○の」など利用者を指す表現から抽出。利用者リストがある場合はリストから最も近い名前を完全な形で返す（姓のみ・読み仮名・略称で言及されても正式名を返す）。不明ならnull
 - visitDate: 次回訪問日（YYYY-MM-DD形式）
 - visitTime: 次回訪問時刻（HH:mm形式）
 - notifiedTo: 伝達先。「本人」「家族」「その他」のいずれか。不明ならnull
@@ -1452,6 +1467,7 @@ export const appRouter = router({
 - notifyMethod: 伝達方法。「口頭」「カレンダー記入」「付箋」「電話」「その他」のいずれか。不明ならnull
 - notifyMethodOther: notifyMethodが「その他」の場合の自由記述
 不明な項目はnullを返してください。必ず有効なJSONのみを返してください。${patientListStr}`;
+
         const res = await invokeLLM({
           messages: [
             { role: "system", content: systemPrompt },
