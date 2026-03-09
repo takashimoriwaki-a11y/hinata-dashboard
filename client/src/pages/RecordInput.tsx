@@ -183,12 +183,14 @@ export default function RecordInput() {
   // 個別項目の音声再入力用state
   const [reInputField, setReInputField] = useState<string | null>(null); // 現在再入力中の項目名
   const [isParsingReInput, setIsParsingReInput] = useState(false);
+  // targetFieldはzodスキーマ外のためvariablesから取得できない → refで保持する
+  const reInputTargetFieldRef = useRef<string | null>(null);
 
   // 個別項目の音声再入力用tRPCミューテーション
   const parseReInputMutation = trpc.visitRecords.parseVisitVoice.useMutation({
-    onSuccess: (result, variables) => {
+    onSuccess: (result) => {
       const f = result.fields;
-      const field = (variables as { text: string; patientNames?: string[]; targetField?: string }).targetField;
+      const field = reInputTargetFieldRef.current;
 
       // 確認パネルが表示されている場合はeditingPreviewを更新
       setEditingPreview((p) => {
@@ -266,28 +268,32 @@ export default function RecordInput() {
       const names = allPatientsRef.current.length > 0
         ? allPatientsRef.current.map((p) => p.name)
         : patientsRef.current.map((p) => p.name);
-      parseReInputMutation.mutate({ text, patientNames: names, targetField: "patientName" } as { text: string; patientNames: string[]; targetField: string });
+      reInputTargetFieldRef.current = "patientName"; // refに保持
+      parseReInputMutation.mutate({ text, patientNames: names });
     },
   });
   // 個別音声再入力用フック（次回訪問日時）
   const reInputDateTimeVoice = useVoiceInput({
     onResult: (text) => {
       setIsParsingReInput(true);
-      parseReInputMutation.mutate({ text, patientNames: [], targetField: "visitDateTime" } as { text: string; patientNames: string[]; targetField: string });
+      reInputTargetFieldRef.current = "visitDateTime"; // refに保持
+      parseReInputMutation.mutate({ text, patientNames: [] });
     },
   });
   // 個別音声再入力用フック（伝達先）
   const reInputNotifiedToVoice = useVoiceInput({
     onResult: (text) => {
       setIsParsingReInput(true);
-      parseReInputMutation.mutate({ text, patientNames: [], targetField: "notifiedTo" } as { text: string; patientNames: string[]; targetField: string });
+      reInputTargetFieldRef.current = "notifiedTo"; // refに保持
+      parseReInputMutation.mutate({ text, patientNames: [] });
     },
   });
   // 個別音声再入力用フック（伝達方法）
   const reInputNotifyMethodVoice = useVoiceInput({
     onResult: (text) => {
       setIsParsingReInput(true);
-      parseReInputMutation.mutate({ text, patientNames: [], targetField: "notifyMethod" } as { text: string; patientNames: string[]; targetField: string });
+      reInputTargetFieldRef.current = "notifyMethod"; // refに保持
+      parseReInputMutation.mutate({ text, patientNames: [] });
     },
   });
 
@@ -641,25 +647,33 @@ ${clinicalNotes}`);
               </button>
             </div>
 
-            {/* 録音中の暫定テキストプレビュー */}
-            {visitVoice.isRecording && (
+            {/* 録音中の暫定テキストプレビュー（録音終了後も残す） */}
+            {(visitVoice.isRecording || visitVoiceText) && (
               <div className={cn(
-                "px-3 py-2 rounded-lg border min-h-[36px]",
-                visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5
-                  ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
-                  : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
+                "px-3 py-2 rounded-lg border min-h-[36px] transition-colors duration-300",
+                visitVoice.isRecording
+                  ? (visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5
+                      ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
+                      : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800")
+                  : "bg-muted/40 border-border"
               )}>
-                {visitVoice.interimText ? (
-                  <p className="text-xs text-red-600 dark:text-red-400 italic leading-relaxed">
-                    🎤 {visitVoice.interimText}
+                {visitVoice.isRecording ? (
+                  visitVoice.interimText ? (
+                    <p className="text-xs text-red-600 dark:text-red-400 italic leading-relaxed">
+                      🎤 {visitVoice.interimText}
+                    </p>
+                  ) : visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5 ? (
+                    <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+                      あと{visitVoice.silenceCountdown}秒で自動停止します
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">話しかけてください...</p>
+                  )
+                ) : visitVoiceText ? (
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    🎤 {visitVoiceText}
                   </p>
-                ) : visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5 ? (
-                  <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
-                    あと{visitVoice.silenceCountdown}秒で自動停止します
-                  </p>
-                ) : (
-                  <p className="text-xs text-muted-foreground italic">話しかけてください...</p>
-                )}
+                ) : null}
               </div>
             )}
 
@@ -683,7 +697,7 @@ ${clinicalNotes}`);
             <div className="space-y-1">
               <p className="text-[10px] font-medium text-muted-foreground">話しかけの例</p>
               <div className="rounded-lg bg-background/70 border border-border px-3 py-2">
-                <span className="text-[11px] text-muted-foreground leading-snug">郡山南部チームのアイウエオさん、次回訪問は明後日の午前10時、伝達先は山田医師、電話で連絡済み</span>
+                <span className="text-[11px] text-muted-foreground leading-snug">○○チームの○○さん、次回訪問は明後日の×時×分、本人に口頭で伝えた。</span>
               </div>
             </div>
 
@@ -759,7 +773,7 @@ ${clinicalNotes}`);
                       ) : (
                         <VoiceMicButton
                           size="sm"
-                          onResult={(text) => { setReInputField("patientName"); setIsParsingReInput(true); parseReInputMutation.mutate({ text, patientNames: patientsRef.current.map((p) => p.name), targetField: "patientName" } as { text: string; patientNames: string[]; targetField: string }); }}
+                          onResult={(text) => { setReInputField("patientName"); setIsParsingReInput(true); reInputTargetFieldRef.current = "patientName"; parseReInputMutation.mutate({ text, patientNames: patientsRef.current.map((p) => p.name) }); }}
                           previewMode="tooltip"
                           className="rounded-full"
                         />
@@ -785,7 +799,7 @@ ${clinicalNotes}`);
                       ) : (
                         <VoiceMicButton
                           size="sm"
-                          onResult={(text) => { setReInputField("visitDateTime"); setIsParsingReInput(true); parseReInputMutation.mutate({ text, patientNames: [], targetField: "visitDateTime" } as { text: string; patientNames: string[]; targetField: string }); }}
+                          onResult={(text) => { setReInputField("visitDateTime"); setIsParsingReInput(true); reInputTargetFieldRef.current = "visitDateTime"; parseReInputMutation.mutate({ text, patientNames: [] }); }}
                           previewMode="tooltip"
                           className="rounded-full"
                         />
@@ -831,7 +845,7 @@ ${clinicalNotes}`);
                       ) : (
                         <VoiceMicButton
                           size="sm"
-                          onResult={(text) => { setReInputField("notifiedTo"); setIsParsingReInput(true); parseReInputMutation.mutate({ text, patientNames: [], targetField: "notifiedTo" } as { text: string; patientNames: string[]; targetField: string }); }}
+                          onResult={(text) => { setReInputField("notifiedTo"); setIsParsingReInput(true); reInputTargetFieldRef.current = "notifiedTo"; parseReInputMutation.mutate({ text, patientNames: [] }); }}
                           previewMode="tooltip"
                           className="rounded-full"
                         />
@@ -874,7 +888,7 @@ ${clinicalNotes}`);
                       ) : (
                         <VoiceMicButton
                           size="sm"
-                          onResult={(text) => { setReInputField("notifyMethod"); setIsParsingReInput(true); parseReInputMutation.mutate({ text, patientNames: [], targetField: "notifyMethod" } as { text: string; patientNames: string[]; targetField: string }); }}
+                          onResult={(text) => { setReInputField("notifyMethod"); setIsParsingReInput(true); reInputTargetFieldRef.current = "notifyMethod"; parseReInputMutation.mutate({ text, patientNames: [] }); }}
                           previewMode="tooltip"
                           className="rounded-full"
                         />

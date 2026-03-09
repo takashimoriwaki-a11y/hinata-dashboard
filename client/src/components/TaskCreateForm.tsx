@@ -30,7 +30,7 @@ const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"] as const;
 
 /** 音声入力の例文 */
 const VOICE_EXAMPLES = [
-  "○○チームの○○さんの自立支援医療受給者証を写真撮る",
+  "○○チームの○○さん、×月×日に自立支援医療の受給者証の写真を撮る",
 ];
 
 interface TaskCreateFormProps {
@@ -463,24 +463,32 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
           </div>
 
           {/* 録音中の入力テキストボックス */}
-          {taskVoice.isRecording && (
+          {(taskVoice.isRecording || lastVoiceText) && (
             <div className={cn(
               "px-3 py-2 rounded-lg border min-h-[36px] transition-colors duration-300",
-              taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5
-                ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
-                : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
+              taskVoice.isRecording
+                ? (taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5
+                    ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
+                    : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800")
+                : "bg-muted/40 border-border"
             )}>
-              {taskVoice.interimText ? (
-                <p className="text-xs text-red-600 dark:text-red-400 italic leading-relaxed">
-                  🎤 {taskVoice.interimText}
+              {taskVoice.isRecording ? (
+                taskVoice.interimText ? (
+                  <p className="text-xs text-red-600 dark:text-red-400 italic leading-relaxed">
+                    🎤 {taskVoice.interimText}
+                  </p>
+                ) : taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5 ? (
+                  <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+                    あと{taskVoice.silenceCountdown}秒で自動停止します
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">話しかけてください...</p>
+                )
+              ) : lastVoiceText ? (
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  🎤 {lastVoiceText}
                 </p>
-              ) : taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5 ? (
-                <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
-                  あと{taskVoice.silenceCountdown}秒で自動停止します
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground italic">話しかけてください...</p>
-              )}
+              ) : null}
             </div>
           )}
 

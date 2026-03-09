@@ -1452,15 +1452,26 @@ export default function ScheduleChange() {
           </div>
 
           {/* 録音中の入力テキストボックス */}
-          {isVoiceRecording && (
-            <div className="px-3 py-2 rounded-lg border min-h-[36px] bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 transition-colors duration-300">
-              {voiceInterimText ? (
-                <p className="text-xs text-red-600 dark:text-red-400 italic leading-relaxed">
-                  🎤 {voiceInterimText}
+          {(isVoiceRecording || voiceText) && (
+            <div className={cn(
+              "px-3 py-2 rounded-lg border min-h-[36px] transition-colors duration-300",
+              isVoiceRecording
+                ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
+                : "bg-muted/40 border-border"
+            )}>
+              {isVoiceRecording ? (
+                voiceInterimText ? (
+                  <p className="text-xs text-red-600 dark:text-red-400 italic leading-relaxed">
+                    🎤 {voiceInterimText}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">話しかけてください...</p>
+                )
+              ) : voiceText ? (
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  🎤 {voiceText}
                 </p>
-              ) : (
-                <p className="text-xs text-muted-foreground italic">話しかけてください...</p>
-              )}
+              ) : null}
             </div>
           )}
 
@@ -1469,7 +1480,7 @@ export default function ScheduleChange() {
             <div>
               <p className="text-[10px] font-medium text-muted-foreground mb-1.5">話しかけの例</p>
               <div className="rounded-lg bg-background/70 border border-border px-3 py-2">
-                <span className="text-[11px] text-muted-foreground leading-snug">郡山南部チームの○○さんの訪問を明日の10時から午後2時に変更、利用者の希望のため</span>
+                <span className="text-[11px] text-muted-foreground leading-snug">○○チームの○○さん、次回の訪問は明後日の×時から×月×日の×時に変更。本人の受診のため。</span>
               </div>
             </div>
           )}
