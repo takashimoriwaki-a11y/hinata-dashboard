@@ -2138,6 +2138,21 @@ function MessageBoard({ title }: { title: string }) {
   const [cancelTargetId, setCancelTargetId] = useState<number | null>(null);
   const [cancelTargetText, setCancelTargetText] = useState("");
 
+  // 予約送信編集ダイアログ用state
+  const [editTargetId, setEditTargetId] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
+  const [editScheduledDate, setEditScheduledDate] = useState("");
+  const [editScheduledTime, setEditScheduledTime] = useState("");
+  const [editDisplayFrom, setEditDisplayFrom] = useState("");
+  const [editDisplayUntil, setEditDisplayUntil] = useState("");
+
+  // 予約送信編集用日時変換ヘルパー
+  const buildEditDateTime = (date: string, time: string): Date | undefined => {
+    if (!date) return undefined;
+    const t = time || "00:00";
+    return new Date(`${date}T${t}:00`);
+  };
+
   // リアクショントグル
   const toggleReaction = trpc.messages.toggleReaction.useMutation({
     onSuccess: () => utils.messages.getActive.invalidate(),
@@ -2653,23 +2668,61 @@ function MessageBoard({ title }: { title: string }) {
                       )}>
                         送信予定: {new Date(msg.scheduledAt!).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                       </span>
-                      {/* 自分の予約送信のみキャンセルボタンを表示 */}
-                      {msg.createdBy === user?.id && (
-                        <button
-                          type="button"
-                          className={cn(
-                            "ml-auto text-[10px] px-2 py-0.5 rounded-full font-medium border transition-colors",
-                            isNight
-                              ? "border-red-700/50 text-red-400 hover:bg-red-900/40"
-                              : "border-red-200 text-red-500 hover:bg-red-50"
-                          )}
-                          onClick={() => {
-                            setCancelTargetId(msg.id);
-                            setCancelTargetText(msg.text);
-                          }}
-                        >
-                          キャンセル
-                        </button>
+                      {/* 自分または管理者の場合に編集・キャンセルボタンを表示 */}
+                      {(msg.createdBy === user?.id || user?.role === "admin") && (
+                        <div className="ml-auto flex items-center gap-1">
+                          <button
+                            type="button"
+                            className={cn(
+                              "text-[10px] px-2 py-0.5 rounded-full font-medium border transition-colors",
+                              isNight
+                                ? "border-blue-700/50 text-blue-400 hover:bg-blue-900/40"
+                                : "border-blue-200 text-blue-500 hover:bg-blue-50"
+                            )}
+                            onClick={() => {
+                              // 編集ダイアログを開く（現在値で初期化）
+                              setEditTargetId(msg.id);
+                              setEditText(msg.text);
+                              if (msg.scheduledAt) {
+                                const d = new Date(msg.scheduledAt);
+                                setEditScheduledDate(d.toISOString().slice(0, 10));
+                                setEditScheduledTime(d.toTimeString().slice(0, 5));
+                              } else {
+                                setEditScheduledDate("");
+                                setEditScheduledTime("");
+                              }
+                              if (msg.displayFrom) {
+                                const d = new Date(msg.displayFrom);
+                                setEditDisplayFrom(d.toISOString().slice(0, 10));
+                              } else {
+                                setEditDisplayFrom("");
+                              }
+                              if (msg.displayUntil) {
+                                const d = new Date(msg.displayUntil);
+                                setEditDisplayUntil(d.toISOString().slice(0, 10));
+                              } else {
+                                setEditDisplayUntil("");
+                              }
+                            }}
+                          >
+                            編集
+                          </button>
+                          <button
+                            type="button"
+                            className={cn(
+                              "text-[10px] px-2 py-0.5 rounded-full font-medium border transition-colors",
+                              isNight
+                                ? "border-red-700/50 text-red-400 hover:bg-red-900/40"
+                                : "border-red-200 text-red-500 hover:bg-red-50"
+                            )}
+                            onClick={() => {
+                              setCancelTargetId(msg.id);
+                              setCancelTargetText(msg.text);
+                            }}
+                          >
+                            キャンセル
+                          </button>
+                        </div>
                       )}
                     </div>
                     <p className="text-xs text-foreground/80 leading-relaxed pl-6.5">{msg.text}</p>
@@ -2744,6 +2797,95 @@ function MessageBoard({ title }: { title: string }) {
               }}
             >
               {deleteMsg.isPending ? "キャンセル中…" : "キャンセルする"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 予約送信編集ダイアログ */}
+      <Dialog open={editTargetId !== null} onOpenChange={(open) => { if (!open) setEditTargetId(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base">予約送信を編集</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">メッセージ</label>
+              <Textarea
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                rows={4}
+                maxLength={1000}
+                className="text-sm resize-none"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">送信予約日時</label>
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={editScheduledDate}
+                  onChange={(e) => setEditScheduledDate(e.target.value)}
+                  className="flex-1 text-xs border rounded-md px-2 py-1.5 bg-background text-foreground"
+                />
+                <input
+                  type="time"
+                  value={editScheduledTime}
+                  onChange={(e) => setEditScheduledTime(e.target.value)}
+                  className="w-28 text-xs border rounded-md px-2 py-1.5 bg-background text-foreground"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">表示開始日</label>
+                <input
+                  type="date"
+                  value={editDisplayFrom}
+                  onChange={(e) => setEditDisplayFrom(e.target.value)}
+                  className="w-full text-xs border rounded-md px-2 py-1.5 bg-background text-foreground"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">表示終了日</label>
+                <input
+                  type="date"
+                  value={editDisplayUntil}
+                  onChange={(e) => setEditDisplayUntil(e.target.value)}
+                  className="w-full text-xs border rounded-md px-2 py-1.5 bg-background text-foreground"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditTargetId(null)}
+            >
+              戻る
+            </Button>
+            <Button
+              size="sm"
+              disabled={!editText.trim() || updateMsg.isPending}
+              onClick={() => {
+                if (editTargetId === null) return;
+                updateMsg.mutate({
+                  id: editTargetId,
+                  text: editText.trim(),
+                  scheduledAt: buildEditDateTime(editScheduledDate, editScheduledTime),
+                  displayFrom: editDisplayFrom ? buildEditDateTime(editDisplayFrom, "00:00") : null,
+                  displayUntil: editDisplayUntil ? buildEditDateTime(editDisplayUntil, "23:59") : null,
+                }, {
+                  onSuccess: () => {
+                    toast.success("予約送信を更新しました");
+                    setEditTargetId(null);
+                    utils.messages.getPending.invalidate();
+                  },
+                });
+              }}
+            >
+              {updateMsg.isPending ? "更新中…" : "保存する"}
             </Button>
           </DialogFooter>
         </DialogContent>

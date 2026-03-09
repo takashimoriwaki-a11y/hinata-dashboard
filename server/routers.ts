@@ -950,20 +950,21 @@ export const appRouter = router({
         return { success: true, id };
       }),
 
-    // メッセージを手動削除する（作成者のみ）
+    // メッセージを手動削除する（作成者または管理者）
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         const msg = await getMessageById(input.id);
         if (!msg) throw new TRPCError({ code: "NOT_FOUND", message: "メッセージが見つかりません" });
-        if (msg.createdBy !== ctx.user.id) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "作成者のみ削除できます" });
+        // 管理者は全員分削除可能、それ以外は作成者のみ
+        if (ctx.user.role !== "admin" && msg.createdBy !== ctx.user.id) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "作成者または管理者のみ削除できます" });
         }
         await softDeleteMessage(input.id, ctx.user.id);
         return { success: true };
       }),
 
-    // メッセージを編集する（作成者のみ）
+    // メッセージを編集する（作成者または管理者）
     update: protectedProcedure
       .input(
         z.object({
@@ -977,8 +978,9 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const msg = await getMessageById(input.id);
         if (!msg) throw new TRPCError({ code: "NOT_FOUND", message: "メッセージが見つかりません" });
-        if (msg.createdBy !== ctx.user.id) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "作成者のみ編集できます" });
+        // 管理者は全員分編集可能、それ以外は作成者のみ
+        if (ctx.user.role !== "admin" && msg.createdBy !== ctx.user.id) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "作成者または管理者のみ編集できます" });
         }
         await updateMessage(input.id, ctx.user.id, {
           text: input.text,
