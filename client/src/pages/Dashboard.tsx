@@ -2632,7 +2632,7 @@ export default function Dashboard() {
             <p className="text-xl md:text-3xl font-extrabold text-white/90 whitespace-nowrap" style={{textShadow: '0 1px 4px rgba(0,0,0,0.2)'}}>{greeting}</p>
           </div>
           {/* ショートカットボタン（モバイル横スクロール・PC右寄せ） */}
-          <div className="flex flex-row items-center gap-2 justify-start md:justify-end overflow-x-auto pb-0.5 scrollbar-none" style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
+          <div className="flex flex-row flex-wrap items-center gap-1.5 justify-center md:justify-end">
             <a
               href="https://gemini.google.com/app"
               target="_blank"
