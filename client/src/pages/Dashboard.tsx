@@ -2669,9 +2669,9 @@ export default function Dashboard() {
             <Link href="/schedule-change">
               <span
                 className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm cursor-pointer whitespace-nowrap flex-shrink-0"
-                style={{backgroundColor: '#f59e0b'}}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor='#d97706')}
-                onMouseLeave={e => (e.currentTarget.style.backgroundColor='#f59e0b')}
+                style={{backgroundColor: '#059669'}}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor='#047857')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor='#059669')}
               >
                 <CalendarClock className="w-3.5 h-3.5" />
                 変更連絡
