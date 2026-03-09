@@ -1458,8 +1458,9 @@ export const appRouter = router({
         }
         const systemPrompt = `あなたは訪問看護ステーションの業務アシスタントです。スタッフが音声で伝えた内容から、利用者名・次回訪問日時・伝達先・伝達方法を抽出してJSONで返してください。
 今日は${todayStr}です。日付は「明日」「明後日」「今日」などの相対表現も解釈してYYYY-MM-DD形式で返してください。時刻はHH:mm形式で返してください。
+重要：音声入力では言い間違いを訂正する場合があります。「○○さん、じゃなくて△△さん」「○○ではなく△△」「違う」「やっぱり」など訂正を示す言葉がある場合は、最後に言及された内容を正しい値として使用してください。
 抽出項目:
-- patientName: 利用者名。「○○さん」「○○の」など利用者を指す表現から抽出。利用者リストがある場合はリストから最も近い名前を完全な形で返す（姓のみ・読み仮名・略称で言及されても正式名を返す）。不明ならnull
+- patientName: 利用者名。「○○さん」「○○の」など利用者を指す表現から抽出。利用者リストがある場合はリストから最も近い名前を完全な形で返す（姓のみ・読み仮名・略称で言及されても正式名を返す）。訂正表現がある場合は最後に言及された利用者名を使用すること。不明ならnull
 - visitDate: 次回訪問日（YYYY-MM-DD形式）
 - visitTime: 次回訪問時刻（HH:mm形式）
 - notifiedTo: 伝達先。「本人」「家族」「その他」のいずれか。不明ならnull
@@ -2016,19 +2017,33 @@ export const appRouter = router({
 
     /** 音声テキストをLLMで解析しフォーム項目を抽出する */
     parseVoice: protectedProcedure
-      .input(z.object({ text: z.string().min(1) }))
+      .input(z.object({
+        text: z.string().min(1),
+        patientNamesWithKana: z.array(z.object({ name: z.string(), kana: z.string() })).optional(),
+        patientNames: z.array(z.string()).optional(),
+      }))
       .mutation(async ({ input }) => {
         const { invokeLLM } = await import("./_core/llm");
         const today = new Date();
         const todayStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
+        let patientListStr = '';
+        if (input.patientNamesWithKana && input.patientNamesWithKana.length > 0) {
+          const entries = input.patientNamesWithKana
+            .map(p => p.kana ? `${p.name}（${p.kana}）` : p.name)
+            .join('、');
+          patientListStr = `\n\n登録済利用者リスト（この中から最も近い名前を選んでpatientName/patientLastNameに正式名を返すこと。姓のみ・読み仮名・略称で言及されても正式名を返すこと）:\n${entries}`;
+        } else if (input.patientNames && input.patientNames.length > 0) {
+          patientListStr = `\n\n登録済利用者リスト（この中から最も近い名前を選んでpatientName/patientLastNameに返すこと）:\n${input.patientNames.join('、')}`;
+        }
         const systemPrompt = `あなたは訪問看護ステーションの業務アシスタントです。スタッフが音声で伝えた内容から、スケジュール変更連絡の各項目を抽出してJSONで返してください。
 
 今日は${todayStr}です。日時は「明日」「明後日」「今日」などの相対表現も解釈してISO 8601形式（YYYY-MM-DDTHH:mm）で返してください。
+重要：音声入力では言い間違いを訂正する場合があります。「○○さん、じゃなくて△△さん」「○○ではなく△△」「違う」「やっぱり」など訂正を示す言葉がある場合は、最後に言及された内容を正しい値として使用してください。
 
 抽出項目:
 - changeType: 次のいずれか。訪問日時変更=visit_change、訪問キャンセル=visit_cancel、訪問追加=visit_add、会議追加=meeting_add、会議変更=meeting_change
 - team: 身体 / 天理 / 郡山北部 / 郡山南部 / 事務員 / 全チーム のいずれか
-- patientName: 利用者名（姓名）。姓だけの場合は姓のみ返す
+- patientName: 利用者名（姓名）。訂正表現がある場合は最後に言及された利用者名を使用すること。利用者リストがある場合は正式名を返すこと。姓だけの場合は姓のみ返す
 - patientLastName: 利用者の姓（苗字）のみ。姓名両方わかる場合は同じ値、姓だけの場合はその姓、利用者が不明な場合はnull
 - fromDatetime: 変更前日時（ISO 8601）
 - toDatetime: 変更後日時または追加日時（ISO 8601）
@@ -2036,9 +2051,9 @@ export const appRouter = router({
 - staffAfter: 変更後担当スタッフ名
 - meetingName: 会議名
 - meetingStaff: 参加スタッフ名の配列（例: ["森脇", "田中"]）
-- reason: 変更理由・備考。「〜のため」「〜なので」「〜だから」「〜の都合」「体調不良」「急用」「病院受診」「家族の都合」「仕事の都合」「訪問拒否」「入院」「外出中」「デイサービス」「通院」「受診」「施設入所」など、理由・事情を示す語句や文を抽出してください。理由が明示されていない場合はnullを返してください。
+- reason: 変更理由・備考。「～のため」「～なので」「～だから」「～の都合」「体調不良」「急用」「病院受診」「家族の都合」「仕事の都合」「訪問拒否」「入院」「外出中」「デイサービス」「通院」「受診」「施設入所」など、理由・事情を示す語句や文を抽出してください。理由が明示されていない場合はnullを返してください。
 
-不明な項目はnullを返してください。必ず有効なJSONのみを返してください。`;
+不明な項目はnullを返してください。必ず有効なJSONのみを返してください。${patientListStr}`;
 
         const res = await invokeLLM({
           messages: [

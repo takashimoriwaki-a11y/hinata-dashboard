@@ -1262,11 +1262,16 @@ export default function ScheduleChange() {
     },
   });
 
+  // patientListをrefで保持（クロージャ問題回避）
+  const patientListRef = useRef(patientList);
+  useEffect(() => { patientListRef.current = patientList; }, [patientList]);
+
   const handleVoiceResult = useCallback((text: string) => {
     setVoiceError(null);
     setVoiceText(text);
     setIsParsingVoice(true);
-    parseVoice.mutate({ text });
+    const namesWithKana = patientListRef.current.map((p) => ({ name: p.name, kana: (p as { nameKana?: string | null }).nameKana ?? '' }));
+    parseVoice.mutate({ text, patientNamesWithKana: namesWithKana });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1515,7 +1520,8 @@ export default function ScheduleChange() {
                   setVoiceError(null);
                   if (voiceText) {
                     setIsParsingVoice(true);
-                    parseVoice.mutate({ text: voiceText });
+                    const namesWithKana2 = patientListRef.current.map((p) => ({ name: p.name, kana: (p as { nameKana?: string | null }).nameKana ?? '' }));
+                    parseVoice.mutate({ text: voiceText, patientNamesWithKana: namesWithKana2 });
                   }
                 }}
                 className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-xs font-medium rounded-lg hover:bg-primary/90 active:scale-95 transition-all"
