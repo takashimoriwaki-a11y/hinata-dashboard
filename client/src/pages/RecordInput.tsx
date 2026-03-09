@@ -168,6 +168,7 @@ export default function RecordInput() {
     notifiedToOther?: string;
     notifyMethod?: string;
     notifyMethodOther?: string;
+    team?: string;
   };
   const [voicePreview, setVoicePreview] = useState<VoicePreview | null>(null);
   const [editingPreview, setEditingPreview] = useState<VoicePreview | null>(null);
@@ -209,6 +210,10 @@ export default function RecordInput() {
       setNotifyMethod(preview.notifyMethod as typeof NOTIFY_METHOD_OPTIONS[number]);
     }
     if (preview.notifyMethodOther) setNotifyMethodOther(preview.notifyMethodOther);
+    // チームが含まれていれば反映
+    if (preview.team && TEAMS.includes(preview.team as Team)) {
+      setTeam(preview.team as Team);
+    }
     setVoicePreview(null);
     setEditingPreview(null);
     // 転記されたフィールドを黄色フラッシュでハイライト
@@ -380,6 +385,7 @@ export default function RecordInput() {
         notifiedToOther: f.notifiedToOther ?? undefined,
         notifyMethod: f.notifyMethod ?? undefined,
         notifyMethodOther: f.notifyMethodOther ?? undefined,
+        team: f.team ?? undefined,
       };
       setVoicePreview(preview);
       setEditingPreview({ ...preview });
@@ -465,9 +471,9 @@ export default function RecordInput() {
   );
 
   // 全利用者リスト（音声入力時のマッチング用）
-  // チーム選択時はそのチームの利用者のみに自動絞り込み
+  // チームに関わらず全件取得（音声入力でチームを言及した場合に正しくマッチングできるように）
   const { data: allPatients = [] } = trpc.patients.list.useQuery(
-    { team: team as Team || undefined }
+    {}
   );
   const allPatientsRef = useRef<typeof allPatients>([]);
   useEffect(() => { allPatientsRef.current = allPatients; }, [allPatients]);
@@ -844,6 +850,25 @@ ${clinicalNotes}`);
                   }
                 </p>
 
+                {/* チーム */}
+                {editingPreview.team && (
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-medium text-muted-foreground">チーム</label>
+                    <Select
+                      value={editingPreview.team ?? ""}
+                      onValueChange={(v) => setEditingPreview((p) => p ? { ...p, team: v } : p)}
+                    >
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue placeholder="チームを選択" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TEAMS.map((t) => (
+                          <SelectItem key={t} value={t}>{t}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 {/* 利用者名 */}
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5">

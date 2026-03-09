@@ -1479,6 +1479,7 @@ export const appRouter = router({
 - notifiedToOther: notifiedToが「その他」の場合の自由記述
 - notifyMethod: 伝達方法。「口頭」「カレンダー記入」「付箋」「電話」「その他」のいずれか。不明ならnull
 - notifyMethodOther: notifyMethodが「その他」の場合の自由記述
+- team: 利用者が所属するチーム。「身体」「天理」「郡山北部」「郡山南部」のいずれか。「しんたい」「からだ」と言われたら「身体」、「てんり」と言われたら「天理」、「きたべ」「きたぶ」「北部」と言われたら「郡山北部」、「みなみ」「南部」と言われたら「郡山南部」を返す。不明ならnull
 不明な項目はnullを返してください。必ず有効なJSONのみを返してください。${patientListStr}`;
 
         const res = await invokeLLM({
@@ -1501,8 +1502,9 @@ export const appRouter = router({
                   notifiedToOther: { type: ["string", "null"] },
                   notifyMethod: { type: ["string", "null"] },
                   notifyMethodOther: { type: ["string", "null"] },
+                  team: { type: ["string", "null"] },
                 },
-                required: ["patientName", "visitDate", "visitTime", "notifiedTo", "notifiedToOther", "notifyMethod", "notifyMethodOther"],
+                required: ["patientName", "visitDate", "visitTime", "notifiedTo", "notifiedToOther", "notifyMethod", "notifyMethodOther", "team"],
                 additionalProperties: false,
               },
             },
@@ -1520,6 +1522,7 @@ export const appRouter = router({
             notifiedToOther: string | null;
             notifyMethod: string | null;
             notifyMethodOther: string | null;
+            team: string | null;
           };
           return { success: true, fields: parsed };
         } catch {
