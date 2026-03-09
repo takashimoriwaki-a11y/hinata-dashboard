@@ -492,19 +492,11 @@ export default function RecordInput() {
 
   const exportToSheet = trpc.visitRecords.exportToSheet.useMutation({
     onSuccess: () => {
-      setExported(true);
       toast.success("スプレッドシートへ転送しました！");
       utils.visitRecords.getMine.invalidate();
-      // 転送後に①の入力内容をリセット
-      setPatientId(null);
-      setPatientName("");
-      setSearchQuery("");
-      setNextVisitDate("");
-      setNextVisitTime("");
-      setNotifiedTo("");
-      setNotifiedToOther("");
-      setNotifyMethod("");
-      setNotifyMethodOther("");
+      // 転送後に全入力内容をリセット（チーム含む）
+      setTeam("");
+      handleReset();
     },
     onError: (err) => toast.error(`転送エラー: ${err.message}`),
   });
