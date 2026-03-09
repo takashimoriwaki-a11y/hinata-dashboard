@@ -952,3 +952,12 @@
 - [x] ウェルカムバナーのボタンアイコン確認（ボトムナビと既に整合済み）
 - [x] TSCエラー調査（LSPキャッシュ問題、npx tsc --noEmit は0エラー確認済み）
 - [x] tsconfig.jsonにdrizzle/**/*を追加してLSP型解決を改善
+
+## 音声入力・自動転記品質向上（2026-03-09）
+
+- [x] Gemini Audio APIを使った高精度音声認識エンドポイント実装（/api/transcribe強化）
+- [x] コンテキスト別医療用語プロンプト対応（context パラメータ追加）
+- [x] useVoiceInputフックにcontextオプション追加
+- [x] Whisperフォールバック時のpromptを精神科・訪問看護専門用語で強化
+- [x] 全音声入力箇所（記録・タスク・変更連絡）にコンテキスト設定完了
+- [x] VoiceMicButtonコンポーネントにcontextプロップ追加

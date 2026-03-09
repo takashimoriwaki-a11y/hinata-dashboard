@@ -296,6 +296,7 @@ function PatientAutocomplete({
               onResult={handleVoiceForPatient}
               size="sm"
               previewMode="tooltip"
+              context="schedule_change"
             />
           </div>
 
@@ -1453,6 +1454,7 @@ export default function ScheduleChange() {
               size="lg"
               disabled={isParsingVoice}
               previewMode="none"
+              context="schedule_change"
             />
           </div>
 

@@ -115,6 +115,7 @@ export default function RecordInput() {
   // 病状の経過用（interimTextを直接取得するためuseVoiceInputを直接使用）
   const notesVoice = useVoiceInput({
     onResult: (text: string) => { setClinicalNotes(prev => prev + (prev ? "\n" : "") + text.trim()); },
+    context: "clinical_notes",
   });
 
   // 次回訪問日時・伝達先・伝達方法の音声入力用state
@@ -270,6 +271,7 @@ export default function RecordInput() {
       reInputTargetFieldRef.current = "patientName"; // refに保持
       parseReInputMutation.mutate({ text, patientNamesWithKana: namesWithKana });
     },
+    context: "clinical_notes",
   });
   // 個別音声再入力用フック（次回訪問日時）
   const reInputDateTimeVoice = useVoiceInput({
@@ -278,6 +280,7 @@ export default function RecordInput() {
       reInputTargetFieldRef.current = "visitDateTime"; // refに保持
       parseReInputMutation.mutate({ text, patientNames: [] });
     },
+    context: "clinical_notes",
   });
   // 個別音声再入力用フック（伝達先）
   const reInputNotifiedToVoice = useVoiceInput({
@@ -286,6 +289,7 @@ export default function RecordInput() {
       reInputTargetFieldRef.current = "notifiedTo"; // refに保持
       parseReInputMutation.mutate({ text, patientNames: [] });
     },
+    context: "clinical_notes",
   });
   // 個別音声再入力用フック（伝達方法）
   const reInputNotifyMethodVoice = useVoiceInput({
@@ -294,6 +298,7 @@ export default function RecordInput() {
       reInputTargetFieldRef.current = "notifyMethod"; // refに保持
       parseReInputMutation.mutate({ text, patientNames: [] });
     },
+    context: "clinical_notes",
   });
 
   // 次回訪問日時音声入力用tRPCミューテーション
@@ -351,6 +356,7 @@ export default function RecordInput() {
 
   const visitVoice = useVoiceInput({
     onResult: handleVisitVoiceResult,
+    context: "clinical_notes",
   });
 
   // ===== 下書き自動保存 =====
@@ -784,6 +790,7 @@ ${clinicalNotes}`);
                           onResult={(text) => { setReInputField("patientName"); setIsParsingReInput(true); reInputTargetFieldRef.current = "patientName"; const src2 = allPatientsRef.current.length > 0 ? allPatientsRef.current : patientsRef.current; parseReInputMutation.mutate({ text, patientNamesWithKana: src2.map((p) => ({ name: p.name, kana: p.nameKana ?? '' })) }); }}
                           previewMode="tooltip"
                           className="rounded-full"
+                          context="clinical_notes"
                         />
                       )}
                     </span>
@@ -810,6 +817,7 @@ ${clinicalNotes}`);
                           onResult={(text) => { setReInputField("visitDateTime"); setIsParsingReInput(true); reInputTargetFieldRef.current = "visitDateTime"; parseReInputMutation.mutate({ text, patientNames: [] }); }}
                           previewMode="tooltip"
                           className="rounded-full"
+                          context="clinical_notes"
                         />
                       )}
                     </span>
@@ -856,6 +864,7 @@ ${clinicalNotes}`);
                           onResult={(text) => { setReInputField("notifiedTo"); setIsParsingReInput(true); reInputTargetFieldRef.current = "notifiedTo"; parseReInputMutation.mutate({ text, patientNames: [] }); }}
                           previewMode="tooltip"
                           className="rounded-full"
+                          context="clinical_notes"
                         />
                       )}
                     </span>
@@ -899,6 +908,7 @@ ${clinicalNotes}`);
                           onResult={(text) => { setReInputField("notifyMethod"); setIsParsingReInput(true); reInputTargetFieldRef.current = "notifyMethod"; parseReInputMutation.mutate({ text, patientNames: [] }); }}
                           previewMode="tooltip"
                           className="rounded-full"
+                          context="clinical_notes"
                         />
                       )}
                     </span>
@@ -1006,6 +1016,7 @@ ${clinicalNotes}`);
                     onResult={voicePatient.onResult}
                     size="sm"
                     previewMode="tooltip"
+                    context="clinical_notes"
                   />
                   <Button
                     variant="outline"

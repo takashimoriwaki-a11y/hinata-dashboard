@@ -213,7 +213,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     },
   });
 
-  // 音声入力（認識完了後にAI解析へ）
+   // 音声入力（認識完了後AI解析へ）
   const taskVoice = useVoiceInput({
     onResult: (text: string) => {
       setLastVoiceText(text);
@@ -225,6 +225,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
         staffNames: staff.map((s) => s.name).filter(Boolean) as string[],
       });
     },
+    context: "task",
   });
 
   // エラー時リトライ

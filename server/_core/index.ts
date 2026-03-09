@@ -44,39 +44,270 @@ async function startServer() {
   registerGoogleAuthRoutes(app);
 
   // 音声文字起こしエンドポイント /api/transcribe
+  // Gemini Audio API をメインに使用し、失敗時は Whisper API にフォールバック
+  // context パラメータで画面ごとの医療用語プロンプトを最適化
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 16 * 1024 * 1024 } });
+
+  /**
+   * コンテキスト別の医療用語プロンプトを返す
+   * context: 'clinical_notes' | 'task' | 'schedule_change' | 'message' | 'general'
+   */
+  function getMedicalPrompt(context: string): string {
+    const BASE_TERMS = `
+訪問看護・精神科・認知症ケアの専門用語を正確に認識してください。
+
+【精神科・精神疾患関連】
+統合失調症、双極性障害（躁うつ病）、うつ病、不安障害、パニック障害、強迫性障害（OCD）、
+PTSD（心的外傷後ストレス障害）、解離性障害、パーソナリティ障害、発達障害（ASD・ADHD）、
+知的障害、てんかん、アルコール依存症、薬物依存症、摂食障害、睡眠障害、
+幻覚（幻聴・幻視）、妄想（被害妄想・誇大妄想）、陽性症状、陰性症状、
+陽転、陰転、急性増悪、寛解、再燃、再発、自傷行為、希死念慮、希死念慮消退、
+デポ剤、クロザピン、リスペリドン、オランザピン、アリピプラゾール、クエチアピン、
+ハロペリドール、フルフェナジン、レボメプロマジン、ペロスピロン、
+SSRI、SNRI、三環系抗うつ薬、MAO阻害薬、気分安定薬、抗不安薬、睡眠薬、
+リチウム、バルプロ酸、カルバマゼピン、ラモトリギン、
+ベンゾジアゼピン系、非ベンゾジアゼピン系、
+
+【認知症関連】
+アルツハイマー型認知症、レビー小体型認知症、血管性認知症、前頭側頭型認知症、
+BPSD（行動・心理症状）、周辺症状、中核症状、見当識障害、記憶障害、
+失語、失行、失認、実行機能障害、徘徊、興奮、攻撃性、不眠、昼夜逆転、
+幻視、妄想（物盗られ妄想）、うつ状態、アパシー、食行動異常、
+ドネペジル（アリセプト）、ガランタミン（レミニール）、リバスチグミン（イクセロン・リバスタッチ）、
+メマンチン（メマリー）、
+MMSE、HDS-R、CDR、NPI、DBD、
+
+【訪問看護・在宅ケア関連】
+訪問看護、訪問看護指示書、訪問看護計画書、訪問看護報告書、
+精神科訪問看護、精神科認定看護師、
+ケアマネジャー（ケアマネ）、相談支援専門員、精神保健福祉士（PSW）、作業療法士（OT）、
+主治医、処方箋、服薬管理、服薬確認、服薬指導、
+ADL（日常生活動作）、IADL（手段的日常生活動作）、
+セルフケア、生活リズム、社会復帰、就労支援、
+グループホーム、障害者支援施設、デイケア、デイサービス、
+地域包括支援センター、自立支援協議会、
+障害福祉サービス、障害支援区分、受給者証、
+精神障害者保健福祉手帳、障害年金、
+入院（任意入院・医療保護入院・措置入院）、退院支援、地域移行、
+にも包括（精神障害にも対応した地域包括ケアシステム）、
+
+【バイタルサイン・身体所見】
+血圧、脈拍、体温、SpO2（酸素飽和度）、呼吸数、
+高血圧、低血圧、頻脈、徐脈、不整脈、
+浮腫（むくみ）、チアノーゼ、黄疸、
+
+【看護記録・医療文書関連】
+SOAP、アセスメント、看護計画、看護診断、看護介入、評価、
+経過記録、申し送り、サマリー、退院サマリー、
+次回訪問日時、伝達先、伝達方法、
+
+【施設・組織名】
+ひなた、こころの訪問看護ステーションひなた、光陽、株式会社光陽、
+ハートランドしぎ、大和郡山市、天理市、奈良県、
+ZEST、iBow、
+`;
+
+    const contextPrompts: Record<string, string> = {
+      clinical_notes: `${BASE_TERMS}
+
+【病状の経過記録に特化した追加指示】
+以下の表現を正確に認識してください：
+- 症状の変化：「改善」「悪化」「増悪」「軽快」「安定」「不安定」「波がある」
+- 精神状態：「落ち着いている」「不穏」「興奮状態」「混乱」「錯乱」「意識清明」
+- 服薬状況：「服薬できている」「服薬拒否」「飲み忘れ」「自己中断」「過量服薬」
+- 生活状況：「自室にこもっている」「外出できている」「食事摂取できている」「睡眠がとれている」
+- 家族状況：「家族の負担が大きい」「介護疲れ」「家族支援が必要」
+- 訪問時の様子：「笑顔が見られた」「アイコンタクトあり」「会話のキャッチボールができた」
+`,
+      task: `${BASE_TERMS}
+
+【業務タスク記録に特化した追加指示】
+以下の表現を正確に認識してください：
+- 書類関連：「受給者証」「指示書」「計画書」「報告書」「同意書」「契約書」「診断書」
+- 連絡関連：「主治医への報告」「ケアマネへの連絡」「家族への説明」「相談支援専門員への連絡」
+- 期日表現：「今日中に」「明日まで」「今週中に」「来週月曜日」「今月末」「月初め」
+- 担当者：スタッフ名・チーム名を正確に認識すること
+`,
+      schedule_change: `${BASE_TERMS}
+
+【スケジュール変更連絡に特化した追加指示】
+以下の表現を正確に認識してください：
+- 変更種別：「訪問日時変更」「訪問キャンセル」「訪問追加」「会議追加」「会議変更」
+- 理由：「体調不良」「入院」「外出」「通院」「受診」「デイサービス」「施設入所」「訪問拒否」「急用」
+- 日時表現：「明日の午前10時」「来週月曜の14時」「今日の午後3時半」を正確に認識
+- チーム名：「身体チーム」「天理チーム」「郡山北部チーム」「郡山南部チーム」
+`,
+      message: `${BASE_TERMS}
+
+【チーム申し送りメッセージに特化した追加指示】
+以下の表現を正確に認識してください：
+- 緊急度：「至急」「緊急」「要確認」「重要」「要注意」
+- 申し送り表現：「本日の申し送り」「引き継ぎ事項」「確認事項」「共有事項」
+- 対応状況：「対応済み」「対応中」「未対応」「要フォロー」
+`,
+    };
+
+    return contextPrompts[context] || `${BASE_TERMS}\n訪問看護ステーションの業務音声を正確に文字起こしてください。`;
+  }
+
+  /**
+   * Gemini Audio API を使って音声を文字起こしする
+   * 医療専門用語に強い最高品質の音声認識
+   */
+  async function transcribeWithGemini(
+    audioBuffer: Buffer,
+    mimeType: string,
+    context: string
+  ): Promise<string> {
+    const geminiApiKey = ENV.geminiApiKey;
+    if (!geminiApiKey) throw new Error("Gemini API key not configured");
+
+    const { GoogleGenAI } = await import("@google/genai");
+    const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+
+    // 音声データをBase64エンコード
+    const audioBase64 = audioBuffer.toString("base64");
+
+    // MIMEタイプの正規化（Geminiがサポートする形式に変換）
+    const supportedMimeTypes: Record<string, string> = {
+      "audio/webm": "audio/webm",
+      "audio/webm;codecs=opus": "audio/webm",
+      "audio/mp4": "audio/mp4",
+      "audio/m4a": "audio/mp4",
+      "audio/mpeg": "audio/mpeg",
+      "audio/mp3": "audio/mpeg",
+      "audio/wav": "audio/wav",
+      "audio/ogg": "audio/ogg",
+    };
+    const normalizedMime = supportedMimeTypes[mimeType] || supportedMimeTypes[mimeType.split(";")[0]] || "audio/webm";
+
+    const medicalPrompt = getMedicalPrompt(context);
+
+    const systemInstruction = `あなたは訪問看護ステーションの音声認識専門AIです。
+日本語の医療・看護・精神科専門用語に精通しており、スタッフの発話を高精度で文字起こしします。
+
+重要な指示：
+1. 音声の内容をそのまま忠実に文字起こしすること（要約・解釈・補足は不要）
+2. 医療専門用語・薬剤名・施設名は正確に認識すること
+3. 言い間違いや訂正表現（「じゃなくて」「ちゃう」「あかん」など）もそのまま起こすこと
+4. 数字・日付・時刻は正確に認識すること
+5. 人名（利用者名・スタッフ名）は聞こえた通りに起こすこと
+6. 文字起こし結果のみを返すこと（説明文・注釈は不要）
+
+${medicalPrompt}`;
+
+    const result = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              inlineData: {
+                mimeType: normalizedMime,
+                data: audioBase64,
+              },
+            },
+            {
+              text: "この音声を文字起こしてください。音声の内容をそのまま忠実に書き起こし、文字起こし結果のみを返してください。",
+            },
+          ],
+        },
+      ],
+      config: {
+        systemInstruction,
+        temperature: 0,
+      },
+    });
+
+    const text = result.text?.trim() ?? "";
+    if (!text) throw new Error("Gemini returned empty transcription");
+    return text;
+  }
+
+  /**
+   * Whisper API を使って音声を文字起こしする（フォールバック）
+   * 精神科・訪問看護専門用語に特化したプロンプト付き
+   */
+  async function transcribeWithWhisper(
+    audioBuffer: Buffer,
+    mimeType: string,
+    context: string
+  ): Promise<string> {
+    const forgeApiUrl = ENV.forgeApiUrl;
+    const forgeApiKey = ENV.forgeApiKey;
+    if (!forgeApiUrl || !forgeApiKey) throw new Error("Whisper API not configured");
+
+    // コンテキスト別の簡潔なWhisperプロンプト（最大224トークン制限内）
+    const whisperPrompts: Record<string, string> = {
+      clinical_notes: "訪問看護記録。精神科、認知症、統合失調症、双極性障害、BPSD、服薬管理、ADL、セルフケア、不穏、幻覚、妄想、アリセプト、リスペリドン、デポ剤、受給者証、ケアマネ、相談支援専門員。",
+      task: "訪問看護業務タスク。受給者証、指示書、計画書、報告書、主治医、ケアマネ、相談支援専門員、身体チーム、天理チーム、郡山北部チーム、郡山南部チーム。",
+      schedule_change: "訪問スケジュール変更連絡。訪問キャンセル、日時変更、体調不良、入院、通院、デイサービス、身体チーム、天理チーム、郡山北部チーム、郡山南部チーム。",
+      message: "訪問看護チーム申し送りメッセージ。精神科、認知症、利用者、スタッフ、至急、要確認、対応済み、引き継ぎ。",
+    };
+    const whisperPrompt = whisperPrompts[context] ||
+      "訪問看護ステーション。精神科、認知症、統合失調症、双極性障害、BPSD、服薬管理、受給者証、ケアマネ、相談支援専門員、ADL、セルフケア、不穏、幻覚、妄想。";
+
+    const formData = new FormData();
+    const blob = new Blob([new Uint8Array(audioBuffer)], { type: mimeType || "audio/webm" });
+    const ext = (mimeType || "audio/webm").split("/")[1]?.split(";")[0] || "webm";
+    formData.append("file", blob, `recording.${ext}`);
+    formData.append("model", "whisper-1");
+    formData.append("language", "ja");
+    formData.append("response_format", "verbose_json");
+    formData.append("prompt", whisperPrompt);
+
+    const baseUrl = forgeApiUrl.endsWith("/") ? forgeApiUrl : `${forgeApiUrl}/`;
+    const whisperRes = await fetch(`${baseUrl}v1/audio/transcriptions`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${forgeApiKey}`, "Accept-Encoding": "identity" },
+      body: formData,
+    });
+    if (!whisperRes.ok) {
+      const errText = await whisperRes.text().catch(() => "");
+      throw new Error(`Whisper transcription failed: ${errText}`);
+    }
+    const result = await whisperRes.json() as { text: string };
+    return result.text?.trim() ?? "";
+  }
+
   app.post("/api/transcribe", upload.single("audio"), async (req, res) => {
     try {
       if (!req.file) {
         res.status(400).json({ error: "音声ファイルがありません" });
         return;
       }
-      const forgeApiUrl = ENV.forgeApiUrl;
-      const forgeApiKey = ENV.forgeApiKey;
-      if (!forgeApiUrl || !forgeApiKey) {
-        res.status(500).json({ error: "音声認識サービスが設定されていません" });
-        return;
+      const context = (req.body?.context as string) || "general";
+      const mimeType = req.file.mimetype || "audio/webm";
+      const audioBuffer = req.file.buffer;
+
+      // まず Gemini Audio API を試みる（最高品質・医療用語対応）
+      if (ENV.geminiApiKey) {
+        try {
+          const text = await transcribeWithGemini(Buffer.from(audioBuffer), mimeType, context);
+          console.log(`[transcribe] Gemini success (context=${context}), length=${text.length}`);
+          res.json({ text, engine: "gemini" });
+          return;
+        } catch (geminiErr) {
+          console.warn("[transcribe] Gemini failed, falling back to Whisper:", geminiErr instanceof Error ? geminiErr.message : geminiErr);
+        }
       }
-      const formData = new FormData();
-      const blob = new Blob([new Uint8Array(req.file.buffer)], { type: req.file.mimetype || "audio/webm" });
-      const ext = (req.file.mimetype || "audio/webm").split("/")[1] || "webm";
-      formData.append("file", blob, `recording.${ext}`);
-      formData.append("model", "whisper-1");
-      formData.append("response_format", "verbose_json");
-      formData.append("prompt", "診療所、診断名、薬剰名など医療・看護用語を正確に起こしてください");
-      const baseUrl = forgeApiUrl.endsWith("/") ? forgeApiUrl : `${forgeApiUrl}/`;
-      const whisperRes = await fetch(`${baseUrl}v1/audio/transcriptions`, {
-        method: "POST",
-        headers: { authorization: `Bearer ${forgeApiKey}`, "Accept-Encoding": "identity" },
-        body: formData,
-      });
-      if (!whisperRes.ok) {
-        const errText = await whisperRes.text().catch(() => "");
-        res.status(500).json({ error: `文字起こし失敗: ${errText}` });
-        return;
+
+      // Gemini 失敗時は Whisper API にフォールバック
+      if (ENV.forgeApiUrl && ENV.forgeApiKey) {
+        try {
+          const text = await transcribeWithWhisper(Buffer.from(audioBuffer), mimeType, context);
+          console.log(`[transcribe] Whisper success (context=${context}), length=${text.length}`);
+          res.json({ text, engine: "whisper" });
+          return;
+        } catch (whisperErr) {
+          console.error("[transcribe] Whisper also failed:", whisperErr instanceof Error ? whisperErr.message : whisperErr);
+          res.status(500).json({ error: `文字起こし失敗: ${whisperErr instanceof Error ? whisperErr.message : "不明なエラー"}` });
+          return;
+        }
       }
-      const result = await whisperRes.json() as { text: string };
-      res.json({ text: result.text });
+
+      res.status(500).json({ error: "音声認識サービスが設定されていません" });
     } catch (e) {
       console.error("[transcribe] error:", e);
       res.status(500).json({ error: "内部エラー" });

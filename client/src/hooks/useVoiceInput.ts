@@ -35,6 +35,12 @@ interface UseVoiceInputOptions {
    * 0 を指定すると自動停止を無効化
    */
   silenceTimeoutMs?: number;
+  /**
+   * 音声認識のコンテキスト（画面ごとの医療用語プロンプト最適化用）
+   * 'clinical_notes' | 'task' | 'schedule_change' | 'message' | 'general'
+   * デフォルト: 'general'
+   */
+  context?: string;
 }
 
 interface UseVoiceInputReturn {
@@ -115,6 +121,7 @@ export function useVoiceInput({
   onRecordingChange,
   lang = "ja-JP",
   silenceTimeoutMs = SILENCE_TIMEOUT_MS,
+  context = "general",
 }: UseVoiceInputOptions): UseVoiceInputReturn {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -383,6 +390,7 @@ export function useVoiceInput({
           const ext = mimeType.includes("mp4") ? "m4a" : "webm";
           formData.append("audio", blob, `recording.${ext}`);
           formData.append("language", "ja");
+          formData.append("context", context);
 
           const res = await fetch("/api/transcribe", {
             method: "POST",

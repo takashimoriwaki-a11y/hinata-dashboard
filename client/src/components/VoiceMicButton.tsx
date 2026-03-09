@@ -37,6 +37,11 @@ interface VoiceMicButtonProps {
    * - "none": プレビューなし
    */
   previewMode?: "tooltip" | "inline" | "none";
+  /**
+   * 音声認識のコンテキスト（画面ごとの医療用語プロンプト最適化用）
+   * 'clinical_notes' | 'task' | 'schedule_change' | 'message' | 'general'
+   */
+  context?: string;
 }
 
 const sizeConfig = {
@@ -77,10 +82,12 @@ export function VoiceMicButton({
   className,
   disabled = false,
   previewMode = "tooltip",
+  context = "general",
 }: VoiceMicButtonProps) {
   const { isRecording, isProcessing, toggleVoice, interimText, silenceCountdown } = useVoiceInput({
     onResult,
     onRecordingChange,
+    context,
   });
 
   // interimText変化時にコールバックを呼び出す
