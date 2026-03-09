@@ -189,12 +189,13 @@ export default function RecordInput() {
     onSuccess: (result, variables) => {
       const f = result.fields;
       const field = (variables as { text: string; patientNames?: string[]; targetField?: string }).targetField;
+
+      // 確認パネルが表示されている場合はeditingPreviewを更新
       setEditingPreview((p) => {
         if (!p) return p;
         if (field === "patientName" && f.patientName) {
           const aiName = f.patientName;
           const src = allPatientsRef.current.length > 0 ? allPatientsRef.current : (patientsRef.current ?? []);
-          // 完全一致を優先、次に部分一致
           const exact = src.find((pt) => pt.name === aiName);
           const matched = exact ?? src.filter(
             (pt) => pt.name.includes(aiName) || aiName.includes(pt.name.split('\u3000')[0].split(' ')[0])
@@ -210,9 +211,45 @@ export default function RecordInput() {
         if (field === "notifyMethod" && f.notifyMethod) return { ...p, notifyMethod: f.notifyMethod, ...(f.notifyMethodOther ? { notifyMethodOther: f.notifyMethodOther } : {}) };
         return p;
       });
+
+      // 確認パネルが表示されていない場合（voicePreviewがnull）はメインフォームのstateを直接更新
+      setVoicePreview((currentPreview) => {
+        if (currentPreview !== null) return currentPreview; // 確認パネルあり → 上のsetEditingPreviewで対応済み
+        // 確認パネルなし → メインフォームに直接反映
+        if (field === "patientName" && f.patientName) {
+          const aiName = f.patientName;
+          const src = allPatientsRef.current.length > 0 ? allPatientsRef.current : (patientsRef.current ?? []);
+          const exact = src.find((pt) => pt.name === aiName);
+          const matched = exact ?? src.filter(
+            (pt) => pt.name.includes(aiName) || aiName.includes(pt.name.split('\u3000')[0].split(' ')[0])
+          ).find(Boolean);
+          const resolvedName = matched ? matched.name : aiName;
+          const resolvedId = matched ? matched.id : null;
+          setPatientName(resolvedName);
+          setSearchQuery(resolvedName);
+          setPatientId(resolvedId);
+          toast.success(`利用者「${resolvedName}」を転記しました`);
+        }
+        if (field === "visitDateTime") {
+          if (f.visitDate) { setNextVisitDate(f.visitDate); }
+          if (f.visitTime) { setNextVisitTime(f.visitTime); }
+          toast.success("次回訪問日時を転記しました");
+        }
+        if (field === "notifiedTo" && f.notifiedTo) {
+          setNotifiedTo(f.notifiedTo as typeof notifiedTo);
+          if (f.notifiedToOther) setNotifiedToOther(f.notifiedToOther);
+          toast.success("伝達先を転記しました");
+        }
+        if (field === "notifyMethod" && f.notifyMethod) {
+          setNotifyMethod(f.notifyMethod as typeof notifyMethod);
+          if (f.notifyMethodOther) setNotifyMethodOther(f.notifyMethodOther);
+          toast.success("伝達方法を転記しました");
+        }
+        return currentPreview; // nullのまま返す（確認パネルは表示しない）
+      });
+
       setIsParsingReInput(false);
       setReInputField(null);
-      toast.success("再入力しました");
     },
     onError: (err) => {
       setIsParsingReInput(false);
@@ -548,7 +585,7 @@ ${clinicalNotes}`);
               <div>
                 <div className="flex items-center gap-1.5">
                   <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
-                  {!visitVoice.isRecording && !isParsingVisitVoice && <VoiceHelpDialog mode="record" />}
+                  <VoiceHelpDialog mode="record" />
                 </div>
                 {visitVoice.isRecording ? (
                   <p className={cn(
@@ -641,6 +678,14 @@ ${clinicalNotes}`);
                 <span>AIが音声内容を解析して各項目に転記中...</span>
               </div>
             )}
+
+            {/* 例文（常時表示） */}
+            <div className="space-y-1">
+              <p className="text-[10px] font-medium text-muted-foreground">話しかけの例</p>
+              <div className="rounded-lg bg-background/70 border border-border px-3 py-2">
+                <span className="text-[11px] text-muted-foreground leading-snug">郡山南部チームのアイウエオさん、次回訪問は明後日の午前10時、伝達先は山田医師、電話で連絡済み</span>
+              </div>
+            </div>
 
             {/* AI解析失敗時 */}
             {visitVoiceError && !isParsingVisitVoice && (

@@ -409,11 +409,8 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
                   )}>
                     {taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5
                       ? `あと${taskVoice.silenceCountdown}秒で自動停止`
-                      : "🎙️ 話してください..."}
+                      : "🎤 話してください..."}
                   </p>
-                  {taskVoice.interimText && (
-                    <p className="text-xs text-muted-foreground italic truncate mt-0.5">{taskVoice.interimText}</p>
-                  )}
                 </div>
               ) : (
                 <div>
@@ -464,6 +461,28 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
               )}
             </button>
           </div>
+
+          {/* 録音中の入力テキストボックス */}
+          {taskVoice.isRecording && (
+            <div className={cn(
+              "px-3 py-2 rounded-lg border min-h-[36px] transition-colors duration-300",
+              taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5
+                ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
+                : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
+            )}>
+              {taskVoice.interimText ? (
+                <p className="text-xs text-red-600 dark:text-red-400 italic leading-relaxed">
+                  🎤 {taskVoice.interimText}
+                </p>
+              ) : taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5 ? (
+                <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+                  あと{taskVoice.silenceCountdown}秒で自動停止します
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground italic">話しかけてください...</p>
+              )}
+            </div>
+          )}
 
           {/* エラーバナー */}
           {voiceError && (
@@ -523,8 +542,8 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
             </div>
           )}
 
-          {/* 例文（表示のみ） */}
-          {!taskVoice.isRecording && !isAnalyzing && (
+          {/* 例文（常時表示） */}
+          {true && (
             <div className="space-y-1">
               <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">例文</p>
               <div className="flex flex-col gap-1">

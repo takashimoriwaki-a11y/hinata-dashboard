@@ -2176,11 +2176,8 @@ function MessageBoard({ title }: { title: string }) {
                       )}>
                         {msgVoice.silenceCountdown !== null && msgVoice.silenceCountdown <= 5
                           ? `あと${msgVoice.silenceCountdown}秒で自動停止`
-                          : "🎙️ 話してください..."}
+                          : "🎤 話してください..."}
                       </p>
-                      {msgVoice.interimText && (
-                        <p className="text-xs text-muted-foreground italic truncate mt-0.5">{msgVoice.interimText}</p>
-                      )}
                     </div>
                   ) : (
                     <div>
@@ -2231,6 +2228,27 @@ function MessageBoard({ title }: { title: string }) {
                   )}
                 </button>
               </div>
+              {/* 録音中の入力テキストボックス */}
+              {msgVoice.isRecording && (
+                <div className={cn(
+                  "px-3 py-2 rounded-lg border min-h-[36px] transition-colors duration-300",
+                  msgVoice.silenceCountdown !== null && msgVoice.silenceCountdown <= 5
+                    ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
+                    : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
+                )}>
+                  {msgVoice.interimText ? (
+                    <p className="text-xs text-red-600 dark:text-red-400 italic leading-relaxed">
+                      🎤 {msgVoice.interimText}
+                    </p>
+                  ) : msgVoice.silenceCountdown !== null && msgVoice.silenceCountdown <= 5 ? (
+                    <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+                      あと{msgVoice.silenceCountdown}秒で自動停止します
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">話しかけてください...</p>
+                  )}
+                </div>
+              )}
               {/* エラーバナー */}
               {msgVoiceError && (
                 <div className="rounded-lg bg-destructive/10 border border-destructive/30 px-3 py-2 flex items-center justify-between gap-2">

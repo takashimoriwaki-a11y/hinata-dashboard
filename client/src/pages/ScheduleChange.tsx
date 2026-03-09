@@ -951,6 +951,7 @@ export default function ScheduleChange() {
   const [voiceText, setVoiceText] = useState("");
   const [isParsingVoice, setIsParsingVoice] = useState(false);
   const [isVoiceRecording, setIsVoiceRecording] = useState(false);
+  const [voiceInterimText, setVoiceInterimText] = useState("");
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [missingVoiceFields, setMissingVoiceFields] = useState<string[]>([]);
   // 音声入力後の利用者候補選択ダイアログ用
@@ -1388,13 +1389,28 @@ export default function ScheduleChange() {
           <h1 className="text-lg font-bold text-foreground">スケジュール変更連絡</h1>
           <p className="text-xs text-muted-foreground">入力後、スプレッドシートに自動転記されます</p>
         </div>
-        {/* 自動保存インジケーター */}
-        {draftSavedAt && !hasDraft && (
-          <div className="flex items-center gap-1 text-xs text-muted-foreground flex-shrink-0">
-            <Save className="w-3 h-3" />
-            <span>{formatSavedAt(draftSavedAt)}保存</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* 自動保存インジケーター */}
+          {draftSavedAt && !hasDraft && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Save className="w-3 h-3" />
+              <span>{formatSavedAt(draftSavedAt)}保存</span>
+            </div>
+          )}
+          {/* リセットボタン */}
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm("入力内容をリセットしますか？")) {
+                handleReset();
+              }
+            }}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            リセット
+          </button>
+        </div>
       </div>
 
       {/* 音声入力カード */}
@@ -1411,7 +1427,7 @@ export default function ScheduleChange() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
                 <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
-                {!isVoiceRecording && !isParsingVoice && <VoiceHelpDialog mode="schedule" />}
+                <VoiceHelpDialog mode="schedule" />
               </div>
               {isVoiceRecording ? (
                 <p className="text-xs font-medium text-red-600 dark:text-red-400 animate-pulse mt-0.5">
@@ -1427,17 +1443,29 @@ export default function ScheduleChange() {
             </div>
             <VoiceMicButton
               onResult={handleVoiceResult}
-              onRecordingChange={setIsVoiceRecording}
+              onRecordingChange={(rec) => { setIsVoiceRecording(rec); if (!rec) setVoiceInterimText(""); }}
+              onInterimTextChange={setVoiceInterimText}
               size="lg"
               disabled={isParsingVoice}
-              previewMode="tooltip"
+              previewMode="none"
             />
           </div>
 
+          {/* 録音中の入力テキストボックス */}
+          {isVoiceRecording && (
+            <div className="px-3 py-2 rounded-lg border min-h-[36px] bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 transition-colors duration-300">
+              {voiceInterimText ? (
+                <p className="text-xs text-red-600 dark:text-red-400 italic leading-relaxed">
+                  🎤 {voiceInterimText}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground italic">話しかけてください...</p>
+              )}
+            </div>
+          )}
 
-
-          {/* 例文（表示のみ） */}
-          {!isParsingVoice && !voiceText && (
+          {/* 例文（常時表示） */}
+          {true && (
             <div>
               <p className="text-[10px] font-medium text-muted-foreground mb-1.5">話しかけの例</p>
               <div className="rounded-lg bg-background/70 border border-border px-3 py-2">

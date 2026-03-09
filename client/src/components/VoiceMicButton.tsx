@@ -12,6 +12,7 @@
  * - 無音タイマー残り5秒以下でカウントダウン表示
  */
 
+import React from "react";
 import { Loader2, Mic } from "lucide-react";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,8 @@ interface VoiceMicButtonProps {
   onResult: (text: string) => void;
   /** 録音状態変化時のコールバック */
   onRecordingChange?: (isRecording: boolean) => void;
+  /** 暂定テキスト変化時のコールバック */
+  onInterimTextChange?: (text: string) => void;
   /** ボタンサイズ（デフォルト: md） */
   size?: "sm" | "md" | "lg";
   /** 追加クラス */
@@ -69,6 +72,7 @@ const sizeConfig = {
 export function VoiceMicButton({
   onResult,
   onRecordingChange,
+  onInterimTextChange,
   size = "md",
   className,
   disabled = false,
@@ -78,6 +82,15 @@ export function VoiceMicButton({
     onResult,
     onRecordingChange,
   });
+
+  // interimText変化時にコールバックを呼び出す
+  const prevInterimRef = React.useRef("");
+  React.useEffect(() => {
+    if (interimText !== prevInterimRef.current) {
+      prevInterimRef.current = interimText;
+      onInterimTextChange?.(interimText);
+    }
+  }, [interimText, onInterimTextChange]);
   const cfg = sizeConfig[size];
 
   // 残り5秒以下でカウントダウン警告を表示
