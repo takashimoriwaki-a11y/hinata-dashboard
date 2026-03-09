@@ -515,10 +515,35 @@ ${clinicalNotes}`);
         <CardContent className="space-y-4">
 
           {/* 一括音声入力エリア（最上部） */}
-          <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-3 space-y-2">
+          <div className={cn(
+            "rounded-xl border-2 p-3 space-y-2 transition-colors duration-300",
+            visitVoice.isRecording
+              ? (visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5
+                  ? "border-orange-400/60 bg-orange-50 dark:bg-orange-950/20"
+                  : "border-red-400/60 bg-red-50 dark:bg-red-950/20")
+              : isParsingVisitVoice
+                ? "border-primary/40 bg-primary/10"
+                : "border-primary/30 bg-primary/5"
+          )}>
             <div className="flex items-center justify-between">
-              <div>                <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
-                <p className="text-xs text-muted-foreground mt-0.5">マイクをタップして話すと各項目に転記</p>
+              <div>
+                <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
+                {visitVoice.isRecording ? (
+                  <p className={cn(
+                    "text-xs font-medium mt-0.5",
+                    visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5
+                      ? "text-orange-600 dark:text-orange-400"
+                      : "text-red-600 dark:text-red-400 animate-pulse"
+                  )}>
+                    {visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5
+                      ? `あと${visitVoice.silenceCountdown}秒で自動停止`
+                      : "🎙️ 話してください..."}
+                  </p>
+                ) : isParsingVisitVoice ? (
+                  <p className="text-xs text-primary font-medium animate-pulse mt-0.5">AIが解析中...</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-0.5">マイクをタップして話すと各項目に転記</p>
+                )}
               </div>
               <button
                 type="button"

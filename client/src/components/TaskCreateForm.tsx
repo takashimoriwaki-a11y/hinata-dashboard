@@ -363,7 +363,16 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
       <CardContent className="space-y-3">
 
         {/* ===== 音声入力AIカード ===== */}
-        <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
+        <div className={cn(
+          "rounded-xl border p-3 space-y-2 transition-colors duration-300",
+          taskVoice.isRecording
+            ? (taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5
+                ? "border-orange-400/50 bg-orange-50 dark:bg-orange-950/20"
+                : "border-red-400/50 bg-red-50 dark:bg-red-950/20")
+            : isAnalyzing
+              ? "border-primary/30 bg-primary/10"
+              : "border-primary/20 bg-primary/5"
+        )}>
 
           {/* テキスト + 右側マイクボタン */}
           <div className="flex items-center justify-between gap-3">
@@ -373,10 +382,15 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
               ) : taskVoice.isRecording ? (
                 <div>
                   <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
-                  <p className="text-xs font-medium text-red-600 dark:text-red-400 mt-0.5">
+                  <p className={cn(
+                    "text-xs font-medium mt-0.5",
+                    taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5
+                      ? "text-orange-600 dark:text-orange-400"
+                      : "text-red-600 dark:text-red-400 animate-pulse"
+                  )}>
                     {taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5
                       ? `あと${taskVoice.silenceCountdown}秒で自動停止`
-                      : "話してください..."}
+                      : "🎙️ 話してください..."}
                   </p>
                   {taskVoice.interimText && (
                     <p className="text-xs text-muted-foreground italic truncate mt-0.5">{taskVoice.interimText}</p>

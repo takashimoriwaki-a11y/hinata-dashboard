@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils";
 interface VoiceMicButtonProps {
   /** 認識結果テキストを受け取るコールバック */
   onResult: (text: string) => void;
+  /** 録音状態変化時のコールバック */
+  onRecordingChange?: (isRecording: boolean) => void;
   /** ボタンサイズ（デフォルト: md） */
   size?: "sm" | "md" | "lg";
   /** 追加クラス */
@@ -63,12 +65,16 @@ const sizeConfig = {
 
 export function VoiceMicButton({
   onResult,
+  onRecordingChange,
   size = "md",
   className,
   disabled = false,
   previewMode = "tooltip",
 }: VoiceMicButtonProps) {
-  const { isRecording, isProcessing, toggleVoice, interimText, silenceCountdown } = useVoiceInput({ onResult });
+  const { isRecording, isProcessing, toggleVoice, interimText, silenceCountdown } = useVoiceInput({
+    onResult,
+    onRecordingChange,
+  });
   const cfg = sizeConfig[size];
 
   // 残り5秒以下でカウントダウン警告を表示

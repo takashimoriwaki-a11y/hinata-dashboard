@@ -26,6 +26,8 @@ const SILENCE_TIMEOUT_MS = 30_000;
 interface UseVoiceInputOptions {
   /** 認識結果テキストを受け取るコールバック */
   onResult: (text: string) => void;
+  /** 録音状態変化時のコールバック */
+  onRecordingChange?: (isRecording: boolean) => void;
   /** 言語（デフォルト: ja-JP） */
   lang?: string;
   /**
@@ -110,6 +112,7 @@ function getSpeechRecognitionClass(): SpeechRecognitionConstructor | null {
 
 export function useVoiceInput({
   onResult,
+  onRecordingChange,
   lang = "ja-JP",
   silenceTimeoutMs = SILENCE_TIMEOUT_MS,
 }: UseVoiceInputOptions): UseVoiceInputReturn {
@@ -117,6 +120,16 @@ export function useVoiceInput({
   const [isProcessing, setIsProcessing] = useState(false);
   const [interimText, setInterimText] = useState("");
   const [silenceCountdown, setSilenceCountdown] = useState<number | null>(null);
+
+  // onRecordingChangeコールバックをrefで保持（クロージャ問題回避）
+  const onRecordingChangeRef = useRef(onRecordingChange);
+  onRecordingChangeRef.current = onRecordingChange;
+
+  // 録音状態を変更しつつコールバックも呼ぶ
+  const setRecording = useCallback((val: boolean) => {
+    setIsRecording(val);
+    onRecordingChangeRef.current?.(val);
+  }, []);
 
   // Web Speech API 用
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
@@ -220,7 +233,7 @@ export function useVoiceInput({
 
       recognition.onend = () => {
         clearSilenceTimer();
-        setIsRecording(false);
+        setRecording(false);
         setInterimText("");
         if (accumulatedFinalText.trim()) {
           onResult(accumulatedFinalText.trim());
@@ -238,7 +251,7 @@ export function useVoiceInput({
 
       recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         clearSilenceTimer();
-        setIsRecording(false);
+        setRecording(false);
         setInterimText("");
         autoStoppedRef.current = false;
         recognitionRef.current = null;
@@ -255,7 +268,7 @@ export function useVoiceInput({
 
       recognition.start();
       recognitionRef.current = recognition;
-      setIsRecording(true);
+      setRecording(true);
 
       // 録音開始直後からタイマーをスタート（最初の発話がなくても30秒で停止）
       resetSilenceTimer(stopFromTimer);
@@ -272,7 +285,7 @@ export function useVoiceInput({
       recognitionRef.current.stop();
       recognitionRef.current = null;
     }
-    setIsRecording(false);
+    setRecording(false);
     setInterimText("");
   }, [clearSilenceTimer]);
 
@@ -302,7 +315,7 @@ export function useVoiceInput({
           autoStoppedRef.current = true;
           mediaRecorderRef.current.stop();
           mediaRecorderRef.current = null;
-          setIsRecording(false);
+          setRecording(false);
         }
       };
 
@@ -383,7 +396,7 @@ export function useVoiceInput({
       // 250ms ごとにデータを収集（データロス防止）
       recorder.start(250);
       mediaRecorderRef.current = recorder;
-      setIsRecording(true);
+      setRecording(true);
 
       // 録音開始直後からタイマーをスタート
       resetSilenceTimer(stopFromTimer);
@@ -402,7 +415,7 @@ export function useVoiceInput({
       mediaRecorderRef.current.stop();
       mediaRecorderRef.current = null;
     }
-    setIsRecording(false);
+    setRecording(false);
   }, [clearSilenceTimer]);
 
   // ---- 公開 API ----

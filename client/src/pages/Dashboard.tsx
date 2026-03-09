@@ -2133,7 +2133,16 @@ function MessageBoard({ title }: { title: string }) {
         {showForm && (
           <div className="border border-primary/20 rounded-xl p-4 space-y-3 bg-primary/5">
             {/* ===== 音声入力 AI カード ===== */}
-            <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
+            <div className={cn(
+              "rounded-xl border p-3 space-y-2 transition-colors duration-300",
+              msgVoice.isRecording
+                ? (msgVoice.silenceCountdown !== null && msgVoice.silenceCountdown <= 5
+                    ? "border-orange-400/50 bg-orange-50 dark:bg-orange-950/20"
+                    : "border-red-400/50 bg-red-50 dark:bg-red-950/20")
+                : isAnalyzingMsg
+                  ? "border-primary/30 bg-primary/10"
+                  : "border-primary/20 bg-primary/5"
+            )}>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   {isAnalyzingMsg ? (
@@ -2141,10 +2150,15 @@ function MessageBoard({ title }: { title: string }) {
                   ) : msgVoice.isRecording ? (
                     <div>
                       <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
-                      <p className="text-xs font-medium text-red-600 dark:text-red-400 mt-0.5">
+                      <p className={cn(
+                        "text-xs font-medium mt-0.5",
+                        msgVoice.silenceCountdown !== null && msgVoice.silenceCountdown <= 5
+                          ? "text-orange-600 dark:text-orange-400"
+                          : "text-red-600 dark:text-red-400 animate-pulse"
+                      )}>
                         {msgVoice.silenceCountdown !== null && msgVoice.silenceCountdown <= 5
                           ? `あと${msgVoice.silenceCountdown}秒で自動停止`
-                          : "話してください..."}
+                          : "🎙️ 話してください..."}
                       </p>
                       {msgVoice.interimText && (
                         <p className="text-xs text-muted-foreground italic truncate mt-0.5">{msgVoice.interimText}</p>

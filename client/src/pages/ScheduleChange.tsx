@@ -949,6 +949,7 @@ export default function ScheduleChange() {
   // 音声入力関連ステート
   const [voiceText, setVoiceText] = useState("");
   const [isParsingVoice, setIsParsingVoice] = useState(false);
+  const [isVoiceRecording, setIsVoiceRecording] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [missingVoiceFields, setMissingVoiceFields] = useState<string[]>([]);
   // 音声入力後の利用者候補選択ダイアログ用
@@ -1378,21 +1379,33 @@ export default function ScheduleChange() {
       </div>
 
       {/* 音声入力カード */}
-      <Card className="border-2 border-primary/20 bg-primary/5">
+      <Card className={cn(
+        "border-2 transition-colors duration-300",
+        isVoiceRecording
+          ? "border-red-400/60 bg-red-50 dark:bg-red-950/20"
+          : isParsingVoice
+            ? "border-primary/40 bg-primary/10"
+            : "border-primary/20 bg-primary/5"
+      )}>
         <CardContent className="p-4 space-y-3">
           <div className="flex items-center gap-3">
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {isParsingVoice
-                  ? "AIが解析中..."
-                  : voiceText
-                  ? `「${voiceText.slice(0, 40)}${voiceText.length > 40 ? "..." : ""}」`
-                  : "マイクをタップして話すと各項目に転記"}
-              </p>
+              {isVoiceRecording ? (
+                <p className="text-xs font-medium text-red-600 dark:text-red-400 animate-pulse mt-0.5">
+                  🎙️ 話してください...
+                </p>
+              ) : isParsingVoice ? (
+                <p className="text-xs text-primary font-medium animate-pulse mt-0.5">AIが解析中...</p>
+              ) : voiceText ? (
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">「{voiceText.slice(0, 40)}{voiceText.length > 40 ? "..." : ""}」</p>
+              ) : (
+                <p className="text-xs text-muted-foreground mt-0.5">マイクをタップして話すと各項目に転記</p>
+              )}
             </div>
             <VoiceMicButton
               onResult={handleVoiceResult}
+              onRecordingChange={setIsVoiceRecording}
               size="lg"
               disabled={isParsingVoice}
               previewMode="tooltip"
