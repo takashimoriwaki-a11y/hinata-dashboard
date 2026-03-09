@@ -904,3 +904,7 @@
 ## 音声入力：関西弁・口語訂正表現の追加（2026-03-09）
 
 - [x] 関西弁・口語表現（「ちゃう」「あかん」「ちゃうちゃう」など）を3つのparseVoiceルーターに追加
+
+## Tasks.tsx patientName TSCエラー修正（2026-03-09）
+
+- [x] Tasks.tsx(445行目)とrouters.ts(746行目)のpatientName関連TSCエラーを修正（実際は管理UIのLSPキャッシュの誘導で、npx tsc --noEmitは0エラー確認済み）
