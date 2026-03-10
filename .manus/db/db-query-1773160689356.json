@@ -1,0 +1,70 @@
+{
+  "query": "SELECT id, name, team, role FROM users ORDER BY id DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT id, name, team, role FROM users ORDER BY id DESC LIMIT 10;",
+  "rows": [
+    {
+      "id": "270006",
+      "name": "西谷　和行",
+      "team": "天理",
+      "role": "user"
+    },
+    {
+      "id": "270005",
+      "name": "森脇　崇",
+      "team": "郡山南部",
+      "role": "user"
+    },
+    {
+      "id": "270004",
+      "name": "松田　道教",
+      "team": "天理",
+      "role": "user"
+    },
+    {
+      "id": "270003",
+      "name": "袖山　二美代",
+      "team": "身体",
+      "role": "user"
+    },
+    {
+      "id": "270002",
+      "name": "中西　真帆",
+      "team": "郡山北部",
+      "role": "user"
+    },
+    {
+      "id": "270001",
+      "name": "三寺　隆之",
+      "team": "郡山北部",
+      "role": "user"
+    },
+    {
+      "id": "240017",
+      "name": "森脇　英樹",
+      "team": "事務員",
+      "role": "admin"
+    },
+    {
+      "id": "240016",
+      "name": "新　真由",
+      "team": "事務員",
+      "role": "admin"
+    },
+    {
+      "id": "240015",
+      "name": "小出　裕子",
+      "team": "事務員",
+      "role": "admin"
+    },
+    {
+      "id": "240014",
+      "name": "袖山　二美代",
+      "team": "全チーム",
+      "role": "admin"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tteam\trole\n270006\t西谷　和行\t天理\tuser\n270005\t森脇　崇\t郡山南部\tuser\n270004\t松田　道教\t天理\tuser\n270003\t袖山　二美代\t身体\tuser\n270002\t中西　真帆\t郡山北部\tuser\n270001\t三寺　隆之\t郡山北部\tuser\n240017\t森脇　英樹\t事務員\tadmin\n240016\t新　真由\t事務員\tadmin\n240015\t小出　裕子\t事務員\tadmin\n240014\t袖山　二美代\t全チーム\tadmin\n",
+  "stderr": "",
+  "execution_time_ms": 1479
+}
