@@ -1076,7 +1076,9 @@ export default function ScheduleChange() {
       setDraftSavedAt(null);
       setDraftRestored(false);
       setChangeType("");
-      setTeam("");
+      // リセット後もログインユーザーの所属チームを再設定（全チーム・事務員は未選択）
+      const validTeamsOnReset: Team[] = ["身体", "天理", "郡山北部", "郡山南部"];
+      setTeam(user?.team && validTeamsOnReset.includes(user.team as Team) ? user.team as Team : "");
       setPatientName("");
       setFromDatetime("");
       setToDatetime("");
@@ -1146,7 +1148,9 @@ export default function ScheduleChange() {
     setDraftSavedAt(null);
     setDraftRestored(false);
     setChangeType("");
-    setTeam("");
+    // リセット後もログインユーザーの所属チームを再設定（全チーム・事務員は未選択）
+    const validTeamsOnReset: Team[] = ["身体", "天理", "郡山北部", "郡山南部"];
+    setTeam(user?.team && validTeamsOnReset.includes(user.team as Team) ? user.team as Team : "");
     setPatientName("");
     setFromDatetime("");
     setToDatetime("");

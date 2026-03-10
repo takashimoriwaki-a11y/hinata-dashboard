@@ -76,8 +76,18 @@ export default function RecordInput() {
         try { localStorage.setItem(RECORD_TEAM_KEY, newVal); } catch {}
         return newVal;
       });
+    } else {
+      // 「全チーム」「事務員」の場合は最後に使ったチームをlocalStorageから自動入力（未保存の場合は未選択のまま）
+      setTeamRaw(prev => {
+        if (prev !== "") return prev; // 既に設定済みの場合は維持
+        // localStorageから最後に使ったチームを読み込む
+        try {
+          const saved = localStorage.getItem(RECORD_TEAM_KEY);
+          if (saved && validTeams.includes(saved as Team)) return saved as Team;
+        } catch {}
+        return ""; // localStorageに保存済みのチームがなければ未選択のまま
+      });
     }
-    // 「全チーム」「事務員」は未選択のまま（記録は特定チームを選ぶ必要があるため）
   }, [user?.team]);
 
   // 時間セレクト用
