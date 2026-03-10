@@ -365,9 +365,10 @@ export const appRouter = router({
     }),
     // チームを更新
     setMyTeam: protectedProcedure
-      .input(z.object({ team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]) }))
+      .input(z.object({ team: z.enum(["\u8eab\u4f53", "\u5929\u7406", "\u90e1\u5c71\u5317\u90e8", "\u90e1\u5c71\u5357\u90e8"]) }))
       .mutation(async ({ ctx, input }) => {
         await updateUserTeam(ctx.user.id, input.team);
+        broadcastEvent("users");
         return { success: true };
       }),
   }),
@@ -399,6 +400,7 @@ export const appRouter = router({
           description: input.description,
           sortOrder,
         });
+        broadcastEvent("myLinks");
         return { success: true, id };
       }),
     // リンクを更新
@@ -416,13 +418,15 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const { id, ...data } = input;
         await updateMyLink(id, ctx.user.id, data);
+        broadcastEvent("myLinks");
         return { success: true };
       }),
-    // リンクを削除
+    // \u30ea\u30f3\u30af\u3092\u524a\u9664
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         await deleteMyLink(input.id, ctx.user.id);
+        broadcastEvent("myLinks");
         return { success: true };
       }),
   }),
@@ -459,13 +463,15 @@ export const appRouter = router({
           color: input.color ?? "text-emerald-600",
           createdBy: ctx.user.id,
         });
+        broadcastEvent("spreadsheetLinks");
         return { success: true, id };
       }),
-    // リンクを削除（管理者のみ）
+    // \u30ea\u30f3\u30af\u3092\u524a\u9664\uff08\u7ba1\u7406\u8005\u306e\u307f\uff09
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
         await deleteSpreadsheetLink(input.id);
+        broadcastEvent("spreadsheetLinks");
         return { success: true };
       }),
     // 一括登録（管理者のみ）
@@ -496,6 +502,7 @@ export const appRouter = router({
             })
           )
         );
+        broadcastEvent("spreadsheetLinks");
         return { success: true, count: results.length };
       }),
   }),
@@ -606,6 +613,7 @@ export const appRouter = router({
           console.error("[WebPush] failed to send push:", e);
         }
 
+        broadcastEvent("schedules");
         return { success: true, url: imageUrl };
       }),
 
@@ -613,12 +621,13 @@ export const appRouter = router({
     delete: protectedProcedure
       .input(
         z.object({
-          team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]),
-          day: z.enum(["今日", "明日"]),
+          team: z.enum(["\u8eab\u4f53", "\u5929\u7406", "\u90e1\u5c71\u5317\u90e8", "\u90e1\u5c71\u5357\u90e8"]),
+          day: z.enum(["\u4eca\u65e5", "\u660e\u65e5"]),
         })
       )
       .mutation(async ({ input }) => {
         await deleteScreenshot(input.team, input.day);
+        broadcastEvent("schedules");
         return { success: true };
       }),
 
@@ -626,6 +635,7 @@ export const appRouter = router({
     rotateDailyScreenshots: protectedProcedure.mutation(async () => {
       await deleteAllTodayScreenshots();
       await moveTomorrowToToday();
+      broadcastEvent("schedules");
       return { success: true };
     }),
 
@@ -1133,6 +1143,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         const id = await createPatient({ name: input.name, nameKana: input.nameKana, team: input.team, active: 1 });
+        broadcastEvent("patients");
         return { success: true, id };
       }),
 
@@ -1142,11 +1153,12 @@ export const appRouter = router({
         id: z.number(),
         name: z.string().min(1).max(100).optional(),
         nameKana: z.string().max(100).optional(),
-        team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]).optional(),
+        team: z.enum(["\u8eab\u4f53", "\u5929\u7406", "\u90e1\u5c71\u5317\u90e8", "\u90e1\u5c71\u5357\u90e8"]).optional(),
       }))
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         await updatePatient(id, data);
+        broadcastEvent("patients");
         return { success: true };
       }),
 
@@ -1162,6 +1174,7 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
         await deactivatePatient(input.id);
+        broadcastEvent("patients");
         return { success: true };
       }),
 
@@ -1170,6 +1183,7 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
         await updatePatient(input.id, { active: 1 });
+        broadcastEvent("patients");
         return { success: true };
       }),
 
@@ -1186,6 +1200,7 @@ export const appRouter = router({
         const results = await Promise.all(
           input.patients.map(p => createPatient({ name: p.name, nameKana: p.nameKana, team: p.team, active: 1 }))
         );
+        broadcastEvent("patients");
         return { success: true, count: results.length };
       }),
   }),
@@ -1225,6 +1240,7 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
         await markVisitRecordExported(input.id);
+        broadcastEvent("visitRecords");
         return { success: true };
       }),
 
@@ -1457,6 +1473,7 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
         await unmarkVisitRecordExported(input.id);
+        broadcastEvent("visitRecords");
         return { success: true };
       }),
 
@@ -1563,12 +1580,14 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
         await markNotificationRead(input.id);
+        broadcastEvent("notifications");
         return { success: true };
       }),
 
     // 全通知を既読にする
     markAllRead: protectedProcedure.mutation(async () => {
       await markAllNotificationsRead();
+      broadcastEvent("notifications");
       return { success: true };
     }),
   }),
@@ -1630,6 +1649,7 @@ export const appRouter = router({
         const bcrypt = await import("bcryptjs");
         const newPasswordHash = await bcrypt.hash(input.newPassword, 12);
         await resetStaffPassword(input.userId, newPasswordHash);
+        broadcastEvent("staff");
         return { success: true };
       }),
 
@@ -1644,6 +1664,7 @@ export const appRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "自分自身のアカウントは削除できません" });
         }
         await deleteStaffAccount(input.userId);
+        broadcastEvent("staff");
         return { success: true };
       }),
 
@@ -1658,6 +1679,7 @@ export const appRouter = router({
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
         }
         await updateStaffRole(input.userId, input.role);
+        broadcastEvent("staff");
         return { success: true };
       }),
     // スタッフのメールアドレスを変更（管理者のみ）
@@ -1672,6 +1694,7 @@ export const appRouter = router({
         }
         try {
           await updateStaffEmail(input.userId, input.email);
+          broadcastEvent("staff");
           return { success: true };
         } catch (err: any) {
           throw new TRPCError({ code: "BAD_REQUEST", message: err.message ?? "メールアドレスの更新に失敗しました" });
@@ -1695,6 +1718,7 @@ export const appRouter = router({
           team: input.team,
           role: input.role,
         });
+        broadcastEvent("staff");
         return { success: true };
       }),
   }),
@@ -2424,6 +2448,7 @@ export const appRouter = router({
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
         }
         await setSetting("sheet_cleanup_days", String(input.days));
+        broadcastEvent("settings");
         return { success: true, days: input.days };
       }),
   }),
@@ -2471,17 +2496,19 @@ export const appRouter = router({
         const { updateQuickAccessLink } = await import("./db");
         const { id, ...data } = input;
         await updateQuickAccessLink(id, data);
+        broadcastEvent("quickAccessLinks");
         return { success: true };
       }),
-    /** クイックアクセスリンクを削除（adminのみ） */
+    /** \u30af\u30a4\u30c3\u30af\u30a2\u30af\u30bb\u30b9\u30ea\u30f3\u30af\u3092\u524a\u9664\uff08admin\u306e\u307f\uff09 */
     delete: protectedProcedure
       .input(z.object({ id: z.number().int() }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin") {
-          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
+          throw new TRPCError({ code: "FORBIDDEN", message: "\u7ba1\u7406\u8005\u306e\u307f\u5909\u66f4\u3067\u304d\u307e\u3059" });
         }
         const { deleteQuickAccessLink } = await import("./db");
         await deleteQuickAccessLink(input.id);
+        broadcastEvent("quickAccessLinks");
         return { success: true };
       }),
   }),

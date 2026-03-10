@@ -4,19 +4,46 @@
  * 対応する React Query キャッシュを自動的に無効化するカスタムフック。
  *
  * 使い方:
- *   useRealtimeSync(); // App.tsx や DashboardLayout.tsx など上位コンポーネントで一度だけ呼ぶ
+ *   useRealtimeSync(); // DashboardLayout.tsx など上位コンポーネントで一度だけ呼ぶ
  */
 
 import { useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 
 // SSEイベント名 → 無効化するtRPCクエリキーのマッピング
+// キーはサーバー側の broadcastEvent(eventName) と一致させること
 const EVENT_QUERY_MAP: Record<string, string[][]> = {
+  // タスク
   tasks: [["tasks", "getMine"], ["tasks", "getAll"]],
+  // 申し送りメッセージ
   messages: [["messages", "getActive"], ["messages", "getPending"]],
-  scheduleComments: [["schedules", "getComments"], ["schedules", "getCommentCounts"]],
+  // スケジュールコメント
+  scheduleComments: [
+    ["schedules", "getComments"],
+    ["schedules", "getCommentCounts"],
+  ],
+  // 訪問記録（次回訪問日時）
   visitRecords: [["visitRecords", "getMine"], ["visitRecords", "getAll"]],
+  // 変更連絡
   scheduleChanges: [["scheduleChanges", "list"]],
+  // スケジュールスクリーンショット
+  schedules: [["schedule", "getAll"], ["schedule", "getUploadLogs"]],
+  // 利用者
+  patients: [["patients", "list"], ["patients", "listAll"]],
+  // スタッフ
+  staff: [["staff", "list"]],
+  // マイリンク
+  myLinks: [["myLinks", "list"]],
+  // スプレッドシートリンク
+  spreadsheetLinks: [["spreadsheetLinks", "list"]],
+  // クイックアクセスリンク
+  quickAccessLinks: [["quickAccessLinks", "list"]],
+  // 設定
+  settings: [["settings", "getSheetCleanupDays"]],
+  // 通知
+  notifications: [["notifications", "list"]],
+  // ユーザー情報
+  users: [["user", "getMyTeam"]],
 };
 
 export function useRealtimeSync() {
@@ -42,8 +69,6 @@ export function useRealtimeSync() {
         es.addEventListener(eventName, () => {
           const keys = EVENT_QUERY_MAP[eventName];
           keys.forEach((key) => {
-            // tRPC utils の invalidate は queryKey 配列で指定
-            // 例: utils.tasks.getMine.invalidate()
             try {
               const [router, procedure] = key;
               // @ts-expect-error dynamic key access
