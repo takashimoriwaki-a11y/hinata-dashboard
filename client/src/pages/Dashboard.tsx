@@ -879,9 +879,25 @@ function ScheduleScreenshotCard() {
         } catch { return false; }
       })();
       if (!hasSavedPrefs) {
-        // 初回アクセス（localStorage未保存）の場合のみデフォルト設定
+        // 初回アクセス（localStorage未保存）の場合はデフォルト設定
         setSelectedTeam(team);
         setShowAllTeams(false);
+      }
+    } else if (!teamInitializedRef.current) {
+      // 全チーム所属・事務員の場合は「全チーム」表示をデフォルトに設定
+      const isAllOrAdmin = (user?.team === "全チーム" || user?.team === "事務員") ||
+                           (myTeamData?.team === "全チーム" || myTeamData?.team === "事務員");
+      if (isAllOrAdmin) {
+        teamInitializedRef.current = true;
+        const hasSavedPrefs = (() => {
+          try {
+            return localStorage.getItem("hinata_schedule_team") !== null ||
+                   localStorage.getItem("hinata_schedule_all_teams") !== null;
+          } catch { return false; }
+        })();
+        if (!hasSavedPrefs) {
+          setShowAllTeams(true);
+        }
       }
     }
   }, [user?.team, myTeamData?.team]);

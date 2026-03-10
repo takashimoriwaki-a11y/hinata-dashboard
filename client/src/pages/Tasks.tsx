@@ -176,6 +176,13 @@ export default function Tasks() {
         try { localStorage.setItem("tasks_teamFilter", newVal); } catch {}
         return newVal;
       });
+    } else if (user.team === "全チーム" || user.team === "事務員") {
+      // 全チーム所属・事務員は「全チーム」をデフォルトに設定
+      setTeamFilterRaw(prev => {
+        if (prev !== null) return prev;
+        try { localStorage.setItem("tasks_teamFilter", "all_team"); } catch {}
+        return "all_team";
+      });
     }
   }, [user?.team]);
 

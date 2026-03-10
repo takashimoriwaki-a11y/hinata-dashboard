@@ -77,6 +77,7 @@ export default function RecordInput() {
         return newVal;
       });
     }
+    // 「全チーム」「事務員」は未選択のまま（記録は特定チームを選ぶ必要があるため）
   }, [user?.team]);
 
   // 時間セレクト用

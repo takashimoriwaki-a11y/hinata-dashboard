@@ -948,6 +948,15 @@ export default function ScheduleChange() {
   const [meetingStaff, setMeetingStaff] = useState<string[]>([]);
   const [reason, setReason] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  // ログインユーザーの所属チームをデフォルトに設定（初回のみ）
+  useEffect(() => {
+    if (!user?.team) return;
+    const validTeams: Team[] = ["身体", "天理", "郡山北部", "郡山南部"];
+    if (validTeams.includes(user.team as Team)) {
+      setTeam(prev => (prev === "" ? user.team as Team : prev));
+    }
+    // 「全チーム」「事務員」は未選択のまま（変更連絡は特定チームを選ぶ必要があるため）
+  }, [user?.team]);
   // 音声入力関連ステート
   const [voiceText, setVoiceText] = useState("");
   const [isParsingVoice, setIsParsingVoice] = useState(false);

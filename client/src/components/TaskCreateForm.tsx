@@ -93,11 +93,10 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     if (validTeams.includes(user.team as Team)) {
       setNewAssignTeam(user.team as Team);
       setNewAssignType("team");
-    } else if (user.team === "全チーム") {
-      // 全チーム所属の職員は「全員」をデフォルトに設定
+    } else if (user.team === "全チーム" || user.team === "事務員") {
+      // 全チーム所属・事務員は「全員」をデフォルトに設定
       setNewAssignType("all");
     }
-    // 「事務員」の場合はデフォルト「身体」チームのまま
   }, [user?.team]);
 
   // スタッフ一覧（個人指定用）
