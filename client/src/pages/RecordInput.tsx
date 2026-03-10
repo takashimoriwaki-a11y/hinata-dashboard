@@ -575,14 +575,8 @@ export default function RecordInput() {
   const GEMS_URL = "https://gemini.google.com/gem/1qqbO6BLZLj9IXwsOjYuePdyQn0QGkifV?usp=sharing";
 
   const handleCopyAndOpenGem = async () => {
-    // 病状の経過テキストを構築してコピー
-    const lines: string[] = [];
-    if (patientName) lines.push(`利用者：${patientName}`);
-    // チーム名はコピー内容から除外
-    if (clinicalNotes) lines.push(`
-【病状の経過】
-${clinicalNotes}`);
-    const textToCopy = lines.join("\n");
+    // 病状の経過テキストのみをコピー（①次回訪問日時の利用者名・チーム名等は除外）
+    const textToCopy = clinicalNotes.trim();
 
     if (!textToCopy.trim()) {
       toast.error("コピーする内容がありません。病状の経過を入力してください");
