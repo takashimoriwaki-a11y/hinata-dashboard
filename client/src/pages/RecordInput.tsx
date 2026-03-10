@@ -1475,10 +1475,20 @@ export default function RecordInput() {
               )}
             </div>
           </div>
+          {/* コピー内容プレビュー */}
+          {clinicalNotes.trim() && (
+            <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
+              <p className="text-[10px] font-medium text-muted-foreground mb-1">コピーされる内容（病状の経過のみ）</p>
+              <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap break-words line-clamp-4">{clinicalNotes.trim()}</p>
+              {clinicalNotes.trim().split("\n").length > 4 && (
+                <p className="text-[10px] text-muted-foreground mt-1">…他{clinicalNotes.trim().split("\n").length - 4}行</p>
+              )}
+            </div>
+          )}
           <Button
             className="w-full"
             onClick={handleCopyAndOpenGem}
-            disabled={!clinicalNotes.trim() && !patientName}
+            disabled={!clinicalNotes.trim()}
           >
             <><Send className="w-4 h-4 mr-2" />記録をコピーしてGemへ</>
           </Button>
