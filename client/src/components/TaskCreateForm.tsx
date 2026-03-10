@@ -14,6 +14,7 @@ import {
   X,
   Loader2,
   UserRound,
+  CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -74,6 +75,14 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [lastVoiceText, setLastVoiceText] = useState<string | null>(null);
   const [missingFields, setMissingFields] = useState<string[]>([]);
+  // 誤変換報告機能
+  const [voiceTranscribed, setVoiceTranscribed] = useState(false);
+  const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
+  const [feedbackWrongField, setFeedbackWrongField] = useState("");
+  const [feedbackWrongValue, setFeedbackWrongValue] = useState("");
+  const [feedbackCorrectValue, setFeedbackCorrectValue] = useState("");
+  const [feedbackComment, setFeedbackComment] = useState("");
+  const [feedbackSent, setFeedbackSent] = useState(false);
 
   // ログインユーザーの所属チームをデフォルトに設定
   useEffect(() => {
@@ -83,8 +92,12 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     const validTeams: Team[] = ["身体", "天理", "郡山北部", "郡山南部"];
     if (validTeams.includes(user.team as Team)) {
       setNewAssignTeam(user.team as Team);
+      setNewAssignType("team");
+    } else if (user.team === "全チーム") {
+      // 全チーム所属の職員は「全員」をデフォルトに設定
+      setNewAssignType("all");
     }
-    // 「事務員」「全チーム」の場合はデフォルト「身体」のまま
+    // 「事務員」の場合はデフォルト「身体」チームのまま
   }, [user?.team]);
 
   // スタッフ一覧（個人指定用）
@@ -185,6 +198,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
       }
 
       setMissingFields(missing);
+      setVoiceTranscribed(true); // 誤変換報告ボタンを表示する
       if (missing.length === 0) {
         toast.success("AI解析完了！内容を確認してください");
       }
@@ -338,10 +352,24 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     setPendingPatientSearch(null);
   };
 
+  const reportFeedback = trpc.voiceFeedback.report.useMutation({
+    onSuccess: () => {
+      setShowFeedbackDialog(false);
+      setFeedbackSent(true);
+      setTimeout(() => setFeedbackSent(false), 8000);
+    },
+    onError: (err) => {
+      toast.error(`報告に失敗しました: ${err.message}`);
+    },
+  });
+
   const createTask = trpc.tasks.create.useMutation({
     onSuccess: () => {
       utils.tasks.getMine.invalidate();
       toast.success("タスクを追加しました");
+      // 追加後は誤変換報告を非表示にする
+      setVoiceTranscribed(false);
+      setFeedbackSent(false);
       onSuccess?.();
       onClose();
     },
@@ -583,6 +611,40 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
                     {ex}
                   </p>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* 誤変換報告ボタン（音声転記後・タスク追加前のみ表示） */}
+          {voiceTranscribed && !feedbackSent && (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowFeedbackDialog(true)}
+                className="text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+              >
+                誤変換を報告する（タスク追加前に）
+              </button>
+            </div>
+          )}
+
+          {/* 報告済みフォローアップカード */}
+          {feedbackSent && (
+            <div className="relative rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 px-3 py-2.5">
+              <button
+                type="button"
+                onClick={() => setFeedbackSent(false)}
+                className="absolute top-1.5 right-1.5 text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200 transition-colors"
+                aria-label="閉じる"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+              <div className="flex items-start gap-2 pr-4">
+                <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-semibold text-green-800 dark:text-green-300">ご報告ありがとうございます</p>
+                  <p className="text-[10px] text-green-700 dark:text-green-400 mt-0.5">いただいた情報はAIの音声認識精度の改善に活用します。引き続きご協力をお願いします。</p>
+                </div>
               </div>
             </div>
           )}
@@ -928,6 +990,100 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
           </Button>
         </div>
       </CardContent>
+
+      {/* 誤変換報告ダイアログ */}
+      {showFeedbackDialog && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm bg-background rounded-2xl shadow-xl border border-border p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-foreground">誤変換を報告</h3>
+              <button
+                type="button"
+                onClick={() => setShowFeedbackDialog(false)}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">音声入力で誤った転記があった場合はご報告ください。AIの改善に活用します。</p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">誤変換した項目</label>
+                <select
+                  value={feedbackWrongField}
+                  onChange={(e) => setFeedbackWrongField(e.target.value)}
+                  className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">選んでください</option>
+                  <option value="タスク内容">タスク内容</option>
+                  <option value="期日">期日</option>
+                  <option value="指定先チーム">指定先チーム</option>
+                  <option value="指定先個人">指定先個人</option>
+                  <option value="利用者名">利用者名</option>
+                  <option value="その他">その他</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">AIが転記した誤った内容</label>
+                <input
+                  type="text"
+                  value={feedbackWrongValue}
+                  onChange={(e) => setFeedbackWrongValue(e.target.value)}
+                  placeholder="例: 郡山北部チーム"
+                  className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">正しい内容</label>
+                <input
+                  type="text"
+                  value={feedbackCorrectValue}
+                  onChange={(e) => setFeedbackCorrectValue(e.target.value)}
+                  placeholder="例: 郡山南部チーム"
+                  className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">コメント（任意）</label>
+                <textarea
+                  value={feedbackComment}
+                  onChange={(e) => setFeedbackComment(e.target.value)}
+                  placeholder="その他気になった点があればご記入ください"
+                  rows={2}
+                  className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => setShowFeedbackDialog(false)}
+              >
+                キャンセル
+              </Button>
+              <Button
+                size="sm"
+                className="flex-1"
+                disabled={!feedbackWrongField || reportFeedback.isPending}
+                onClick={() => {
+                  reportFeedback.mutate({
+                    originalText: lastVoiceText ?? "",
+                    transcribedResult: `タスク: ${newText}`,
+                    wrongField: feedbackWrongField,
+                    wrongValue: feedbackWrongValue,
+                    correctValue: feedbackCorrectValue,
+                    comment: feedbackComment,
+                  });
+                }}
+              >
+                {reportFeedback.isPending ? "送信中..." : "報告する"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

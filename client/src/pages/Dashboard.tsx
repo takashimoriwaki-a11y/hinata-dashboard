@@ -2089,6 +2089,14 @@ function MessageBoard({ title }: { title: string }) {
   const [msgVoiceError, setMsgVoiceError] = useState<string | null>(null);
   const [lastMsgVoiceText, setLastMsgVoiceText] = useState<string | null>(null);
   const [missingMsgFields, setMissingMsgFields] = useState<string[]>([]);
+  // 誤変換報告機能
+  const [msgVoiceTranscribed, setMsgVoiceTranscribed] = useState(false);
+  const [showMsgFeedbackDialog, setShowMsgFeedbackDialog] = useState(false);
+  const [msgFeedbackWrongField, setMsgFeedbackWrongField] = useState("");
+  const [msgFeedbackWrongValue, setMsgFeedbackWrongValue] = useState("");
+  const [msgFeedbackCorrectValue, setMsgFeedbackCorrectValue] = useState("");
+  const [msgFeedbackComment, setMsgFeedbackComment] = useState("");
+  const [msgFeedbackSent, setMsgFeedbackSent] = useState(false);
   const msgVoice = useVoiceInput({
     onResult: (text: string) => {
       setLastMsgVoiceText(text);
@@ -2122,6 +2130,7 @@ function MessageBoard({ title }: { title: string }) {
         if (f.scheduledAtTime) setScheduledAtTime(prev => prev.trim() ? prev : f.scheduledAtTime!);
       }
       setMissingMsgFields(missing);
+      setMsgVoiceTranscribed(true); // 誤変換報告ボタンを表示する
       if (missing.length === 0) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (toast as any).success("AIが各項目に転記しました");
@@ -2150,6 +2159,18 @@ function MessageBoard({ title }: { title: string }) {
     },
   });
 
+  // 誤変換報告 mutation
+  const reportMsgFeedback = trpc.voiceFeedback.report.useMutation({
+    onSuccess: () => {
+      setShowMsgFeedbackDialog(false);
+      setMsgFeedbackSent(true);
+      setTimeout(() => setMsgFeedbackSent(false), 8000);
+    },
+    onError: (err) => {
+      toast.error(`報告に失敗しました: ${err.message}`);
+    },
+  });
+
   // メッセージ作成
   const createMsg = trpc.messages.create.useMutation({
     onSuccess: () => {
@@ -2160,6 +2181,9 @@ function MessageBoard({ title }: { title: string }) {
       setDisplayUntil(""); setDisplayUntilTime("");
       setScheduledAt(""); setScheduledAtTime("");
       setShowForm(false);
+      // 投稿後は誤変換報告を非表示にする
+      setMsgVoiceTranscribed(false);
+      setMsgFeedbackSent(false);
       // ホーム画面へ遷移
       navigate("/");
     },
@@ -2449,6 +2473,40 @@ function MessageBoard({ title }: { title: string }) {
                     })}
                   </div>
                   <p className="text-[10px] text-amber-700 dark:text-amber-400">項目をタップすると入力欄に移動します。マイクで話すか手動入力で補完できます</p>
+                </div>
+              )}
+
+              {/* 誤変換報告ボタン（音声転記後・投稿前のみ表示） */}
+              {msgVoiceTranscribed && !msgFeedbackSent && (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowMsgFeedbackDialog(true)}
+                    className="text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+                  >
+                    誤変換を報告する（投稿前に）
+                  </button>
+                </div>
+              )}
+
+              {/* 報告済みフォローアップカード */}
+              {msgFeedbackSent && (
+                <div className="relative rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 px-3 py-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setMsgFeedbackSent(false)}
+                    className="absolute top-1.5 right-1.5 text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200 transition-colors"
+                    aria-label="閉じる"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                  <div className="flex items-start gap-2 pr-4">
+                    <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-semibold text-green-800 dark:text-green-300">ご報告ありがとうございます</p>
+                      <p className="text-[10px] text-green-700 dark:text-green-400 mt-0.5">いただいた情報はAIの音声認識精度の改善に活用します。引き続きご協力をお願いします。</p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>            {/* テキストエリア */}
@@ -2966,6 +3024,99 @@ function MessageBoard({ title }: { title: string }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 誤変換報告ダイアログ */}
+      {showMsgFeedbackDialog && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm bg-background rounded-2xl shadow-xl border border-border p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-foreground">誤変換を報告</h3>
+              <button
+                type="button"
+                onClick={() => setShowMsgFeedbackDialog(false)}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">音声入力で誤った転記があった場合はご報告ください。AIの改善に活用します。</p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">誤変換した項目</label>
+                <select
+                  value={msgFeedbackWrongField}
+                  onChange={(e) => setMsgFeedbackWrongField(e.target.value)}
+                  className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">選んでください</option>
+                  <option value="メッセージ本文">メッセージ本文</option>
+                  <option value="表示開始日時">表示開始日時</option>
+                  <option value="表示終了日時">表示終了日時</option>
+                  <option value="予約送信日時">予約送信日時</option>
+                  <option value="その他">その他</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">AIが転記した誤った内容</label>
+                <input
+                  type="text"
+                  value={msgFeedbackWrongValue}
+                  onChange={(e) => setMsgFeedbackWrongValue(e.target.value)}
+                  placeholder="例: 3月、4日"
+                  className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">正しい内容</label>
+                <input
+                  type="text"
+                  value={msgFeedbackCorrectValue}
+                  onChange={(e) => setMsgFeedbackCorrectValue(e.target.value)}
+                  placeholder="例: 3月、4日"
+                  className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1">コメント（任意）</label>
+                <textarea
+                  value={msgFeedbackComment}
+                  onChange={(e) => setMsgFeedbackComment(e.target.value)}
+                  placeholder="その他気になった点があればご記入ください"
+                  rows={2}
+                  className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => setShowMsgFeedbackDialog(false)}
+              >
+                キャンセル
+              </Button>
+              <Button
+                size="sm"
+                className="flex-1"
+                disabled={!msgFeedbackWrongField || reportMsgFeedback.isPending}
+                onClick={() => {
+                  reportMsgFeedback.mutate({
+                    originalText: lastMsgVoiceText ?? "",
+                    transcribedResult: `メッセージ: ${newMsg}`,
+                    wrongField: msgFeedbackWrongField,
+                    wrongValue: msgFeedbackWrongValue,
+                    correctValue: msgFeedbackCorrectValue,
+                    comment: msgFeedbackComment,
+                  });
+                }}
+              >
+                {reportMsgFeedback.isPending ? "送信中..." : "報告する"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }
