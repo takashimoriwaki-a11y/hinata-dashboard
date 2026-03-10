@@ -478,14 +478,20 @@ export default function RecordInput() {
   const allPatientsRef = useRef<typeof allPatients>([]);
   useEffect(() => { allPatientsRef.current = allPatients; }, [allPatients]);
 
-  // patientsRefを最新のpatientsで同期
-  useEffect(() => { patientsRef.current = patients; }, [patients]);
+  // 音声確定からの自動転送フラグ（createRecord.onSuccessで参照）
+  const autoExportRef = useRef(false);
 
   const createRecord = trpc.visitRecords.create.useMutation({
     onSuccess: (data) => {
       setSavedRecordId(data.id);
       setExported(false);
-      toast.success("記録を保存しました。スプレッドシートへ転送できます。");
+      if (autoExportRef.current) {
+        // 音声確定からの自動転送
+        autoExportRef.current = false;
+        exportToSheet.mutate({ id: data.id });
+      } else {
+        toast.success("記録を保存しました。スプレッドシートへ転送できます。");
+      }
     },
     onError: (err) => toast.error(`保存エラー: ${err.message}`),
   });
@@ -1033,9 +1039,17 @@ ${clinicalNotes}`);
                         ? "bg-amber-500 hover:bg-amber-600"
                         : "bg-emerald-600 hover:bg-emerald-700"
                     )}
-                    onClick={() => editingPreview && applyVoicePreview(editingPreview)}
+                    onClick={() => {
+                      if (!editingPreview) return;
+                      // 音声確定ボタンからの自動転送フラグを立てる
+                      autoExportRef.current = true;
+                      // フォームに転記して保存を実行
+                      applyVoicePreview(editingPreview);
+                      // applyVoicePreviewは非同期なので、次のrender後にhandleSaveを実行
+                      setTimeout(() => handleSave(), 0);
+                    }}
                   >
-                    {hasMissing ? `未入力項目あり・そのまま確定` : "✓　この内容で確定"}
+                    {hasMissing ? `未入力項目あり・そのまま確定・転送` : "✓　この内容で確定・転送"}
                   </Button>
                   <Button
                     size="sm"
