@@ -10,6 +10,9 @@
  * - 通常時: マイクアイコン
  * - 録音中は interimText（暫定テキスト）をボタン横にリアルタイム表示
  * - 無音タイマー残り5秒以下でカウントダウン表示
+ *
+ * externalState プロップを渡すと、外部の useVoiceInput フックの状態を使用する。
+ * これにより、フックを共有しつつボタンデザインを統一できる。
  */
 
 import React from "react";
@@ -17,9 +20,18 @@ import { Loader2, Mic } from "lucide-react";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { cn } from "@/lib/utils";
 
+/** 外部フック状態の型（useVoiceInput の戻り値のサブセット） */
+export interface VoiceExternalState {
+  isRecording: boolean;
+  isProcessing: boolean;
+  toggleVoice: () => void;
+  interimText: string;
+  silenceCountdown: number | null;
+}
+
 interface VoiceMicButtonProps {
-  /** 認識結果テキストを受け取るコールバック */
-  onResult: (text: string) => void;
+  /** 認識結果テキストを受け取るコールバック（externalState 使用時は不要） */
+  onResult?: (text: string) => void;
   /** 録音状態変化時のコールバック */
   onRecordingChange?: (isRecording: boolean) => void;
   /** 暂定テキスト変化時のコールバック */
@@ -42,6 +54,12 @@ interface VoiceMicButtonProps {
    * 'clinical_notes' | 'task' | 'schedule_change' | 'message' | 'general'
    */
   context?: string;
+  /**
+   * 外部フック状態（useVoiceInput の戻り値）。
+   * 指定すると内部で useVoiceInput を呼ばず、この状態を使用する。
+   * notesVoice など既存フックのボタンをこのコンポーネントに統一する際に使用。
+   */
+  externalState?: VoiceExternalState;
 }
 
 const sizeConfig = {
@@ -83,12 +101,18 @@ export function VoiceMicButton({
   disabled = false,
   previewMode = "tooltip",
   context = "general",
+  externalState,
 }: VoiceMicButtonProps) {
-  const { isRecording, isProcessing, toggleVoice, interimText, silenceCountdown } = useVoiceInput({
-    onResult,
+  // externalState が指定されていない場合のみ内部フックを使用
+  const internalHook = useVoiceInput({
+    onResult: onResult ?? (() => {}),
     onRecordingChange,
     context,
   });
+
+  // 使用する状態を決定（外部 > 内部）
+  const { isRecording, isProcessing, toggleVoice, interimText, silenceCountdown } =
+    externalState ?? internalHook;
 
   // interimText変化時にコールバックを呼び出す
   const prevInterimRef = React.useRef("");

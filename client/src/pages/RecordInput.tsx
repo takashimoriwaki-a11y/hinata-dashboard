@@ -1390,39 +1390,18 @@ export default function RecordInput() {
                   <p className="text-xs text-red-600 dark:text-red-400 font-medium mt-0.5">❌ 認識エラー</p>
                 ) : null}
               </div>
-              <button
-                type="button"
-                onPointerDown={(e) => { e.preventDefault(); notesVoice.toggleVoice(); }}
-                className={cn(
-                  "relative inline-flex items-center justify-center flex-shrink-0 h-8 w-8 rounded-lg",
-                  "border transition-all duration-200 select-none touch-manipulation",
-                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                  notesVoice.isRecording
-                    ? (notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
-                        ? "bg-orange-500 border-orange-400 text-white shadow-md shadow-orange-500/40"
-                        : "bg-red-500 border-red-400 text-white shadow-md shadow-red-500/40")
-                    : "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 active:scale-95"
-                )}
-                aria-label={notesVoice.isRecording ? "録音停止" : "音声入力開始"}
-                title={notesVoice.isRecording && notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5 ? `あと${notesVoice.silenceCountdown}秒で自動停止` : undefined}
-              >
-                {notesVoice.isRecording && (
-                  <span className="absolute inset-0 rounded-[inherit] overflow-hidden pointer-events-none">
-                    <span className={cn("absolute inset-0 animate-ping rounded-[inherit] opacity-25", notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5 ? "bg-orange-400" : "bg-red-400")} />
-                  </span>
-                )}
-                {notesVoice.isRecording && notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5 ? (
-                  <span className="text-[9px] font-bold leading-none">{notesVoice.silenceCountdown}</span>
-                ) : notesVoice.isRecording ? (
-                  <span className="flex items-end justify-center gap-px h-3">
-                    {[0,1,2,3].map((i) => (
-                      <span key={i} className="w-0.5 bg-white rounded-full" style={{ height: "60%", animation: "voiceBar 0.5s ease-in-out infinite alternate", animationDelay: `${i * 0.12}s` }} />
-                    ))}
-                  </span>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
-                )}
-              </button>
+              {/* VoiceMicButton共通コンポーネントを使用（externalStateでnotesVoiceフックを共有しデザインを統一） */}
+              <VoiceMicButton
+                externalState={{
+                  isRecording: notesVoice.isRecording,
+                  isProcessing: notesVoice.isProcessing,
+                  toggleVoice: notesVoice.toggleVoice,
+                  interimText: notesVoice.interimText,
+                  silenceCountdown: notesVoice.silenceCountdown,
+                }}
+                size="sm"
+                previewMode="none"
+              />
             </div>
             <div className="relative">
               <Textarea
