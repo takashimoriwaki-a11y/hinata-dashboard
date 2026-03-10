@@ -467,7 +467,7 @@ function VisitCountCard() {
 
 // ========== ピンチズーム対応画像コンポーネント ==========
 
-function PinchZoomImage({ src, alt }: { src: string; alt: string }) {
+function PinchZoomImage({ src, alt, onClickLightbox }: { src: string; alt: string; onClickLightbox?: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const scaleRef = useRef(1);
@@ -590,7 +590,7 @@ function PinchZoomImage({ src, alt }: { src: string; alt: string }) {
       ref={containerRef}
       // touch-auto: scale=1時はブラウザのネイティブスクロールを許可
       // touch-none はuseEffectのネイティブイベントで必要な場合のみ制御
-      className="overflow-hidden bg-muted/10 touch-auto select-none"
+      className="overflow-hidden bg-muted/10 touch-auto select-none relative group/pz"
     >
       <img
         ref={imgRef}
@@ -601,6 +601,18 @@ function PinchZoomImage({ src, alt }: { src: string; alt: string }) {
         onDoubleClick={handleDoubleClick}
         draggable={false}
       />
+      {/* ライトボックスで全画面表示ボタン */}
+      {onClickLightbox && (
+        <button
+          onClick={onClickLightbox}
+          className="absolute top-2 left-2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1.5 opacity-0 group-hover/pz:opacity-100 transition-opacity"
+          title="全画面で表示"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+          </svg>
+        </button>
+      )}
       <div className="text-center text-[10px] text-muted-foreground/50 py-1">
         ピンチで拡大・ダブルタップでリセット
       </div>
@@ -811,6 +823,9 @@ function ScheduleScreenshotCard() {
   const [modalSlideIndex, setModalSlideIndex] = useState(0);
   const modalTouchStartX = useRef<number | null>(null);
   const modalTouchStartY = useRef<number | null>(null);
+  // 個別ライトボックス（1枚フルスクリーン表示）
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [lightboxAlt, setLightboxAlt] = useState<string>("");
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const utils = trpc.useUtils();
@@ -864,6 +879,22 @@ function ScheduleScreenshotCard() {
       }
     }
   }, [user?.team, myTeamData?.team]);
+
+  // ESCキーでモーダル・ライトボックスを閉じる
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (lightboxSrc) {
+          setLightboxSrc(null);
+        } else if (viewMeta) {
+          setViewUrl(null);
+          setViewMeta(null);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [lightboxSrc, viewMeta]);
 
   // 全スクショ一覧を取得（30秒ごとに自動更新、SSEによる即時更新も対応）
   const { data: screenshots, isLoading: screenshotsLoading } = trpc.schedule.getAll.useQuery(undefined, {
@@ -1359,7 +1390,11 @@ function ScheduleScreenshotCard() {
                   {screenshot ? (
                     <PinchZoomImage
                       src={screenshot.imageUrl}
-                      alt={`${team}チーム ${viewMeta.day}のスケジュール`}
+                      alt={`${team}\u30c1\u30fc\u30e0 ${viewMeta.day}\u306e\u30b9\u30b1\u30b8\u30e5\u30fc\u30eb`}
+                      onClickLightbox={() => {
+                        setLightboxSrc(screenshot.imageUrl);
+                        setLightboxAlt(`${team}\u30c1\u30fc\u30e0 ${viewMeta.day}\u306e\u30b9\u30b1\u30b8\u30e5\u30fc\u30eb`);
+                      }}
                     />
                   ) : (
                     <div className="flex flex-col items-center justify-center h-24 bg-muted/20 text-muted-foreground/50 gap-1">
@@ -1397,6 +1432,35 @@ function ScheduleScreenshotCard() {
         </div>
         );
       })()}
+
+      {/* 個別ライトボックス（1枚フルスクリーン表示） */}
+      {lightboxSrc && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center"
+          onClick={() => setLightboxSrc(null)}
+        >
+          {/* 閉じるボタン */}
+          <button
+            className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white rounded-full p-2 transition-colors z-10"
+            onClick={() => setLightboxSrc(null)}
+            title="閉じる（ESC）"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          {/* 画像（クリックで閉じないようstopPropagation） */}
+          <img
+            src={lightboxSrc}
+            alt={lightboxAlt}
+            className="max-w-full max-h-full object-contain select-none"
+            onClick={(e) => e.stopPropagation()}
+            draggable={false}
+          />
+          {/* キャプション */}
+          <div className="absolute bottom-4 left-0 right-0 text-center text-white/60 text-xs pointer-events-none">
+            {lightboxAlt} — クリックまたはESCで閉じる
+          </div>
+        </div>
+      )}
     </>
   );
 }
