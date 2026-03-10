@@ -865,10 +865,10 @@ function ScheduleScreenshotCard() {
     }
   }, [user?.team, myTeamData?.team]);
 
-  // 全スクショ一覧を取得（30秒ごとに自動更新）
+  // 全スクショ一覧を取得（30秒ごとに自動更新、SSEによる即時更新も対応）
   const { data: screenshots, isLoading: screenshotsLoading } = trpc.schedule.getAll.useQuery(undefined, {
     refetchInterval: 30 * 1000,
-    staleTime: 15 * 1000,
+    staleTime: 0,
   });
 
   const uploadMutation = trpc.schedule.upload.useMutation({
