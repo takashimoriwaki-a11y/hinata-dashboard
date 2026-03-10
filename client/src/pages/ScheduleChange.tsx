@@ -1071,7 +1071,7 @@ export default function ScheduleChange() {
       // 転送後に誤変換報告関連のステートもリセット（転送後は誤変換報告を表示しない）
       setVoiceTranscribed(false);
       setFeedbackSent(false);
-      // 転送後にフォームを自動リセット（送信完了画面はそのまま表示し、入力内容のみクリア）
+      // 転送後にフォームを自動リセット（全フィールドをクリア）
       clearDraft();
       setDraftSavedAt(null);
       setDraftRestored(false);
@@ -1087,6 +1087,14 @@ export default function ScheduleChange() {
       setMeetingName("");
       setMeetingStaff([]);
       setReason("");
+      // 音声入力関連のstateも全てリセット
+      setVoiceText("");
+      setVoiceError(null);
+      setMissingVoiceFields([]);
+      setVoicePatientCandidates([]);
+      setShowVoicePatientDialog(false);
+      setPendingVoiceFields(null);
+      setVoiceInterimText("");
     },
     onError: (err) => {
       toast.error(`送信に失敗しました: ${err.message}`);
