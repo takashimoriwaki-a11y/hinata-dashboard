@@ -1403,56 +1403,85 @@ export default function RecordInput() {
                 previewMode="none"
               />
             </div>
+            {/* テキストエリア + interimTextオーバーレイ */}
             <div className="relative">
               <Textarea
                 placeholder="本日訪問で観察した症状・状態・利用者の言葉・環境の変化などをメモしてください..."
                 value={clinicalNotes}
                 onChange={(e) => setClinicalNotes(e.target.value)}
-                className="min-h-[120px] text-sm"
+                className={cn(
+                  "min-h-[120px] text-sm resize-y",
+                  notesVoice.isRecording && notesVoice.interimText && "caret-transparent"
+                )}
               />
-              {/* 音声認識中の暑定テキストプレビュー */}
-              {(notesVoice.isRecording || notesVoice.lastTranscribedText) && (
-                <div className={cn(
-                  "mt-1.5 px-2 py-1.5 rounded-md border min-h-[32px]",
-                  notesVoice.isRecording
-                    ? (notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
-                        ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
-                        : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800")
-                    : "bg-muted/40 border-border"
-                )}>
-                  {notesVoice.isRecording ? (
-                    notesVoice.interimText ? (
-                      <p className="text-xs text-red-600 dark:text-red-400 italic leading-relaxed">
-                        🎤 {notesVoice.interimText}
-                      </p>
-                    ) : notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5 ? (
-                      <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
-                        あと{notesVoice.silenceCountdown}秒で自動停止します
-                      </p>
-                    ) : (
-                      <p className="text-xs text-muted-foreground italic">話してください...</p>
-                    )
-                  ) : notesVoice.lastTranscribedText ? (
-                    <div className="space-y-1.5">
-                      <div className="flex items-start gap-1.5">
-                        <p className="text-xs text-muted-foreground leading-relaxed flex-1">
-                          🎤 {notesVoice.lastTranscribedText}
-                        </p>
-                      </div>
-                      {/* 誤変換フィードバックボタン */}
-                      <button
-                        type="button"
-                        onClick={() => openFeedbackDialog(notesVoice.lastTranscribedText, "notesVoice")}
-                        className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                        誤変換を報告して次回から改善
-                      </button>
-                    </div>
-                  ) : null}
+              {/* 録音中のinterimTextをテキストエリア内にオーバーレイ表示 */}
+              {notesVoice.isRecording && notesVoice.interimText && (
+                <div
+                  aria-hidden="true"
+                  className={cn(
+                    // Textareaと同じフォント・パディング・サイズで重ねる
+                    "absolute inset-0 pointer-events-none",
+                    "px-3 py-2 text-sm leading-[1.75] font-sans",
+                    "whitespace-pre-wrap break-words overflow-hidden",
+                    "rounded-md"
+                  )}
+                >
+                  {/* 確定済みテキスト: 透明（下のTextareaが見えるようにする） */}
+                  <span className="text-transparent select-none">
+                    {clinicalNotes}
+                    {clinicalNotes ? "\n" : ""}
+                  </span>
+                  {/* interimText: グレー斜体でオーバーレイ */}
+                  <span
+                    className={cn(
+                      "italic font-normal",
+                      notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
+                        ? "text-orange-400/80 dark:text-orange-400/70"
+                        : "text-muted-foreground/60"
+                    )}
+                  >
+                    {notesVoice.interimText}
+                  </span>
+                </div>
+              )}
+              {/* 録音中インジケーター（interimTextなし時）: テキストエリア右下に小さく表示 */}
+              {notesVoice.isRecording && !notesVoice.interimText && (
+                <div className="absolute bottom-2 right-2 pointer-events-none">
+                  <span className={cn(
+                    "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium",
+                    notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
+                      ? "bg-orange-100/80 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400"
+                      : "bg-red-100/80 dark:bg-red-950/60 text-red-600 dark:text-red-400"
+                  )}>
+                    <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                    {notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
+                      ? `あと${notesVoice.silenceCountdown}秒`
+                      : "話してください"}
+                  </span>
                 </div>
               )}
             </div>
+            {/* 録音完了後: 最後の転記テキスト + 誤変換フィードバック */}
+            {!notesVoice.isRecording && notesVoice.lastTranscribedText && (
+              <div className="mt-1.5 px-2 py-1.5 rounded-md border bg-muted/40 border-border">
+                <div className="space-y-1.5">
+                  <div className="flex items-start gap-1.5">
+                    <p className="text-xs text-muted-foreground leading-relaxed flex-1">
+                      🎤 {notesVoice.lastTranscribedText}
+                    </p>
+                  </div>
+                  {/* 誤変換フィードバックボタン */}
+                  <button
+                    type="button"
+                    onClick={() => openFeedbackDialog(notesVoice.lastTranscribedText, "notesVoice")}
+                    className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    誤変換を報告して次回から改善
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           {/* コピー内容プレビュー */}
           {clinicalNotes.trim() && (
