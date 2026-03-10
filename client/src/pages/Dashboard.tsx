@@ -467,7 +467,7 @@ function VisitCountCard() {
 
 // ========== ピンチズーム対応画像コンポーネント ==========
 
-function PinchZoomImage({ src, alt, onClickLightbox }: { src: string; alt: string; onClickLightbox?: () => void }) {
+function PinchZoomImage({ src, alt, onClickLightbox, fullscreen }: { src: string; alt: string; onClickLightbox?: () => void; fullscreen?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const scaleRef = useRef(1);
@@ -590,13 +590,17 @@ function PinchZoomImage({ src, alt, onClickLightbox }: { src: string; alt: strin
       ref={containerRef}
       // touch-auto: scale=1時はブラウザのネイティブスクロールを許可
       // touch-none はuseEffectのネイティブイベントで必要な場合のみ制御
-      className="overflow-hidden bg-muted/10 touch-auto select-none relative group/pz"
+      className={fullscreen
+        ? "overflow-hidden touch-none select-none relative w-full h-full flex items-center justify-center"
+        : "overflow-hidden bg-muted/10 touch-auto select-none relative group/pz"}
     >
       <img
         ref={imgRef}
         src={src}
         alt={alt}
-        className="w-full object-contain transition-none origin-center"
+        className={fullscreen
+          ? "max-w-full max-h-full object-contain transition-none origin-center"
+          : "w-full object-contain transition-none origin-center"}
         style={{ willChange: "transform" }}
         onDoubleClick={handleDoubleClick}
         draggable={false}
@@ -613,9 +617,11 @@ function PinchZoomImage({ src, alt, onClickLightbox }: { src: string; alt: strin
           </svg>
         </button>
       )}
-      <div className="text-center text-[10px] text-muted-foreground/50 py-1">
-        ピンチで拡大・ダブルタップでリセット
-      </div>
+      {!fullscreen && (
+        <div className="text-center text-[10px] text-muted-foreground/50 py-1">
+          ピンチで拡大・ダブルタップでリセット
+        </div>
+      )}
     </div>
   );
 }
@@ -1436,7 +1442,7 @@ function ScheduleScreenshotCard() {
       {/* 個別ライトボックス（1枚フルスクリーン表示） */}
       {lightboxSrc && (
         <div
-          className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center"
+          className="fixed inset-0 z-[60] bg-black/95"
           onClick={() => setLightboxSrc(null)}
         >
           {/* 閉じるボタン */}
@@ -1447,17 +1453,20 @@ function ScheduleScreenshotCard() {
           >
             <X className="w-6 h-6" />
           </button>
-          {/* 画像（クリックで閉じないようstopPropagation） */}
-          <img
-            src={lightboxSrc}
-            alt={lightboxAlt}
-            className="max-w-full max-h-full object-contain select-none"
+          {/* ピンチズーム・ダブルタップ対応画像（クリックで閉じないようstopPropagation） */}
+          <div
+            className="absolute inset-0 flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
-            draggable={false}
-          />
+          >
+            <PinchZoomImage
+              src={lightboxSrc}
+              alt={lightboxAlt}
+              fullscreen
+            />
+          </div>
           {/* キャプション */}
-          <div className="absolute bottom-4 left-0 right-0 text-center text-white/60 text-xs pointer-events-none">
-            {lightboxAlt} — クリックまたはESCで閉じる
+          <div className="absolute bottom-4 left-0 right-0 text-center text-white/60 text-xs pointer-events-none z-10">
+            {lightboxAlt} — ピンチで拡大・ダブルタップでリセット・四隅のクリックまたはESCで閉じる
           </div>
         </div>
       )}
