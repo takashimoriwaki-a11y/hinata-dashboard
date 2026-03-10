@@ -500,9 +500,15 @@ export default function RecordInput() {
     onSuccess: () => {
       toast.success("スプレッドシートへ転送しました！");
       utils.visitRecords.getMine.invalidate();
-      // 転送後に全入力内容をリセット（チーム含む）
-      setTeam("");
-      handleReset();
+      // 転送後は次回訪問日時・伝達先・伝達方法のみリセット（利用者名・病状の経過は保持）
+      setNextVisitDate("");
+      setNextVisitTime("");
+      setNotifiedTo("");
+      setNotifiedToOther("");
+      setNotifyMethod("");
+      setNotifyMethodOther("");
+      setSavedRecordId(null);
+      setExported(false);
     },
     onError: (err) => toast.error(`転送エラー: ${err.message}`),
   });
@@ -579,8 +585,8 @@ ${clinicalNotes}`);
       toast.error("クリップボードへのコピーに失敗しました");
     }
     window.open(GEMS_URL, "_blank", "noopener,noreferrer");
-    // Gem送信後に①②の全入力内容をリセット
-    handleReset();
+    // Gem送信後は病状の経過のみリセット（利用者名・次回訪問日時は保持）
+    setClinicalNotes("");
   };
 
   const handleReset = () => {
