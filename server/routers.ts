@@ -2512,6 +2512,51 @@ export const appRouter = router({
         return { success: true };
       }),
   }),
+
+  /** 音声入力誤変換フィードバック */
+  voiceFeedback: router({
+    /** 誤変換を報告する */
+    report: protectedProcedure
+      .input(z.object({
+        originalText: z.string(),
+        transcribedResult: z.string().optional(),
+        wrongField: z.string().optional(),
+        wrongValue: z.string().optional(),
+        correctValue: z.string().optional(),
+        comment: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+        const { voiceFeedback } = await import("../drizzle/schema");
+        const insertData: typeof voiceFeedback.$inferInsert = {
+          originalText: input.originalText,
+          transcribedResult: input.transcribedResult ?? undefined,
+          wrongField: input.wrongField ?? undefined,
+          wrongValue: input.wrongValue ?? undefined,
+          correctValue: input.correctValue ?? undefined,
+          comment: input.comment ?? undefined,
+          reportedBy: ctx.user.id,
+          reportedByName: ctx.user.name ?? "",
+        };
+        await db.insert(voiceFeedback).values(insertData);
+        // オーナーに通知
+        const { notifyOwner } = await import("./_core/notification");
+        await notifyOwner({
+          title: `音声入力誤変換報告: ${ctx.user.name}`,
+          content: [
+            `報告者: ${ctx.user.name}`,
+            `元の音声: ${input.originalText}`,
+            input.wrongField ? `誤変換項目: ${input.wrongField}` : null,
+            input.wrongValue ? `誤変換内容: ${input.wrongValue}` : null,
+            input.correctValue ? `正しい値: ${input.correctValue}` : null,
+            input.comment ? `コメント: ${input.comment}` : null,
+          ].filter(Boolean).join("\n"),
+        });
+        return { success: true };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

@@ -959,8 +959,14 @@ export default function ScheduleChange() {
   const [voicePatientCandidates, setVoicePatientCandidates] = useState<PatientItem[]>([]);
   const [showVoicePatientDialog, setShowVoicePatientDialog] = useState(false);
   // 候補選択後に適用するその他のフィールドを一時保存
-  const [pendingVoiceFields, setPendingVoiceFields] = useState<Record<string, unknown> | null>(null);
-
+  const [pendingVoiceFields, setPendingVoiceFields] = useState<{ appliedCount: number } | null>(null);
+  // 誤変換報告・転記完了フラグ
+  const [voiceTranscribed, setVoiceTranscribed] = useState(false);
+  const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
+  const [feedbackWrongField, setFeedbackWrongField] = useState("");
+  const [feedbackWrongValue, setFeedbackWrongValue] = useState("");
+  const [feedbackCorrectValue, setFeedbackCorrectValue] = useState("");
+  const [feedbackComment, setFeedbackComment] = useState("");
   // 下書き自動保存（入力変更から800msデバウンス）
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scheduleDraftSave = (data: Omit<DraftData, "savedAt">) => {
@@ -1141,6 +1147,16 @@ export default function ScheduleChange() {
   };
 
   // 音声入力テキストをLLMで解析しフォームに自動転記
+  const reportFeedback = trpc.voiceFeedback.report.useMutation({
+    onSuccess: () => {
+      toast.success("誤変換を報告しました。ご協力ありがとうございます");
+      setShowFeedbackDialog(false);
+    },
+    onError: (err) => {
+      toast.error(`報告に失敗しました: ${err.message}`);
+    },
+  });
+
   const parseVoice = trpc.scheduleChanges.parseVoice.useMutation({
     onSuccess: (data) => {
       const f = data.fields;
@@ -1218,6 +1234,7 @@ export default function ScheduleChange() {
           }
           setMissingVoiceFields(missing);
           setIsParsingVoice(false);
+          setVoiceTranscribed(true);
           if (missing.length === 0) {
             toast.success(`音声内容を${applied}項目に自動転記しました`);
           }
@@ -1246,6 +1263,7 @@ export default function ScheduleChange() {
           setShowVoicePatientDialog(true);
           setMissingVoiceFields(missing);
           setIsParsingVoice(false);
+          setVoiceTranscribed(true);
           // 候補選択待ちのときはトーストなし（ダイアログが表示される）
         } else {
           // 候補なし → 登録外の利用者として AI 返却値をそのまま転記
@@ -1253,6 +1271,7 @@ export default function ScheduleChange() {
           else { missing.push("利用者名"); }
           setMissingVoiceFields(missing);
           setIsParsingVoice(false);
+          setVoiceTranscribed(true);
           if (missing.length === 0 && applied > 0) {
             toast.success(`音声内容を${applied}項目に自動転記しました（利用者は登録外）`);
           } else if (applied === 0 && missing.length === 0) {
@@ -1264,6 +1283,7 @@ export default function ScheduleChange() {
         missing.push("利用者名");
         setMissingVoiceFields(missing);
         setIsParsingVoice(false);
+        setVoiceTranscribed(true);
         if (missing.length === 0 && applied > 0) {
           toast.success(`音声内容を${applied}項目に自動転記しました`);
         }
@@ -1592,6 +1612,25 @@ export default function ScheduleChange() {
             </div>
           )}
 
+          {/* 誤変換報告ボタン */}
+          {voiceTranscribed && !isParsingVoice && (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setFeedbackWrongField("");
+                  setFeedbackWrongValue("");
+                  setFeedbackCorrectValue("");
+                  setFeedbackComment("");
+                  setShowFeedbackDialog(true);
+                }}
+                className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded-lg hover:bg-destructive/10"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l18 18"/><path d="M10.5 10.677a2 2 0 0 0 2.823 2.823"/><path d="M7.362 5.104C5.054 6.37 3.37 8.555 3.05 11.24A9 9 0 0 0 12 21a9 9 0 0 0 5.877-2.166"/><path d="M12 3c1.8 0 3.5.5 4.9 1.4"/></svg>
+                誤変換を報告する
+              </button>
+            </div>
+          )}
 
         </CardContent>
       </Card>
@@ -2097,6 +2136,123 @@ export default function ScheduleChange() {
                 className="w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 キャンセル（手動で入力）
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 誤変換報告ダイアログ */}
+      {showFeedbackDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-popover border border-border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-4 py-3 border-b border-border bg-muted/30 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-foreground">誤変換を報告する</p>
+                <p className="text-xs text-muted-foreground mt-0.5">音声転記の誤りを報告してAIの改善に協力してください</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowFeedbackDialog(false)}
+                className="text-muted-foreground hover:text-foreground transition-colors p-1"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div className="px-4 py-4 space-y-4">
+              {/* 元の音声テキスト */}
+              {voiceText && (
+                <div className="rounded-lg bg-muted/40 border border-border px-3 py-2">
+                  <p className="text-[10px] font-medium text-muted-foreground mb-0.5">認識した音声</p>
+                  <p className="text-xs text-foreground leading-relaxed">「{voiceText}」</p>
+                </div>
+              )}
+              {/* 誤変換した項目 */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">誤変換した項目</label>
+                <select
+                  value={feedbackWrongField}
+                  onChange={(e) => setFeedbackWrongField(e.target.value)}
+                  className="w-full text-sm rounded-lg border border-border bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+                  <option value="">選択してください</option>
+                  <option value="変更種別">変更種別</option>
+                  <option value="チーム">チーム</option>
+                  <option value="利用者名">利用者名</option>
+                  <option value="変更前日時">変更前日時</option>
+                  <option value="変更後日時">変更後日時</option>
+                  <option value="担当スタッフ">担当スタッフ</option>
+                  <option value="伝達先">伝達先</option>
+                  <option value="理由">理由</option>
+                  <option value="その他">その他</option>
+                </select>
+              </div>
+              {/* AIが出した誤った値 */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">AIが転記した誤った内容</label>
+                <input
+                  type="text"
+                  value={feedbackWrongValue}
+                  onChange={(e) => setFeedbackWrongValue(e.target.value)}
+                  placeholder="例：天理チームと転記されたが正しくは郡山北部チーム"
+                  className="w-full text-sm rounded-lg border border-border bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+              </div>
+              {/* 正しい値 */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">正しい内容</label>
+                <input
+                  type="text"
+                  value={feedbackCorrectValue}
+                  onChange={(e) => setFeedbackCorrectValue(e.target.value)}
+                  placeholder="例：郡山北部チーム"
+                  className="w-full text-sm rounded-lg border border-border bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+              </div>
+              {/* 自由コメント */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">その他コメント（任意）</label>
+                <textarea
+                  value={feedbackComment}
+                  onChange={(e) => setFeedbackComment(e.target.value)}
+                  placeholder="例：「北部」と言ったのに「天理」と誤認された。地名を正確に認識してほしい。"
+                  rows={3}
+                  className="w-full text-sm rounded-lg border border-border bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+                />
+              </div>
+            </div>
+            <div className="px-4 pb-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowFeedbackDialog(false)}
+                className="flex-1 py-2.5 text-sm font-medium rounded-xl border border-border text-muted-foreground hover:bg-muted transition-colors"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                disabled={!feedbackWrongField || reportFeedback.isPending}
+                onClick={() => {
+                  reportFeedback.mutate({
+                    originalText: voiceText,
+                    transcribedResult: JSON.stringify({
+                      changeType, team, patientName, fromDatetime, toDatetime,
+                      staffBefore, staffAfter, meetingName, reason,
+                    }),
+                    wrongField: feedbackWrongField || undefined,
+                    wrongValue: feedbackWrongValue || undefined,
+                    correctValue: feedbackCorrectValue || undefined,
+                    comment: feedbackComment || undefined,
+                  });
+                }}
+                className="flex-1 py-2.5 text-sm font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+              >
+                {reportFeedback.isPending ? (
+                  <span className="flex items-center justify-center gap-1.5">
+                    <span className="inline-block w-3 h-3 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                    送信中...
+                  </span>
+                ) : "報告する"}
               </button>
             </div>
           </div>

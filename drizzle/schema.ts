@@ -457,3 +457,31 @@ export const quickAccessLinks = mysqlTable("quick_access_links", {
 
 export type QuickAccessLink = typeof quickAccessLinks.$inferSelect;
 export type InsertQuickAccessLink = typeof quickAccessLinks.$inferInsert;
+
+/**
+ * 音声入力誤変換フィードバックテーブル
+ * 変更連絡の音声入力後に誤変換を報告するためのテーブル
+ */
+export const voiceFeedback = mysqlTable("voice_feedback", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 元の音声テキスト */
+  originalText: text("originalText").notNull(),
+  /** AI転記結果（JSON文字列） */
+  transcribedResult: text("transcribedResult"),
+  /** 誤変換された項目名 */
+  wrongField: varchar("wrongField", { length: 200 }),
+  /** 誤変換内容（AIが出した値） */
+  wrongValue: text("wrongValue"),
+  /** 正しい値 */
+  correctValue: text("correctValue"),
+  /** 自由コメント */
+  comment: text("comment"),
+  /** 報告したユーザーID */
+  reportedBy: int("reportedBy").notNull(),
+  /** 報告したユーザー名 */
+  reportedByName: text("reportedByName").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type VoiceFeedback = typeof voiceFeedback.$inferSelect;
+export type InsertVoiceFeedback = typeof voiceFeedback.$inferInsert;
