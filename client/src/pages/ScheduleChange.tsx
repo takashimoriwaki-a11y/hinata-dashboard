@@ -967,6 +967,7 @@ export default function ScheduleChange() {
   const [feedbackWrongValue, setFeedbackWrongValue] = useState("");
   const [feedbackCorrectValue, setFeedbackCorrectValue] = useState("");
   const [feedbackComment, setFeedbackComment] = useState("");
+  const [feedbackSent, setFeedbackSent] = useState(false);
   // 下書き自動保存（入力変更から800msデバウンス）
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scheduleDraftSave = (data: Omit<DraftData, "savedAt">) => {
@@ -1149,8 +1150,10 @@ export default function ScheduleChange() {
   // 音声入力テキストをLLMで解析しフォームに自動転記
   const reportFeedback = trpc.voiceFeedback.report.useMutation({
     onSuccess: () => {
-      toast.success("誤変換を報告しました。ご協力ありがとうございます");
       setShowFeedbackDialog(false);
+      setFeedbackSent(true);
+      // 8秒後に自動的にフォローアップカードを非表示にする
+      setTimeout(() => setFeedbackSent(false), 8000);
     },
     onError: (err) => {
       toast.error(`報告に失敗しました: ${err.message}`);
@@ -1612,23 +1615,62 @@ export default function ScheduleChange() {
             </div>
           )}
 
-          {/* 誤変換報告ボタン */}
-          {voiceTranscribed && !isParsingVoice && (
-            <div className="flex justify-end">
+          {/* 誤変換報告フォローアップカード */}
+          {feedbackSent && (
+            <div className="flex items-start gap-3 p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl">
+              <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">ご報告ありがとうございます</p>
+                <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5 leading-relaxed">
+                  いただいた情報はAIの音声認識精度の改善に活用します。引き続きご協力をお願いします。
+                </p>
+              </div>
               <button
                 type="button"
-                onClick={() => {
-                  setFeedbackWrongField("");
-                  setFeedbackWrongValue("");
-                  setFeedbackCorrectValue("");
-                  setFeedbackComment("");
-                  setShowFeedbackDialog(true);
-                }}
-                className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded-lg hover:bg-destructive/10"
+                onClick={() => setFeedbackSent(false)}
+                className="text-emerald-500 hover:text-emerald-700 dark:text-emerald-500 dark:hover:text-emerald-300 flex-shrink-0 mt-0.5"
+                aria-label="閉じる"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l18 18"/><path d="M10.5 10.677a2 2 0 0 0 2.823 2.823"/><path d="M7.362 5.104C5.054 6.37 3.37 8.555 3.05 11.24A9 9 0 0 0 12 21a9 9 0 0 0 5.877-2.166"/><path d="M12 3c1.8 0 3.5.5 4.9 1.4"/></svg>
-                誤変換を報告する
+                <X className="w-4 h-4" />
               </button>
+            </div>
+          )}
+          {/* 誤変換報告ボタン（報告済みの場合は再報告リンクに変化） */}
+          {voiceTranscribed && !isParsingVoice && (
+            <div className="flex justify-end">
+              {feedbackSent ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFeedbackWrongField("");
+                    setFeedbackWrongValue("");
+                    setFeedbackCorrectValue("");
+                    setFeedbackComment("");
+                    setShowFeedbackDialog(true);
+                  }}
+                  className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded-lg"
+                >
+                  <CheckCircle2 className="w-3 h-3" />
+                  報告済み（再報告する場合はこちら）
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFeedbackWrongField("");
+                    setFeedbackWrongValue("");
+                    setFeedbackCorrectValue("");
+                    setFeedbackComment("");
+                    setShowFeedbackDialog(true);
+                  }}
+                  className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded-lg hover:bg-destructive/10"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l18 18"/><path d="M10.5 10.677a2 2 0 0 0 2.823 2.823"/><path d="M7.362 5.104C5.054 6.37 3.37 8.555 3.05 11.24A9 9 0 0 0 12 21a9 9 0 0 0 5.877-2.166"/><path d="M12 3c1.8 0 3.5.5 4.9 1.4"/></svg>
+                  誤変換を報告する
+                </button>
+              )}
             </div>
           )}
 
