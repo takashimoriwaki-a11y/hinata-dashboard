@@ -1057,3 +1057,9 @@
 ## 変更連絡 転送時刻JST修正（2026-03-09）
 
 - [x] createAndExportのfmtDt関数をJST（UTC+9）変換対応に修正する（createdAt・fromDatetime・toDatetimeすべて）
+
+## リアルタイム同期（2026-03-09）
+
+- [x] Server-Sent Events（SSE）エンドポイントをサーバーに実装する
+- [x] フロントエンドにSSEリッスナーを実装し、更新通知受信時にReact Queryキャッシュを無効化する
+- [x] 訪問スケジュール・変更連絡・タスク・記録・次回訪問日時など主要画面を自動リフレッシュ対象にする

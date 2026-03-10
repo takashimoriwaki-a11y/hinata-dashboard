@@ -508,6 +508,40 @@ ${medicalPrompt}`;
     }
   });
 
+  // ========== SSE（Server-Sent Events）リアルタイム同期 ==========
+  // 認証済みユーザーが /api/events に接続すると、他職員の更新通知をリアルタイムで受け取れる
+  const { addSseClient, removeSseClient } = await import("./sse");
+
+  app.get("/api/events", (req, res) => {
+    // SSEヘッダーを設定
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no"); // Nginx バッファリング無効化
+    res.flushHeaders();
+
+    // クライアントを登録
+    addSseClient(res);
+
+    // 接続確立を通知
+    res.write(`event: connected\ndata: ${JSON.stringify({ ts: Date.now() })}\n\n`);
+
+    // 30秒ごとにハートビートを送信（接続維持）
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(`:heartbeat\n\n`);
+      } catch {
+        clearInterval(heartbeat);
+      }
+    }, 30_000);
+
+    // クライアント切断時のクリーンアップ
+    req.on("close", () => {
+      clearInterval(heartbeat);
+      removeSseClient(res);
+    });
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

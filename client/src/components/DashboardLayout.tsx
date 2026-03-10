@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/select";
 import DailyMessageBar from "./DailyMessageBar";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import NotificationDropdown from "./NotificationDropdown";
 
 // ロゴCDN URL
@@ -88,6 +89,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   // モバイル用ドロワー開閉
   const [mobileOpen, setMobileOpen] = useState(false);
   const { isNight } = useTheme();
+  // SSEリアルタイム同期：他職員の更新を自動反映する
+  useRealtimeSync();
   const { logout } = useAuth({ redirectOnUnauthenticated: true });
   const { isSubscribed, isLoading: pushLoading, subscribe, unsubscribe, permission: pushPermission } = usePushNotification();
   const [notifDialogOpen, setNotifDialogOpen] = useState(false);

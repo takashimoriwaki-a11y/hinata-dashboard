@@ -82,6 +82,7 @@ import {
 import { storagePut } from "./storage";
 import { eq } from "drizzle-orm";
 import { users } from "../drizzle/schema";
+import { broadcastEvent } from "./_core/sse";
 
 // COOKIE_NAME is imported from shared/const via googleAuth.ts; use the shared constant here too
 import { COOKIE_NAME } from "../shared/const";
@@ -681,6 +682,7 @@ export const appRouter = router({
         } catch (e) {
           console.warn("[Comment Push] 通知送信失敗:", e);
         }
+        broadcastEvent("scheduleComments");
         return { id };
       }),
 
@@ -688,6 +690,7 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         await deleteScheduleComment(input.id, ctx.user.id);
+        broadcastEvent("scheduleComments");
         return { success: true };
       }),
     updateComment: protectedProcedure
@@ -697,6 +700,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         await updateScheduleComment(input.id, ctx.user.id, input.content);
+        broadcastEvent("scheduleComments");
         return { success: true };
       }),
     getCommentCounts: publicProcedure
@@ -763,6 +767,7 @@ export const appRouter = router({
           body: `${ctx.user.name ?? "不明"}さんが「${input.text}」を${assignLabel}に追加しました`,
           resourceId: id,
         });
+        broadcastEvent("tasks");
         return { success: true, id };
       }),
 
@@ -771,6 +776,7 @@ export const appRouter = router({
       .input(z.object({ id: z.number(), done: z.boolean() }))
       .mutation(async ({ ctx, input }) => {
         await toggleTask(input.id, input.done, ctx.user.id);
+        broadcastEvent("tasks");
         return { success: true };
       }),
 
@@ -784,6 +790,7 @@ export const appRouter = router({
           throw new TRPCError({ code: "FORBIDDEN", message: "作成者のみ削除できます" });
         }
         await deleteTaskDb(input.id, ctx.user.id);
+        broadcastEvent("tasks");
         return { success: true };
       }),
 
@@ -809,6 +816,7 @@ export const appRouter = router({
         }
         const { id, ...data } = input;
         await updateTask(id, ctx.user.id, data);
+        broadcastEvent("tasks");
         return { success: true };
       }),
 
@@ -947,6 +955,7 @@ export const appRouter = router({
           body: `${ctx.user.name ?? "不明"}さん：「${preview}」`,
           resourceId: id,
         });
+        broadcastEvent("messages");
         return { success: true, id };
       }),
 
@@ -961,6 +970,7 @@ export const appRouter = router({
           throw new TRPCError({ code: "FORBIDDEN", message: "作成者または管理者のみ削除できます" });
         }
         await softDeleteMessage(input.id, ctx.user.id);
+        broadcastEvent("messages");
         return { success: true };
       }),
 
@@ -988,6 +998,7 @@ export const appRouter = router({
           displayUntil: input.displayUntil ?? null,
           scheduledAt: input.scheduledAt ?? null,
         });
+        broadcastEvent("messages");
         return { success: true };
       }),
 
@@ -995,6 +1006,7 @@ export const appRouter = router({
     toggleReaction: protectedProcedure
       .input(z.object({ messageId: z.number(), emoji: z.string().max(10) }))
       .mutation(async ({ ctx, input }) => {
+        broadcastEvent("messages");
         const result = await toggleReaction(
           input.messageId,
           ctx.user.id,
@@ -1199,6 +1211,7 @@ export const appRouter = router({
           createdBy: ctx.user.id,
           createdByName: ctx.user.name ?? "不明",
         });
+        broadcastEvent("visitRecords");
         return { success: true, id };
       }),
 
@@ -1903,6 +1916,7 @@ export const appRouter = router({
           createdBy: ctx.user.id,
           createdByName: ctx.user.name ?? "不明",
         });
+        broadcastEvent("scheduleChanges");
         return { success: true, id };
       }),
 
@@ -2384,6 +2398,7 @@ export const appRouter = router({
               // 書式設定の失敗は転送自体に影響しない
             }
 
+            broadcastEvent("scheduleChanges");
             return { success: true, id, exported: true };
           }
           return { success: true, id, exported: false };
