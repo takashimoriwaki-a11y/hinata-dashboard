@@ -3,7 +3,16 @@ import type { Express, Request, Response } from "express";
 import { OAuth2Client } from "google-auth-library";
 import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
-import { createSessionToken } from "./localAuth";
+import { createSessionToken, verifySessionToken } from "./localAuth";
+
+function getCalendarCallbackUrl(req: Request, origin?: string): string {
+  if (origin) {
+    return `${origin}/api/auth/google/calendar/callback`;
+  }
+  const proto = req.headers["x-forwarded-proto"] || req.protocol;
+  const host = req.headers["x-forwarded-host"] || req.headers.host;
+  return `${proto}://${host}/api/auth/google/calendar/callback`;
+}
 
 function getCallbackUrl(req: Request, origin?: string): string {
   // originパラメータが渡された場合はそれを使用（フロントエンドのURLが正確）
@@ -132,6 +141,100 @@ export function registerGoogleAuthRoutes(app: Express) {
     } catch (error) {
       console.error("[GoogleAuth] Callback failed", error);
       res.redirect(302, "/login?error=google_auth_failed");
+    }
+  });
+
+  // ============================================================
+  // Google Calendar 連携用 OAuth（ログイン済みユーザー向け）
+  // ============================================================
+
+  // カレンダー権限の認証 URL へリダイレクト
+  app.get("/api/auth/google/calendar", async (req: Request, res: Response) => {
+    const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
+    if (!clientId) {
+      res.status(503).json({ error: "Google OAuth is not configured" });
+      return;
+    }
+    // セッションCookieからユーザーを確認
+    const sessionToken = req.cookies?.[COOKIE_NAME];
+    if (!sessionToken) {
+      res.status(401).json({ error: "Not authenticated" });
+      return;
+    }
+    const origin = req.query.origin as string | undefined;
+    const callbackUrl = getCalendarCallbackUrl(req, origin);
+    const oauth2Client = new OAuth2Client(clientId, process.env.GOOGLE_OAUTH_CLIENT_SECRET, callbackUrl);
+    const state = Buffer.from(JSON.stringify({ origin: origin ?? null, sessionToken })).toString("base64url");
+    const authUrl = oauth2Client.generateAuthUrl({
+      access_type: "offline",
+      scope: [
+        "openid",
+        "email",
+        "profile",
+        "https://www.googleapis.com/auth/calendar.readonly",
+      ],
+      state,
+      prompt: "consent", // リフレッシュトークンを確実に取得するため
+    });
+    res.redirect(302, authUrl);
+  });
+
+  // カレンダー権限のコールバック処理
+  app.get("/api/auth/google/calendar/callback", async (req: Request, res: Response) => {
+    const code = req.query.code as string | undefined;
+    const state = req.query.state as string | undefined;
+    if (!code) {
+      res.redirect(302, "/?calendar_error=auth_failed");
+      return;
+    }
+    try {
+      let originFromState: string | null = null;
+      let sessionToken: string | null = null;
+      if (state) {
+        try {
+          const decoded = JSON.parse(Buffer.from(state, "base64url").toString());
+          if (decoded.origin) originFromState = decoded.origin;
+          if (decoded.sessionToken) sessionToken = decoded.sessionToken;
+        } catch {
+          // ignore
+        }
+      }
+      if (!sessionToken) {
+        res.redirect(302, "/?calendar_error=no_session");
+        return;
+      }
+      const sessionPayload = await verifySessionToken(sessionToken).catch(() => null);
+      if (!sessionPayload) {
+        res.redirect(302, "/?calendar_error=invalid_session");
+        return;
+      }
+      const user = await db.getUserByOpenId(sessionPayload.openId);
+      if (!user) {
+        res.redirect(302, "/?calendar_error=user_not_found");
+        return;
+      }
+      const callbackUrl = getCalendarCallbackUrl(req, originFromState ?? undefined);
+      const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
+      const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+      const oauth2Client = new OAuth2Client(clientId, clientSecret, callbackUrl);
+      const { tokens } = await oauth2Client.getToken(code);
+      if (!tokens.access_token) {
+        res.redirect(302, "/?calendar_error=no_token");
+        return;
+      }
+      const expiryMs = tokens.expiry_date ?? Date.now() + 3600 * 1000;
+      await db.updateUserGoogleTokens(
+        user.id,
+        tokens.access_token,
+        tokens.refresh_token ?? null,
+        expiryMs
+      );
+      console.log(`[GoogleCalendar] Token saved for user ${user.id}`);
+      const redirectBase = originFromState ?? "";
+      res.redirect(302, `${redirectBase}/schedule-management?calendar_connected=1`);
+    } catch (error) {
+      console.error("[GoogleCalendar] Callback failed", error);
+      res.redirect(302, "/?calendar_error=callback_failed");
     }
   });
 }

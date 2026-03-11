@@ -1235,3 +1235,33 @@
 - [x] 新規契約ページ作成（リンク追加待ち）
 - [x] スケジュール管理ページ作成（リンク追加待ち）
 - [x] 全チーム共通ツールに5件追加（在庫管理フォーム・感染予防具管理フォーム・倉庫在庫管理表・ヒヤリハットアクシデントレポートフォーム・直帰申請フォーム、URLはプレースホルダー）
+
+## 議事録・スケジュール管理改善（2026-03-12）
+
+- [ ] 議事録: URLからタイトルを自動取得してタイトル欄に自動入力（既存機能の確認・改善）
+- [ ] 議事録: チェックボックスを先に入れるよう注釈を追加
+- [ ] 議事録: ドキュメントリンクをクリックしたら自動でチェック（自分のリストから削除）
+- [ ] スケジュール管理タブにGoogleカレンダーのiframeを追加
+
+## GoogleカレンダーOAuth連携（2026-03-12）
+
+- [ ] Google OAuthのスコープにcalendar.readonlyを追加
+- [ ] usersテーブルにgoogleAccessToken/googleRefreshToken/googleTokenExpiryカラムを追加
+- [ ] googleAuth.tsでカレンダートークンをDBに保存
+- [ ] tRPC calendar.getEvents プロシージャを実装（Google Calendar API呼び出し）
+- [ ] tRPC calendar.connectGoogle プロシージャを実装（OAuth URL生成）
+- [ ] スケジュール管理タブにGoogleカレンダー表示UIを実装
+- [ ] Googleログイン未連携ユーザーには「Googleアカウントを連携」ボタンを表示
+
+## 議事録改善・Googleカレンダー連携（2026-03-12）
+
+- [x] 議事録: チェックボックスを先に入れるよう注釈を追加
+- [x] 議事録: ドキュメントリンクをクリックしたら自動でチェック（自分のリストから削除）
+- [x] Google OAuthにカレンダー読取り権限（calendar.readonly）を追加
+- [x] usersテーブルにgoogleAccessToken / googleRefreshToken / googleTokenExpiryカラムを追加（db:push済み）
+- [x] server/db.ts: updateUserGoogleTokens関数を追加
+- [x] server/_core/googleAuth.ts: カレンダー連携用OAuthルートを追加（/api/auth/google/calendar）
+- [x] server/routers.ts: calendar.status / calendar.getEventsプロシージャを追加
+- [x] ScheduleManagement.tsx: タブ追加（関連リンク / Googleカレンダー）
+- [x] Googleカレンダー表示コンポーネント実装（月表示・日付クリックでイベント詳細）
+- [x] server/calendar.test.ts: カレンダー連携のユニットテスト追加（6テスト全通過）

@@ -1,4 +1,4 @@
-import { int, mediumtext, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { bigint, int, mediumtext, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -24,6 +24,12 @@ export const users = mysqlTable("users", {
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
   /** メール/パスワード認証用のハッシュ化されたパスワード */
   passwordHash: text("passwordHash"),
+  /** Google Calendar用アクセストークン */
+  googleAccessToken: text("googleAccessToken"),
+  /** Google Calendar用リフレッシュトークン */
+  googleRefreshToken: text("googleRefreshToken"),
+  /** Googleアクセストークンの有効期限（Unixミリ秒） */
+  googleTokenExpiry: bigint("googleTokenExpiry", { mode: "number" }),
 });
 
 export type User = typeof users.$inferSelect;

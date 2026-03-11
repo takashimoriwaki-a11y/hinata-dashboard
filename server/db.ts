@@ -118,6 +118,23 @@ export async function updateUserTeam(userId: number, team: "身体" | "天理" |
   await db.update(users).set({ team }).where(eq(users.id, userId));
 }
 
+/** Googleカレンダー用トークンを保存する */
+export async function updateUserGoogleTokens(
+  userId: number,
+  accessToken: string,
+  refreshToken: string | null,
+  expiryMs: number
+) {
+  const db = await getDb();
+  if (!db) return;
+  const updateData: Record<string, unknown> = {
+    googleAccessToken: accessToken,
+    googleTokenExpiry: expiryMs,
+  };
+  if (refreshToken) updateData.googleRefreshToken = refreshToken;
+  await db.update(users).set(updateData as any).where(eq(users.id, userId));
+}
+
 // ========== スケジュールスクリーンショット ==========
 
 export async function getAllScreenshots() {

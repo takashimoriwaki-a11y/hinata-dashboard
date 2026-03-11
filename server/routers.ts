@@ -2761,7 +2761,107 @@ export const appRouter = router({
         return { success: true };
       }),
   }),
-});
 
-export type AppRouter = typeof appRouter;
+  // ============================================================
+  // Google Calendar
+  // ============================================================
+  calendar: router({
+    /** カレンダー連携状態を取得（トークンが保存されているかどうか） */
+    status: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return { connected: false };
+      const { eq: eqOp } = await import("drizzle-orm");
+      const { users: usersTable } = await import("../drizzle/schema");
+      const rows = await db.select({
+        googleAccessToken: usersTable.googleAccessToken,
+        googleTokenExpiry: usersTable.googleTokenExpiry,
+      }).from(usersTable).where(eqOp(usersTable.id, ctx.user.id)).limit(1);
+      const row = rows[0];
+      if (!row?.googleAccessToken) return { connected: false };
+      return { connected: true, tokenExpiry: row.googleTokenExpiry };
+    }),
+
+    /** Google Calendarのイベントを取得 */
+    getEvents: protectedProcedure
+      .input(z.object({
+        timeMin: z.string().optional(),
+        timeMax: z.string().optional(),
+        maxResults: z.number().default(50),
+      }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+        const { eq: eqOp } = await import("drizzle-orm");
+        const { users: usersTable } = await import("../drizzle/schema");
+        const rows = await db.select({
+          googleAccessToken: usersTable.googleAccessToken,
+          googleRefreshToken: usersTable.googleRefreshToken,
+          googleTokenExpiry: usersTable.googleTokenExpiry,
+        }).from(usersTable).where(eqOp(usersTable.id, ctx.user.id)).limit(1);
+        const row = rows[0];
+        if (!row?.googleAccessToken) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Google Calendar not connected" });
+        }
+        // トークンが期限切れしそうならリフレッシュ
+        let accessToken = row.googleAccessToken;
+        const expiry = row.googleTokenExpiry ?? 0;
+        if (expiry < Date.now() + 60_000 && row.googleRefreshToken) {
+          try {
+            const { OAuth2Client } = await import("google-auth-library");
+            const oauth2Client = new OAuth2Client(
+              process.env.GOOGLE_OAUTH_CLIENT_ID,
+              process.env.GOOGLE_OAUTH_CLIENT_SECRET
+            );
+            oauth2Client.setCredentials({ refresh_token: row.googleRefreshToken });
+            const { credentials } = await oauth2Client.refreshAccessToken();
+            if (credentials.access_token) {
+              accessToken = credentials.access_token;
+              const newExpiry = credentials.expiry_date ?? Date.now() + 3600_000;
+              const { updateUserGoogleTokens } = await import("./db");
+              await updateUserGoogleTokens(ctx.user.id, accessToken, row.googleRefreshToken, newExpiry);
+            }
+          } catch (e) {
+            console.error("[Calendar] Token refresh failed", e);
+          }
+        }
+        // Google Calendar APIを呼び出す
+        const now = new Date();
+        const timeMin = input.timeMin ?? new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+        const timeMax = input.timeMax ?? new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString();
+        const params = new URLSearchParams({
+          timeMin,
+          timeMax,
+          maxResults: String(input.maxResults),
+          singleEvents: "true",
+          orderBy: "startTime",
+        });
+        const response = await fetch(
+          `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+        if (!response.ok) {
+          const errText = await response.text();
+          console.error("[Calendar] API error", response.status, errText);
+          if (response.status === 401) {
+            throw new TRPCError({ code: "UNAUTHORIZED", message: "Google Calendar token expired. Please reconnect." });
+          }
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Google Calendar API error" });
+        }
+        const data = await response.json() as any;
+        const events = (data.items ?? []).map((item: any) => ({
+          id: item.id as string,
+          summary: (item.summary ?? "タイトルなし") as string,
+          description: (item.description ?? null) as string | null,
+          location: (item.location ?? null) as string | null,
+          start: (item.start?.dateTime ?? item.start?.date ?? "") as string,
+          end: (item.end?.dateTime ?? item.end?.date ?? "") as string,
+          isAllDay: !item.start?.dateTime as boolean,
+          htmlLink: (item.htmlLink ?? null) as string | null,
+          colorId: (item.colorId ?? null) as string | null,
+        }));
+        return { events };
+      }),
+  }),
+});
+export type AppRouter = typeof appRouter;;
 

@@ -2,6 +2,7 @@
  * 議事録ページ
  * 管理者が議事録を投稿し、各スタッフが確認チェックを入れると自分のリストから削除される
  * 投稿はタイトルとドキュメントURLのみ。URL入力後にタイトルを自動取得。
+ * ドキュメントリンクをクリックすると自動的に確認チェックが入る。
  */
 import { useState, useRef } from "react";
 import { trpc } from "@/lib/trpc";
@@ -17,7 +18,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Circle, FileText, Plus, Trash2, ExternalLink, Link as LinkIcon, Loader2 } from "lucide-react";
+import { Circle, CheckCircle2, FileText, Plus, Trash2, ExternalLink, Link as LinkIcon, Loader2, Info } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -41,12 +42,6 @@ export default function Minutes() {
     try { new URL(url); return true; } catch { return false; }
   };
 
-  // URLからタイトルを取得するtRPC呼び出し
-  const fetchDocTitle = trpc.minutes.fetchDocTitle.useQuery(
-    { url: newDocumentUrl },
-    { enabled: false }
-  );
-
   // URL入力時にデバウンスしてタイトルを自動取得
   const handleDocUrlChange = (url: string) => {
     setNewDocumentUrl(url);
@@ -56,11 +51,9 @@ export default function Minutes() {
     fetchTitleTimeout.current = setTimeout(async () => {
       try {
         const result = await utils.minutes.fetchDocTitle.fetch({ url });
-        if (result?.title && !newTitle) {
-          setNewTitle(result.title);
-        }
-        if (result?.title && !newDocumentLabel) {
-          setNewDocumentLabel(result.title);
+        if (result?.title) {
+          if (!newTitle) setNewTitle(result.title);
+          if (!newDocumentLabel) setNewDocumentLabel(result.title);
         }
       } catch {
         // タイトル取得失敗は無視
@@ -102,6 +95,11 @@ export default function Minutes() {
     onError: (e) => toast.error(e.message),
   });
 
+  // ドキュメントリンクをクリックしたら自動チェック（確認済みにする）
+  const handleDocumentOpen = (minutesId: number) => {
+    checkMutation.mutate({ minutesId });
+  };
+
   return (
     <div className="max-w-2xl mx-auto py-6 px-4 space-y-4">
       {/* ヘッダー */}
@@ -113,7 +111,7 @@ export default function Minutes() {
           <div>
             <h1 className="text-xl font-bold text-foreground">議事録</h1>
             <p className="text-sm text-muted-foreground">
-              確認チェックを入れると自分のリストから削除されます
+              ドキュメントを開くと自動で確認済みになります
             </p>
           </div>
         </div>
@@ -125,13 +123,26 @@ export default function Minutes() {
         )}
       </div>
 
+      {/* 操作説明バナー */}
+      <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50">
+        <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+        <div className="text-xs text-amber-800 dark:text-amber-300 space-y-1">
+          <p className="font-semibold">確認の手順</p>
+          <ol className="list-decimal list-inside space-y-0.5 text-amber-700 dark:text-amber-400">
+            <li>まず左の <span className="inline-flex items-center gap-0.5 font-medium">○ チェックボタン</span> を押して確認済みにする</li>
+            <li>その後、ドキュメントリンクを開いて内容を確認する</li>
+          </ol>
+          <p className="text-amber-600 dark:text-amber-500 text-[11px]">※ ドキュメントを開いた時点でも自動的に確認済みになります</p>
+        </div>
+      </div>
+
       {/* 議事録リスト */}
       {isLoading ? (
         <div className="text-center text-muted-foreground py-12">読み込み中...</div>
       ) : minutesList.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
+            <CheckCircle2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
             <p>未確認の議事録はありません</p>
           </CardContent>
         </Card>
@@ -146,7 +157,7 @@ export default function Minutes() {
                     onClick={() => checkMutation.mutate({ minutesId: m.id })}
                     disabled={checkMutation.isPending}
                     className="mt-0.5 flex-shrink-0 text-muted-foreground hover:text-emerald-500 transition-colors"
-                    title="確認済みにする（自分のリストから削除）"
+                    title="先にここを押して確認済みにする"
                   >
                     <Circle className="w-5 h-5" />
                   </button>
@@ -161,18 +172,25 @@ export default function Minutes() {
                     </div>
                     {/* 添付ドキュメントリンク */}
                     {m.documentUrl && (
-                      <a
-                        href={m.documentUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-muted/30 hover:bg-accent transition-colors group w-fit max-w-full"
-                      >
-                        <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                        <span className="text-xs font-medium text-foreground group-hover:text-primary transition-colors truncate">
-                          {m.documentLabel || "ドキュメントを開く"}
-                        </span>
-                        <ExternalLink className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                      </a>
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
+                          <Info className="w-3 h-3" />
+                          先に左の ○ を押してから開いてください
+                        </p>
+                        <a
+                          href={m.documentUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => handleDocumentOpen(m.id)}
+                          className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-muted/30 hover:bg-accent transition-colors group w-fit max-w-full"
+                        >
+                          <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                          <span className="text-xs font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                            {m.documentLabel || "ドキュメントを開く"}
+                          </span>
+                          <ExternalLink className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                        </a>
+                      </div>
                     )}
                     {!m.documentUrl && (
                       <Badge variant="outline" className="text-xs text-muted-foreground">
