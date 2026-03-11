@@ -1,0 +1,9 @@
+{
+  "query": "\nINSERT INTO quick_access_links (label, href, color, emoji, category, sortOrder, createdAt, updatedAt)\nVALUES\n  ('在庫管理フォーム', 'https://example.com/inventory-form', 'text-blue-600', '📦', 'フォーム', 100, NOW(), NOW()),\n  ('感染予防具管理フォーム', 'https://example.com/infection-prevention-form', 'text-red-600', '🧤', 'フォーム', 101, NOW(), NOW()),\n  ('倉庫在庫管理表（注文目安）スプレッドシート', 'https://example.com/warehouse-inventory', 'text-emerald-600', '🏭', 'スプレッドシート', 102, NOW(), NOW()),\n  ('ヒヤリハットアクシデントレポートフォーム', 'https://example.com/near-miss-report', 'text-orange-600', '⚠️', 'フォーム', 103, NOW(), NOW()),\n  ('直帰申請フォーム', 'https://example.com/direct-return-form', 'text-purple-600', '🏠', 'フォーム', 104, NOW(), NOW());\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute \nINSERT INTO quick_access_links (label, href, color, emoji, category, sortOrder, createdAt, updatedAt)\nVALUES\n  ('在庫管理フォーム', 'https://example.com/inventory-form', 'text-blue-600', '📦', 'フォーム', 100, NOW(), NOW()),\n  ('感染予防具管理フォーム', 'https://example.com/infection-prevention-form', 'text-red-600', '🧤', 'フォーム', 101, NOW(), NOW()),\n  ('倉庫在庫管理表（注文目安）スプレッドシート', 'https://example.com/warehouse-inventory', 'text-emerald-600', '🏭', 'スプレッドシート', 102, NOW(), NOW()),\n  ('ヒヤリハットアクシデントレポートフォーム', 'https://example.com/near-miss-report', 'text-orange-600', '⚠️', 'フォーム', 103, NOW(), NOW()),\n  ('直帰申請フォーム', 'https://example.com/direct-return-form', 'text-purple-600', '🏠', 'フォーム', 104, NOW(), NOW());\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1577
+}

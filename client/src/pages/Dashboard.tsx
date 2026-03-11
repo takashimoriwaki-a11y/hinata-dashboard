@@ -3325,34 +3325,15 @@ export default function Dashboard() {
               <ClipboardList className="w-3.5 h-3.5" />
               iBow
             </a>
-            <Link href="/record">
-              <span className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm cursor-pointer whitespace-nowrap flex-shrink-0" style={{backgroundColor: '#e06060'}}>
-                <ClipboardEdit className="w-3.5 h-3.5" />
-                記録
-              </span>
-            </Link>
-            <Link href="/schedule-change">
-              <span
-                className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm cursor-pointer whitespace-nowrap flex-shrink-0"
-                style={{backgroundColor: '#059669'}}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor='#047857')}
-                onMouseLeave={e => (e.currentTarget.style.backgroundColor='#059669')}
-              >
-                <CalendarClock className="w-3.5 h-3.5" />
-                変更連絡
-              </span>
-            </Link>
-            <Link href="/tasks">
-              <span
-                className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm cursor-pointer whitespace-nowrap flex-shrink-0"
-                style={{backgroundColor: '#6366f1'}}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor='#4f46e5')}
-                onMouseLeave={e => (e.currentTarget.style.backgroundColor='#6366f1')}
-              >
-                <ListTodo className="w-3.5 h-3.5" />
-                タスク
-              </span>
-            </Link>
+            <a
+              href="https://calendar.google.com/calendar"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm whitespace-nowrap flex-shrink-0" style={{backgroundColor: '#1a73e8'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#1557b0')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#1a73e8')}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              Googleカレンダー
+            </a>
           </div>
         </div>
       </div>

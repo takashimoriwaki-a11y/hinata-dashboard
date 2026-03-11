@@ -26,6 +26,9 @@ import {
   CalendarClock,
   History,
   ListTodo,
+  Car,
+  FileText,
+  CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -69,15 +72,16 @@ const externalTools = [
   { label: "iBow（電子カルテ）", href: "https://login.ibowservice.jp/?action=logout", icon: ExternalLink },
 ];
 
-// ボトムナビゲーション（6タブ）
+// ボトムナビゲーション（7タブ）
 const bottomNavItems = [
   { type: "internal", href: "/", icon: LayoutDashboard, label: "ホーム" },
-  { type: "external", href: "https://homecare.zest.jp/login", icon: Calendar, label: "ZEST" },
-  { type: "external", href: "https://login.ibowservice.jp/?action=logout", icon: ClipboardList, label: "iBow" },
   { type: "internal", href: "/record", icon: ClipboardEdit, label: "記録" },
   { type: "internal", href: "/schedule-change", icon: CalendarClock, label: "変更連絡" },
   { type: "internal", href: "/tasks", icon: ListTodo, label: "タスク" },
-] as const;
+  { type: "internal", href: "/traffic-accident", icon: Car, label: "交通事故" },
+  { type: "internal", href: "/new-contract", icon: FileText, label: "新規契約" },
+  { type: "internal", href: "/schedule-management", icon: CalendarDays, label: "スケジュール管理" },
+];
 
 interface DashboardLayoutProps {
   children: React.ReactNode;

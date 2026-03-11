@@ -13,6 +13,9 @@ import Tasks from "./pages/Tasks";
 import Admin from "./pages/Admin";
 import ScheduleChange from "./pages/ScheduleChange";
 import ScheduleChangeHistory from "./pages/ScheduleChangeHistory";
+import TrafficAccident from "./pages/TrafficAccident";
+import NewContract from "./pages/NewContract";
+import ScheduleManagement from "./pages/ScheduleManagement";
 import Login from "./pages/Login";
 import Setup from "./pages/Setup";
 import DashboardLayout from "./components/DashboardLayout";
@@ -38,6 +41,9 @@ function Router() {
             <Route path={"/admin"} component={Admin} />
             <Route path={"/schedule-change"} component={ScheduleChange} />
             <Route path={"/schedule-change-history"} component={ScheduleChangeHistory} />
+            <Route path={"/traffic-accident"} component={TrafficAccident} />
+            <Route path={"/new-contract"} component={NewContract} />
+            <Route path={"/schedule-management"} component={ScheduleManagement} />
             <Route path={"/404"} component={NotFound} />
             <Route component={NotFound} />
           </Switch>

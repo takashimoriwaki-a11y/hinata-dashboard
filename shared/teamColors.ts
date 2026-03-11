@@ -28,8 +28,8 @@ export function getTeamButtonClass(teamName: string, isActive: boolean): string 
   if (!colors) {
     // 身体・天理・郡山北部・郡山南部以外（全チーム・事務員等）
     return isActive
-      ? "bg-slate-500 text-white border-transparent shadow-md scale-105"
-      : "bg-slate-300 dark:bg-slate-400 text-white border-transparent opacity-80 hover:opacity-100";
+      ? "bg-cyan-500 text-white border-transparent shadow-md scale-105"
+      : "bg-cyan-300 dark:bg-cyan-500 text-white border-transparent opacity-80 hover:opacity-100";
   }
   return isActive
     ? `${colors.activeBg} text-white border-transparent shadow-md scale-105`

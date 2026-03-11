@@ -1,0 +1,8 @@
+{
+  "query": "\nINSERT INTO quick_access_links (label, href, color, emoji, category, sort_order, created_at, updated_at)\nVALUES\n  ('在庫管理フォーム', 'https://example.com/inventory-form', '#4a90d9', '📦', 'フォーム', 100, NOW(), NOW()),\n  ('感染予防具管理フォーム', 'https://example.com/infection-prevention-form', '#e06060', '🧤', 'フォーム', 101, NOW(), NOW()),\n  ('倉庫在庫管理表（注文目安）スプレッドシート', 'https://example.com/warehouse-inventory', '#0f9d58', '🏭', 'スプレッドシート', 102, NOW(), NOW()),\n  ('ヒヤリハットアクシデントレポートフォーム', 'https://example.com/near-miss-report', '#f5a623', '⚠️', 'フォーム', 103, NOW(), NOW()),\n  ('直帰申請フォーム', 'https://example.com/direct-return-form', '#9b59b6', '🏠', 'フォーム', 104, NOW(), NOW());\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute \nINSERT INTO quick_access_links (label, href, color, emoji, category, sort_order, created_at, updated_at)\nVALUES\n  ('在庫管理フォーム', 'https://example.com/inventory-form', '#4a90d9', '📦', 'フォーム', 100, NOW(), NOW()),\n  ('感染予防具管理フォーム', 'https://example.com/infection-prevention-form', '#e06060', '🧤', 'フォーム', 101, NOW(), NOW()),\n  ('倉庫在庫管理表（注文目安）スプレッドシート', 'https://example.com/warehouse-inventory', '#0f9d58', '🏭', 'スプレッドシート', 102, NOW(), NOW()),\n  ('ヒヤリハットアクシデントレポートフォーム', 'https://example.com/near-miss-report', '#f5a623', '⚠️', 'フォーム', 103, NOW(), NOW()),\n  ('直帰申請フォーム', 'https://example.com/direct-return-form', '#9b59b6', '🏠', 'フォーム', 104, NOW(), NOW());\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 2: Unknown column 'sort_order' in 'field list'"
+  ]
+}
