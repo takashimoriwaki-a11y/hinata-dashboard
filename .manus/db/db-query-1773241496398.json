@@ -1,0 +1,70 @@
+{
+  "query": "SELECT id, label, href FROM quick_access_links ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT id, label, href FROM quick_access_links ORDER BY id;",
+  "rows": [
+    {
+      "id": "4",
+      "label": "業務日報",
+      "href": "https://docs.google.com/spreadsheets/d/10Leb7UR6ARVlCGbf5pBa5yxsgm5WAV9m-ETyYrzfBCs/edit?usp=sharing"
+    },
+    {
+      "id": "5",
+      "label": "ひなた勤怠",
+      "href": "https://docs.google.com/spreadsheets/d/1e5xvZHvqSneNZIsO1g8h68-Ue9QnoYXCdCPkt-pIwsQ/edit?usp=sharing"
+    },
+    {
+      "id": "6",
+      "label": "退勤時チェックリスト",
+      "href": "https://docs.google.com/spreadsheets/d/1g_wTtoQCxiHQupPlEmZVMWWxgzG0ZGH23j-xj1AzdUE/edit?usp=sharing"
+    },
+    {
+      "id": "7",
+      "label": "NotebookLM — 就業規則・社内マニュアル",
+      "href": "https://notebooklm.google.com/notebook/4781c6de-6e18-456d-b557-a202c3b03747"
+    },
+    {
+      "id": "8",
+      "label": "Gemini — Google AIチャット",
+      "href": "https://gemini.google.com/app"
+    },
+    {
+      "id": "9",
+      "label": "Gemini Gems — MSE看護記録作成サポーター",
+      "href": "https://gemini.google.com/gem/1qqbO6BLZLj9IXwsOjYuePdyQn0QGkifV?usp=sharing"
+    },
+    {
+      "id": "10",
+      "label": "ひなた 公式 Instagram",
+      "href": "https://www.instagram.com/kokoronohinata/"
+    },
+    {
+      "id": "30001",
+      "label": "在庫管理フォーム",
+      "href": "https://example.com/inventory-form"
+    },
+    {
+      "id": "30002",
+      "label": "感染予防具管理フォーム",
+      "href": "https://example.com/infection-prevention-form"
+    },
+    {
+      "id": "30003",
+      "label": "倉庫在庫管理表（注文目安）スプレッドシート",
+      "href": "https://example.com/warehouse-inventory"
+    },
+    {
+      "id": "30004",
+      "label": "ヒヤリハットアクシデントレポートフォーム",
+      "href": "https://example.com/near-miss-report"
+    },
+    {
+      "id": "30005",
+      "label": "直帰申請フォーム",
+      "href": "https://example.com/direct-return-form"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tlabel\thref\n4\t業務日報\thttps://docs.google.com/spreadsheets/d/10Leb7UR6ARVlCGbf5pBa5yxsgm5WAV9m-ETyYrzfBCs/edit?usp=sharing\n5\tひなた勤怠\thttps://docs.google.com/spreadsheets/d/1e5xvZHvqSneNZIsO1g8h68-Ue9QnoYXCdCPkt-pIwsQ/edit?usp=sharing\n6\t退勤時チェックリスト\thttps://docs.google.com/spreadsheets/d/1g_wTtoQCxiHQupPlEmZVMWWxgzG0ZGH23j-xj1AzdUE/edit?usp=sharing\n7\tNotebookLM — 就業規則・社内マニュアル\thttps://notebooklm.google.com/notebook/4781c6de-6e18-456d-b557-a202c3b03747\n8\tGemini — Google AIチャット\thttps://gemini.google.com/app\n9\tGemini Gems — MSE看護記録作成サポーター\thttps://gemini.google.com/gem/1qqbO6BLZLj9IXwsOjYuePdyQn0QGkifV?usp=sharing\n10\tひなた 公式 Instagram\thttps://www.instagram.com/kokoronohinata/\n30001\t在庫管理フォーム\thttps://example.com/inventory-form\n30002\t感染予防具管理フォーム\thttps://example.com/infection-prevention-form\n30003\t倉庫在庫管理表（注文目安）スプレッドシート\thttps://example.com/warehouse-inventory\n30004\tヒヤリハットアクシデントレポートフォーム\thttps://example.com/near-miss-report\n30005\t直帰申請フォーム\thttps://example.com/direct-return-form\n",
+  "stderr": "",
+  "execution_time_ms": 1492
+}

@@ -1,0 +1,9 @@
+{
+  "query": "\nUPDATE quick_access_links SET href = 'https://docs.google.com/spreadsheets/d/1NJF0qU_7tkFiDMvxAkvPq3WzZ2UtVpEvG_NC0-SQ4xo/edit' WHERE id = 30003;\nUPDATE quick_access_links SET href = 'https://docs.google.com/forms/d/1c4CX72JdJfxL903-_9GIdrC0gXBo6D9SD5vAL5FviOQ/edit' WHERE id = 30004;\nUPDATE quick_access_links SET href = 'https://docs.google.com/forms/d/13PzaKwwqDecn6LugSYRXIJHaeWTwxWFpvQfaM6FypCY/edit' WHERE id = 30005;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute \nUPDATE quick_access_links SET href = 'https://docs.google.com/spreadsheets/d/1NJF0qU_7tkFiDMvxAkvPq3WzZ2UtVpEvG_NC0-SQ4xo/edit' WHERE id = 30003;\nUPDATE quick_access_links SET href = 'https://docs.google.com/forms/d/1c4CX72JdJfxL903-_9GIdrC0gXBo6D9SD5vAL5FviOQ/edit' WHERE id = 30004;\nUPDATE quick_access_links SET href = 'https://docs.google.com/forms/d/13PzaKwwqDecn6LugSYRXIJHaeWTwxWFpvQfaM6FypCY/edit' WHERE id = 30005;\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 2006
+}

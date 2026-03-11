@@ -1,0 +1,142 @@
+{
+  "query": "SELECT * FROM quick_access_links ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT * FROM quick_access_links ORDER BY id;",
+  "rows": [
+    {
+      "id": "4",
+      "category": "スプレッドシート",
+      "label": "業務日報",
+      "href": "https://docs.google.com/spreadsheets/d/10Leb7UR6ARVlCGbf5pBa5yxsgm5WAV9m-ETyYrzfBCs/edit?usp=sharing",
+      "color": "text-orange-600",
+      "sortOrder": "4",
+      "createdAt": "2026-03-09 04:37:31",
+      "updatedAt": "2026-03-09 05:04:28",
+      "emoji": "📝"
+    },
+    {
+      "id": "5",
+      "category": "スプレッドシート",
+      "label": "ひなた勤怠",
+      "href": "https://docs.google.com/spreadsheets/d/1e5xvZHvqSneNZIsO1g8h68-Ue9QnoYXCdCPkt-pIwsQ/edit?usp=sharing",
+      "color": "text-rose-600",
+      "sortOrder": "5",
+      "createdAt": "2026-03-09 04:37:31",
+      "updatedAt": "2026-03-09 05:04:28",
+      "emoji": "⏰"
+    },
+    {
+      "id": "6",
+      "category": "スプレッドシート",
+      "label": "退勤時チェックリスト",
+      "href": "https://docs.google.com/spreadsheets/d/1g_wTtoQCxiHQupPlEmZVMWWxgzG0ZGH23j-xj1AzdUE/edit?usp=sharing",
+      "color": "text-amber-600",
+      "sortOrder": "6",
+      "createdAt": "2026-03-09 04:37:32",
+      "updatedAt": "2026-03-09 05:04:29",
+      "emoji": "✅"
+    },
+    {
+      "id": "7",
+      "category": "その他",
+      "label": "NotebookLM — 就業規則・社内マニュアル",
+      "href": "https://notebooklm.google.com/notebook/4781c6de-6e18-456d-b557-a202c3b03747",
+      "color": "text-blue-600",
+      "sortOrder": "1",
+      "createdAt": "2026-03-09 04:37:32",
+      "updatedAt": "2026-03-09 05:04:29",
+      "emoji": "📚"
+    },
+    {
+      "id": "8",
+      "category": "その他",
+      "label": "Gemini — Google AIチャット",
+      "href": "https://gemini.google.com/app",
+      "color": "text-violet-600",
+      "sortOrder": "2",
+      "createdAt": "2026-03-09 04:37:32",
+      "updatedAt": "2026-03-09 05:04:29",
+      "emoji": "✨"
+    },
+    {
+      "id": "9",
+      "category": "その他",
+      "label": "Gemini Gems — MSE看護記録作成サポーター",
+      "href": "https://gemini.google.com/gem/1qqbO6BLZLj9IXwsOjYuePdyQn0QGkifV?usp=sharing",
+      "color": "text-purple-600",
+      "sortOrder": "3",
+      "createdAt": "2026-03-09 04:37:32",
+      "updatedAt": "2026-03-09 05:04:29",
+      "emoji": "🤖"
+    },
+    {
+      "id": "10",
+      "category": "その他",
+      "label": "ひなた 公式 Instagram",
+      "href": "https://www.instagram.com/kokoronohinata/",
+      "color": "text-pink-600",
+      "sortOrder": "4",
+      "createdAt": "2026-03-09 04:37:33",
+      "updatedAt": "2026-03-09 05:04:30",
+      "emoji": "📸"
+    },
+    {
+      "id": "30001",
+      "category": "フォーム",
+      "label": "在庫管理フォーム",
+      "href": "https://example.com/inventory-form",
+      "color": "text-blue-600",
+      "sortOrder": "100",
+      "createdAt": "2026-03-11 14:30:42",
+      "updatedAt": "2026-03-11 14:30:42",
+      "emoji": "📦"
+    },
+    {
+      "id": "30002",
+      "category": "フォーム",
+      "label": "感染予防具管理フォーム",
+      "href": "https://example.com/infection-prevention-form",
+      "color": "text-red-600",
+      "sortOrder": "101",
+      "createdAt": "2026-03-11 14:30:42",
+      "updatedAt": "2026-03-11 14:30:42",
+      "emoji": "🧤"
+    },
+    {
+      "id": "30003",
+      "category": "スプレッドシート",
+      "label": "倉庫在庫管理表（注文目安）スプレッドシート",
+      "href": "https://example.com/warehouse-inventory",
+      "color": "text-emerald-600",
+      "sortOrder": "102",
+      "createdAt": "2026-03-11 14:30:42",
+      "updatedAt": "2026-03-11 14:30:42",
+      "emoji": "🏭"
+    },
+    {
+      "id": "30004",
+      "category": "フォーム",
+      "label": "ヒヤリハットアクシデントレポートフォーム",
+      "href": "https://example.com/near-miss-report",
+      "color": "text-orange-600",
+      "sortOrder": "103",
+      "createdAt": "2026-03-11 14:30:42",
+      "updatedAt": "2026-03-11 14:30:42",
+      "emoji": "⚠️"
+    },
+    {
+      "id": "30005",
+      "category": "フォーム",
+      "label": "直帰申請フォーム",
+      "href": "https://example.com/direct-return-form",
+      "color": "text-purple-600",
+      "sortOrder": "104",
+      "createdAt": "2026-03-11 14:30:42",
+      "updatedAt": "2026-03-11 14:30:42",
+      "emoji": "🏠"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tcategory\tlabel\thref\tcolor\tsortOrder\tcreatedAt\tupdatedAt\temoji\n4\tスプレッドシート\t業務日報\thttps://docs.google.com/spreadsheets/d/10Leb7UR6ARVlCGbf5pBa5yxsgm5WAV9m-ETyYrzfBCs/edit?usp=sharing\ttext-orange-600\t4\t2026-03-09 04:37:31\t2026-03-09 05:04:28\t📝\n5\tスプレッドシート\tひなた勤怠\thttps://docs.google.com/spreadsheets/d/1e5xvZHvqSneNZIsO1g8h68-Ue9QnoYXCdCPkt-pIwsQ/edit?usp=sharing\ttext-rose-600\t5\t2026-03-09 04:37:31\t2026-03-09 05:04:28\t⏰\n6\tスプレッドシート\t退勤時チェックリスト\thttps://docs.google.com/spreadsheets/d/1g_wTtoQCxiHQupPlEmZVMWWxgzG0ZGH23j-xj1AzdUE/edit?usp=sharing\ttext-amber-600\t6\t2026-03-09 04:37:32\t2026-03-09 05:04:29\t✅\n7\tその他\tNotebookLM — 就業規則・社内マニュアル\thttps://notebooklm.google.com/notebook/4781c6de-6e18-456d-b557-a202c3b03747\ttext-blue-600\t1\t2026-03-09 04:37:32\t2026-03-09 05:04:29\t📚\n8\tその他\tGemini — Google AIチャット\thttps://gemini.google.com/app\ttext-violet-600\t2\t2026-03-09 04:37:32\t2026-03-09 05:04:29\t✨\n9\tその他\tGemini Gems — MSE看護記録作成サポーター\thttps://gemini.google.com/gem/1qqbO6BLZLj9IXwsOjYuePdyQn0QGkifV?usp=sharing\ttext-purple-600\t3\t2026-03-09 04:37:32\t2026-03-09 05:04:29\t🤖\n10\tその他\tひなた 公式 Instagram\thttps://www.instagram.com/kokoronohinata/\ttext-pink-600\t4\t2026-03-09 04:37:33\t2026-03-09 05:04:30\t📸\n30001\tフォーム\t在庫管理フォーム\thttps://example.com/inventory-form\ttext-blue-600\t100\t2026-03-11 14:30:42\t2026-03-11 14:30:42\t📦\n30002\tフォーム\t感染予防具管理フォーム\thttps://example.com/infection-prevention-form\ttext-red-600\t101\t2026-03-11 14:30:42\t2026-03-11 14:30:42\t🧤\n30003\tスプレッドシート\t倉庫在庫管理表（注文目安）スプレッドシート\thttps://example.com/warehouse-inventory\ttext-emerald-600\t102\t2026-03-11 14:30:42\t2026-03-11 14:30:42\t🏭\n30004\tフォーム\tヒヤリハットアクシデントレポートフォーム\thttps://example.com/near-miss-report\ttext-orange-600\t103\t2026-03-11 14:30:42\t2026-03-11 14:30:42\t⚠️\n30005\tフォーム\t直帰申請フォーム\thttps://example.com/direct-return-form\ttext-purple-600\t104\t2026-03-11 14:30:42\t2026-03-11 14:30:42\t🏠\n",
+  "stderr": "",
+  "execution_time_ms": 1514
+}

@@ -1,0 +1,35 @@
+{
+  "query": "SELECT id, label, href FROM quick_access_links WHERE href LIKE '%example%' ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT id, label, href FROM quick_access_links WHERE href LIKE '%example%' ORDER BY id;",
+  "rows": [
+    {
+      "id": "30001",
+      "label": "在庫管理フォーム",
+      "href": "https://example.com/inventory-form"
+    },
+    {
+      "id": "30002",
+      "label": "感染予防具管理フォーム",
+      "href": "https://example.com/infection-prevention-form"
+    },
+    {
+      "id": "30003",
+      "label": "倉庫在庫管理表（注文目安）スプレッドシート",
+      "href": "https://example.com/warehouse-inventory"
+    },
+    {
+      "id": "30004",
+      "label": "ヒヤリハットアクシデントレポートフォーム",
+      "href": "https://example.com/near-miss-report"
+    },
+    {
+      "id": "30005",
+      "label": "直帰申請フォーム",
+      "href": "https://example.com/direct-return-form"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tlabel\thref\n30001\t在庫管理フォーム\thttps://example.com/inventory-form\n30002\t感染予防具管理フォーム\thttps://example.com/infection-prevention-form\n30003\t倉庫在庫管理表（注文目安）スプレッドシート\thttps://example.com/warehouse-inventory\n30004\tヒヤリハットアクシデントレポートフォーム\thttps://example.com/near-miss-report\n30005\t直帰申請フォーム\thttps://example.com/direct-return-form\n",
+  "stderr": "",
+  "execution_time_ms": 1544
+}
