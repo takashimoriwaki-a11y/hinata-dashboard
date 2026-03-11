@@ -75,9 +75,6 @@ const externalTools = [
 // ボトムナビゲーション（7タブ）
 const bottomNavItems = [
   { type: "internal", href: "/", icon: LayoutDashboard, label: "ホーム" },
-  { type: "internal", href: "/record", icon: ClipboardEdit, label: "記録" },
-  { type: "internal", href: "/schedule-change", icon: CalendarClock, label: "変更連絡" },
-  { type: "internal", href: "/tasks", icon: ListTodo, label: "タスク" },
   { type: "internal", href: "/traffic-accident", icon: Car, label: "交通事故" },
   { type: "internal", href: "/new-contract", icon: FileText, label: "新規契約" },
   { type: "internal", href: "/schedule-management", icon: CalendarDays, label: "スケジュール管理" },

@@ -3326,15 +3326,27 @@ export default function Dashboard() {
               <ClipboardList className="w-3.5 h-3.5" />
               iBow
             </a>
-            <a
-              href="https://calendar.google.com/calendar"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm whitespace-nowrap flex-shrink-0" style={{backgroundColor: '#1a73e8'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#1557b0')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#1a73e8')}
+            <Link
+              href="/record"
+              className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm whitespace-nowrap flex-shrink-0" style={{backgroundColor: '#e05a2b'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#c94d22')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#e05a2b')}
             >
-              <Calendar className="w-3.5 h-3.5" />
-              Googleカレンダー
-            </a>
+              <ClipboardEdit className="w-3.5 h-3.5" />
+              記録
+            </Link>
+            <Link
+              href="/schedule-change"
+              className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm whitespace-nowrap flex-shrink-0" style={{backgroundColor: '#7c5cbf'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#6b4dab')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#7c5cbf')}
+            >
+              <CalendarClock className="w-3.5 h-3.5" />
+              変更連絡
+            </Link>
+            <Link
+              href="/tasks"
+              className="flex items-center gap-1.5 transition-all text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm whitespace-nowrap flex-shrink-0" style={{backgroundColor: '#2a9d5c'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#228a4f')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#2a9d5c')}
+            >
+              <ListTodo className="w-3.5 h-3.5" />
+              タスク
+            </Link>
           </div>
         </div>
       </div>
