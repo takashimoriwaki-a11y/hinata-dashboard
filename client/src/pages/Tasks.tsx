@@ -177,11 +177,12 @@ export default function Tasks() {
         return newVal;
       });
     } else if (user.team === "全チーム" || user.team === "事務員") {
-      // 全チーム所属・事務員は「全チーム」をデフォルトに設定
+      // 全チーム所属・事務員は「すべて」（null）をデフォルトに設定
       setTeamFilterRaw(prev => {
-        if (prev !== null) return prev;
-        try { localStorage.setItem("tasks_teamFilter", "all_team"); } catch {}
-        return "all_team";
+        // all_teamが保存されていた場合もnullにリセット（旧デフォルト値の移行）
+        if (prev !== null && prev !== "all_team") return prev;
+        try { localStorage.removeItem("tasks_teamFilter"); } catch {}
+        return null;
       });
     }
   }, [user?.team]);

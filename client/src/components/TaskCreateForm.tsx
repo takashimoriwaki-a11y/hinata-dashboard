@@ -48,7 +48,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
   const [newText, setNewText] = useState("");
   const [newDueDate, setNewDueDate] = useState("");
   const [newDueTime, setNewDueTime] = useState("");
-  const [newAssignType, setNewAssignType] = useState<AssignType>("team");
+  const [newAssignType, setNewAssignType] = useState<AssignType>("all");
   const [newAssignTeam, setNewAssignTeam] = useState<Team>("身体");
   const [newAssignUserId, setNewAssignUserId] = useState<number | null>(null);
   const [newAssignUserName, setNewAssignUserName] = useState<string>("");
