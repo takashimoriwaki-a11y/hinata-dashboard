@@ -1713,7 +1713,7 @@ function ToolsCard() {
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-semibold flex items-center gap-2">
           <LinkIcon className="w-4 h-4 text-primary" />
-          業務ツール クイックアクセス
+          全チーム共通ツール
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -1870,6 +1870,181 @@ function ToolsCard() {
   );
 }
 
+
+
+// ========== チームツールカード ==========
+const TEAM_TABS = [
+  { id: "身体" as const, label: "🏥", title: "身体" },
+  { id: "天理" as const, label: "🌿", title: "天理" },
+  { id: "郡山北部" as const, label: "🏘", title: "郡山北部" },
+  { id: "郡山南部" as const, label: "🌸", title: "郡山南部" },
+] as const;
+type TeamTabId = "身体" | "天理" | "郡山北部" | "郡山南部";
+
+function TeamToolsCard() {
+  const { user } = useAuth();
+  const { isNight } = useTheme();
+  const utils = trpc.useUtils();
+
+  // ユーザーのチームに基づいてデフォルトタブを決定
+  // 全チーム・事務員は「身体」をデフォルト
+  const defaultTeam = ((): TeamTabId => {
+    const t = user?.team;
+    if (t === "身体" || t === "天理" || t === "郡山北部" || t === "郡山南部") return t;
+    return "身体";
+  })();
+
+  const [activeTeam, setActiveTeam] = useState<TeamTabId>(defaultTeam);
+
+  // ユーザーのチームが変わったときにデフォルトを反映
+  useEffect(() => {
+    const t = user?.team;
+    if (t === "身体" || t === "天理" || t === "郡山北部" || t === "郡山南部") {
+      setActiveTeam(t);
+    }
+  }, [user?.team]);
+
+  const { data: tools = [], isLoading } = trpc.teamTools.list.useQuery(
+    { team: activeTeam },
+    { retry: false }
+  );
+
+  // 管理者用: ツール追加・編集・削除
+  const isAdmin = user?.role === "admin";
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newLabel, setNewLabel] = useState("");
+  const [newHref, setNewHref] = useState("");
+  const [newEmoji, setNewEmoji] = useState("🔗");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+  const [editHref, setEditHref] = useState("");
+  const [editEmoji, setEditEmoji] = useState("");
+
+  const createTool = trpc.teamTools.create.useMutation({
+    onSuccess: () => { utils.teamTools.list.invalidate(); toast.success("ツールを追加しました"); setShowAddForm(false); setNewLabel(""); setNewHref(""); setNewEmoji("🔗"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const updateTool = trpc.teamTools.update.useMutation({
+    onSuccess: () => { utils.teamTools.list.invalidate(); setEditingId(null); toast.success("ツールを更新しました"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const deleteTool = trpc.teamTools.delete.useMutation({
+    onSuccess: () => { utils.teamTools.list.invalidate(); toast.success("ツールを削除しました"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const addTool = () => {
+    if (!newLabel.trim() || !newHref.trim()) { toast.error("ラベルとURLを入力してください"); return; }
+    createTool.mutate({ team: activeTeam, label: newLabel.trim(), href: newHref.trim(), emoji: newEmoji || "🔗" });
+  };
+
+  const startEdit = (tool: { id: number; label: string; href: string; emoji: string }) => {
+    setEditingId(tool.id); setEditLabel(tool.label); setEditHref(tool.href); setEditEmoji(tool.emoji ?? "🔗");
+  };
+
+  const saveEdit = () => {
+    if (editingId === null) return;
+    if (!editLabel.trim() || !editHref.trim()) { toast.error("ラベルとURLを入力してください"); return; }
+    updateTool.mutate({ id: editingId, label: editLabel.trim(), href: editHref.trim(), emoji: editEmoji || "🔗" });
+  };
+
+  return (
+    <Card className="fade-in-up stagger-1 shadow-sm">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <Users className="w-4 h-4 text-primary" />
+          チームツール
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {/* チームタブバー */}
+        <div className="flex gap-1 bg-muted/40 rounded-lg p-1">
+          {TEAM_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTeam(tab.id)}
+              className={cn(
+                "flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md text-[10px] font-medium transition-all",
+                activeTeam === tab.id
+                  ? "bg-card shadow-sm text-primary"
+                  : "text-foreground/70 hover:text-foreground"
+              )}
+            >
+              <span className="text-base leading-none">{tab.label}</span>
+              <span className="leading-none">{tab.title}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* ツールリスト */}
+        <div className="flex flex-col gap-1.5">
+          {isLoading ? (
+            <p className="text-xs text-muted-foreground text-center py-4">読み込み中...</p>
+          ) : tools.length === 0 && !showAddForm ? (
+            <p className="text-xs text-muted-foreground text-center py-4">
+              {activeTeam}チームのツールはまだありません
+              {isAdmin && <span className="block mt-1 text-primary cursor-pointer" onClick={() => setShowAddForm(true)}>+ 追加する</span>}
+            </p>
+          ) : (
+            tools.map((tool) => (
+              <div key={tool.id}>
+                {editingId === tool.id ? (
+                  <div className="flex flex-col gap-1.5 p-2 bg-muted/30 rounded-md">
+                    <div className="flex gap-1">
+                      <input value={editEmoji} onChange={e => setEditEmoji(e.target.value)} className="w-10 text-center border rounded px-1 py-1 text-sm bg-background" placeholder="🔗" />
+                      <input value={editLabel} onChange={e => setEditLabel(e.target.value)} className="flex-1 border rounded px-2 py-1 text-sm bg-background" placeholder="ラベル" />
+                    </div>
+                    <input value={editHref} onChange={e => setEditHref(e.target.value)} className="border rounded px-2 py-1 text-sm bg-background" placeholder="https://..." />
+                    <div className="flex gap-1 justify-end">
+                      <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setEditingId(null)}>キャンセル</Button>
+                      <Button size="sm" className="h-6 text-xs" onClick={saveEdit} disabled={updateTool.isPending}>保存</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 group">
+                    <LinkRow href={tool.href} label={tool.label} color={tool.color} emoji={tool.emoji} />
+                    {isAdmin && (
+                      <>
+                        <button onClick={() => startEdit(tool)} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" title="編集">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                        <button onClick={() => deleteTool.mutate({ id: tool.id })} className="text-muted-foreground hover:text-destructive p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" title="削除">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+
+          {/* 追加フォーム */}
+          {isAdmin && showAddForm && (
+            <div className="flex flex-col gap-1.5 p-2 bg-muted/30 rounded-md">
+              <div className="flex gap-1">
+                <input value={newEmoji} onChange={e => setNewEmoji(e.target.value)} className="w-10 text-center border rounded px-1 py-1 text-sm bg-background" placeholder="🔗" />
+                <input value={newLabel} onChange={e => setNewLabel(e.target.value)} className="flex-1 border rounded px-2 py-1 text-sm bg-background" placeholder="ラベル" />
+              </div>
+              <input value={newHref} onChange={e => setNewHref(e.target.value)} className="border rounded px-2 py-1 text-sm bg-background" placeholder="https://..." />
+              <div className="flex gap-1 justify-end">
+                <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => { setShowAddForm(false); setNewLabel(""); setNewHref(""); setNewEmoji("🔗"); }}>キャンセル</Button>
+                <Button size="sm" className="h-6 text-xs" onClick={addTool} disabled={createTool.isPending}>追加</Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 管理者用追加ボタン */}
+        {isAdmin && !showAddForm && tools.length > 0 && (
+          <div className="flex justify-end">
+            <Button variant="ghost" size="sm" className="h-6 text-xs text-primary px-2" onClick={() => setShowAddForm(true)}>+ 追加</Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 
 function TasksCard() {
@@ -3184,6 +3359,7 @@ export default function Dashboard() {
 
         {/* 右カラム: ツール・タスク */}
         <div className="space-y-3 md:space-y-4">
+          <TeamToolsCard />
           <ToolsCard />
           <TasksCard />
         </div>

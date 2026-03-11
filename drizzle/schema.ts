@@ -485,3 +485,32 @@ export const voiceFeedback = mysqlTable("voice_feedback", {
 
 export type VoiceFeedback = typeof voiceFeedback.$inferSelect;
 export type InsertVoiceFeedback = typeof voiceFeedback.$inferInsert;
+
+/**
+ * チームツールリンクテーブル
+ * 各チーム専用のツールリンクを管理する
+ * - team: 身体 / 天理 / 郡山北部 / 郡山南部
+ * - sortOrder: 表示順（小さいほど上に表示）
+ */
+export const teamTools = mysqlTable("team_tools", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 対象チーム */
+  team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部"]).notNull(),
+  /** 表示名 */
+  label: varchar("label", { length: 200 }).notNull(),
+  /** リンクURL */
+  href: varchar("href", { length: 2000 }).notNull(),
+  /** 絵文字アイコン（例: 📄） */
+  emoji: varchar("emoji", { length: 10 }).default("🔗").notNull(),
+  /** テキスト色クラス（例: text-blue-600） */
+  color: varchar("color", { length: 100 }).default("text-blue-600").notNull(),
+  /** 表示順（小さいほど上） */
+  sortOrder: int("sortOrder").default(0).notNull(),
+  /** 登録したユーザーID */
+  createdBy: int("createdBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type TeamTool = typeof teamTools.$inferSelect;
+export type InsertTeamTool = typeof teamTools.$inferInsert;

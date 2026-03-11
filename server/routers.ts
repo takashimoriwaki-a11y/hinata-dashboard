@@ -2513,6 +2513,95 @@ export const appRouter = router({
       }),
   }),
 
+  /** チームツールリンク管理 */
+  teamTools: router({
+    /** 指定チームのツールリンクを取得 */
+    list: protectedProcedure
+      .input(z.object({
+        team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]),
+      }))
+      .query(async ({ input }) => {
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) return [];
+        const { teamTools } = await import("../drizzle/schema");
+        const { eq, asc } = await import("drizzle-orm");
+        return db.select().from(teamTools)
+          .where(eq(teamTools.team, input.team))
+          .orderBy(asc(teamTools.sortOrder), asc(teamTools.createdAt));
+      }),
+    /** チームツールリンクを作成（adminのみ） */
+    create: protectedProcedure
+      .input(z.object({
+        team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]),
+        label: z.string().min(1).max(200),
+        href: z.string().url(),
+        emoji: z.string().max(10).default("🔗"),
+        color: z.string().max(100).default("text-blue-600"),
+        sortOrder: z.number().int().default(0),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
+        }
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続エラー" });
+        const { teamTools } = await import("../drizzle/schema");
+        const result = await db.insert(teamTools).values({
+          team: input.team,
+          label: input.label,
+          href: input.href,
+          emoji: input.emoji,
+          color: input.color,
+          sortOrder: input.sortOrder,
+          createdBy: ctx.user.id,
+        });
+        broadcastEvent("teamTools");
+        return { success: true, id: Number(result[0].insertId) };
+      }),
+    /** チームツールリンクを更新（adminのみ） */
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number().int(),
+        label: z.string().min(1).max(200).optional(),
+        href: z.string().url().optional(),
+        emoji: z.string().max(10).optional(),
+        color: z.string().max(100).optional(),
+        sortOrder: z.number().int().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
+        }
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続エラー" });
+        const { teamTools } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const { id, ...data } = input;
+        await db.update(teamTools).set({ ...data, updatedAt: new Date() }).where(eq(teamTools.id, id));
+        broadcastEvent("teamTools");
+        return { success: true };
+      }),
+    /** チームツールリンクを削除（adminのみ） */
+    delete: protectedProcedure
+      .input(z.object({ id: z.number().int() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
+        }
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続エラー" });
+        const { teamTools } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        await db.delete(teamTools).where(eq(teamTools.id, input.id));
+        broadcastEvent("teamTools");
+        return { success: true };
+      }),
+  }),
+
   /** 音声入力誤変換フィードバック */
   voiceFeedback: router({
     /** 誤変換を報告する */
