@@ -1390,7 +1390,7 @@ export default function RecordInput() {
                   <p className="text-xs text-red-600 dark:text-red-400 font-medium mt-0.5">❌ 認識エラー</p>
                 ) : null}
               </div>
-              {/* VoiceMicButton共通コンポーネントを使用（externalStateでnotesVoiceフックを共有しデザインを統一） */}
+              {/* VoiceMicButton共通コンポーネントを使用（他の音声入力ボタンと統一） */}
               <VoiceMicButton
                 externalState={{
                   isRecording: notesVoice.isRecording,
@@ -1400,76 +1400,54 @@ export default function RecordInput() {
                   silenceCountdown: notesVoice.silenceCountdown,
                 }}
                 size="sm"
-                previewMode="none"
+                previewMode="tooltip"
               />
             </div>
-            {/* テキストエリア + interimTextオーバーレイ */}
-            <div className="relative">
-              <Textarea
-                placeholder="本日訪問で観察した症状・状態・利用者の言葉・環境の変化などをメモしてください..."
-                value={clinicalNotes}
-                onChange={(e) => setClinicalNotes(e.target.value)}
-                className={cn(
-                  "min-h-[120px] text-sm resize-y",
-                  notesVoice.isRecording && notesVoice.interimText && "caret-transparent"
-                )}
-              />
-              {/* 録音中のinterimTextをテキストエリア内にオーバーレイ表示 */}
-              {notesVoice.isRecording && notesVoice.interimText && (
-                <div
-                  aria-hidden="true"
-                  className={cn(
-                    // Textareaと同じフォント・パディング・サイズで重ねる
-                    "absolute inset-0 pointer-events-none",
-                    "px-3 py-2 text-sm leading-[1.75] font-sans",
-                    "whitespace-pre-wrap break-words overflow-hidden",
-                    "rounded-md"
-                  )}
-                >
-                  {/* 確定済みテキスト: 透明（下のTextareaが見えるようにする） */}
-                  <span className="text-transparent select-none">
-                    {clinicalNotes}
-                    {clinicalNotes ? "\n" : ""}
-                  </span>
-                  {/* interimText: グレー斜体でオーバーレイ */}
-                  <span
-                    className={cn(
-                      "italic font-normal",
-                      notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
-                        ? "text-orange-400/80 dark:text-orange-400/70"
-                        : "text-muted-foreground/60"
-                    )}
-                  >
-                    {notesVoice.interimText}
-                  </span>
-                </div>
-              )}
-              {/* 録音中インジケーター（interimTextなし時）: テキストエリア右下に小さく表示 */}
-              {notesVoice.isRecording && !notesVoice.interimText && (
-                <div className="absolute bottom-2 right-2 pointer-events-none">
-                  <span className={cn(
-                    "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium",
+            {/* テキストエリア（オーバーレイなし） */}
+            <Textarea
+              placeholder="本日訪問で観察した症状・状態・利用者の言葉・環境の変化などをメモしてください..."
+              value={clinicalNotes}
+              onChange={(e) => setClinicalNotes(e.target.value)}
+              className="min-h-[120px] text-sm resize-y"
+            />
+            {/* テキストエリア下: 録音中のinterimTextリアルタイム表示 */}
+            {notesVoice.isRecording && (
+              <div className={cn(
+                "mt-1.5 px-3 py-2 rounded-md border min-h-[36px] transition-colors",
+                notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
+                  ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
+                  : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
+              )}>
+                {notesVoice.interimText ? (
+                  <p className={cn(
+                    "text-sm italic leading-relaxed",
                     notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
-                      ? "bg-orange-100/80 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400"
-                      : "bg-red-100/80 dark:bg-red-950/60 text-red-600 dark:text-red-400"
+                      ? "text-orange-700 dark:text-orange-300"
+                      : "text-red-700 dark:text-red-300"
                   )}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                    {notesVoice.interimText}
+                  </p>
+                ) : (
+                  <p className={cn(
+                    "text-xs font-medium",
+                    notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
+                      ? "text-orange-600 dark:text-orange-400"
+                      : "text-red-500 dark:text-red-400"
+                  )}>
                     {notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
-                      ? `あと${notesVoice.silenceCountdown}秒`
-                      : "話してください"}
-                  </span>
-                </div>
-              )}
-            </div>
+                      ? `⏱ あと${notesVoice.silenceCountdown}秒で自動停止します`
+                      : "🎤 話してください..."}
+                  </p>
+                )}
+              </div>
+            )}
             {/* 録音完了後: 最後の転記テキスト + 誤変換フィードバック */}
             {!notesVoice.isRecording && notesVoice.lastTranscribedText && (
               <div className="mt-1.5 px-2 py-1.5 rounded-md border bg-muted/40 border-border">
                 <div className="space-y-1.5">
-                  <div className="flex items-start gap-1.5">
-                    <p className="text-xs text-muted-foreground leading-relaxed flex-1">
-                      🎤 {notesVoice.lastTranscribedText}
-                    </p>
-                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    🎤 {notesVoice.lastTranscribedText}
+                  </p>
                   {/* 誤変換フィードバックボタン */}
                   <button
                     type="button"
