@@ -47,7 +47,8 @@ export default function Minutes() {
   const [newTitle, setNewTitle] = useState("");
   const [newDocumentUrl, setNewDocumentUrl] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
-  const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
+  // 楽観的更新用: チェックしたIDをローカルで管理
+  const [localCheckedIds, setLocalCheckedIds] = useState<Set<number>>(new Set());
   const [isFetchingTitle, setIsFetchingTitle] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const fetchTitleTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -126,17 +127,21 @@ export default function Minutes() {
 
   const checkMutation = trpc.minutes.check.useMutation({
     onMutate: ({ minutesId }) => {
-      // 楽観的更新: 即座にチェックマークを表示
-      setCheckedIds((prev) => new Set(prev).add(minutesId));
+      // 楽観的更新: 即座にリストから非表示にする
+      setLocalCheckedIds((prev) => new Set(prev).add(minutesId));
     },
     onSuccess: () => {
       utils.minutes.list.invalidate();
       utils.minutes.uncheckedCount.invalidate();
-      toast.success("確認済みにしました。リストから削除されました。");
+      toast.success("確認済みにしました");
     },
     onError: (e, { minutesId }) => {
       // エラー時はロールバック
-      setCheckedIds((prev) => { const s = new Set(prev); s.delete(minutesId); return s; });
+      setLocalCheckedIds((prev) => {
+        const s = new Set(prev);
+        s.delete(minutesId);
+        return s;
+      });
       toast.error(e.message);
     },
   });
@@ -153,10 +158,15 @@ export default function Minutes() {
 
   // ドキュメントリンクをクリックしたら自動チェック（確認済みにする）
   const handleDocumentOpen = (minutesId: number) => {
-    if (!checkedIds.has(minutesId)) {
+    if (!localCheckedIds.has(minutesId)) {
       checkMutation.mutate({ minutesId });
     }
   };
+
+  // 表示するリスト: サーバーで既読 or ローカルでチェック済みのものを除外
+  const visibleList = minutesList.filter(
+    (m) => !m.checkedByMe && !localCheckedIds.has(m.id)
+  );
 
   return (
     <div className="max-w-2xl mx-auto py-6 px-4 space-y-4">
@@ -197,7 +207,7 @@ export default function Minutes() {
       {/* 議事録リスト */}
       {isLoading ? (
         <div className="text-center text-muted-foreground py-12">読み込み中...</div>
-      ) : minutesList.length === 0 ? (
+      ) : visibleList.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             <CheckCircle2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
@@ -206,26 +216,26 @@ export default function Minutes() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {minutesList.map((m) => (
+          {visibleList.map((m) => (
             <Card key={m.id} className="border-border">
               <CardHeader className="pb-3 pt-4 px-4">
                 <div className="flex items-start gap-3">
                   {/* チェックボタン */}
                   <button
                     onClick={() => {
-                      if (!checkedIds.has(m.id)) {
+                      if (!localCheckedIds.has(m.id)) {
                         checkMutation.mutate({ minutesId: m.id });
                       }
                     }}
-                    disabled={checkMutation.isPending && checkedIds.has(m.id)}
+                    disabled={localCheckedIds.has(m.id)}
                     className={`mt-0.5 flex-shrink-0 transition-colors ${
-                      checkedIds.has(m.id)
+                      localCheckedIds.has(m.id)
                         ? "text-emerald-500 cursor-default"
                         : "text-muted-foreground hover:text-emerald-500"
                     }`}
-                    title={checkedIds.has(m.id) ? "確認済み" : "先にここを押して確認済みにする"}
+                    title={localCheckedIds.has(m.id) ? "確認済み" : "先にここを押して確認済みにする"}
                   >
-                    {checkedIds.has(m.id)
+                    {localCheckedIds.has(m.id)
                       ? <CheckCircle2 className="w-5 h-5" />
                       : <Circle className="w-5 h-5" />
                     }
