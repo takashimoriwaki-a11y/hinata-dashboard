@@ -1,7 +1,7 @@
 /**
  * 議事録ページ
  * 管理者が議事録を投稿し、各スタッフが確認チェックを入れると自分のリストから削除される
- * 投稿はタイトルとドキュメントURLのみ。URL入力後にタイトルを自動取得。
+ * 投稿はタイトルとドキュメントURLのみ。タイトルは手動または音声入力。
  * ドキュメントリンクをクリックすると自動的に確認チェックが入る。
  */
 import { useState, useRef } from "react";
@@ -18,7 +18,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Circle, CheckCircle2, FileText, Plus, Trash2, ExternalLink, Link as LinkIcon, Loader2, Info } from "lucide-react";
+import { Circle, CheckCircle2, FileText, Plus, Trash2, ExternalLink, Link as LinkIcon, Loader2, Info, Mic, MicOff } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -35,7 +35,23 @@ export default function Minutes() {
   const [newDocumentLabel, setNewDocumentLabel] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [isFetchingTitle, setIsFetchingTitle] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const fetchTitleTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // SpeechRecognitionインスタンス型（TypeScript用）
+  type SpeechRecognitionInstance = {
+    lang: string;
+    interimResults: boolean;
+    maxAlternatives: number;
+    onstart: (() => void) | null;
+    onend: (() => void) | null;
+    onerror: (() => void) | null;
+    onresult: ((e: { results: { [k: number]: { [k: number]: { transcript: string } } } }) => void) | null;
+    start(): void;
+    stop(): void;
+  };
+  type SpeechRecognitionConstructor = { new(): SpeechRecognitionInstance };
+
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
 
   // URLが有効かどうか確認
   const isValidUrl = (url: string) => {
@@ -61,6 +77,40 @@ export default function Minutes() {
         setIsFetchingTitle(false);
       }
     }, 800);
+  };
+
+  // 音声入力の開始・停止
+  const startVoiceInput = () => {
+    const SpeechRecognitionAPI =
+      (window as unknown as { SpeechRecognition?: SpeechRecognitionConstructor }).SpeechRecognition ||
+      (window as unknown as { webkitSpeechRecognition?: SpeechRecognitionConstructor }).webkitSpeechRecognition;
+
+    if (!SpeechRecognitionAPI) {
+      toast.error("このブラウザは音声入力に対応していません");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    const recognition = new SpeechRecognitionAPI();
+    recognition.lang = "ja-JP";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => {
+      setIsListening(false);
+      toast.error("音声入力に失敗しました。マイクの許可を確認してください。");
+    };
+    recognition.onresult = (e: { results: { [k: number]: { [k: number]: { transcript: string } } } }) => {
+      const transcript = e.results[0][0].transcript;
+      setNewTitle((prev) => prev ? prev + transcript : transcript);
+    };
+    recognitionRef.current = recognition;
+    recognition.start();
   };
 
   const createMutation = trpc.minutes.create.useMutation({
@@ -217,18 +267,23 @@ export default function Minutes() {
       {/* 投稿ダイアログ（adminのみ） */}
       <Dialog open={createOpen} onOpenChange={(open) => {
         setCreateOpen(open);
-        if (!open) { setNewTitle(""); setNewDocumentUrl(""); setNewDocumentLabel(""); }
+        if (!open) {
+          setNewTitle("");
+          setNewDocumentUrl("");
+          setNewDocumentLabel("");
+          recognitionRef.current?.stop();
+        }
       }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>議事録を投稿</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            {/* ドキュメント添付（先に入力でタイトル自動取得） */}
+            {/* ドキュメント添付 */}
             <div className="space-y-1.5 p-3 bg-muted/30 rounded-lg border border-border">
               <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
                 <LinkIcon className="w-3 h-3" />
-                ドキュメントURL（先に入力するとタイトルが自動入力されます）
+                ドキュメントURL（任意）
               </p>
               <div className="relative">
                 <Input
@@ -242,20 +297,51 @@ export default function Minutes() {
                 )}
               </div>
               <Input
-                placeholder="ドキュメントの名前（自動取得または手動入力）"
+                placeholder="ドキュメントの名前（手動入力）"
                 value={newDocumentLabel}
                 onChange={(e) => setNewDocumentLabel(e.target.value)}
                 maxLength={200}
                 className="text-sm"
               />
             </div>
-            {/* タイトル */}
-            <Input
-              placeholder="議事録のタイトル（自動取得または手動入力）"
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              maxLength={300}
-            />
+
+            {/* タイトル（音声入力対応） */}
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <FileText className="w-3 h-3" />
+                議事録タイトル <span className="text-destructive">*</span>
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="タイトルを入力（または右のマイクで音声入力）"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  maxLength={300}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={startVoiceInput}
+                  title={isListening ? "音声入力停止" : "音声入力開始"}
+                  className={isListening
+                    ? "bg-red-100 border-red-400 text-red-600 animate-pulse dark:bg-red-900/30 dark:border-red-600"
+                    : ""}
+                >
+                  {isListening
+                    ? <MicOff className="h-4 w-4" />
+                    : <Mic className="h-4 w-4" />
+                  }
+                </Button>
+              </div>
+              {isListening && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  録音中... もう一度押すと停止します
+                </p>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>

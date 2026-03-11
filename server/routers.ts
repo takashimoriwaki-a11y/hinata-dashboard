@@ -2628,13 +2628,51 @@ export const appRouter = router({
       const count = allMinutes.filter((m) => !checkedIds.has(m.id)).length;
       return { count };
     }),
-    /** URLからドキュメントタイトルを取得（サーバーサイドでCORS回避） */
+    /** URLからドキュメントタイトルを取得（Google Drive API サービスアカウント認証） */
     fetchDocTitle: protectedProcedure
       .input(z.object({ url: z.string().url() }))
       .query(async ({ input }) => {
         try {
+          // Google Docs/Sheets/Slides/Forms URLからファイルIDを抽出
+          const googleDocsPattern = /\/(?:document|spreadsheets|presentation|forms\/d)(?:\/d)?\/([a-zA-Z0-9_-]{25,})/;
+          const fileIdMatch = input.url.match(googleDocsPattern);
+
+          if (fileIdMatch && fileIdMatch[1]) {
+            const fileId = fileIdMatch[1];
+            // サービスアカウント認証でGoogle Drive APIを呼び出す
+            try {
+              const auth = getAuth();
+              // Drive読み取りスコープでトークンを取得
+              const driveAuth = new GoogleAuth({
+                credentials: {
+                  client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+                  private_key: (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ?? "").replace(/\\n/g, "\n"),
+                },
+                scopes: ["https://www.googleapis.com/auth/drive.readonly"],
+              });
+              const client = await driveAuth.getClient();
+              const tokenRes = await client.getAccessToken();
+              if (tokenRes.token) {
+                const driveRes = await fetch(
+                  `https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`,
+                  {
+                    headers: { Authorization: `Bearer ${tokenRes.token}` },
+                    signal: AbortSignal.timeout(5000),
+                  }
+                );
+                if (driveRes.ok) {
+                  const data = await driveRes.json() as { name?: string };
+                  if (data.name) return { title: data.name };
+                }
+              }
+            } catch (driveErr) {
+              console.warn("[fetchDocTitle] Drive API error:", driveErr);
+            }
+          }
+
+          // フォールバック: HTMLの<title>タグから取得
           const response = await fetch(input.url, {
-            headers: { "User-Agent": "Mozilla/5.0 (compatible; HinataDashboard/1.0)" },
+            headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" },
             signal: AbortSignal.timeout(5000),
           });
           if (!response.ok) return { title: null };

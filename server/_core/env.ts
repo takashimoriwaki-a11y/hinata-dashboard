@@ -15,4 +15,8 @@ export const ENV = {
   vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? "",
   vapidPrivateKey: process.env.VAPID_PRIVATE_KEY ?? "",
   vapidEmail: process.env.VAPID_EMAIL ?? "mailto:admin@kokoronohinata.com",
+  /** Google Drive API アクセストークン（議事録タイトル取得用） */
+  googleDriveToken: process.env.GOOGLE_DRIVE_TOKEN ?? "",
+  /** Google Sheets API キー */
+  googleSheetsApiKey: process.env.GOOGLE_SHEETS_API_KEY ?? "",
 };
