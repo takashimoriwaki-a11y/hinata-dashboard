@@ -1,0 +1,60 @@
+{
+  "query": "SELECT id, name, team FROM users LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT id, name, team FROM users LIMIT 10;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "森脇　崇",
+      "team": "身体"
+    },
+    {
+      "id": "240001",
+      "name": "松田　道教",
+      "team": "天理"
+    },
+    {
+      "id": "240002",
+      "name": "西谷　和行",
+      "team": "郡山南部"
+    },
+    {
+      "id": "240003",
+      "name": "今井　良美",
+      "team": "郡山南部"
+    },
+    {
+      "id": "240004",
+      "name": "三寺　隆之",
+      "team": "郡山北部"
+    },
+    {
+      "id": "240005",
+      "name": "松本　千恵",
+      "team": "天理"
+    },
+    {
+      "id": "240006",
+      "name": "岡田　萌実",
+      "team": "身体"
+    },
+    {
+      "id": "240007",
+      "name": "本　智保",
+      "team": "天理"
+    },
+    {
+      "id": "240008",
+      "name": "藤林　むつみ",
+      "team": "郡山南部"
+    },
+    {
+      "id": "240009",
+      "name": "義永　朋子",
+      "team": "郡山北部"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tteam\n1\t森脇　崇\t身体\n240001\t松田　道教\t天理\n240002\t西谷　和行\t郡山南部\n240003\t今井　良美\t郡山南部\n240004\t三寺　隆之\t郡山北部\n240005\t松本　千恵\t天理\n240006\t岡田　萌実\t身体\n240007\t本　智保\t天理\n240008\t藤林　むつみ\t郡山南部\n240009\t義永　朋子\t郡山北部\n",
+  "stderr": "",
+  "execution_time_ms": 1603
+}

@@ -1,0 +1,28 @@
+{
+  "query": "SELECT id, name, team, openId FROM users WHERE name LIKE '%森脇%' OR name LIKE '%崇%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT id, name, team, openId FROM users WHERE name LIKE '%森脇%' OR name LIKE '%崇%';",
+  "rows": [
+    {
+      "id": "1",
+      "name": "森脇　崇",
+      "team": "身体",
+      "openId": "We8HCUrgt6q2L56cfWKJky"
+    },
+    {
+      "id": "240017",
+      "name": "森脇　英樹",
+      "team": "事務員",
+      "openId": "local-1772963600961-tmtk51p8"
+    },
+    {
+      "id": "270005",
+      "name": "森脇　崇",
+      "team": "郡山南部",
+      "openId": "google_115056266073181046540"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tteam\topenId\n1\t森脇　崇\t身体\tWe8HCUrgt6q2L56cfWKJky\n240017\t森脇　英樹\t事務員\tlocal-1772963600961-tmtk51p8\n270005\t森脇　崇\t郡山南部\tgoogle_115056266073181046540\n",
+  "stderr": "",
+  "execution_time_ms": 1627
+}
