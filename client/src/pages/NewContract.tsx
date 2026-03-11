@@ -7,7 +7,7 @@ import { FileText, ExternalLink, Link2, BarChart2 } from "lucide-react";
 
 const contractLinks: { label: string; href: string; description: string; icon: "sheet" | "doc" }[] = [
   {
-    label: "新規契約管理スプレッドシート",
+    label: "新規受付",
     href: "https://docs.google.com/spreadsheets/d/19EwxEK1ojaeQhQwIQVDQHfQVIYnSbNv6qt1V4qS_HnQ/edit?pli=1&gid=1447811344#gid=1447811344",
     description: "新規契約の進捗・管理表",
     icon: "sheet",

@@ -1,0 +1,9 @@
+{
+  "query": "\n-- スプレッドシート（日々使用）→ emerald-600\nUPDATE quick_access_links SET color = 'text-emerald-600' WHERE category = 'スプレッドシート（日々使用）';\n-- スプレッドシート（その他）→ emerald-600\nUPDATE quick_access_links SET color = 'text-emerald-600' WHERE category = 'スプレッドシート（その他）';\n-- フォーム → purple-600\nUPDATE quick_access_links SET color = 'text-purple-600' WHERE category = 'フォーム';\n-- ドキュメント → blue-600\nUPDATE quick_access_links SET color = 'text-blue-600' WHERE category = 'ドキュメント';\n-- その他 → blue-600\nUPDATE quick_access_links SET color = 'text-blue-600' WHERE category = 'その他';\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute \n-- スプレッドシート（日々使用）→ emerald-600\nUPDATE quick_access_links SET color = 'text-emerald-600' WHERE category = 'スプレッドシート（日々使用）';\n-- スプレッドシート（その他）→ emerald-600\nUPDATE quick_access_links SET color = 'text-emerald-600' WHERE category = 'スプレッドシート（その他）';\n-- フォーム → purple-600\nUPDATE quick_access_links SET color = 'text-purple-600' WHERE category = 'フォーム';\n-- ドキュメント → blue-600\nUPDATE quick_access_links SET color = 'text-blue-600' WHERE category = 'ドキュメント';\n-- その他 → blue-600\nUPDATE quick_access_links SET color = 'text-blue-600' WHERE category = 'その他';\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 2663
+}

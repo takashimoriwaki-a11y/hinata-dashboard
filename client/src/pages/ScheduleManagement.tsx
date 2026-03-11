@@ -3,13 +3,23 @@
  * スケジュール管理関連のリンクを管理する
  */
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarDays, ExternalLink, Link2 } from "lucide-react";
+import { CalendarDays, ExternalLink, Link2, BarChart2 } from "lucide-react";
 
 const scheduleLinks: { label: string; href: string; description: string }[] = [
   {
-    label: "スケジュール管理スプレッドシート",
+    label: "ひなた利用者情報",
     href: "https://docs.google.com/spreadsheets/d/1cJ8f3gFWu0Fqrl3TxthGVk0-9TF4Hg5YJZFO-mWIvjI/edit?gid=349418380#gid=349418380",
     description: "訪問スケジュールの管理・確認",
+  },
+  {
+    label: "ひなた_スケジュール変更連絡",
+    href: "https://docs.google.com/spreadsheets/d/1ki462aQRaNTj5FrI_1MJ1OyATFGqODz6HCtmuriIDEU/edit?gid=941601927#gid=941601927",
+    description: "スケジュール変更連絡管理表",
+  },
+  {
+    label: "ひなた_次回訪問日時",
+    href: "https://docs.google.com/spreadsheets/d/1WOZQ5rI0Fu57nWaiGwComPS_DdEwPgNR6zeOmyrqKpo/edit?gid=0#gid=0",
+    description: "次回訪問日時管理表",
   },
 ];
 
@@ -51,8 +61,8 @@ export default function ScheduleManagement() {
                   rel="noopener noreferrer"
                   className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent transition-colors group"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center flex-shrink-0">
-                    <CalendarDays className="w-4 h-4 text-orange-500" />
+                  <div className="w-9 h-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
+                    <BarChart2 className="w-4 h-4 text-emerald-600" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors truncate">
