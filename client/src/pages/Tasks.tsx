@@ -187,8 +187,6 @@ export default function Tasks() {
     }
   }, [user?.team]);
 
-  // 利用者名フィルター
-  const [patientFilter, setPatientFilter] = useState<string | null>(null);
 
   // 並び替え（localStorageで永続化）
   const [sortKey, setSortKeyRaw] = useState<SortKey>(() => {
@@ -360,7 +358,6 @@ export default function Tasks() {
       if (filter === "done" && t.done !== 1) return false;
       if (!matchesDateFilter(t)) return false;
       if (!matchesTeamFilter(t)) return false;
-      if (patientFilter && t.patientName !== patientFilter) return false;
       return true;
     });
 
@@ -388,15 +385,7 @@ export default function Tasks() {
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [tasks, filter, dateFilter, teamFilter, patientFilter, sortKey, sortDir]);
-
-  // タスクに含まれる利用者名の一覧（重複なし）
-  const patientNames = useMemo(() => {
-    const names = tasks
-      .map((t) => t.patientName)
-      .filter((n): n is string => !!n);
-    return Array.from(new Set(names));
-  }, [tasks]);
+  }, [tasks, filter, dateFilter, teamFilter, sortKey, sortDir]);
 
   const activeCount = tasks.filter((t) => t.done === 0).length;
   const doneCount = tasks.filter((t) => t.done === 1).length;
@@ -464,7 +453,6 @@ export default function Tasks() {
   const activeFilterCount = [
     dateFilter !== "all",
     teamFilter !== null,
-    patientFilter !== null,
   ].filter(Boolean).length;
 
   return (
@@ -606,54 +594,12 @@ export default function Tasks() {
               </div>
             </div>
 
-            {/* 利用者名フィルター */}
-            {patientNames.length > 0 && (
-              <div>
-                <div className="flex items-center gap-1 mb-1.5">
-                  <UserRound className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span className="text-xs font-medium text-muted-foreground">利用者フィルター</span>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    onClick={() => setPatientFilter(null)}
-                    className={cn(
-                      "text-[11px] px-2 py-0.5 rounded-full border transition-colors",
-                      patientFilter === null
-                        ? "bg-violet-600 text-white border-violet-600"
-                        : "border-border text-muted-foreground hover:border-violet-400 hover:text-violet-600"
-                    )}
-                  >
-                    すべて
-                  </button>
-                  {patientNames.map((name) => {
-                    const count = tasks.filter((t) => t.patientName === name).length;
-                    return (
-                      <button
-                        key={name}
-                        onClick={() => setPatientFilter(patientFilter === name ? null : name)}
-                        className={cn(
-                          "text-[11px] px-2 py-0.5 rounded-full border transition-colors flex items-center gap-0.5",
-                          patientFilter === name
-                            ? "bg-violet-600 text-white border-violet-600"
-                            : "border-border text-muted-foreground hover:border-violet-400 hover:text-violet-600"
-                        )}
-                      >
-                        {name}
-                        <span className="text-[10px] font-bold">({count})</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
             {/* フィルターリセット */}
             {activeFilterCount > 0 && (
               <button
                 onClick={() => {
                   setDateFilter("all");
                   setTeamFilter(null);
-                  setPatientFilter(null);
                 }}
                 className="text-[11px] text-muted-foreground hover:text-destructive flex items-center gap-0.5 transition-colors"
               >
@@ -692,15 +638,7 @@ export default function Tasks() {
               </button>
             </span>
           )}
-          {patientFilter !== null && (
-            <span className="flex items-center gap-0.5 text-[11px] px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 border border-violet-200">
-              <UserRound className="w-2.5 h-2.5" />
-              {patientFilter}
-              <button onClick={() => setPatientFilter(null)} className="ml-0.5 hover:text-destructive">
-                <X className="w-2.5 h-2.5" />
-              </button>
-            </span>
-          )}
+
         </div>
       )}
 

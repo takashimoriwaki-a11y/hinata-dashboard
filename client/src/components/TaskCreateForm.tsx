@@ -90,12 +90,12 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     // usersテーブルのteam列は「身体」「天理」「郡山北部」「郡山南部」「事務員」「全チーム」
     // TaskCreateFormのTeam型は「身体」「天理」「郡山北部」「郡山南部」のみ
     const validTeams: Team[] = ["身体", "天理", "郡山北部", "郡山南部"];
-    if (validTeams.includes(user.team as Team)) {
+    if (user.team === "全チーム" || user.team === "事務員") {
+      // 全チーム所属・事務員は必ず「全員」をデフォルトに設定（先に判定してteam上書きを防ぐ）
+      setNewAssignType("all");
+    } else if (validTeams.includes(user.team as Team)) {
       setNewAssignTeam(user.team as Team);
       setNewAssignType("team");
-    } else if (user.team === "全チーム" || user.team === "事務員") {
-      // 全チーム所属・事務員は「全員」をデフォルトに設定
-      setNewAssignType("all");
     }
   }, [user?.team]);
 
