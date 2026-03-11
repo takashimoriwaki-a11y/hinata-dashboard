@@ -2255,11 +2255,10 @@ const GOOGLE_LINKS = [
 ];
 
 function GoogleCard() {
-  const { isNight } = useTheme();
   return (
-    <Card className={cn("shadow-sm", isNight ? "bg-slate-800/60" : "bg-white")}>
-      <CardHeader className="pb-2 pt-3 px-4">
-        <CardTitle className="text-sm font-semibold flex items-center gap-2">
+    <Card className="fade-in-up shadow-sm">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base font-semibold flex items-center gap-2">
           <svg className="w-4 h-4" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -2269,7 +2268,7 @@ function GoogleCard() {
           Googleサービス
         </CardTitle>
       </CardHeader>
-      <CardContent className="px-4 pb-3">
+      <CardContent>
         <div className="flex gap-2 flex-wrap">
           {GOOGLE_LINKS.map((link) => (
             <a
@@ -2277,30 +2276,25 @@ function GoogleCard() {
               href={link.href}
               target="_blank"
               rel="noopener noreferrer"
-              className={cn(
-                "flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all hover:scale-105 active:scale-95 flex-1 min-w-[90px] justify-center",
-                isNight
-                  ? "bg-slate-700/80 hover:bg-slate-600/80 text-slate-100"
-                  : "bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200"
-              )}
+              className="flex flex-col items-center gap-1.5 px-3 py-2.5 rounded-lg border border-border bg-muted/30 hover:bg-muted/60 transition-all hover:scale-105 active:scale-95 flex-1 min-w-[70px] text-foreground"
             >
               <img
                 src={link.icon}
                 alt={link.label}
-                className="w-5 h-5 object-contain flex-shrink-0"
+                className="w-6 h-6 object-contain flex-shrink-0"
                 onError={(e) => {
                   const target = e.currentTarget;
                   target.style.display = "none";
                   const parent = target.parentElement;
                   if (parent) {
                     const span = document.createElement("span");
-                    span.style.cssText = `display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${link.fallbackColor};color:white;font-size:9px;font-weight:700;flex-shrink:0`;
+                    span.style.cssText = `display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:${link.fallbackColor};color:white;font-size:9px;font-weight:700;flex-shrink:0`;
                     span.textContent = link.letter;
                     parent.insertBefore(span, target.nextSibling);
                   }
                 }}
               />
-              <span className="whitespace-nowrap">{link.label}</span>
+              <span className="text-xs font-medium whitespace-nowrap">{link.label}</span>
             </a>
           ))}
         </div>
