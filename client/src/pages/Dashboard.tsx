@@ -125,43 +125,10 @@ const formLinks: { label: string; href: string; color: string }[] = [
 // 業務ツール - その他
 const otherLinks = [
   { label: "NotebookLM — 就業規則・社内マニュアル", href: "https://notebooklm.google.com/notebook/4781c6de-6e18-456d-b557-a202c3b03747", color: "text-blue-600" },
-  { label: "Gemini — Google AIチャット", href: "https://gemini.google.com/app", color: "text-violet-600" },
-  { label: "Gemini Gems — MSE看護記録作成サポーター", href: "https://gemini.google.com/gem/1qqbO6BLZLj9IXwsOjYuePdyQn0QGkifV?usp=sharing", color: "text-purple-600" },
   { label: "ひなた 公式 Instagram", href: "https://www.instagram.com/kokoronohinata/", color: "text-pink-600" },
 ];
 
-const externalLinks = [
-  {
-    label: "ZEST — 訪問スケジュール管理",
-    desc: "スケジュールの確認・変更はZESTで行います",
-    href: "https://homecare.zest.jp/login",
-    emoji: "📅",
-  },
-  {
-    label: "NotebookLM — 就業規則・社内マニュアル",
-    desc: "AIに質問して就業規則や社内ルールをすぐに確認できます",
-    href: "https://notebooklm.google.com/notebook/4781c6de-6e18-456d-b557-a202c3b03747",
-    emoji: "📓",
-  },
-  {
-    label: "Gemini — Google AIチャット",
-    desc: "GoogleのAIアシスタントで業務相談・文章作成に",
-    href: "https://gemini.google.com/app",
-    emoji: "✨",
-  },
-  {
-    label: "Gemini Gems — MSE看護記録作成サポーター",
-    desc: "MSE形式の看護記録作成をAIがサポートします",
-    href: "https://gemini.google.com/gem/1qqbO6BLZLj9IXwsOjYuePdyQn0QGkifV?usp=sharing",
-    emoji: "💎",
-  },
-  {
-    label: "こころの訪問看護ステーションひなた 公式 Instagram",
-    desc: "@kokoronohinata — 日々の活動やお知らせを発信中",
-    href: "https://www.instagram.com/kokoronohinata/",
-    emoji: "📷",
-  },
-];
+
 
 // 初期タスク（サンプルなし）
 const initialTasks: { id: number; text: string; done: boolean; priority: "high" | "medium" | "low" }[] = [];
@@ -1903,38 +1870,7 @@ function ToolsCard() {
   );
 }
 
-function QuickLinksCard() {
-  return (
-    <Card className="fade-in-up stagger-4 shadow-sm flex flex-col h-full">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base font-semibold flex items-center gap-2">
-          <ExternalLink className="w-4 h-4 text-primary" />
-          AIツール・外部リンク
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-1.5 flex-1">
-        {externalLinks.map((link) => (
-          <a
-            key={link.label}
-            href={link.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-start gap-2.5 p-2.5 rounded-lg bg-muted/30 hover:bg-muted transition-colors group"
-          >
-            <span className="text-base flex-shrink-0 mt-0.5">{link.emoji}</span>
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-foreground group-hover:text-primary transition-colors truncate">
-                {link.label}
-              </p>
-              <p className="text-[10px] text-muted-foreground truncate">{link.desc}</p>
-            </div>
-            <ExternalLink className="w-3 h-3 text-muted-foreground flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-          </a>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
+
 
 function TasksCard() {
   const utils = trpc.useUtils();
@@ -3253,11 +3189,10 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 下段: メッセージ・訪問件数・クイックリンクを横並び（PC版） */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 items-stretch">
+      {/* 下段: メッセージ・訪問件数を横並び（PC版） */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 items-stretch">
         <MessageBoard title="メッセージ" />
         <VisitCountCard />
-        <QuickLinksCard />
       </div>
     </div>
   );
