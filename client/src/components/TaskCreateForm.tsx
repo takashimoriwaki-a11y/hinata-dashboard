@@ -48,7 +48,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
   const [newText, setNewText] = useState("");
   const [newDueDate, setNewDueDate] = useState("");
   const [newDueTime, setNewDueTime] = useState("");
-  const [newAssignType, setNewAssignType] = useState<AssignType>("all");
+  const [_newAssignType, setNewAssignType] = useState<AssignType>("all");
   const [newAssignTeam, setNewAssignTeam] = useState<Team>("身体");
   const [newAssignUserId, setNewAssignUserId] = useState<number | null>(null);
   const [newAssignUserName, setNewAssignUserName] = useState<string>("");
@@ -84,13 +84,12 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
   const [feedbackComment, setFeedbackComment] = useState("");
   const [feedbackSent, setFeedbackSent] = useState(false);
 
-  // 全チームユーザーはassignTypeを常にallに固定するガード関数
+  // 全チームユーザーはassignTypeを常にallに固定（派生値として計算することで非同期問題を完全に回避）
   const isAllTeamUser = user?.team === "全チーム" || user?.team === "事務員";
+  // 全チームユーザーの場合は常にallを返す派生値、それ以外はstate値を使用
+  const newAssignType: AssignType = isAllTeamUser ? "all" : _newAssignType;
   const setAssignTypeSafe = (type: AssignType | ((prev: AssignType) => AssignType)) => {
-    if (isAllTeamUser) {
-      setNewAssignType("all");
-      return;
-    }
+    if (isAllTeamUser) return; // 全チームユーザーは変更不可
     if (typeof type === "function") {
       setNewAssignType(type);
     } else {
