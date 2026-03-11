@@ -84,6 +84,20 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
   const [feedbackComment, setFeedbackComment] = useState("");
   const [feedbackSent, setFeedbackSent] = useState(false);
 
+  // 全チームユーザーはassignTypeを常にallに固定するガード関数
+  const isAllTeamUser = user?.team === "全チーム" || user?.team === "事務員";
+  const setAssignTypeSafe = (type: AssignType | ((prev: AssignType) => AssignType)) => {
+    if (isAllTeamUser) {
+      setNewAssignType("all");
+      return;
+    }
+    if (typeof type === "function") {
+      setNewAssignType(type);
+    } else {
+      setNewAssignType(type);
+    }
+  };
+
   // ログインユーザーの所属チームをデフォルトに設定
   useEffect(() => {
     if (!user?.team) return;
@@ -92,10 +106,10 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     const validTeams: Team[] = ["身体", "天理", "郡山北部", "郡山南部"];
     if (user.team === "全チーム" || user.team === "事務員") {
       // 全チーム所属・事務員は必ず「全員」をデフォルトに設定（先に判定してteam上書きを防ぐ）
-      setNewAssignType("all");
+      setAssignTypeSafe("all");
     } else if (validTeams.includes(user.team as Team)) {
       setNewAssignTeam(user.team as Team);
-      setNewAssignType("team");
+      setAssignTypeSafe("team");
     }
   }, [user?.team]);
 
@@ -128,7 +142,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
 
       // 指定先種別（現在が「all」のときのみ上書き）
       const assignType = (f.assignType as AssignType) || "all";
-      setNewAssignType(prev => prev === "all" ? assignType : prev);
+      setAssignTypeSafe(prev => prev === "all" ? assignType : prev);
 
       // チーム指定: assignTypeがteamのときに設定（常に上書き — チーム名は明示的に話した場合は必ず反映）
       if (assignType === "team") {
@@ -163,10 +177,10 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
           setPatientName(name);
           // AIが「○○チーム」を明示した場合はチーム情報を保持、それ以外はフリーテキストモードに切り替え
           if (assignType === "team" && f.assignTeam && TEAMS.includes(f.assignTeam as Team)) {
-            setNewAssignType("team");
+            setAssignTypeSafe("team");
             setNewAssignTeam(f.assignTeam as Team);
           } else {
-            setNewAssignType("all");
+            setAssignTypeSafe("all");
           }
           toast.success(`利用者「${name}」を自動選択しました`);
         };
@@ -281,10 +295,10 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
       setPatientName(name);
       // AIがチームを明示した場合はチーム情報を保持、それ以外はフリーテキストモードに切り替え
       if (pendingAssignType === "team" && pendingAssignTeam && TEAMS.includes(pendingAssignTeam)) {
-        setNewAssignType("team");
+        setAssignTypeSafe("team");
         setNewAssignTeam(pendingAssignTeam);
       } else {
-        setNewAssignType("all");
+        setAssignTypeSafe("all");
       }
       toast.success(`利用者「${name}」を自動選択しました`);
       setPendingAiPatient(null);
@@ -318,7 +332,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     if (pendingSearchResults.length === 1) {
       // 1件のみ→自動選択
       setPatientName(pendingSearchResults[0].name);
-      setNewAssignType("all"); // 別チームの利用者でも表示できるようフリーテキストモードに切り替え
+      setAssignTypeSafe("all"); // 別チームの利用者でも表示できるようフリーテキストモードに切り替え
       toast.success(`利用者「${pendingSearchResults[0].name}」を自動選択しました`);
     } else if (pendingSearchResults.length > 1) {
       // 複数候補→候補ダイアログ表示
@@ -327,7 +341,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     } else {
       // 該当なし→入力欄に苗字をそのまま設定
       setPatientName(pendingPatientSearch);
-      setNewAssignType("all");
+      setAssignTypeSafe("all");
     }
     setPendingPatientSearch(null);
   }, [pendingPatientSearch, pendingSearchFetched, pendingSearchResults]);
@@ -336,7 +350,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     setNewText("");
     setNewDueDate("");
     setNewDueTime("");
-    setNewAssignType("all");
+    setAssignTypeSafe("all");
     setNewAssignTeam("身体");
     setNewAssignUserId(null);
     setNewAssignUserName("");
@@ -660,7 +674,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
             ] as const).map(({ value, label, icon: Icon }) => (
               <button
                 key={value}
-                onClick={() => setNewAssignType(value)}
+                onClick={() => setAssignTypeSafe(value)}
                 className={cn(
                   "flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border transition-colors flex-1 justify-center",
                   newAssignType === value
