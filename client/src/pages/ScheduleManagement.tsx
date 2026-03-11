@@ -6,7 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CalendarDays, ExternalLink, Link2 } from "lucide-react";
 
 const scheduleLinks: { label: string; href: string; description: string }[] = [
-  // TODO: 実際のリンクを追加してください
+  {
+    label: "スケジュール管理スプレッドシート",
+    href: "https://docs.google.com/spreadsheets/d/1cJ8f3gFWu0Fqrl3TxthGVk0-9TF4Hg5YJZFO-mWIvjI/edit?gid=349418380#gid=349418380",
+    description: "訪問スケジュールの管理・確認",
+  },
 ];
 
 export default function ScheduleManagement() {
