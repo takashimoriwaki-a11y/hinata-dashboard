@@ -1059,10 +1059,8 @@ function ScheduleScreenshotCard() {
                   setSwipeIndex(0);
                 }}
                 className={cn(
-                  "text-xs px-2.5 py-1 rounded-md border transition-colors font-medium",
-                  showAllTeams
-                    ? "bg-primary text-white border-primary"
-                    : "border-border text-muted-foreground hover:bg-muted"
+                  "text-xs px-2.5 py-1 rounded-md border transition-all font-medium",
+                  getTeamButtonClass("全チーム", showAllTeams)
                 )}
               >
                 全チーム
