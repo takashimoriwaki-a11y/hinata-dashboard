@@ -2737,6 +2737,26 @@ export const appRouter = router({
         broadcastEvent("minutes");
         return { success: true };
       }),
+    /** 議事録の既読者一覧を取得（adminのみ） */
+    getReaders: protectedProcedure
+      .input(z.object({ minutesId: z.number().int() }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ閲覧できます" });
+        }
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続エラー" });
+        const { minutesChecks } = await import("../drizzle/schema");
+        // 全スタッフ（role=user）を取得
+        const allStaff = await db.select({ id: users.id, name: users.name }).from(users).where(eq(users.role, "user"));
+        // この議事録をチェック済みのユーザーIDを取得
+        const checks = await db.select().from(minutesChecks).where(eq(minutesChecks.minutesId, input.minutesId));
+        const checkedUserIds = new Set(checks.map((c) => c.userId));
+        const readers = checks.map((c) => ({ userId: c.userId, userName: c.userName, checkedAt: c.checkedAt }));
+        const unread = allStaff.filter((s) => !checkedUserIds.has(s.id)).map((s) => ({ userId: s.id, userName: s.name ?? "" }));
+        return { readers, unread };
+      }),
     /** 議事録を削除（adminのみ） */
     delete: protectedProcedure
       .input(z.object({ id: z.number().int() }))

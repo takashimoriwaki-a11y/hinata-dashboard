@@ -3,6 +3,7 @@
  * 管理者が議事録を投稿し、各スタッフが確認チェックを入れると自分のリストから削除される
  * 投稿はタイトルとドキュメントURLのみ。タイトルは手動または音声入力。
  * ドキュメントリンクをクリックすると自動的に確認チェックが入る。
+ * タブ: 「未確認」「確認済み」で切り替え可能。管理者は既読者一覧を確認できる。
  */
 import { useState, useRef } from "react";
 import { trpc } from "@/lib/trpc";
@@ -18,7 +19,22 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Circle, CheckCircle2, FileText, Plus, Trash2, ExternalLink, Link as LinkIcon, Loader2, Info, Mic, MicOff } from "lucide-react";
+import {
+  Circle,
+  CheckCircle2,
+  FileText,
+  Plus,
+  Trash2,
+  ExternalLink,
+  Link as LinkIcon,
+  Loader2,
+  Info,
+  Mic,
+  MicOff,
+  Users,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -37,10 +53,91 @@ type SpeechRecognitionInstance = {
 };
 type SpeechRecognitionConstructor = { new(): SpeechRecognitionInstance };
 
+// 既読者パネルコンポーネント（管理者のみ表示）
+function ReadersPanel({ minutesId }: { minutesId: number }) {
+  const [open, setOpen] = useState(false);
+  const { data, isLoading } = trpc.minutes.getReaders.useQuery(
+    { minutesId },
+    { enabled: open }
+  );
+
+  return (
+    <div className="mt-2">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <Users className="w-3.5 h-3.5" />
+        <span>既読者を確認</span>
+        {open ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+      </button>
+      {open && (
+        <div className="mt-2 p-3 rounded-lg bg-muted/40 border border-border space-y-2">
+          {isLoading ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              読み込み中...
+            </div>
+          ) : (
+            <>
+              {/* 確認済みスタッフ */}
+              <div>
+                <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mb-1 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  確認済み（{data?.readers.length ?? 0}名）
+                </p>
+                {data && data.readers.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {data.readers.map((r) => (
+                      <span
+                        key={r.userId}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-[11px]"
+                        title={r.checkedAt ? format(new Date(r.checkedAt), "M月d日 HH:mm", { locale: ja }) : ""}
+                      >
+                        {r.userName}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">まだいません</p>
+                )}
+              </div>
+              {/* 未確認スタッフ */}
+              <div>
+                <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 mb-1 flex items-center gap-1">
+                  <Circle className="w-3 h-3" />
+                  未確認（{data?.unread.length ?? 0}名）
+                </p>
+                {data && data.unread.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {data.unread.map((r) => (
+                      <span
+                        key={r.userId}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-[11px]"
+                      >
+                        {r.userName}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">全員確認済みです</p>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Minutes() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
   const isAdmin = user?.role === "admin";
+
+  // タブ: "unread" | "read"
+  const [activeTab, setActiveTab] = useState<"unread" | "read">("unread");
 
   const { data: minutesList = [], isLoading } = trpc.minutes.list.useQuery();
   const [createOpen, setCreateOpen] = useState(false);
@@ -133,7 +230,6 @@ export default function Minutes() {
     onSuccess: () => {
       utils.minutes.list.invalidate();
       utils.minutes.uncheckedCount.invalidate();
-      toast.success("確認済みにしました");
     },
     onError: (e, { minutesId }) => {
       // エラー時はロールバック
@@ -163,10 +259,18 @@ export default function Minutes() {
     }
   };
 
-  // 表示するリスト: サーバーで既読 or ローカルでチェック済みのものを除外
-  const visibleList = minutesList.filter(
+  // 未確認リスト: サーバーで既読 or ローカルでチェック済みのものを除外
+  const unreadList = minutesList.filter(
     (m) => !m.checkedByMe && !localCheckedIds.has(m.id)
   );
+
+  // 確認済みリスト: サーバーで既読 or ローカルでチェック済みのもの
+  const readList = minutesList.filter(
+    (m) => m.checkedByMe || localCheckedIds.has(m.id)
+  );
+
+  // 現在のタブに応じたリスト
+  const currentList = activeTab === "unread" ? unreadList : readList;
 
   return (
     <div className="max-w-2xl mx-auto py-6 px-4 space-y-4">
@@ -191,105 +295,160 @@ export default function Minutes() {
         )}
       </div>
 
-      {/* 操作説明バナー */}
-      <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50">
-        <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-        <div className="text-xs text-amber-800 dark:text-amber-300 space-y-1">
-          <p className="font-semibold">確認の手順</p>
-          <ol className="list-decimal list-inside space-y-0.5 text-amber-700 dark:text-amber-400">
-            <li>まず左の <span className="inline-flex items-center gap-0.5 font-medium">○ チェックボタン</span> を押して確認済みにする</li>
-            <li>その後、ドキュメントリンクを開いて内容を確認する</li>
-          </ol>
-          <p className="text-amber-600 dark:text-amber-500 text-[11px]">※ ドキュメントを開いた時点でも自動的に確認済みになります</p>
-        </div>
+      {/* タブ切り替え */}
+      <div className="flex gap-1 p-1 rounded-lg bg-muted/50 border border-border">
+        <button
+          onClick={() => setActiveTab("unread")}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-md text-sm font-medium transition-all ${
+            activeTab === "unread"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Circle className="w-3.5 h-3.5" />
+          未確認
+          {unreadList.length > 0 && (
+            <span className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold">
+              {unreadList.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab("read")}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-md text-sm font-medium transition-all ${
+            activeTab === "read"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          確認済み
+          {readList.length > 0 && (
+            <span className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500 text-white text-[10px] font-bold">
+              {readList.length}
+            </span>
+          )}
+        </button>
       </div>
+
+      {/* 操作説明バナー（未確認タブのみ） */}
+      {activeTab === "unread" && (
+        <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50">
+          <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+          <div className="text-xs text-amber-800 dark:text-amber-300 space-y-1">
+            <p className="font-semibold">確認の手順</p>
+            <ol className="list-decimal list-inside space-y-0.5 text-amber-700 dark:text-amber-400">
+              <li>まず左の <span className="inline-flex items-center gap-0.5 font-medium">○ チェックボタン</span> を押して確認済みにする</li>
+              <li>その後、ドキュメントリンクを開いて内容を確認する</li>
+            </ol>
+            <p className="text-amber-600 dark:text-amber-500 text-[11px]">※ ドキュメントを開いた時点でも自動的に確認済みになります</p>
+          </div>
+        </div>
+      )}
 
       {/* 議事録リスト */}
       {isLoading ? (
         <div className="text-center text-muted-foreground py-12">読み込み中...</div>
-      ) : visibleList.length === 0 ? (
+      ) : currentList.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            <CheckCircle2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p>未確認の議事録はありません</p>
+            {activeTab === "unread" ? (
+              <>
+                <CheckCircle2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <p>未確認の議事録はありません</p>
+              </>
+            ) : (
+              <>
+                <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <p>確認済みの議事録はありません</p>
+              </>
+            )}
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
-          {visibleList.map((m) => (
-            <Card key={m.id} className="border-border">
-              <CardHeader className="pb-3 pt-4 px-4">
-                <div className="flex items-start gap-3">
-                  {/* チェックボタン */}
-                  <button
-                    onClick={() => {
-                      if (!localCheckedIds.has(m.id)) {
-                        checkMutation.mutate({ minutesId: m.id });
+          {currentList.map((m) => {
+            const isChecked = m.checkedByMe || localCheckedIds.has(m.id);
+            return (
+              <Card key={m.id} className={`border-border ${isChecked ? "opacity-80" : ""}`}>
+                <CardHeader className="pb-3 pt-4 px-4">
+                  <div className="flex items-start gap-3">
+                    {/* チェックボタン（未確認タブのみ操作可能） */}
+                    <button
+                      onClick={() => {
+                        if (!isChecked && activeTab === "unread") {
+                          checkMutation.mutate({ minutesId: m.id });
+                        }
+                      }}
+                      disabled={isChecked}
+                      className={`mt-0.5 flex-shrink-0 transition-colors ${
+                        isChecked
+                          ? "text-emerald-500 cursor-default"
+                          : "text-muted-foreground hover:text-emerald-500"
+                      }`}
+                      title={isChecked ? "確認済み" : "先にここを押して確認済みにする"}
+                    >
+                      {isChecked
+                        ? <CheckCircle2 className="w-5 h-5" />
+                        : <Circle className="w-5 h-5" />
                       }
-                    }}
-                    disabled={localCheckedIds.has(m.id)}
-                    className={`mt-0.5 flex-shrink-0 transition-colors ${
-                      localCheckedIds.has(m.id)
-                        ? "text-emerald-500 cursor-default"
-                        : "text-muted-foreground hover:text-emerald-500"
-                    }`}
-                    title={localCheckedIds.has(m.id) ? "確認済み" : "先にここを押して確認済みにする"}
-                  >
-                    {localCheckedIds.has(m.id)
-                      ? <CheckCircle2 className="w-5 h-5" />
-                      : <Circle className="w-5 h-5" />
-                    }
-                  </button>
-                  {/* タイトル・メタ情報 */}
-                  <div className="flex-1 min-w-0 space-y-2">
-                    <div>
-                      <span className="font-semibold text-sm text-foreground">{m.title}</span>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {m.createdByName} ·{" "}
-                        {format(new Date(m.createdAt), "M月d日(E) HH:mm", { locale: ja })}
-                      </p>
-                    </div>
-                    {/* 添付ドキュメントリンク */}
-                    {m.documentUrl && (
-                      <div className="space-y-1">
-                        <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
-                          <Info className="w-3 h-3" />
-                          先に左の ○ を押してから開いてください
+                    </button>
+                    {/* タイトル・メタ情報 */}
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div>
+                        <span className="font-semibold text-sm text-foreground">{m.title}</span>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {m.createdByName} ·{" "}
+                          {format(new Date(m.createdAt), "M月d日(E) HH:mm", { locale: ja })}
                         </p>
-                        <a
-                          href={m.documentUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => handleDocumentOpen(m.id)}
-                          className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-muted/30 hover:bg-accent transition-colors group w-fit max-w-full"
-                        >
-                          <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                          <span className="text-xs font-medium text-foreground group-hover:text-primary transition-colors truncate">
-                            {m.documentLabel || m.title || "ドキュメントを開く"}
-                          </span>
-                          <ExternalLink className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                        </a>
                       </div>
-                    )}
-                    {!m.documentUrl && (
-                      <Badge variant="outline" className="text-xs text-muted-foreground">
-                        ドキュメントなし
-                      </Badge>
+                      {/* 添付ドキュメントリンク */}
+                      {m.documentUrl && (
+                        <div className="space-y-1">
+                          {!isChecked && (
+                            <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
+                              <Info className="w-3 h-3" />
+                              先に左の ○ を押してから開いてください
+                            </p>
+                          )}
+                          <a
+                            href={m.documentUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => handleDocumentOpen(m.id)}
+                            className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-muted/30 hover:bg-accent transition-colors group w-fit max-w-full"
+                          >
+                            <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                            <span className="text-xs font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                              {m.documentLabel || m.title || "ドキュメントを開く"}
+                            </span>
+                            <ExternalLink className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                          </a>
+                        </div>
+                      )}
+                      {!m.documentUrl && (
+                        <Badge variant="outline" className="text-xs text-muted-foreground">
+                          ドキュメントなし
+                        </Badge>
+                      )}
+                      {/* 既読者確認パネル（管理者のみ） */}
+                      {isAdmin && <ReadersPanel minutesId={m.id} />}
+                    </div>
+                    {/* 削除ボタン（adminのみ） */}
+                    {isAdmin && (
+                      <button
+                        onClick={() => setDeleteConfirmId(m.id)}
+                        className="mt-0.5 flex-shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+                        title="削除"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     )}
                   </div>
-                  {/* 削除ボタン（adminのみ） */}
-                  {isAdmin && (
-                    <button
-                      onClick={() => setDeleteConfirmId(m.id)}
-                      className="text-muted-foreground hover:text-destructive transition-colors p-1 flex-shrink-0"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              </CardHeader>
-            </Card>
-          ))}
+                </CardHeader>
+              </Card>
+            );
+          })}
         </div>
       )}
 
