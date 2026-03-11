@@ -1067,7 +1067,7 @@ export default function ScheduleChange() {
       } else {
         toast.success("スケジュール変更連絡を送信しました（スプレッドシート転記は後で実行されます）");
       }
-      setSubmitted(true);
+      // 確認画面をスキップしてフォームリセット状態に戻る（setSubmitted(true)を呼ばない）
       // 転送後に誤変換報告関連のステートもリセット（転送後は誤変換報告を表示しない）
       setVoiceTranscribed(false);
       setFeedbackSent(false);
