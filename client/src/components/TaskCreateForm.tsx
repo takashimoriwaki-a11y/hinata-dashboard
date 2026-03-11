@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { getTeamButtonClass } from "@shared/teamColors";
+import { getTeamButtonClass, getTeamButtonStyle } from "@shared/teamColors";
 import { trpc } from "@/lib/trpc";
 import { VoiceHelpDialog } from "@/components/VoiceHelpDialog";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -698,6 +698,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
                     "text-xs px-2.5 py-1 rounded-full border transition-all",
                     getTeamButtonClass(team, newAssignTeam === team)
                   )}
+                  style={getTeamButtonStyle(team, newAssignTeam === team)}
                 >
                   {team}チーム
                 </button>

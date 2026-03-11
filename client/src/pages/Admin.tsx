@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { getTeamButtonClass } from "@shared/teamColors";
+import { getTeamButtonClass, getTeamButtonStyle } from "@shared/teamColors";
 
 // ============================
 // スプレッドシートURL管理
@@ -527,6 +527,7 @@ function PatientMasterPanel() {
                       ? "bg-primary text-white border-transparent shadow-md scale-105"
                       : "bg-background text-foreground border-border hover:border-primary hover:text-primary"
                 )}
+                style={isTeam ? getTeamButtonStyle(t, filterTeam === t) : undefined}
               >
                 {t}
                 <span className="ml-1 opacity-70">({teamCounts[t] ?? 0})</span>

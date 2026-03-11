@@ -64,7 +64,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { getTeamButtonClass, getAllTeamButtonStyle } from "@shared/teamColors";
+import { getTeamButtonClass, getAllTeamButtonStyle, getTeamButtonStyle } from "@shared/teamColors";
 import { Link, useLocation } from "wouter";
 import { useTheme } from "@/contexts/ThemeContext";
 import TaskCreateForm from "@/components/TaskCreateForm";
@@ -1078,6 +1078,7 @@ function ScheduleScreenshotCard() {
                     "text-xs px-2.5 py-1 rounded-md transition-all font-medium",
                     getTeamButtonClass(t, !showAllTeams && selectedTeam === t)
                   )}
+                  style={getTeamButtonStyle(t, !showAllTeams && selectedTeam === t)}
                 >
                   {t}
                 </button>
@@ -1998,6 +1999,7 @@ function TeamToolsCard() {
                 "flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md text-[10px] font-bold transition-all",
                 getTeamButtonClass(tab.id, activeTeam === tab.id)
               )}
+              style={getTeamButtonStyle(tab.id, activeTeam === tab.id)}
             >
               <span className="text-base leading-none">{tab.label}</span>
               <span className="leading-none">{tab.title}</span>

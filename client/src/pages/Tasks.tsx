@@ -37,7 +37,7 @@ import {
 import TaskCreateForm from "@/components/TaskCreateForm";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { getTeamButtonClass } from "@shared/teamColors";
+import { getTeamButtonClass, getTeamButtonStyle } from "@shared/teamColors";
 import { useAuth } from "@/_core/hooks/useAuth";
 
 type AssignType = "all" | "team" | "personal";
@@ -588,6 +588,7 @@ export default function Tasks() {
                             ? "bg-primary text-white border-transparent shadow-md scale-105"
                             : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary"
                       )}
+                      style={teamKey ? getTeamButtonStyle(teamKey, isActive) : undefined}
                     >
                       {label}
                       {count > 0 && (
@@ -781,6 +782,7 @@ export default function Tasks() {
                                 "text-xs px-2.5 py-1 rounded-full border transition-all",
                                 getTeamButtonClass(team, editAssignTeam === team)
                               )}
+                              style={getTeamButtonStyle(team, editAssignTeam === team)}
                             >
                               {team}チーム
                             </button>

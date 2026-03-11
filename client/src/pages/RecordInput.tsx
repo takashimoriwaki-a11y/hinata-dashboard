@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { getTeamButtonClass } from "@shared/teamColors";
+import { getTeamButtonClass, getTeamButtonStyle } from "@shared/teamColors";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { VoiceMicButton } from "@/components/VoiceMicButton";
@@ -1094,6 +1094,7 @@ export default function RecordInput() {
                     "flex-1 text-xs py-1.5 rounded-lg font-medium transition-all",
                     getTeamButtonClass(teamId, team === teamId)
                   )}
+                  style={getTeamButtonStyle(teamId, team === teamId)}
                 >
                   {teamId}
                 </button>

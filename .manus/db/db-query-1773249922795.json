@@ -1,0 +1,9 @@
+{
+  "query": "DELETE FROM quick_access_links WHERE label = '医療事故・虐待発生時の連絡経路';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute DELETE FROM quick_access_links WHERE label = '医療事故・虐待発生時の連絡経路';",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1523
+}
