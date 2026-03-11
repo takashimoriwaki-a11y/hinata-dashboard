@@ -1874,10 +1874,18 @@ function ToolsCard() {
 
 // ========== チームツールカード ==========
 const TEAM_TABS = [
-  { id: "身体" as const, label: "身", title: "身体" },
-  { id: "天理" as const, label: "天", title: "天理" },
-  { id: "郡山北部" as const, label: "北", title: "郡山北部" },
-  { id: "郡山南部" as const, label: "南", title: "郡山南部" },
+  { id: "身体" as const, label: "身", title: "身体",
+    activeBg: "bg-blue-500", activeText: "text-white",
+    inactiveBg: "bg-blue-100 dark:bg-blue-950/50", inactiveText: "text-blue-700 dark:text-blue-300" },
+  { id: "天理" as const, label: "天", title: "天理",
+    activeBg: "bg-emerald-500", activeText: "text-white",
+    inactiveBg: "bg-emerald-100 dark:bg-emerald-950/50", inactiveText: "text-emerald-700 dark:text-emerald-300" },
+  { id: "郡山北部" as const, label: "北", title: "郡山北部",
+    activeBg: "bg-orange-500", activeText: "text-white",
+    inactiveBg: "bg-orange-100 dark:bg-orange-950/50", inactiveText: "text-orange-700 dark:text-orange-300" },
+  { id: "郡山南部" as const, label: "南", title: "郡山南部",
+    activeBg: "bg-purple-500", activeText: "text-white",
+    inactiveBg: "bg-purple-100 dark:bg-purple-950/50", inactiveText: "text-purple-700 dark:text-purple-300" },
 ] as const;
 type TeamTabId = "身体" | "天理" | "郡山北部" | "郡山南部";
 
@@ -1964,10 +1972,10 @@ function TeamToolsCard() {
               key={tab.id}
               onClick={() => setActiveTeam(tab.id)}
               className={cn(
-                "flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md text-[10px] font-medium transition-all",
+                "flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md text-[10px] font-bold transition-all",
                 activeTeam === tab.id
-                  ? "bg-card shadow-sm text-primary"
-                  : "text-foreground/70 hover:text-foreground"
+                  ? cn(tab.activeBg, tab.activeText, "shadow-sm")
+                  : cn(tab.inactiveBg, tab.inactiveText, "hover:opacity-80")
               )}
             >
               <span className="text-base leading-none">{tab.label}</span>
