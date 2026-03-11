@@ -23,6 +23,20 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 
+// SpeechRecognition型定義（TypeScript用）
+type SpeechRecognitionInstance = {
+  lang: string;
+  interimResults: boolean;
+  maxAlternatives: number;
+  onstart: (() => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+  onresult: ((e: { results: { [k: number]: { [k: number]: { transcript: string } } } }) => void) | null;
+  start(): void;
+  stop(): void;
+};
+type SpeechRecognitionConstructor = { new(): SpeechRecognitionInstance };
+
 export default function Minutes() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
@@ -32,25 +46,10 @@ export default function Minutes() {
   const [createOpen, setCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDocumentUrl, setNewDocumentUrl] = useState("");
-  const [newDocumentLabel, setNewDocumentLabel] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [isFetchingTitle, setIsFetchingTitle] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const fetchTitleTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // SpeechRecognitionインスタンス型（TypeScript用）
-  type SpeechRecognitionInstance = {
-    lang: string;
-    interimResults: boolean;
-    maxAlternatives: number;
-    onstart: (() => void) | null;
-    onend: (() => void) | null;
-    onerror: (() => void) | null;
-    onresult: ((e: { results: { [k: number]: { [k: number]: { transcript: string } } } }) => void) | null;
-    start(): void;
-    stop(): void;
-  };
-  type SpeechRecognitionConstructor = { new(): SpeechRecognitionInstance };
-
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
 
   // URLが有効かどうか確認
@@ -69,7 +68,6 @@ export default function Minutes() {
         const result = await utils.minutes.fetchDocTitle.fetch({ url });
         if (result?.title) {
           if (!newTitle) setNewTitle(result.title);
-          if (!newDocumentLabel) setNewDocumentLabel(result.title);
         }
       } catch {
         // タイトル取得失敗は無視
@@ -120,7 +118,6 @@ export default function Minutes() {
       setCreateOpen(false);
       setNewTitle("");
       setNewDocumentUrl("");
-      setNewDocumentLabel("");
       toast.success("議事録を投稿しました");
     },
     onError: (e) => toast.error(e.message),
@@ -236,7 +233,7 @@ export default function Minutes() {
                         >
                           <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />
                           <span className="text-xs font-medium text-foreground group-hover:text-primary transition-colors truncate">
-                            {m.documentLabel || "ドキュメントを開く"}
+                            {m.documentLabel || m.title || "ドキュメントを開く"}
                           </span>
                           <ExternalLink className="w-3 h-3 text-muted-foreground flex-shrink-0" />
                         </a>
@@ -270,7 +267,6 @@ export default function Minutes() {
         if (!open) {
           setNewTitle("");
           setNewDocumentUrl("");
-          setNewDocumentLabel("");
           recognitionRef.current?.stop();
         }
       }}>
@@ -279,32 +275,6 @@ export default function Minutes() {
             <DialogTitle>議事録を投稿</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            {/* ドキュメント添付 */}
-            <div className="space-y-1.5 p-3 bg-muted/30 rounded-lg border border-border">
-              <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                <LinkIcon className="w-3 h-3" />
-                ドキュメントURL（任意）
-              </p>
-              <div className="relative">
-                <Input
-                  placeholder="Google Docs / Sheets / Forms 等のURL"
-                  value={newDocumentUrl}
-                  onChange={(e) => handleDocUrlChange(e.target.value)}
-                  className="text-sm pr-8"
-                />
-                {isFetchingTitle && (
-                  <Loader2 className="w-4 h-4 animate-spin absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                )}
-              </div>
-              <Input
-                placeholder="ドキュメントの名前（手動入力）"
-                value={newDocumentLabel}
-                onChange={(e) => setNewDocumentLabel(e.target.value)}
-                maxLength={200}
-                className="text-sm"
-              />
-            </div>
-
             {/* タイトル（音声入力対応） */}
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
@@ -342,6 +312,25 @@ export default function Minutes() {
                 </p>
               )}
             </div>
+
+            {/* ドキュメントURL（任意） */}
+            <div className="space-y-1.5 p-3 bg-muted/30 rounded-lg border border-border">
+              <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <LinkIcon className="w-3 h-3" />
+                ドキュメントURL（任意）
+              </p>
+              <div className="relative">
+                <Input
+                  placeholder="Google Docs / Sheets / Forms 等のURL"
+                  value={newDocumentUrl}
+                  onChange={(e) => handleDocUrlChange(e.target.value)}
+                  className="text-sm pr-8"
+                />
+                {isFetchingTitle && (
+                  <Loader2 className="w-4 h-4 animate-spin absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                )}
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>
@@ -352,7 +341,7 @@ export default function Minutes() {
                 title: newTitle,
                 content: newTitle,
                 documentUrl: newDocumentUrl || undefined,
-                documentLabel: newDocumentLabel || undefined,
+                documentLabel: newTitle || undefined,
               })}
               disabled={!newTitle.trim() || createMutation.isPending}
             >
