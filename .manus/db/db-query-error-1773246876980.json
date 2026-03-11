@@ -1,0 +1,8 @@
+{
+  "query": "UPDATE quick_access_links SET category = 'スプレッドシート（日々使用）' WHERE label IN ('業務日報', 'ひなた勤怠', '退勤時チェックリスト');\nUPDATE quick_access_links SET category = 'スプレッドシート（その他）' WHERE label = '倉庫在庫管理表（注文目安）';\nUPDATE quick_access_links SET category = 'スプレッドシート（その他）' WHERE label = '医療事故・虐待発生時の連絡経路';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute UPDATE quick_access_links SET category = 'スプレッドシート（日々使用）' WHERE label IN ('業務日報', 'ひなた勤怠', '退勤時チェックリスト');\nUPDATE quick_access_links SET category = 'スプレッドシート（その他）' WHERE label = '倉庫在庫管理表（注文目安）';\nUPDATE quick_access_links SET category = 'スプレッドシート（その他）' WHERE label = '医療事故・虐待発生時の連絡経路';",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1265 (01000) at line 1: Data truncated for column '%s' at row %d"
+  ]
+}

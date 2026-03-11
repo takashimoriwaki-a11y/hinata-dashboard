@@ -1,0 +1,8 @@
+{
+  "query": "SELECT id, label, href, category, sort_order FROM quick_access_links WHERE category = 'スプレッドシート' ORDER BY sort_order;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT id, label, href, category, sort_order FROM quick_access_links WHERE category = 'スプレッドシート' ORDER BY sort_order;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'sort_order' in 'field list'"
+  ]
+}

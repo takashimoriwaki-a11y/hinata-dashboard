@@ -1,0 +1,35 @@
+{
+  "query": "SELECT id, label, href FROM quick_access_links WHERE category = 'スプレッドシート' ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT id, label, href FROM quick_access_links WHERE category = 'スプレッドシート' ORDER BY id;",
+  "rows": [
+    {
+      "id": "4",
+      "label": "業務日報",
+      "href": "https://docs.google.com/spreadsheets/d/10Leb7UR6ARVlCGbf5pBa5yxsgm5WAV9m-ETyYrzfBCs/edit?usp=sharing"
+    },
+    {
+      "id": "5",
+      "label": "ひなた勤怠",
+      "href": "https://docs.google.com/spreadsheets/d/1e5xvZHvqSneNZIsO1g8h68-Ue9QnoYXCdCPkt-pIwsQ/edit?usp=sharing"
+    },
+    {
+      "id": "6",
+      "label": "退勤時チェックリスト",
+      "href": "https://docs.google.com/spreadsheets/d/1g_wTtoQCxiHQupPlEmZVMWWxgzG0ZGH23j-xj1AzdUE/edit?usp=sharing"
+    },
+    {
+      "id": "30003",
+      "label": "倉庫在庫管理表（注文目安）スプレッドシート",
+      "href": "https://docs.google.com/spreadsheets/d/1NJF0qU_7tkFiDMvxAkvPq3WzZ2UtVpEvG_NC0-SQ4xo/edit"
+    },
+    {
+      "id": "30006",
+      "label": "倉庫在庫管理表（注文目安）",
+      "href": "https://docs.google.com/spreadsheets/d/129xP-qECwx8RcsPrChItEqMWQjJd6pjFZFdt3qTKZ_E/edit?gid=1210966890#gid=1210966890"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tlabel\thref\n4\t業務日報\thttps://docs.google.com/spreadsheets/d/10Leb7UR6ARVlCGbf5pBa5yxsgm5WAV9m-ETyYrzfBCs/edit?usp=sharing\n5\tひなた勤怠\thttps://docs.google.com/spreadsheets/d/1e5xvZHvqSneNZIsO1g8h68-Ue9QnoYXCdCPkt-pIwsQ/edit?usp=sharing\n6\t退勤時チェックリスト\thttps://docs.google.com/spreadsheets/d/1g_wTtoQCxiHQupPlEmZVMWWxgzG0ZGH23j-xj1AzdUE/edit?usp=sharing\n30003\t倉庫在庫管理表（注文目安）スプレッドシート\thttps://docs.google.com/spreadsheets/d/1NJF0qU_7tkFiDMvxAkvPq3WzZ2UtVpEvG_NC0-SQ4xo/edit\n30006\t倉庫在庫管理表（注文目安）\thttps://docs.google.com/spreadsheets/d/129xP-qECwx8RcsPrChItEqMWQjJd6pjFZFdt3qTKZ_E/edit?gid=1210966890#gid=1210966890\n",
+  "stderr": "",
+  "execution_time_ms": 1585
+}

@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO quick_access_links (label, href, category, color, emoji) VALUES ('倉庫在庫管理表（注文目安）', 'https://docs.google.com/spreadsheets/d/129xP-qECwx8RcsPrChItEqMWQjJd6pjFZFdt3qTKZ_E/edit?gid=1210966890#gid=1210966890', 'スプレッドシート', '#0f9d58', '📦');",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute INSERT INTO quick_access_links (label, href, category, color, emoji) VALUES ('倉庫在庫管理表（注文目安）', 'https://docs.google.com/spreadsheets/d/129xP-qECwx8RcsPrChItEqMWQjJd6pjFZFdt3qTKZ_E/edit?gid=1210966890#gid=1210966890', 'スプレッドシート', '#0f9d58', '📦');",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1619
+}

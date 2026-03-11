@@ -1,9 +1,9 @@
 /**
- * 交通事故ページ
- * 交通事故報告書スプレッドシートと速報報告書フォームへのリンクを提供する
+ * 事故ページ
+ * 交通事故・医療事故関連の書類・フォームへのリンクを提供する
  */
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Car, FileSpreadsheet, FileText, ExternalLink } from "lucide-react";
+import { Car, FileSpreadsheet, FileText, ExternalLink, AlertTriangle } from "lucide-react";
 
 const trafficLinks = [
   {
@@ -22,6 +22,16 @@ const trafficLinks = [
   },
 ];
 
+const medicalLinks = [
+  {
+    label: "医療事故・虐待発生時の連絡経路",
+    href: "https://docs.google.com/spreadsheets/d/129xP-qECwx8RcsPrChItEqMWQjJd6pjFZFdt3qTKZ_E/edit?gid=1210966890#gid=1210966890",
+    icon: FileSpreadsheet,
+    color: "#f59e0b",
+    description: "医療事故・虐待発生時の連絡先・手順を確認するスプレッドシート",
+  },
+];
+
 export default function TrafficAccident() {
   return (
     <div className="max-w-2xl mx-auto py-6 px-4 space-y-4">
@@ -31,18 +41,56 @@ export default function TrafficAccident() {
           <Car className="w-5 h-5 text-red-500" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-foreground">交通事故</h1>
-          <p className="text-sm text-muted-foreground">交通事故関連の書類・フォームへのリンク</p>
+          <h1 className="text-xl font-bold text-foreground">事故</h1>
+          <p className="text-sm text-muted-foreground">事故・緊急時関連の書類・フォームへのリンク</p>
         </div>
       </div>
 
-      {/* リンクカード */}
+      {/* 交通事故リンクカード */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold">関連リンク</CardTitle>
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <Car className="w-4 h-4 text-red-500" />
+            交通事故
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {trafficLinks.map((link) => (
+            <a
+              key={link.label}
+              href={link.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent transition-colors group"
+            >
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: link.color + "20" }}
+              >
+                <link.icon className="w-4 h-4" style={{ color: link.color }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                  {link.label}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">{link.description}</p>
+              </div>
+              <ExternalLink className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+            </a>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* 医療事故・虐待リンクカード */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-500" />
+            医療事故・虐待
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {medicalLinks.map((link) => (
             <a
               key={link.label}
               href={link.href}

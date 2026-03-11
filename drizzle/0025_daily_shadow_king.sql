@@ -1,0 +1,1 @@
+ALTER TABLE `quick_access_links` MODIFY COLUMN `category` enum('スプレッドシート','スプレッドシート（日々使用）','スプレッドシート（その他）','ドキュメント','フォーム','その他') NOT NULL;
