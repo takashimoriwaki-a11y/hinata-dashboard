@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { getTeamButtonClass } from "@shared/teamColors";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { VoiceMicButton } from "@/components/VoiceMicButton";
@@ -1084,22 +1085,17 @@ export default function RecordInput() {
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">チーム</label>
             <div className="flex gap-1.5">
-              {([
-                { id: "身体" as Team, label: "身体", activeBg: "bg-blue-500", inactiveBg: "bg-blue-300 dark:bg-blue-700" },
-                { id: "天理" as Team, label: "天理", activeBg: "bg-emerald-500", inactiveBg: "bg-emerald-300 dark:bg-emerald-700" },
-                { id: "郡山北部" as Team, label: "郡山北部", activeBg: "bg-orange-500", inactiveBg: "bg-orange-300 dark:bg-orange-700" },
-                { id: "郡山南部" as Team, label: "郡山南部", activeBg: "bg-purple-500", inactiveBg: "bg-purple-300 dark:bg-purple-700" },
-              ] as const).map((t) => (
+              {(["身体", "天理", "郡山北部", "郡山南部"] as Team[]).map((teamId) => (
                 <button
-                  key={t.id}
+                  key={teamId}
                   type="button"
-                  onClick={() => { setTeam(t.id); setPatientId(null); setPatientName(""); setSearchQuery(""); }}
+                  onClick={() => { setTeam(teamId); setPatientId(null); setPatientName(""); setSearchQuery(""); }}
                   className={cn(
-                    "flex-1 text-xs py-1.5 rounded-lg font-medium transition-colors text-white",
-                    team === t.id ? t.activeBg : t.inactiveBg
+                    "flex-1 text-xs py-1.5 rounded-lg font-medium transition-all",
+                    getTeamButtonClass(teamId, team === teamId)
                   )}
                 >
-                  {t.label}
+                  {teamId}
                 </button>
               ))}
             </div>

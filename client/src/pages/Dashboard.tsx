@@ -64,6 +64,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { getTeamButtonClass } from "@shared/teamColors";
 import { Link, useLocation } from "wouter";
 import { useTheme } from "@/contexts/ThemeContext";
 import TaskCreateForm from "@/components/TaskCreateForm";
@@ -165,13 +166,7 @@ const DAYS = ["今日", "明日"] as const;
 type TeamType = typeof TEAMS[number];
 type DayType = typeof DAYS[number];
 
-// 全ページ共通のチームカラー定義
-const TEAM_COLORS: Record<TeamType, { activeBg: string; inactiveBg: string }> = {
-  "身体": { activeBg: "bg-blue-500", inactiveBg: "bg-blue-300 dark:bg-blue-700" },
-  "天理": { activeBg: "bg-emerald-500", inactiveBg: "bg-emerald-300 dark:bg-emerald-700" },
-  "郡山北部": { activeBg: "bg-orange-500", inactiveBg: "bg-orange-300 dark:bg-orange-700" },
-  "郡山南部": { activeBg: "bg-purple-500", inactiveBg: "bg-purple-300 dark:bg-purple-700" },
-};
+// チームカラーはshared/teamColors.tsで管理（getTeamButtonClassを使用）
 
 // ========== サブコンポーネント ==========
 
@@ -1081,10 +1076,8 @@ function ScheduleScreenshotCard() {
                     handleTeamChange(t);
                   }}
                   className={cn(
-                    "text-xs px-2.5 py-1 rounded-md transition-colors text-white font-medium",
-                    !showAllTeams && selectedTeam === t
-                      ? TEAM_COLORS[t].activeBg
-                      : TEAM_COLORS[t].inactiveBg
+                    "text-xs px-2.5 py-1 rounded-md transition-all font-medium",
+                    getTeamButtonClass(t, !showAllTeams && selectedTeam === t)
                   )}
                 >
                   {t}
@@ -1882,18 +1875,10 @@ function ToolsCard() {
 
 // ========== チームツールカード ==========
 const TEAM_TABS = [
-  { id: "身体" as const, label: "身", title: "身体",
-    activeBg: "bg-blue-500", activeText: "text-white",
-    inactiveBg: "bg-blue-300 dark:bg-blue-700", inactiveText: "text-white" },
-  { id: "天理" as const, label: "天", title: "天理",
-    activeBg: "bg-emerald-500", activeText: "text-white",
-    inactiveBg: "bg-emerald-300 dark:bg-emerald-700", inactiveText: "text-white" },
-  { id: "郡山北部" as const, label: "北", title: "郡山北部",
-    activeBg: "bg-orange-500", activeText: "text-white",
-    inactiveBg: "bg-orange-300 dark:bg-orange-700", inactiveText: "text-white" },
-  { id: "郡山南部" as const, label: "南", title: "郡山南部",
-    activeBg: "bg-purple-500", activeText: "text-white",
-    inactiveBg: "bg-purple-300 dark:bg-purple-700", inactiveText: "text-white" },
+  { id: "身体" as const, label: "身", title: "身体" },
+  { id: "天理" as const, label: "天", title: "天理" },
+  { id: "郡山北部" as const, label: "北", title: "郡山北部" },
+  { id: "郡山南部" as const, label: "南", title: "郡山南部" },
 ] as const;
 type TeamTabId = "身体" | "天理" | "郡山北部" | "郡山南部";
 
@@ -1981,9 +1966,7 @@ function TeamToolsCard() {
               onClick={() => setActiveTeam(tab.id)}
               className={cn(
                 "flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md text-[10px] font-bold transition-all",
-                activeTeam === tab.id
-                  ? cn(tab.activeBg, tab.activeText, "shadow-sm")
-                  : cn(tab.inactiveBg, tab.inactiveText, "hover:opacity-80")
+                getTeamButtonClass(tab.id, activeTeam === tab.id)
               )}
             >
               <span className="text-base leading-none">{tab.label}</span>

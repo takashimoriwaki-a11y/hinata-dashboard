@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { getTeamButtonClass } from "@shared/teamColors";
 
 // ============================
 // スプレッドシートURL管理
@@ -513,23 +514,18 @@ function PatientMasterPanel() {
         {/* チームフィルター */}
         <div className="flex flex-wrap gap-1.5">
           {(["全て", ...TEAMS] as const).map((t) => {
-            const teamColorMap: Record<string, string> = {
-              "身体": "bg-blue-500",
-              "天理": "bg-emerald-500",
-              "郡山北部": "bg-orange-500",
-              "郡山南部": "bg-purple-500",
-              "全て": "bg-primary",
-            };
-            const activeBg = teamColorMap[t] ?? "bg-primary";
+            const isTeam = ["身体","天理","郡山北部","郡山南部"].includes(t);
             return (
               <button
                 key={t}
                 onClick={() => setFilterTeam(t)}
                 className={cn(
-                  "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
-                  filterTeam === t
-                    ? `${activeBg} text-white border-transparent`
-                    : "bg-background text-foreground border-border hover:border-primary hover:text-primary"
+                  "px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
+                  isTeam
+                    ? getTeamButtonClass(t, filterTeam === t)
+                    : filterTeam === t
+                      ? "bg-primary text-white border-transparent shadow-md scale-105"
+                      : "bg-background text-foreground border-border hover:border-primary hover:text-primary"
                 )}
               >
                 {t}

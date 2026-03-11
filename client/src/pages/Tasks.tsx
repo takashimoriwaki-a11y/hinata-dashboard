@@ -37,6 +37,7 @@ import {
 import TaskCreateForm from "@/components/TaskCreateForm";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { getTeamButtonClass } from "@shared/teamColors";
 import { useAuth } from "@/_core/hooks/useAuth";
 
 type AssignType = "all" | "team" | "personal";
@@ -562,26 +563,30 @@ export default function Tasks() {
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {([
-                  { value: null, label: "すべて", activeBg: "bg-primary", inactiveBg: "" },
-                  { value: "all_team", label: "全員向け", activeBg: "bg-primary", inactiveBg: "" },
-                  { value: "身体", label: "身体チーム", activeBg: "bg-blue-500", inactiveBg: "" },
-                  { value: "天理", label: "天理チーム", activeBg: "bg-emerald-500", inactiveBg: "" },
-                  { value: "郡山北部", label: "郡山北部チーム", activeBg: "bg-orange-500", inactiveBg: "" },
-                  { value: "郡山南部", label: "郡山南部チーム", activeBg: "bg-purple-500", inactiveBg: "" },
-                  { value: "personal", label: "個人指定", activeBg: "bg-primary", inactiveBg: "" },
-                ] as const).map(({ value, label, activeBg }) => {
+                  { value: null, label: "すべて" },
+                  { value: "all_team", label: "全員向け" },
+                  { value: "身体", label: "身体チーム" },
+                  { value: "天理", label: "天理チーム" },
+                  { value: "郡山北部", label: "郡山北部チーム" },
+                  { value: "郡山南部", label: "郡山南部チーム" },
+                  { value: "personal", label: "個人指定" },
+                ] as const).map(({ value, label }) => {
                   const countKey = value === null ? "all" : value;
                   const count = teamFilterCounts[countKey as keyof typeof teamFilterCounts];
                   const isActive = teamFilter === value;
+                  // チーム名を抽出（「身体チーム」→「身体」、それ以外はそのまま）
+                  const teamKey = typeof value === "string" && ["身体","天理","郡山北部","郡山南部"].includes(value) ? value : null;
                   return (
                     <button
                       key={String(value)}
                       onClick={() => setTeamFilter(value)}
                       className={cn(
-                        "text-[11px] px-2 py-0.5 rounded-full border transition-colors flex items-center gap-0.5",
-                        isActive
-                          ? `${activeBg} text-white border-transparent`
-                          : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary"
+                        "text-[11px] px-2 py-0.5 rounded-full border transition-all flex items-center gap-0.5",
+                        teamKey
+                          ? getTeamButtonClass(teamKey, isActive)
+                          : isActive
+                            ? "bg-primary text-white border-transparent shadow-md scale-105"
+                            : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary"
                       )}
                     >
                       {label}
@@ -773,10 +778,8 @@ export default function Tasks() {
                               type="button"
                               onClick={() => setEditAssignTeam(team)}
                               className={cn(
-                                "text-xs px-2.5 py-1 rounded-full border transition-colors",
-                                editAssignTeam === team
-                                  ? "bg-primary text-white border-primary"
-                                  : "border-border text-muted-foreground hover:border-primary hover:text-primary"
+                                "text-xs px-2.5 py-1 rounded-full border transition-all",
+                                getTeamButtonClass(team, editAssignTeam === team)
                               )}
                             >
                               {team}チーム

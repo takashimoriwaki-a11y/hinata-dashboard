@@ -39,6 +39,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getTeamButtonClass } from "@shared/teamColors";
 
 // 変更種別の定義
 const CHANGE_TYPES = [
@@ -1804,9 +1805,7 @@ export default function ScheduleChange() {
                     }}
                     className={cn(
                       "px-3 py-1.5 rounded-full text-sm font-medium border transition-all",
-                      team === t
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-card border-border text-foreground hover:bg-muted"
+                      getTeamButtonClass(t, team === t)
                     )}
                   >
                     {t}
@@ -1930,9 +1929,7 @@ export default function ScheduleChange() {
                     onClick={() => setTeam(t)}
                     className={cn(
                       "px-3 py-1.5 rounded-full text-sm font-medium border transition-all",
-                      team === t
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-card border-border text-foreground hover:bg-muted"
+                      getTeamButtonClass(t, team === t)
                     )}
                   >
                     {t}

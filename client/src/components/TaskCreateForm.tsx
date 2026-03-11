@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { getTeamButtonClass } from "@shared/teamColors";
 import { trpc } from "@/lib/trpc";
 import { VoiceHelpDialog } from "@/components/VoiceHelpDialog";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -694,10 +695,8 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
                   key={team}
                   onClick={() => setNewAssignTeam(team)}
                   className={cn(
-                    "text-xs px-2.5 py-1 rounded-full border transition-colors",
-                    newAssignTeam === team
-                      ? "bg-blue-600 text-white border-blue-600"
-                      : "border-border text-muted-foreground hover:border-blue-600 hover:text-blue-600"
+                    "text-xs px-2.5 py-1 rounded-full border transition-all",
+                    getTeamButtonClass(team, newAssignTeam === team)
                   )}
                 >
                   {team}チーム
