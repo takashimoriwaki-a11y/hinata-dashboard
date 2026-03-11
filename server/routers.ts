@@ -2628,6 +2628,28 @@ export const appRouter = router({
       const count = allMinutes.filter((m) => !checkedIds.has(m.id)).length;
       return { count };
     }),
+    /** URLからドキュメントタイトルを取得（サーバーサイドでCORS回避） */
+    fetchDocTitle: protectedProcedure
+      .input(z.object({ url: z.string().url() }))
+      .query(async ({ input }) => {
+        try {
+          const response = await fetch(input.url, {
+            headers: { "User-Agent": "Mozilla/5.0 (compatible; HinataDashboard/1.0)" },
+            signal: AbortSignal.timeout(5000),
+          });
+          if (!response.ok) return { title: null };
+          const html = await response.text();
+          // <title>タグからタイトルを抽出
+          const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+          if (!match) return { title: null };
+          // Google Docs/Sheets等の「- Google ...」を除去
+          let title = match[1].trim();
+          title = title.replace(/\s*[-–—]\s*(Googleスプレッドシート|Google Sheets|Google Docs|Googleドキュメント|Google Forms|Googleフォーム)\s*$/i, "").trim();
+          return { title: title || null };
+        } catch {
+          return { title: null };
+        }
+      }),
     /** 議事録を投稿（adminのみ） */
     create: protectedProcedure
       .input(z.object({

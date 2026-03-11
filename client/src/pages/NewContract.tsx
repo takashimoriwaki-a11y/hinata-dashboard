@@ -3,10 +3,15 @@
  * 新規契約関連のリンクを管理する
  */
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, ExternalLink, Link2 } from "lucide-react";
+import { FileText, ExternalLink, Link2, BarChart2 } from "lucide-react";
 
-const contractLinks: { label: string; href: string; description: string }[] = [
-  // TODO: 実際のリンクを追加してください
+const contractLinks: { label: string; href: string; description: string; icon: "sheet" | "doc" }[] = [
+  {
+    label: "新規契約管理スプレッドシート",
+    href: "https://docs.google.com/spreadsheets/d/19EwxEK1ojaeQhQwIQVDQHfQVIYnSbNv6qt1V4qS_HnQ/edit?pli=1&gid=1447811344#gid=1447811344",
+    description: "新規契約の進捗・管理表",
+    icon: "sheet",
+  },
 ];
 
 export default function NewContract() {
@@ -47,8 +52,12 @@ export default function NewContract() {
                   rel="noopener noreferrer"
                   className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent transition-colors group"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
-                    <FileText className="w-4 h-4 text-blue-500" />
+                  <div className="w-9 h-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
+                    {link.icon === "sheet" ? (
+                      <BarChart2 className="w-4 h-4 text-emerald-600" />
+                    ) : (
+                      <FileText className="w-4 h-4 text-blue-500" />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors truncate">

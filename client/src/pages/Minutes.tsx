@@ -1,9 +1,9 @@
 /**
  * 議事録ページ
  * 管理者が議事録を投稿し、各スタッフが確認チェックを入れると自分のリストから削除される
- * 投稿はタイトルとドキュメントURLのみ
+ * 投稿はタイトルとドキュメントURLのみ。URL入力後にタイトルを自動取得。
  */
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -17,7 +17,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { CheckCircle2, Circle, FileText, Plus, Trash2, ExternalLink, Link as LinkIcon } from "lucide-react";
+import { Circle, FileText, Plus, Trash2, ExternalLink, Link as LinkIcon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -33,6 +33,42 @@ export default function Minutes() {
   const [newDocumentUrl, setNewDocumentUrl] = useState("");
   const [newDocumentLabel, setNewDocumentLabel] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [isFetchingTitle, setIsFetchingTitle] = useState(false);
+  const fetchTitleTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // URLが有効かどうか確認
+  const isValidUrl = (url: string) => {
+    try { new URL(url); return true; } catch { return false; }
+  };
+
+  // URLからタイトルを取得するtRPC呼び出し
+  const fetchDocTitle = trpc.minutes.fetchDocTitle.useQuery(
+    { url: newDocumentUrl },
+    { enabled: false }
+  );
+
+  // URL入力時にデバウンスしてタイトルを自動取得
+  const handleDocUrlChange = (url: string) => {
+    setNewDocumentUrl(url);
+    if (fetchTitleTimeout.current) clearTimeout(fetchTitleTimeout.current);
+    if (!isValidUrl(url)) return;
+    setIsFetchingTitle(true);
+    fetchTitleTimeout.current = setTimeout(async () => {
+      try {
+        const result = await utils.minutes.fetchDocTitle.fetch({ url });
+        if (result?.title && !newTitle) {
+          setNewTitle(result.title);
+        }
+        if (result?.title && !newDocumentLabel) {
+          setNewDocumentLabel(result.title);
+        }
+      } catch {
+        // タイトル取得失敗は無視
+      } finally {
+        setIsFetchingTitle(false);
+      }
+    }, 800);
+  };
 
   const createMutation = trpc.minutes.create.useMutation({
     onSuccess: () => {
@@ -161,38 +197,47 @@ export default function Minutes() {
       )}
 
       {/* 投稿ダイアログ（adminのみ） */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <Dialog open={createOpen} onOpenChange={(open) => {
+        setCreateOpen(open);
+        if (!open) { setNewTitle(""); setNewDocumentUrl(""); setNewDocumentLabel(""); }
+      }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>議事録を投稿</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <Input
-              placeholder="タイトル（例: 2026年3月 定例会議）"
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              maxLength={300}
-            />
-            {/* ドキュメント添付 */}
+            {/* ドキュメント添付（先に入力でタイトル自動取得） */}
             <div className="space-y-1.5 p-3 bg-muted/30 rounded-lg border border-border">
               <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
                 <LinkIcon className="w-3 h-3" />
-                ドキュメントを添付（任意）
+                ドキュメントURL（先に入力するとタイトルが自動入力されます）
               </p>
+              <div className="relative">
+                <Input
+                  placeholder="Google Docs / Sheets / Forms 等のURL"
+                  value={newDocumentUrl}
+                  onChange={(e) => handleDocUrlChange(e.target.value)}
+                  className="text-sm pr-8"
+                />
+                {isFetchingTitle && (
+                  <Loader2 className="w-4 h-4 animate-spin absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                )}
+              </div>
               <Input
-                placeholder="ドキュメントのURL（Google Docs, Sheets等）"
-                value={newDocumentUrl}
-                onChange={(e) => setNewDocumentUrl(e.target.value)}
-                className="text-sm"
-              />
-              <Input
-                placeholder="ドキュメントの名前（例: 2026年3月 議事録）"
+                placeholder="ドキュメントの名前（自動取得または手動入力）"
                 value={newDocumentLabel}
                 onChange={(e) => setNewDocumentLabel(e.target.value)}
                 maxLength={200}
                 className="text-sm"
               />
             </div>
+            {/* タイトル */}
+            <Input
+              placeholder="議事録のタイトル（自動取得または手動入力）"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              maxLength={300}
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>
@@ -201,7 +246,7 @@ export default function Minutes() {
             <Button
               onClick={() => createMutation.mutate({
                 title: newTitle,
-                content: newTitle, // contentはタイトルと同じ値を使用
+                content: newTitle,
                 documentUrl: newDocumentUrl || undefined,
                 documentLabel: newDocumentLabel || undefined,
               })}
