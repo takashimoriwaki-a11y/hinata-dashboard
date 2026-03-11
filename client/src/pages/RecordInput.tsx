@@ -1399,7 +1399,7 @@ export default function RecordInput() {
                   interimText: notesVoice.interimText,
                   silenceCountdown: notesVoice.silenceCountdown,
                 }}
-                size="sm"
+                size="lg"
                 previewMode="tooltip"
               />
             </div>
