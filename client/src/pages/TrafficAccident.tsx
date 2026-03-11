@@ -9,14 +9,14 @@ import { Car, FileSpreadsheet, FileText, ExternalLink } from "lucide-react";
 const trafficLinks = [
   {
     label: "交通事故の報告書スプレッドシート",
-    href: "https://docs.google.com/spreadsheets/d/1jIMyQG4YXte7m8xkzshElEa-mtVcOT0S/edit",
+    href: "https://docs.google.com/spreadsheets/d/1GOlSgCgBo9XEClmHlSeY7qtFsarmapLRfXf30ND4T9c/edit",
     icon: FileSpreadsheet,
     color: "#0f9d58",
     description: "事故発生時の報告書を記録するスプレッドシート",
   },
   {
     label: "交通事故の速報報告書フォーム",
-    href: "https://docs.google.com/forms/d/1J8uAWC9qPWbBeQqCgws1AHdWekf540CtfTc7V0K_2YY/edit",
+    href: "https://forms.gle/GMsLNJWsJYkL4yp76",
     icon: FileText,
     color: "#db4437",
     description: "事故発生直後に提出する速報フォーム",
