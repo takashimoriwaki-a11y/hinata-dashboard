@@ -1874,10 +1874,10 @@ function ToolsCard() {
 
 // ========== チームツールカード ==========
 const TEAM_TABS = [
-  { id: "身体" as const, label: "🏥", title: "身体" },
-  { id: "天理" as const, label: "🌿", title: "天理" },
-  { id: "郡山北部" as const, label: "🏘", title: "郡山北部" },
-  { id: "郡山南部" as const, label: "🌸", title: "郡山南部" },
+  { id: "身体" as const, label: "身", title: "身体" },
+  { id: "天理" as const, label: "天", title: "天理" },
+  { id: "郡山北部" as const, label: "北", title: "郡山北部" },
+  { id: "郡山南部" as const, label: "南", title: "郡山南部" },
 ] as const;
 type TeamTabId = "身体" | "天理" | "郡山北部" | "郡山南部";
 
