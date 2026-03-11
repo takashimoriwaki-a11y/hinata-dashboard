@@ -1,7 +1,7 @@
 /**
  * 議事録ページ
- * 管理者が議事録を投稿し、スタッフが確認チェックを入れると全員確認後に自動削除される
- * ドキュメントURL（Google Docs等）を添付できる
+ * 管理者が議事録を投稿し、各スタッフが確認チェックを入れると自分のリストから削除される
+ * 投稿はタイトルとドキュメントURLのみ
  */
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
@@ -9,7 +9,6 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -18,7 +17,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { CheckCircle2, Circle, FileText, Plus, Trash2, ChevronDown, ChevronUp, ExternalLink, Link as LinkIcon } from "lucide-react";
+import { CheckCircle2, Circle, FileText, Plus, Trash2, ExternalLink, Link as LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -29,10 +28,8 @@ export default function Minutes() {
   const isAdmin = user?.role === "admin";
 
   const { data: minutesList = [], isLoading } = trpc.minutes.list.useQuery();
-  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
   const [createOpen, setCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
-  const [newContent, setNewContent] = useState("");
   const [newDocumentUrl, setNewDocumentUrl] = useState("");
   const [newDocumentLabel, setNewDocumentLabel] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
@@ -43,7 +40,6 @@ export default function Minutes() {
       utils.minutes.uncheckedCount.invalidate();
       setCreateOpen(false);
       setNewTitle("");
-      setNewContent("");
       setNewDocumentUrl("");
       setNewDocumentLabel("");
       toast.success("議事録を投稿しました");
@@ -52,14 +48,10 @@ export default function Minutes() {
   });
 
   const checkMutation = trpc.minutes.check.useMutation({
-    onSuccess: (data) => {
+    onSuccess: () => {
       utils.minutes.list.invalidate();
       utils.minutes.uncheckedCount.invalidate();
-      if (data.deleted) {
-        toast.success("全員が確認しました。議事録を削除しました。");
-      } else {
-        toast.success("確認済みにしました");
-      }
+      toast.success("確認済みにしました。リストから削除されました。");
     },
     onError: (e) => toast.error(e.message),
   });
@@ -74,15 +66,6 @@ export default function Minutes() {
     onError: (e) => toast.error(e.message),
   });
 
-  const toggleExpand = (id: number) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
   return (
     <div className="max-w-2xl mx-auto py-6 px-4 space-y-4">
       {/* ヘッダー */}
@@ -94,7 +77,7 @@ export default function Minutes() {
           <div>
             <h1 className="text-xl font-bold text-foreground">議事録</h1>
             <p className="text-sm text-muted-foreground">
-              全員が確認するとリストから自動削除されます
+              確認チェックを入れると自分のリストから削除されます
             </p>
           </div>
         </div>
@@ -118,109 +101,62 @@ export default function Minutes() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {minutesList.map((m) => {
-            const isExpanded = expandedIds.has(m.id);
-            return (
-              <Card
-                key={m.id}
-                className={`transition-all border-border ${m.checkedByMe ? "opacity-60" : ""}`}
-              >
-                <CardHeader className="pb-2 pt-4 px-4">
-                  <div className="flex items-start gap-3">
-                    {/* チェックボタン */}
-                    <button
-                      onClick={() => {
-                        if (!m.checkedByMe) checkMutation.mutate({ minutesId: m.id });
-                      }}
-                      disabled={m.checkedByMe || checkMutation.isPending}
-                      className="mt-0.5 flex-shrink-0 text-muted-foreground hover:text-primary transition-colors disabled:cursor-default"
-                    >
-                      {m.checkedByMe ? (
-                        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                      ) : (
-                        <Circle className="w-5 h-5" />
-                      )}
-                    </button>
-                    {/* タイトル・メタ情報 */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-sm text-foreground">{m.title}</span>
-                        {m.checkedByMe && (
-                          <Badge variant="secondary" className="text-xs">確認済み</Badge>
-                        )}
-                        {m.documentUrl && (
-                          <Badge variant="outline" className="text-xs gap-1">
-                            <LinkIcon className="w-2.5 h-2.5" />
-                            ドキュメント添付
-                          </Badge>
-                        )}
-                      </div>
+          {minutesList.map((m) => (
+            <Card key={m.id} className="border-border">
+              <CardHeader className="pb-3 pt-4 px-4">
+                <div className="flex items-start gap-3">
+                  {/* チェックボタン */}
+                  <button
+                    onClick={() => checkMutation.mutate({ minutesId: m.id })}
+                    disabled={checkMutation.isPending}
+                    className="mt-0.5 flex-shrink-0 text-muted-foreground hover:text-emerald-500 transition-colors"
+                    title="確認済みにする（自分のリストから削除）"
+                  >
+                    <Circle className="w-5 h-5" />
+                  </button>
+                  {/* タイトル・メタ情報 */}
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div>
+                      <span className="font-semibold text-sm text-foreground">{m.title}</span>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {m.createdByName} ·{" "}
                         {format(new Date(m.createdAt), "M月d日(E) HH:mm", { locale: ja })}
                       </p>
                     </div>
-                    {/* 展開・削除ボタン */}
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      {isAdmin && (
-                        <button
-                          onClick={() => setDeleteConfirmId(m.id)}
-                          className="text-muted-foreground hover:text-destructive transition-colors p-1"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => toggleExpand(m.id)}
-                        className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                    {/* 添付ドキュメントリンク */}
+                    {m.documentUrl && (
+                      <a
+                        href={m.documentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-muted/30 hover:bg-accent transition-colors group w-fit max-w-full"
                       >
-                        {isExpanded ? (
-                          <ChevronUp className="w-4 h-4" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
+                        <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                        <span className="text-xs font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                          {m.documentLabel || "ドキュメントを開く"}
+                        </span>
+                        <ExternalLink className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                      </a>
+                    )}
+                    {!m.documentUrl && (
+                      <Badge variant="outline" className="text-xs text-muted-foreground">
+                        ドキュメントなし
+                      </Badge>
+                    )}
                   </div>
-                </CardHeader>
-                {isExpanded && (
-                  <CardContent className="px-4 pb-4 pt-0">
-                    <div className="ml-8 border-l-2 border-border pl-3 space-y-3">
-                      <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-                        {m.content}
-                      </p>
-                      {/* 添付ドキュメントリンク */}
-                      {m.documentUrl && (
-                        <a
-                          href={m.documentUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-muted/30 hover:bg-accent transition-colors group w-fit max-w-full"
-                        >
-                          <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                          <span className="text-xs font-medium text-foreground group-hover:text-primary transition-colors truncate">
-                            {m.documentLabel || "添付ドキュメントを開く"}
-                          </span>
-                          <ExternalLink className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                        </a>
-                      )}
-                      {!m.checkedByMe && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => checkMutation.mutate({ minutesId: m.id })}
-                          disabled={checkMutation.isPending}
-                        >
-                          <CheckCircle2 className="w-4 h-4 mr-1 text-emerald-500" />
-                          確認済みにする
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                )}
-              </Card>
-            );
-          })}
+                  {/* 削除ボタン（adminのみ） */}
+                  {isAdmin && (
+                    <button
+                      onClick={() => setDeleteConfirmId(m.id)}
+                      className="text-muted-foreground hover:text-destructive transition-colors p-1 flex-shrink-0"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </CardHeader>
+            </Card>
+          ))}
         </div>
       )}
 
@@ -236,13 +172,6 @@ export default function Minutes() {
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               maxLength={300}
-            />
-            <Textarea
-              placeholder="議事録の内容を入力してください..."
-              value={newContent}
-              onChange={(e) => setNewContent(e.target.value)}
-              rows={8}
-              className="resize-none"
             />
             {/* ドキュメント添付 */}
             <div className="space-y-1.5 p-3 bg-muted/30 rounded-lg border border-border">
@@ -272,11 +201,11 @@ export default function Minutes() {
             <Button
               onClick={() => createMutation.mutate({
                 title: newTitle,
-                content: newContent,
+                content: newTitle, // contentはタイトルと同じ値を使用
                 documentUrl: newDocumentUrl || undefined,
                 documentLabel: newDocumentLabel || undefined,
               })}
-              disabled={!newTitle.trim() || !newContent.trim() || createMutation.isPending}
+              disabled={!newTitle.trim() || createMutation.isPending}
             >
               投稿する
             </Button>
@@ -291,7 +220,7 @@ export default function Minutes() {
             <DialogTitle>議事録を削除しますか？</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            この操作は取り消せません。確認チェックの記録も削除されます。
+            この操作は取り消せません。全スタッフの確認記録も削除されます。
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>

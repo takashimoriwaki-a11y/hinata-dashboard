@@ -1649,6 +1649,53 @@ function LinkRow({ href, label, color, emoji }: { href: string; label: string; c
   );
 }
 
+/** スプレッドシートタブ内の「日々使用」「その他」サブタブ */
+function SheetSubTabs({ quickLinks }: { quickLinks: { id: number; label: string; href: string; color: string; emoji: string | null; category: string }[] | undefined }) {
+  const [subTab, setSubTab] = useState<"daily" | "other">("daily");
+  const dailyLinks = quickLinks?.filter((l) => l.category === "スプレッドシート（日々使用）") ?? [];
+  const otherLinks = quickLinks?.filter((l) => l.category === "スプレッドシート（その他）") ?? [];
+  return (
+    <div className="space-y-2">
+      {/* サブタブバー */}
+      <div className="flex gap-1 bg-muted/30 rounded-md p-0.5">
+        <button
+          onClick={() => setSubTab("daily")}
+          className={cn(
+            "flex-1 py-1 text-xs font-medium rounded transition-all",
+            subTab === "daily" ? "bg-card shadow-sm text-primary" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          📅 日々使用
+        </button>
+        <button
+          onClick={() => setSubTab("other")}
+          className={cn(
+            "flex-1 py-1 text-xs font-medium rounded transition-all",
+            subTab === "other" ? "bg-card shadow-sm text-primary" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          📁 その他
+        </button>
+      </div>
+      {/* コンテンツ */}
+      {subTab === "daily" && (
+        dailyLinks.length > 0
+          ? dailyLinks.map((link) => (
+              <LinkRow key={link.id} href={link.href} label={link.label} color={link.color} emoji={link.emoji || undefined} />
+            ))
+          : <p className="text-xs text-muted-foreground text-center py-3">日々使用のリンクはまだありません</p>
+      )}
+      {subTab === "other" && (
+        otherLinks.length > 0
+          ? otherLinks.map((link) => (
+              <LinkRow key={link.id} href={link.href} label={link.label} color={link.color} emoji={link.emoji || undefined} />
+            ))
+          : <p className="text-xs text-muted-foreground text-center py-3">その他のリンクはまだありません</p>
+      )}
+    </div>
+  );
+}
+
 function ToolsCard() {
   const [activeTab, setActiveTab] = useState<ToolsTabId>("sheet");
 
@@ -1741,34 +1788,7 @@ function ToolsCard() {
 
           {/* スプレッドシート */}
           {activeTab === "sheet" && (
-            <>
-              {/* 日々使用カテゴリ */}
-              {quickLinks && quickLinks.filter((l) => l.category === "スプレッドシート（日々使用）").length > 0 && (
-                <div className="mb-2">
-                  <p className="text-xs font-semibold text-muted-foreground mb-1.5 px-1">📅 日々使用</p>
-                  {quickLinks
-                    .filter((l) => l.category === "スプレッドシート（日々使用）")
-                    .map((link) => (
-                      <LinkRow key={link.id} href={link.href} label={link.label} color={link.color} emoji={link.emoji || undefined} />
-                    ))}
-                </div>
-              )}
-              {/* その他カテゴリ */}
-              {quickLinks && quickLinks.filter((l) => l.category === "スプレッドシート（その他）").length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground mb-1.5 px-1">📁 その他</p>
-                  {quickLinks
-                    .filter((l) => l.category === "スプレッドシート（その他）")
-                    .map((link) => (
-                      <LinkRow key={link.id} href={link.href} label={link.label} color={link.color} emoji={link.emoji || undefined} />
-                    ))}
-                </div>
-              )}
-              {/* どちらのカテゴリもない場合のフォールバック */}
-              {(!quickLinks || (quickLinks.filter((l) => l.category === "スプレッドシート（日々使用）").length === 0 && quickLinks.filter((l) => l.category === "スプレッドシート（その他）").length === 0)) && (
-                <p className="text-xs text-muted-foreground text-center py-4">スプレッドシートリンクはまだありません</p>
-              )}
-            </>
+            <SheetSubTabs quickLinks={quickLinks} />
           )}
 
           {/* ドキュメント */}

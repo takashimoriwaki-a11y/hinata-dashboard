@@ -2655,40 +2655,27 @@ export const appRouter = router({
         broadcastEvent("minutes");
         return { success: true };
       }),
-    /** 議事録を確認チェックする（全員がチェックしたら自動削除） */
+    /** 議事録を確認チェックする（個人単位で自分のリストから削除） */
     check: protectedProcedure
       .input(z.object({ minutesId: z.number().int() }))
       .mutation(async ({ ctx, input }) => {
         const { getDb } = await import("./db");
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続エラー" });
-        const { minutes, minutesChecks, users: usersTable } = await import("../drizzle/schema");
-        // 既にチェック済みか確認
+        const { minutesChecks } = await import("../drizzle/schema");
+        // 既にチェック済か確認
         const existing = await db.select().from(minutesChecks)
           .where(eq(minutesChecks.minutesId, input.minutesId));
         const alreadyChecked = existing.some((c) => c.userId === ctx.user.id);
-        if (alreadyChecked) return { success: true, deleted: false };
-        // チェックを追加
+        if (alreadyChecked) return { success: true };
+        // チェックを追加（個人の確認記録）
         await db.insert(minutesChecks).values({
           minutesId: input.minutesId,
           userId: ctx.user.id,
           userName: ctx.user.name ?? "",
         });
-        // 全スタッフ数を取得
-        const allStaff = await db.select({ id: usersTable.id }).from(usersTable);
-        const totalStaff = allStaff.length;
-        // チェック済みスタッフ数
-        const checks = await db.select().from(minutesChecks).where(eq(minutesChecks.minutesId, input.minutesId));
-        const checkedCount = checks.length;
-        // 全員チェック済みなら議事録を削除
-        if (checkedCount >= totalStaff) {
-          await db.delete(minutesChecks).where(eq(minutesChecks.minutesId, input.minutesId));
-          await db.delete(minutes).where(eq(minutes.id, input.minutesId));
-          broadcastEvent("minutes");
-          return { success: true, deleted: true };
-        }
         broadcastEvent("minutes");
-        return { success: true, deleted: false };
+        return { success: true };
       }),
     /** 議事録を削除（adminのみ） */
     delete: protectedProcedure
