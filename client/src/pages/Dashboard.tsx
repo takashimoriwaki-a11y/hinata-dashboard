@@ -1876,16 +1876,16 @@ function ToolsCard() {
 const TEAM_TABS = [
   { id: "身体" as const, label: "身", title: "身体",
     activeBg: "bg-blue-500", activeText: "text-white",
-    inactiveBg: "bg-blue-100 dark:bg-blue-950/50", inactiveText: "text-blue-700 dark:text-blue-300" },
+    inactiveBg: "bg-blue-300 dark:bg-blue-700", inactiveText: "text-white" },
   { id: "天理" as const, label: "天", title: "天理",
     activeBg: "bg-emerald-500", activeText: "text-white",
-    inactiveBg: "bg-emerald-100 dark:bg-emerald-950/50", inactiveText: "text-emerald-700 dark:text-emerald-300" },
+    inactiveBg: "bg-emerald-300 dark:bg-emerald-700", inactiveText: "text-white" },
   { id: "郡山北部" as const, label: "北", title: "郡山北部",
     activeBg: "bg-orange-500", activeText: "text-white",
-    inactiveBg: "bg-orange-100 dark:bg-orange-950/50", inactiveText: "text-orange-700 dark:text-orange-300" },
+    inactiveBg: "bg-orange-300 dark:bg-orange-700", inactiveText: "text-white" },
   { id: "郡山南部" as const, label: "南", title: "郡山南部",
     activeBg: "bg-purple-500", activeText: "text-white",
-    inactiveBg: "bg-purple-100 dark:bg-purple-950/50", inactiveText: "text-purple-700 dark:text-purple-300" },
+    inactiveBg: "bg-purple-300 dark:bg-purple-700", inactiveText: "text-white" },
 ] as const;
 type TeamTabId = "身体" | "天理" | "郡山北部" | "郡山南部";
 
