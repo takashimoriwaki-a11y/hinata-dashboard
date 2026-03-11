@@ -1205,3 +1205,7 @@
 
 - [x] shared/teamColors.tsに「全チーム」のグレー色定義を追加する
 - [x] Dashboard.tsxの訪問スケジュール「全チーム」ボタンにグレー色を適用する
+
+## ダークモード「全チーム」ボタン視認性改善（2026-03-11）
+
+- [x] shared/teamColors.tsの全チームフォールバック色のダークモード対応を改善する（dark:bg-slate-600 → dark:bg-slate-400、opacity-70 → opacity-80）

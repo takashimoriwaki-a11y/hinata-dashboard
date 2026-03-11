@@ -29,7 +29,7 @@ export function getTeamButtonClass(teamName: string, isActive: boolean): string 
     // 身体・天理・郡山北部・郡山南部以外（全チーム・事務員等）
     return isActive
       ? "bg-slate-500 text-white border-transparent shadow-md scale-105"
-      : "bg-slate-300 dark:bg-slate-600 text-white border-transparent opacity-70 hover:opacity-90";
+      : "bg-slate-300 dark:bg-slate-400 text-white border-transparent opacity-80 hover:opacity-100";
   }
   return isActive
     ? `${colors.activeBg} text-white border-transparent shadow-md scale-105`
