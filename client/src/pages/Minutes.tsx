@@ -1,11 +1,12 @@
 /**
  * 議事録ページ
  * 管理者が議事録を投稿し、スタッフが確認チェックを入れると全員確認後に自動削除される
+ * ドキュメントURL（Google Docs等）を添付できる
  */
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,7 +18,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { CheckCircle2, Circle, FileText, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { CheckCircle2, Circle, FileText, Plus, Trash2, ChevronDown, ChevronUp, ExternalLink, Link as LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -32,6 +33,8 @@ export default function Minutes() {
   const [createOpen, setCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newContent, setNewContent] = useState("");
+  const [newDocumentUrl, setNewDocumentUrl] = useState("");
+  const [newDocumentLabel, setNewDocumentLabel] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
   const createMutation = trpc.minutes.create.useMutation({
@@ -41,6 +44,8 @@ export default function Minutes() {
       setCreateOpen(false);
       setNewTitle("");
       setNewContent("");
+      setNewDocumentUrl("");
+      setNewDocumentLabel("");
       toast.success("議事録を投稿しました");
     },
     onError: (e) => toast.error(e.message),
@@ -143,6 +148,12 @@ export default function Minutes() {
                         {m.checkedByMe && (
                           <Badge variant="secondary" className="text-xs">確認済み</Badge>
                         )}
+                        {m.documentUrl && (
+                          <Badge variant="outline" className="text-xs gap-1">
+                            <LinkIcon className="w-2.5 h-2.5" />
+                            ドキュメント添付
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {m.createdByName} ·{" "}
@@ -174,15 +185,29 @@ export default function Minutes() {
                 </CardHeader>
                 {isExpanded && (
                   <CardContent className="px-4 pb-4 pt-0">
-                    <div className="ml-8 border-l-2 border-border pl-3">
+                    <div className="ml-8 border-l-2 border-border pl-3 space-y-3">
                       <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
                         {m.content}
                       </p>
+                      {/* 添付ドキュメントリンク */}
+                      {m.documentUrl && (
+                        <a
+                          href={m.documentUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-muted/30 hover:bg-accent transition-colors group w-fit max-w-full"
+                        >
+                          <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                          <span className="text-xs font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                            {m.documentLabel || "添付ドキュメントを開く"}
+                          </span>
+                          <ExternalLink className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                        </a>
+                      )}
                       {!m.checkedByMe && (
                         <Button
                           size="sm"
                           variant="outline"
-                          className="mt-3"
                           onClick={() => checkMutation.mutate({ minutesId: m.id })}
                           disabled={checkMutation.isPending}
                         >
@@ -216,16 +241,41 @@ export default function Minutes() {
               placeholder="議事録の内容を入力してください..."
               value={newContent}
               onChange={(e) => setNewContent(e.target.value)}
-              rows={10}
+              rows={8}
               className="resize-none"
             />
+            {/* ドキュメント添付 */}
+            <div className="space-y-1.5 p-3 bg-muted/30 rounded-lg border border-border">
+              <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <LinkIcon className="w-3 h-3" />
+                ドキュメントを添付（任意）
+              </p>
+              <Input
+                placeholder="ドキュメントのURL（Google Docs, Sheets等）"
+                value={newDocumentUrl}
+                onChange={(e) => setNewDocumentUrl(e.target.value)}
+                className="text-sm"
+              />
+              <Input
+                placeholder="ドキュメントの名前（例: 2026年3月 議事録）"
+                value={newDocumentLabel}
+                onChange={(e) => setNewDocumentLabel(e.target.value)}
+                maxLength={200}
+                className="text-sm"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>
               キャンセル
             </Button>
             <Button
-              onClick={() => createMutation.mutate({ title: newTitle, content: newContent })}
+              onClick={() => createMutation.mutate({
+                title: newTitle,
+                content: newContent,
+                documentUrl: newDocumentUrl || undefined,
+                documentLabel: newDocumentLabel || undefined,
+              })}
               disabled={!newTitle.trim() || !newContent.trim() || createMutation.isPending}
             >
               投稿する

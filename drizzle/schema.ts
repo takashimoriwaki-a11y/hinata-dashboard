@@ -525,6 +525,10 @@ export const minutes = mysqlTable("minutes", {
   title: varchar("title", { length: 300 }).notNull(),
   /** 本文・内容 */
   content: mediumtext("content").notNull(),
+  /** 添付ドキュメントURL（Google Docs等） */
+  documentUrl: varchar("documentUrl", { length: 2048 }),
+  /** 添付ドキュメントのラベル */
+  documentLabel: varchar("documentLabel", { length: 200 }),
   /** 投稿者ユーザーID */
   createdBy: int("createdBy").notNull(),
   /** 投稿者名 */

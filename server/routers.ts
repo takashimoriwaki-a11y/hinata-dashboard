@@ -2633,6 +2633,8 @@ export const appRouter = router({
       .input(z.object({
         title: z.string().min(1).max(300),
         content: z.string().min(1),
+        documentUrl: z.string().url().optional().or(z.literal("")),
+        documentLabel: z.string().max(200).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin") {
@@ -2645,6 +2647,8 @@ export const appRouter = router({
         await db.insert(minutes).values({
           title: input.title,
           content: input.content,
+          documentUrl: input.documentUrl || null,
+          documentLabel: input.documentLabel || null,
           createdBy: ctx.user.id,
           createdByName: ctx.user.name ?? "",
         });

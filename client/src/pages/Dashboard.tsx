@@ -1742,21 +1742,32 @@ function ToolsCard() {
           {/* スプレッドシート */}
           {activeTab === "sheet" && (
             <>
-              {/* quick_access_linksのスプレッドシートカテゴリから取得 */}
-              {quickLinks && quickLinks.filter((l) => l.category === "スプレッドシート").length > 0
-                ? quickLinks
-                    .filter((l) => l.category === "スプレッドシート")
+              {/* 日々使用カテゴリ */}
+              {quickLinks && quickLinks.filter((l) => l.category === "スプレッドシート（日々使用）").length > 0 && (
+                <div className="mb-2">
+                  <p className="text-xs font-semibold text-muted-foreground mb-1.5 px-1">📅 日々使用</p>
+                  {quickLinks
+                    .filter((l) => l.category === "スプレッドシート（日々使用）")
                     .map((link) => (
                       <LinkRow key={link.id} href={link.href} label={link.label} color={link.color} emoji={link.emoji || undefined} />
-                    ))
-                : sheetLinks && sheetLinks.length > 0
-                  ? sheetLinks.map((link) => (
-                      <LinkRow key={link.id} href={link.url} label={link.label} color={link.color ?? "text-emerald-600"} />
-                    ))
-                  : spreadsheetLinks.map((link) => (
-                      <LinkRow key={link.label} href={link.href} label={link.label} color={link.color} />
-                    ))
-              }
+                    ))}
+                </div>
+              )}
+              {/* その他カテゴリ */}
+              {quickLinks && quickLinks.filter((l) => l.category === "スプレッドシート（その他）").length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground mb-1.5 px-1">📁 その他</p>
+                  {quickLinks
+                    .filter((l) => l.category === "スプレッドシート（その他）")
+                    .map((link) => (
+                      <LinkRow key={link.id} href={link.href} label={link.label} color={link.color} emoji={link.emoji || undefined} />
+                    ))}
+                </div>
+              )}
+              {/* どちらのカテゴリもない場合のフォールバック */}
+              {(!quickLinks || (quickLinks.filter((l) => l.category === "スプレッドシート（日々使用）").length === 0 && quickLinks.filter((l) => l.category === "スプレッドシート（その他）").length === 0)) && (
+                <p className="text-xs text-muted-foreground text-center py-4">スプレッドシートリンクはまだありません</p>
+              )}
             </>
           )}
 
