@@ -1,0 +1,37 @@
+{
+  "query": "\nSELECT id, team, label, emoji FROM team_tools ORDER BY team, sortOrder;\nSELECT COUNT(*) as remaining_fee_links FROM quick_access_links WHERE label LIKE '%料金%';\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute \nSELECT id, team, label, emoji FROM team_tools ORDER BY team, sortOrder;\nSELECT COUNT(*) as remaining_fee_links FROM quick_access_links WHERE label LIKE '%料金%';\n",
+  "rows": [
+    {
+      "id": "1",
+      "team": "身体",
+      "label": "利用者料金一覧（身体）",
+      "emoji": "📊"
+    },
+    {
+      "id": "2",
+      "team": "天理",
+      "label": "利用者料金一覧（天理）",
+      "emoji": "📊"
+    },
+    {
+      "id": "3",
+      "team": "郡山北部",
+      "label": "利用者料金一覧（精神郡山）",
+      "emoji": "📊"
+    },
+    {
+      "id": "4",
+      "team": "郡山南部",
+      "label": "利用者料金一覧（精神郡山）",
+      "emoji": "📊"
+    }
+  ],
+  "messages": [
+    "remaining_fee_links",
+    "0"
+  ],
+  "stdout": "id\tteam\tlabel\temoji\n1\t身体\t利用者料金一覧（身体）\t📊\n2\t天理\t利用者料金一覧（天理）\t📊\n3\t郡山北部\t利用者料金一覧（精神郡山）\t📊\n4\t郡山南部\t利用者料金一覧（精神郡山）\t📊\nremaining_fee_links\n0\n",
+  "stderr": "",
+  "execution_time_ms": 1837
+}
