@@ -64,7 +64,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { getTeamButtonClass } from "@shared/teamColors";
+import { getTeamButtonClass, getAllTeamButtonStyle } from "@shared/teamColors";
 import { Link, useLocation } from "wouter";
 import { useTheme } from "@/contexts/ThemeContext";
 import TaskCreateForm from "@/components/TaskCreateForm";
@@ -1062,6 +1062,7 @@ function ScheduleScreenshotCard() {
                   "text-xs px-2.5 py-1 rounded-md border transition-all font-medium",
                   getTeamButtonClass("全チーム", showAllTeams)
                 )}
+                style={getAllTeamButtonStyle(showAllTeams)}
               >
                 全チーム
               </button>

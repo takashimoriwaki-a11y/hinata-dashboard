@@ -28,10 +28,20 @@ export function getTeamButtonClass(teamName: string, isActive: boolean): string 
   if (!colors) {
     // 身体・天理・郡山北部・郡山南部以外（全チーム・事務員等）
     return isActive
-      ? "bg-cyan-500 text-white border-transparent shadow-md scale-105"
-      : "bg-cyan-300 dark:bg-cyan-500 text-white border-transparent opacity-80 hover:opacity-100";
+      ? "text-white border-transparent shadow-md scale-105"
+      : "text-white border-transparent opacity-80 hover:opacity-100";
   }
   return isActive
     ? `${colors.activeBg} text-white border-transparent shadow-md scale-105`
     : `${colors.inactiveBg} text-white border-transparent opacity-70 hover:opacity-90`;
+}
+
+/**
+ * 全チームボタンのインラインスタイル（Tailwindパージ対策）
+ */
+export function getAllTeamButtonStyle(isActive: boolean): { backgroundColor: string; color: string } {
+  return {
+    backgroundColor: isActive ? "#06b6d4" : "#67e8f9",  // cyan-500 / cyan-300
+    color: "white",
+  };
 }
