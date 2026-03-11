@@ -2602,6 +2602,108 @@ export const appRouter = router({
       }),
   }),
 
+  /** 議事録管理 */
+  minutes: router({
+    /** 議事録一覧を取得（未確認数も含む） */
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const { getDb } = await import("./db");
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続エラー" });
+      const { minutes, minutesChecks } = await import("../drizzle/schema");
+      const allMinutes = await db.select().from(minutes).orderBy(minutes.createdAt);
+      // 自分がチェック済みの議事録IDを取得
+      const myChecks = await db.select().from(minutesChecks).where(eq(minutesChecks.userId, ctx.user.id));
+      const checkedIds = new Set(myChecks.map((c) => c.minutesId));
+      return allMinutes.map((m) => ({ ...m, checkedByMe: checkedIds.has(m.id) }));
+    }),
+    /** 未確認件数を取得 */
+    uncheckedCount: protectedProcedure.query(async ({ ctx }) => {
+      const { getDb } = await import("./db");
+      const db = await getDb();
+      if (!db) return { count: 0 };
+      const { minutes, minutesChecks } = await import("../drizzle/schema");
+      const allMinutes = await db.select({ id: minutes.id }).from(minutes);
+      const myChecks = await db.select({ minutesId: minutesChecks.minutesId }).from(minutesChecks).where(eq(minutesChecks.userId, ctx.user.id));
+      const checkedIds = new Set(myChecks.map((c) => c.minutesId));
+      const count = allMinutes.filter((m) => !checkedIds.has(m.id)).length;
+      return { count };
+    }),
+    /** 議事録を投稿（adminのみ） */
+    create: protectedProcedure
+      .input(z.object({
+        title: z.string().min(1).max(300),
+        content: z.string().min(1),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ投稿できます" });
+        }
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続エラー" });
+        const { minutes } = await import("../drizzle/schema");
+        await db.insert(minutes).values({
+          title: input.title,
+          content: input.content,
+          createdBy: ctx.user.id,
+          createdByName: ctx.user.name ?? "",
+        });
+        broadcastEvent("minutes");
+        return { success: true };
+      }),
+    /** 議事録を確認チェックする（全員がチェックしたら自動削除） */
+    check: protectedProcedure
+      .input(z.object({ minutesId: z.number().int() }))
+      .mutation(async ({ ctx, input }) => {
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続エラー" });
+        const { minutes, minutesChecks, users: usersTable } = await import("../drizzle/schema");
+        // 既にチェック済みか確認
+        const existing = await db.select().from(minutesChecks)
+          .where(eq(minutesChecks.minutesId, input.minutesId));
+        const alreadyChecked = existing.some((c) => c.userId === ctx.user.id);
+        if (alreadyChecked) return { success: true, deleted: false };
+        // チェックを追加
+        await db.insert(minutesChecks).values({
+          minutesId: input.minutesId,
+          userId: ctx.user.id,
+          userName: ctx.user.name ?? "",
+        });
+        // 全スタッフ数を取得
+        const allStaff = await db.select({ id: usersTable.id }).from(usersTable);
+        const totalStaff = allStaff.length;
+        // チェック済みスタッフ数
+        const checks = await db.select().from(minutesChecks).where(eq(minutesChecks.minutesId, input.minutesId));
+        const checkedCount = checks.length;
+        // 全員チェック済みなら議事録を削除
+        if (checkedCount >= totalStaff) {
+          await db.delete(minutesChecks).where(eq(minutesChecks.minutesId, input.minutesId));
+          await db.delete(minutes).where(eq(minutes.id, input.minutesId));
+          broadcastEvent("minutes");
+          return { success: true, deleted: true };
+        }
+        broadcastEvent("minutes");
+        return { success: true, deleted: false };
+      }),
+    /** 議事録を削除（adminのみ） */
+    delete: protectedProcedure
+      .input(z.object({ id: z.number().int() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ削除できます" });
+        }
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続エラー" });
+        const { minutes, minutesChecks } = await import("../drizzle/schema");
+        await db.delete(minutesChecks).where(eq(minutesChecks.minutesId, input.id));
+        await db.delete(minutes).where(eq(minutes.id, input.id));
+        broadcastEvent("minutes");
+        return { success: true };
+      }),
+  }),
+
   /** 音声入力誤変換フィードバック */
   voiceFeedback: router({
     /** 誤変換を報告する */

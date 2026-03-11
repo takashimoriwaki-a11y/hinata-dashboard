@@ -16,6 +16,7 @@ import ScheduleChangeHistory from "./pages/ScheduleChangeHistory";
 import TrafficAccident from "./pages/TrafficAccident";
 import NewContract from "./pages/NewContract";
 import ScheduleManagement from "./pages/ScheduleManagement";
+import Minutes from "./pages/Minutes";
 import Login from "./pages/Login";
 import Setup from "./pages/Setup";
 import DashboardLayout from "./components/DashboardLayout";
@@ -44,6 +45,7 @@ function Router() {
             <Route path={"/traffic-accident"} component={TrafficAccident} />
             <Route path={"/new-contract"} component={NewContract} />
             <Route path={"/schedule-management"} component={ScheduleManagement} />
+            <Route path={"/minutes"} component={Minutes} />
             <Route path={"/404"} component={NotFound} />
             <Route component={NotFound} />
           </Switch>

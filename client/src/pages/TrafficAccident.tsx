@@ -1,9 +1,9 @@
 /**
  * 事故ページ
- * 交通事故・医療事故関連の書類・フォームへのリンクを提供する
+ * 交通事故・医療事故・ヒヤリハット関連の書類・フォームへのリンクを提供する
  */
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Car, FileSpreadsheet, FileText, ExternalLink, AlertTriangle } from "lucide-react";
+import { ShieldAlert, FileSpreadsheet, FileText, ExternalLink, AlertTriangle, Car, ClipboardList } from "lucide-react";
 
 const trafficLinks = [
   {
@@ -32,13 +32,23 @@ const medicalLinks = [
   },
 ];
 
+const hiyariLinks = [
+  {
+    label: "ヒヤリハットアクシデントレポートフォーム",
+    href: "https://forms.gle/Y2Q2YEYbMYcabwz48",
+    icon: ClipboardList,
+    color: "#8b5cf6",
+    description: "ヒヤリハット・アクシデント発生時の報告フォーム",
+  },
+];
+
 export default function TrafficAccident() {
   return (
     <div className="max-w-2xl mx-auto py-6 px-4 space-y-4">
       {/* ヘッダー */}
       <div className="flex items-center gap-3 mb-2">
         <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-          <Car className="w-5 h-5 text-red-500" />
+          <ShieldAlert className="w-5 h-5 text-red-500" />
         </div>
         <div>
           <h1 className="text-xl font-bold text-foreground">事故</h1>
@@ -91,6 +101,41 @@ export default function TrafficAccident() {
         </CardHeader>
         <CardContent className="space-y-3">
           {medicalLinks.map((link) => (
+            <a
+              key={link.label}
+              href={link.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent transition-colors group"
+            >
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: link.color + "20" }}
+              >
+                <link.icon className="w-4 h-4" style={{ color: link.color }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                  {link.label}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">{link.description}</p>
+              </div>
+              <ExternalLink className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+            </a>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* ヒヤリハット・アクシデントカード */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <ClipboardList className="w-4 h-4 text-purple-500" />
+            ヒヤリハット・アクシデント
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {hiyariLinks.map((link) => (
             <a
               key={link.label}
               href={link.href}

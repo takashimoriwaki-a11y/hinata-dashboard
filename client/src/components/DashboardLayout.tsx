@@ -29,7 +29,10 @@ import {
   Car,
   FileText,
   CalendarDays,
+  BookOpen,
+  ShieldAlert,
 } from "lucide-react";
+import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -72,10 +75,11 @@ const externalTools = [
   { label: "iBow（電子カルテ）", href: "https://login.ibowservice.jp/?action=logout", icon: ExternalLink },
 ];
 
-// ボトムナビゲーション（7タブ）
+// ボトムナビゲーション
 const bottomNavItems = [
   { type: "internal", href: "/", icon: LayoutDashboard, label: "ホーム" },
-  { type: "internal", href: "/traffic-accident", icon: Car, label: "事故" },
+  { type: "internal", href: "/traffic-accident", icon: ShieldAlert, label: "事故" },
+  { type: "internal", href: "/minutes", icon: BookOpen, label: "議事録", badge: true },
   { type: "internal", href: "/new-contract", icon: FileText, label: "新規契約" },
   { type: "internal", href: "/schedule-management", icon: CalendarDays, label: "スケジュール管理" },
 ];
@@ -86,6 +90,9 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [location] = useLocation();
+  const { data: minutesUnchecked } = trpc.minutes.uncheckedCount.useQuery(undefined, {
+    refetchInterval: 60000,
+  });
   const [collapsed, setCollapsed] = useState(true);
   // モバイル用ドロワー開閉
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -424,6 +431,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 );
               }
 
+              const badgeCount = item.badge && item.href === "/minutes" ? (minutesUnchecked?.count ?? 0) : 0;
               return (
                 <Link key={item.label} href={item.href} className="flex-1">
                   <div
@@ -436,6 +444,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                       <item.icon className={cn("w-5 h-5", isActive && "scale-110")} />
                       {isActive && (
                         <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-primary" />
+                      )}
+                      {!isActive && badgeCount > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                          {badgeCount > 99 ? "99+" : badgeCount}
+                        </span>
                       )}
                     </div>
                     <span className={cn("text-[10px]", isActive ? "font-bold" : "font-medium")}>

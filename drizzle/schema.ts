@@ -514,3 +514,42 @@ export const teamTools = mysqlTable("team_tools", {
 
 export type TeamTool = typeof teamTools.$inferSelect;
 export type InsertTeamTool = typeof teamTools.$inferInsert;
+
+/**
+ * 議事録テーブル
+ * 管理者が議事録ドキュメントを投稿し、スタッフが確認チェックを入れると自動削除される
+ */
+export const minutes = mysqlTable("minutes", {
+  id: int("id").autoincrement().primaryKey(),
+  /** タイトル */
+  title: varchar("title", { length: 300 }).notNull(),
+  /** 本文・内容 */
+  content: mediumtext("content").notNull(),
+  /** 投稿者ユーザーID */
+  createdBy: int("createdBy").notNull(),
+  /** 投稿者名 */
+  createdByName: varchar("createdByName", { length: 100 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Minutes = typeof minutes.$inferSelect;
+export type InsertMinutes = typeof minutes.$inferInsert;
+
+/**
+ * 議事録確認テーブル
+ * ユーザーが議事録を確認したことを記録する
+ */
+export const minutesChecks = mysqlTable("minutes_checks", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 議事録ID */
+  minutesId: int("minutesId").notNull(),
+  /** 確認したユーザーID */
+  userId: int("userId").notNull(),
+  /** 確認者名 */
+  userName: varchar("userName", { length: 100 }).notNull(),
+  checkedAt: timestamp("checkedAt").defaultNow().notNull(),
+});
+
+export type MinutesCheck = typeof minutesChecks.$inferSelect;
+export type InsertMinutesCheck = typeof minutesChecks.$inferInsert;

@@ -183,6 +183,13 @@
       "when": 1773246949305,
       "tag": "0025_daily_shadow_king",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "5",
+      "when": 1773247296917,
+      "tag": "0026_lean_storm",
+      "breakpoints": true
     }
   ]
 }
