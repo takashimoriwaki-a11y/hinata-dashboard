@@ -1,0 +1,34 @@
+{
+  "query": "SELECT id, team, label, color FROM team_tools ORDER BY team, id",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT id, team, label, color FROM team_tools ORDER BY team, id",
+  "rows": [
+    {
+      "id": "1",
+      "team": "身体",
+      "label": "利用者料金一覧（身体）",
+      "color": "text-blue-600"
+    },
+    {
+      "id": "2",
+      "team": "天理",
+      "label": "利用者料金一覧（天理）",
+      "color": "text-teal-600"
+    },
+    {
+      "id": "3",
+      "team": "郡山北部",
+      "label": "利用者料金一覧（精神郡山）",
+      "color": "text-emerald-600"
+    },
+    {
+      "id": "4",
+      "team": "郡山南部",
+      "label": "利用者料金一覧（精神郡山）",
+      "color": "text-emerald-600"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tteam\tlabel\tcolor\n1\t身体\t利用者料金一覧（身体）\ttext-blue-600\n2\t天理\t利用者料金一覧（天理）\ttext-teal-600\n3\t郡山北部\t利用者料金一覧（精神郡山）\ttext-emerald-600\n4\t郡山南部\t利用者料金一覧（精神郡山）\ttext-emerald-600\n",
+  "stderr": "",
+  "execution_time_ms": 1614
+}

@@ -84,12 +84,11 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
   const [feedbackComment, setFeedbackComment] = useState("");
   const [feedbackSent, setFeedbackSent] = useState(false);
 
-  // 全チームユーザーはassignTypeを常にallに固定（派生値として計算することで非同期問題を完全に回避）
+  // 全チームユーザーの判定（デフォルト設定用）
   const isAllTeamUser = user?.team === "全チーム" || user?.team === "事務員";
-  // 全チームユーザーの場合は常にallを返す派生値、それ以外はstate値を使用
-  const newAssignType: AssignType = isAllTeamUser ? "all" : _newAssignType;
+  // assignTypeはすべてのユーザーが変更可能
+  const newAssignType: AssignType = _newAssignType;
   const setAssignTypeSafe = (type: AssignType | ((prev: AssignType) => AssignType)) => {
-    if (isAllTeamUser) return; // 全チームユーザーは変更不可
     if (typeof type === "function") {
       setNewAssignType(type);
     } else {

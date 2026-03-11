@@ -1083,16 +1083,26 @@ export default function RecordInput() {
           {/* チーム選択 */}
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">チーム</label>
-            <Select value={team} onValueChange={(v) => { setTeam(v as Team); setPatientId(null); setPatientName(""); setSearchQuery(""); }}>
-              <SelectTrigger className="text-sm">
-                <SelectValue placeholder="チームを選択（全員表示）" />
-              </SelectTrigger>
-              <SelectContent>
-                {TEAMS.map((t) => (
-                  <SelectItem key={t} value={t}>{t}チーム</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex gap-1.5">
+              {([
+                { id: "身体" as Team, label: "身体", activeBg: "bg-blue-500", inactiveBg: "bg-blue-300 dark:bg-blue-700" },
+                { id: "天理" as Team, label: "天理", activeBg: "bg-emerald-500", inactiveBg: "bg-emerald-300 dark:bg-emerald-700" },
+                { id: "郡山北部" as Team, label: "郡山北部", activeBg: "bg-orange-500", inactiveBg: "bg-orange-300 dark:bg-orange-700" },
+                { id: "郡山南部" as Team, label: "郡山南部", activeBg: "bg-purple-500", inactiveBg: "bg-purple-300 dark:bg-purple-700" },
+              ] as const).map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => { setTeam(t.id); setPatientId(null); setPatientName(""); setSearchQuery(""); }}
+                  className={cn(
+                    "flex-1 text-xs py-1.5 rounded-lg font-medium transition-colors text-white",
+                    team === t.id ? t.activeBg : t.inactiveBg
+                  )}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* 利用者選択・検索 */}

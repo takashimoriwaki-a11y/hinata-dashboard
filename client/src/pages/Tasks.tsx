@@ -562,14 +562,14 @@ export default function Tasks() {
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {([
-                  { value: null, label: "すべて" },
-                  { value: "all_team", label: "全員向け" },
-                  { value: "身体", label: "身体チーム" },
-                  { value: "天理", label: "天理チーム" },
-                  { value: "郡山北部", label: "郡山北部チーム" },
-                  { value: "郡山南部", label: "郡山南部チーム" },
-                  { value: "personal", label: "個人指定" },
-                ] as const).map(({ value, label }) => {
+                  { value: null, label: "すべて", activeBg: "bg-primary", inactiveBg: "" },
+                  { value: "all_team", label: "全員向け", activeBg: "bg-primary", inactiveBg: "" },
+                  { value: "身体", label: "身体チーム", activeBg: "bg-blue-500", inactiveBg: "" },
+                  { value: "天理", label: "天理チーム", activeBg: "bg-emerald-500", inactiveBg: "" },
+                  { value: "郡山北部", label: "郡山北部チーム", activeBg: "bg-orange-500", inactiveBg: "" },
+                  { value: "郡山南部", label: "郡山南部チーム", activeBg: "bg-purple-500", inactiveBg: "" },
+                  { value: "personal", label: "個人指定", activeBg: "bg-primary", inactiveBg: "" },
+                ] as const).map(({ value, label, activeBg }) => {
                   const countKey = value === null ? "all" : value;
                   const count = teamFilterCounts[countKey as keyof typeof teamFilterCounts];
                   const isActive = teamFilter === value;
@@ -580,7 +580,7 @@ export default function Tasks() {
                       className={cn(
                         "text-[11px] px-2 py-0.5 rounded-full border transition-colors flex items-center gap-0.5",
                         isActive
-                          ? "bg-primary text-white border-primary"
+                          ? `${activeBg} text-white border-transparent`
                           : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary"
                       )}
                     >
@@ -751,6 +751,7 @@ export default function Tasks() {
                         ] as const).map(({ value, label, icon: Icon }) => (
                           <button
                             key={value}
+                            type="button"
                             onClick={() => setEditAssignType(value)}
                             className={cn(
                               "flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border transition-colors flex-1 justify-center",
@@ -769,6 +770,7 @@ export default function Tasks() {
                           {TEAMS.map((team) => (
                             <button
                               key={team}
+                              type="button"
                               onClick={() => setEditAssignTeam(team)}
                               className={cn(
                                 "text-xs px-2.5 py-1 rounded-full border transition-colors",

@@ -512,21 +512,31 @@ function PatientMasterPanel() {
 
         {/* チームフィルター */}
         <div className="flex flex-wrap gap-1.5">
-          {(["全て", ...TEAMS] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setFilterTeam(t)}
-              className={cn(
-                "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
-                filterTeam === t
-                  ? "bg-primary text-white border-primary"
-                  : "bg-background text-foreground border-border hover:border-primary hover:text-primary"
-              )}
-            >
-              {t}
-              <span className="ml-1 opacity-70">({teamCounts[t] ?? 0})</span>
-            </button>
-          ))}
+          {(["全て", ...TEAMS] as const).map((t) => {
+            const teamColorMap: Record<string, string> = {
+              "身体": "bg-blue-500",
+              "天理": "bg-emerald-500",
+              "郡山北部": "bg-orange-500",
+              "郡山南部": "bg-purple-500",
+              "全て": "bg-primary",
+            };
+            const activeBg = teamColorMap[t] ?? "bg-primary";
+            return (
+              <button
+                key={t}
+                onClick={() => setFilterTeam(t)}
+                className={cn(
+                  "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
+                  filterTeam === t
+                    ? `${activeBg} text-white border-transparent`
+                    : "bg-background text-foreground border-border hover:border-primary hover:text-primary"
+                )}
+              >
+                {t}
+                <span className="ml-1 opacity-70">({teamCounts[t] ?? 0})</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* 名前検索 */}

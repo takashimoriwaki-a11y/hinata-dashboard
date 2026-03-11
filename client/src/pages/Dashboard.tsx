@@ -165,6 +165,14 @@ const DAYS = ["今日", "明日"] as const;
 type TeamType = typeof TEAMS[number];
 type DayType = typeof DAYS[number];
 
+// 全ページ共通のチームカラー定義
+const TEAM_COLORS: Record<TeamType, { activeBg: string; inactiveBg: string }> = {
+  "身体": { activeBg: "bg-blue-500", inactiveBg: "bg-blue-300 dark:bg-blue-700" },
+  "天理": { activeBg: "bg-emerald-500", inactiveBg: "bg-emerald-300 dark:bg-emerald-700" },
+  "郡山北部": { activeBg: "bg-orange-500", inactiveBg: "bg-orange-300 dark:bg-orange-700" },
+  "郡山南部": { activeBg: "bg-purple-500", inactiveBg: "bg-purple-300 dark:bg-purple-700" },
+};
+
 // ========== サブコンポーネント ==========
 
 function VisitCountCard() {
@@ -1073,10 +1081,10 @@ function ScheduleScreenshotCard() {
                     handleTeamChange(t);
                   }}
                   className={cn(
-                    "text-xs px-2.5 py-1 rounded-md border transition-colors",
+                    "text-xs px-2.5 py-1 rounded-md transition-colors text-white font-medium",
                     !showAllTeams && selectedTeam === t
-                      ? "bg-primary text-white border-primary"
-                      : "border-border text-muted-foreground hover:bg-muted"
+                      ? TEAM_COLORS[t].activeBg
+                      : TEAM_COLORS[t].inactiveBg
                   )}
                 >
                   {t}
@@ -2010,7 +2018,17 @@ function TeamToolsCard() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-1 group">
-                    <LinkRow href={tool.href} label={tool.label} color={tool.color} emoji={tool.emoji} />
+                    {/* チームに応じた文字色を自動適用（colorが未設定の場合はチームカラーを使用） */}
+                    {(() => {
+                      const teamTextColorMap: Record<TeamTabId, string> = {
+                        "身体": "text-blue-600",
+                        "天理": "text-emerald-600",
+                        "郡山北部": "text-orange-600",
+                        "郡山南部": "text-purple-600",
+                      };
+                      const autoColor = tool.color || teamTextColorMap[activeTeam];
+                      return <LinkRow href={tool.href} label={tool.label} color={autoColor} emoji={tool.emoji ?? undefined} />;
+                    })()}
                     {isAdmin && (
                       <>
                         <button onClick={() => startEdit(tool)} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" title="編集">
