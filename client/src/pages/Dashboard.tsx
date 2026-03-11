@@ -2231,6 +2231,27 @@ const GOOGLE_LINKS = [
     fallbackColor: "#1a73e8",
     letter: "Ch",
   },
+  {
+    label: "YouTube",
+    href: "https://www.youtube.com",
+    icon: "https://www.youtube.com/favicon.ico",
+    fallbackColor: "#ff0000",
+    letter: "YT",
+  },
+  {
+    label: "マップ",
+    href: "https://maps.google.com",
+    icon: "https://maps.gstatic.com/mapfiles/maps_lite/pwa/icons/maps15_bnuw3a_round_192x192.png",
+    fallbackColor: "#34a853",
+    letter: "M",
+  },
+  {
+    label: "NotebookLM",
+    href: "https://notebooklm.google.com",
+    icon: "https://www.gstatic.com/lamda/images/notebooklm_favicon_v1_32px.png",
+    fallbackColor: "#4285f4",
+    letter: "NB",
+  },
 ];
 
 function GoogleCard() {
