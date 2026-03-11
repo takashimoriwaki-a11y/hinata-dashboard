@@ -47,6 +47,7 @@ export default function Minutes() {
   const [newTitle, setNewTitle] = useState("");
   const [newDocumentUrl, setNewDocumentUrl] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
   const [isFetchingTitle, setIsFetchingTitle] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const fetchTitleTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -124,12 +125,20 @@ export default function Minutes() {
   });
 
   const checkMutation = trpc.minutes.check.useMutation({
+    onMutate: ({ minutesId }) => {
+      // 楽観的更新: 即座にチェックマークを表示
+      setCheckedIds((prev) => new Set(prev).add(minutesId));
+    },
     onSuccess: () => {
       utils.minutes.list.invalidate();
       utils.minutes.uncheckedCount.invalidate();
       toast.success("確認済みにしました。リストから削除されました。");
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e, { minutesId }) => {
+      // エラー時はロールバック
+      setCheckedIds((prev) => { const s = new Set(prev); s.delete(minutesId); return s; });
+      toast.error(e.message);
+    },
   });
 
   const deleteMutation = trpc.minutes.delete.useMutation({
@@ -144,7 +153,9 @@ export default function Minutes() {
 
   // ドキュメントリンクをクリックしたら自動チェック（確認済みにする）
   const handleDocumentOpen = (minutesId: number) => {
-    checkMutation.mutate({ minutesId });
+    if (!checkedIds.has(minutesId)) {
+      checkMutation.mutate({ minutesId });
+    }
   };
 
   return (
@@ -201,12 +212,23 @@ export default function Minutes() {
                 <div className="flex items-start gap-3">
                   {/* チェックボタン */}
                   <button
-                    onClick={() => checkMutation.mutate({ minutesId: m.id })}
-                    disabled={checkMutation.isPending}
-                    className="mt-0.5 flex-shrink-0 text-muted-foreground hover:text-emerald-500 transition-colors"
-                    title="先にここを押して確認済みにする"
+                    onClick={() => {
+                      if (!checkedIds.has(m.id)) {
+                        checkMutation.mutate({ minutesId: m.id });
+                      }
+                    }}
+                    disabled={checkMutation.isPending && checkedIds.has(m.id)}
+                    className={`mt-0.5 flex-shrink-0 transition-colors ${
+                      checkedIds.has(m.id)
+                        ? "text-emerald-500 cursor-default"
+                        : "text-muted-foreground hover:text-emerald-500"
+                    }`}
+                    title={checkedIds.has(m.id) ? "確認済み" : "先にここを押して確認済みにする"}
                   >
-                    <Circle className="w-5 h-5" />
+                    {checkedIds.has(m.id)
+                      ? <CheckCircle2 className="w-5 h-5" />
+                      : <Circle className="w-5 h-5" />
+                    }
                   </button>
                   {/* タイトル・メタ情報 */}
                   <div className="flex-1 min-w-0 space-y-2">
