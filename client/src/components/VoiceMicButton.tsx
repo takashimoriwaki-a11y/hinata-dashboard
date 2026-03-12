@@ -127,7 +127,7 @@ export function VoiceMicButton({
   // 残り5秒以下でカウントダウン警告を表示
   const showCountdown = isRecording && silenceCountdown !== null && silenceCountdown <= 5;
 
-  const handlePointerDown = (e: React.PointerEvent) => {
+  const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     if (disabled || isProcessing) return;
     toggleVoice();
@@ -136,7 +136,7 @@ export function VoiceMicButton({
   const innerButton = (
     <button
       type="button"
-      onPointerDown={handlePointerDown}
+      onClick={handleClick}
       disabled={disabled || isProcessing}
       className={cn(
         "relative inline-flex items-center justify-center flex-shrink-0",

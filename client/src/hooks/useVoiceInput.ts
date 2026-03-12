@@ -291,6 +291,9 @@ export function useVoiceInput({
     }, effectiveSilenceTimeoutMs);
   }, [effectiveSilenceTimeoutMs, clearSilenceTimer]);
 
+  // iOS判定
+  const isIOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as unknown as Record<string, unknown>).MSStream;
+
   // ---- Web Speech API 実装 ----
   const startSpeechRecognition = useCallback((): boolean => {
     const SpeechRecognitionClass = getSpeechRecognitionClass();
@@ -299,8 +302,9 @@ export function useVoiceInput({
     try {
       const recognition = new SpeechRecognitionClass();
       recognition.lang = lang;
-      recognition.continuous = true;      // 長い発話に対応
-      recognition.interimResults = true;  // 暫定結果も取得（リアルタイムプレビュー）
+      // iOS Safariは continuous:true が不安定なため、iOSでは false にする
+      recognition.continuous = !isIOS;
+      recognition.interimResults = true;  // 暂定結果も取得（リアルタイムプレビュー）
       recognition.maxAlternatives = 1;
 
       // 確定済テキストの累積（訂正サポート）
@@ -342,6 +346,21 @@ export function useVoiceInput({
       };
 
       recognition.onend = () => {
+        // iOS Safariで continuous:false の場合、ユーザーが明示的に停止していなければ再起動する
+        if (isIOS && recognitionRef.current && !autoStoppedRef.current) {
+          // 確定済テキストを累積して再起動
+          if (lastBlockText) {
+            confirmedText += lastBlockText;
+            lastBlockText = "";
+          }
+          try {
+            recognitionRef.current.start();
+            return; // 再起動成功→onend完了処理をスキップ
+          } catch {
+            // 再起動失敗時は通常の完了処理へ
+          }
+        }
+
         clearSilenceTimer();
         stopElapsedTimer();
         setRecording(false);
@@ -407,6 +426,8 @@ export function useVoiceInput({
     clearSilenceTimer();
     stopElapsedTimer();
     if (recognitionRef.current) {
+      // iOS再起動ループを停止するために先にフラグを立てる
+      autoStoppedRef.current = true;
       recognitionRef.current.stop();
       recognitionRef.current = null;
     }
@@ -573,11 +594,15 @@ export function useVoiceInput({
   }, [clearSilenceTimer, stopElapsedTimer]);
 
   // ---- 公開 API ----
-  const startVoice = useCallback(async () => {
+  const startVoice = useCallback(() => {
     setTranscriptionStatus("recording");
+    // iOS Safari 対応: async/await を使わずに同期的に開始する
+    // Web Speech API を試みる（同期）
     const usedSpeechAPI = startSpeechRecognition();
     if (!usedSpeechAPI) {
-      await startMediaRecorder();
+      // MediaRecorder フォールバック（非同期だが、ユーザーのジェスチャーから
+      // 直接呼び出されるため iOS Safari でも getUserMedia が許可される）
+      startMediaRecorder();
     }
   }, [startSpeechRecognition, startMediaRecorder]);
 
