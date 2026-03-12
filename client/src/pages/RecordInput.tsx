@@ -512,7 +512,10 @@ export default function RecordInput() {
     onSuccess: () => {
       toast.success("スプレッドシートへ転送しました！");
       utils.visitRecords.getMine.invalidate();
-      // 転送後は次回訪問日時・伝達先・伝達方法のみリセット（利用者名・病状の経過は保持）
+      // 転送後は全項目リセット（利用者名・次回訪問日時・伝達先・伝達方法）
+      setPatientId(null);
+      setPatientName("");
+      setSearchQuery("");
       setNextVisitDate("");
       setNextVisitTime("");
       setNotifiedTo("");
@@ -521,6 +524,9 @@ export default function RecordInput() {
       setNotifyMethodOther("");
       setSavedRecordId(null);
       setExported(false);
+      // 下書きも削除
+      localStorage.removeItem(DRAFT_KEY);
+      setHasDraft(false);
     },
     onError: (err) => toast.error(`転送エラー: ${err.message}`),
   });
@@ -1055,10 +1061,48 @@ export default function RecordInput() {
                       if (!editingPreview) return;
                       // 音声確定ボタンからの自動転送フラグを立てる
                       autoExportRef.current = true;
-                      // フォームに転記して保存を実行
+                      // フォームに転記（UI表示用）
                       applyVoicePreview(editingPreview);
-                      // applyVoicePreviewは非同期なので、次のrender後にhandleSaveを実行
-                      setTimeout(() => handleSave(), 0);
+                      // ReactのstateはsetState後すぐに反映されないため、
+                      // editingPreviewのデータを直接使ってcreateRecord.mutateを呼ぶ
+                      const p = editingPreview;
+                      // 利用者名の解決（patientIdがない場合はリストから検索）
+                      let resolvedPatientId: number | undefined = p.patientId ?? undefined;
+                      let resolvedPatientName: string = p.patientName || patientName || "未選択";
+                      if (!resolvedPatientId && p.patientName) {
+                        const src = allPatientsRef.current.length > 0 ? allPatientsRef.current : patientsRef.current;
+                        const exact = src.find((pt) => pt.name === p.patientName);
+                        if (exact) { resolvedPatientId = exact.id; resolvedPatientName = exact.name; }
+                      }
+                      // チームの解決（previewにあればそれを使い、なければ現在のstate）
+                      const resolvedTeam = (p.team && ["身体","天理","郡山北部","郡山南部"].includes(p.team) ? p.team : team) as Team;
+                      if (!resolvedTeam) {
+                        toast.error("チームを選択してください");
+                        autoExportRef.current = false;
+                        return;
+                      }
+                      // 次回訪問日時の解決
+                      let resolvedNextVisitAt: Date | undefined;
+                      const vDate = p.visitDate || nextVisitDate;
+                      const vTime = p.visitTime || nextVisitTime;
+                      if (vDate) {
+                        const dt = vTime ? `${vDate}T${vTime}` : `${vDate}T00:00`;
+                        resolvedNextVisitAt = new Date(dt);
+                      }
+                      // 伝達先・伝達方法の解決
+                      const resolvedNotifiedTo = (p.notifiedTo || notifiedTo) as "本人" | "家族" | "その他" | undefined || undefined;
+                      const resolvedNotifyMethod = (p.notifyMethod || notifyMethod) as "口頭" | "カレンダー記入" | "付箋" | "電話" | "その他" | undefined || undefined;
+                      createRecord.mutate({
+                        patientId: resolvedPatientId,
+                        patientName: resolvedPatientName,
+                        team: resolvedTeam,
+                        clinicalNotes: clinicalNotes || undefined,
+                        nextVisitAt: resolvedNextVisitAt,
+                        notifiedTo: resolvedNotifiedTo,
+                        notifiedToOther: p.notifiedToOther || notifiedToOther || undefined,
+                        notifyMethod: resolvedNotifyMethod,
+                        notifyMethodOther: p.notifyMethodOther || notifyMethodOther || undefined,
+                      });
                     }}
                   >
                     {hasMissing ? `未入力項目あり・そのまま確定・転送` : "✓　この内容で確定・転送"}
@@ -1114,6 +1158,70 @@ export default function RecordInput() {
                 <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => { setPatientId(null); setPatientName(""); setSearchQuery(""); setShowPatientList(false); }}>
                   変更
                 </Button>
+              </div>
+            ) : patientName && !patientId ? (
+              // 音声入力で利用者名が入力されたがリストに一致しなかった場合
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-sm px-3 py-1 border-amber-400 text-amber-700 dark:text-amber-400">
+                    <User className="w-3 h-3 mr-1" />
+                    {patientName}
+                    <span className="ml-1 text-xs text-amber-500">（未登録）</span>
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs h-7 text-red-500 hover:text-red-700"
+                    onClick={() => { setPatientName(""); setSearchQuery(""); setShowPatientList(true); }}
+                  >
+                    × 削除して再検索
+                  </Button>
+                </div>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="record-patient-search"
+                      className="pl-8 text-sm"
+                      placeholder="名前で検索..."
+                      value={searchQuery}
+                      onChange={(e) => { setSearchQuery(e.target.value); setShowPatientList(true); }}
+                      onFocus={() => setShowPatientList(true)}
+                      autoFocus
+                    />
+                  </div>
+                  <VoiceMicButton
+                    onResult={voicePatient.onResult}
+                    size="sm"
+                    previewMode="tooltip"
+                    context="clinical_notes"
+                  />
+                </div>
+                {showPatientList && (
+                  <div className="border rounded-md bg-background shadow-sm max-h-48 overflow-y-auto">
+                    {patientsLoading ? (
+                      <div className="flex items-center justify-center p-4">
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        <span className="text-sm text-muted-foreground">検索中...</span>
+                      </div>
+                    ) : patients.length === 0 ? (
+                      <div className="p-3 text-sm text-muted-foreground text-center">
+                        {searchQuery ? "該当する利用者が見つかりません" : "利用者が登録されていません"}
+                      </div>
+                    ) : (
+                      patients.map((p) => (
+                        <button
+                          key={p.id}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center justify-between border-b last:border-b-0"
+                          onClick={() => handleSelectPatient(p.id, p.name)}
+                        >
+                          <span>{p.name}</span>
+                          <span className="text-xs text-muted-foreground">{p.team}チーム</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-2">
