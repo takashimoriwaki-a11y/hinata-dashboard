@@ -172,11 +172,31 @@
   button,
   a,
   [role="button"],
+  [role="tab"],
+  [role="menuitem"],
+  [role="option"],
+  [role="checkbox"],
+  [role="radio"],
+  [role="switch"],
+  [data-slot="button"],
+  [data-slot="tabs-trigger"],
+  [data-slot="checkbox"],
+  [data-slot="switch"],
   input,
   select,
   textarea,
   label {
     touch-action: manipulation;
+  }
+
+  /* ボタン・タブのテキスト選択を無効化（長押し誤動作防止） */
+  button,
+  [role="button"],
+  [role="tab"],
+  [data-slot="button"],
+  [data-slot="tabs-trigger"] {
+    -webkit-user-select: none;
+    user-select: none;
   }
 
   /* iOSのタップ時の青いハイライトを除去（独自スタイルで代替） */

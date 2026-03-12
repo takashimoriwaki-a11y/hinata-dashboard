@@ -204,7 +204,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <div
                 title={(collapsed && !mobile) ? item.label : undefined}
                 className={cn(
-                  "flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-150",
+                  "flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-150 select-none active:scale-95 active:opacity-80",
                   "text-sm font-medium",
                   (collapsed && !mobile) ? "justify-center px-0" : "px-3",
                   isActive
@@ -232,7 +232,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             rel="noopener noreferrer"
             title={(collapsed && !mobile) ? tool.label : undefined}
             className={cn(
-              "flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-150",
+              "flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-150 select-none active:scale-95 active:opacity-80",
               "text-sm font-medium text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground",
               (collapsed && !mobile) ? "justify-center px-0" : "px-3"
             )}
@@ -256,7 +256,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           disabled={pushLoading}
           title={(collapsed && !mobile) ? (isSubscribed ? "通知設定" : "通知を有効にする") : undefined}
           className={cn(
-            "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150",
+            "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150 select-none active:scale-95 active:opacity-80",
             "text-sm hover:bg-sidebar-accent",
             (collapsed && !mobile) ? "justify-center px-0" : "px-3",
             isSubscribed
@@ -287,7 +287,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           onClick={handleLogout}
           title={(collapsed && !mobile) ? "ログアウト" : undefined}
           className={cn(
-            "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150",
+            "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150 select-none active:scale-95 active:opacity-80",
             "text-sm text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground",
             (collapsed && !mobile) ? "justify-center px-0" : "px-3"
           )}
