@@ -16,10 +16,10 @@ const patients = [
 ];
 
 const teamColors: Record<string, string> = {
-  "身体チーム": "bg-blue-100 text-blue-700",
-  "天理チーム": "bg-purple-100 text-purple-700",
-  "郡山北部チーム": "bg-emerald-100 text-emerald-700",
-  "郡山南部チーム": "bg-amber-100 text-amber-700",
+  "身体チーム": "bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-200",
+  "天理チーム": "bg-purple-100 text-purple-900 dark:bg-purple-900/40 dark:text-purple-200",
+  "郡山北部チーム": "bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200",
+  "郡山南部チーム": "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200",
 };
 
 export default function PatientList() {
@@ -43,7 +43,7 @@ export default function PatientList() {
           placeholder="名前・チームで検索..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2 text-sm border border-border rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+          className="w-full pl-9 pr-4 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
         />
       </div>
 
@@ -56,7 +56,7 @@ export default function PatientList() {
                   <p className="font-semibold text-sm">{p.name}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{p.id}</p>
                 </div>
-                <Badge className={`text-[10px] ${teamColors[p.team] || "bg-gray-100 text-gray-700"} border-0`}>
+                <Badge className={`text-[10px] ${teamColors[p.team] || "bg-muted text-muted-foreground"} border-0`}>
                   {p.team}
                 </Badge>
               </div>

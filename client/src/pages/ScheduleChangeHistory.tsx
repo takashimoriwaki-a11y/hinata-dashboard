@@ -30,11 +30,11 @@ const SPREADSHEET_URL =
   "https://docs.google.com/spreadsheets/d/1ki462aQRaNTj5FrI_1MJ1OyATFGqODz6HCtmuriIDEU";
 
 const CHANGE_TYPE_LABELS: Record<string, { label: string; icon: string; color: string }> = {
-  visit_change: { label: "訪問日時変更", icon: "🔄", color: "bg-blue-100 text-blue-800 border-blue-200" },
-  visit_cancel: { label: "訪問キャンセル", icon: "❌", color: "bg-red-100 text-red-800 border-red-200" },
-  visit_add: { label: "訪問追加", icon: "➕", color: "bg-green-100 text-green-800 border-green-200" },
-  meeting_add: { label: "会議追加", icon: "📅", color: "bg-purple-100 text-purple-800 border-purple-200" },
-  meeting_change: { label: "会議変更", icon: "📝", color: "bg-orange-100 text-orange-800 border-orange-200" },
+  visit_change: { label: "訪問日時変更", icon: "🔄", color: "bg-blue-100 text-blue-900 border-blue-300 dark:bg-blue-900/40 dark:text-blue-200 dark:border-blue-700" },
+  visit_cancel: { label: "訪問キャンセル", icon: "❌", color: "bg-red-100 text-red-900 border-red-300 dark:bg-red-900/40 dark:text-red-200 dark:border-red-700" },
+  visit_add: { label: "訪問追加", icon: "➕", color: "bg-green-100 text-green-900 border-green-300 dark:bg-green-900/40 dark:text-green-200 dark:border-green-700" },
+  meeting_add: { label: "会議追加", icon: "📅", color: "bg-purple-100 text-purple-900 border-purple-300 dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-700" },
+  meeting_change: { label: "会議変更", icon: "📝", color: "bg-orange-100 text-orange-900 border-orange-300 dark:bg-orange-900/40 dark:text-orange-200 dark:border-orange-700" },
 };
 
 const TEAMS = ["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"] as const;
@@ -87,7 +87,7 @@ interface HistoryRecord {
 
 function HistoryCard({ record }: { record: HistoryRecord }) {
   const [expanded, setExpanded] = useState(false);
-  const typeInfo = CHANGE_TYPE_LABELS[record.changeType] ?? { label: record.changeType, icon: "📋", color: "bg-gray-100 text-gray-800 border-gray-200" };
+  const typeInfo = CHANGE_TYPE_LABELS[record.changeType] ?? { label: record.changeType, icon: "📋", color: "bg-muted text-muted-foreground border-border" };
   const isVisit = ["visit_change", "visit_cancel", "visit_add"].includes(record.changeType);
   const isMeeting = ["meeting_add", "meeting_change"].includes(record.changeType);
 
@@ -113,13 +113,13 @@ function HistoryCard({ record }: { record: HistoryRecord }) {
                 <Badge variant="secondary" className="text-xs shrink-0">{record.team}</Badge>
               )}
               {!record.exported && (
-                <Badge variant="outline" className="text-xs bg-amber-100 text-amber-700 border-amber-300 shrink-0">
+                <Badge variant="outline" className="text-xs bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700 shrink-0">
                   <Clock className="w-3 h-3 mr-1" />
                   転記待ち
                 </Badge>
               )}
               {record.exported === 1 && (
-                <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-300 shrink-0">
+                <Badge variant="outline" className="text-xs bg-green-50 text-green-800 border-green-300 dark:bg-green-900/40 dark:text-green-200 dark:border-green-700 shrink-0">
                   <CheckCircle2 className="w-3 h-3 mr-1" />
                   転記済
                 </Badge>
@@ -277,16 +277,16 @@ export default function ScheduleChangeHistory() {
         href={SPREADSHEET_URL}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-2 p-3 rounded-xl border border-green-200 bg-green-50 hover:bg-green-100 transition-colors"
+        className="flex items-center gap-2 p-3 rounded-xl border border-green-200 bg-green-50 hover:bg-green-100 dark:border-green-800 dark:bg-green-950/30 dark:hover:bg-green-950/50 transition-colors"
       >
         <div className="w-8 h-8 rounded-lg bg-green-600 flex items-center justify-center flex-shrink-0">
           <ExternalLink className="w-4 h-4 text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-green-800">スプレッドシートを開く</p>
-          <p className="text-xs text-green-600 truncate">ひなた_スケジュール変更連絡</p>
+          <p className="text-sm font-semibold text-green-800 dark:text-green-300">スプレッドシートを開く</p>
+          <p className="text-xs text-green-600 dark:text-green-400 truncate">ひなた_スケジュール変更連絡</p>
         </div>
-        <ExternalLink className="w-4 h-4 text-green-600 flex-shrink-0" />
+        <ExternalLink className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
       </a>
 
       {/* 検索・フィルター */}

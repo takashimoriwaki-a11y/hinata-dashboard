@@ -1355,7 +1355,7 @@ function StaffManagementPanel() {
                         {staff.role === "admin" ? "管理者" : "スタッフ"}
                       </Badge>
                       {staff.team && (
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-gray-50 dark:bg-gray-800 dark:text-gray-300">{staff.team}</Badge>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-muted text-muted-foreground">{staff.team}</Badge>
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">{staff.email ?? "メール未設定"}</p>

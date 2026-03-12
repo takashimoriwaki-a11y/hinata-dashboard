@@ -1527,7 +1527,7 @@ function ScreenshotUploadHistoryCard() {
                   "text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap",
                   isNight
                     ? (teamColorsDark[log.team] ?? "bg-slate-600 text-slate-300")
-                    : (teamColors[log.team] ?? "bg-gray-100 text-gray-700")
+                    : (teamColors[log.team] ?? "bg-muted text-muted-foreground")
                 )}>
                   {log.team}
                 </span>
@@ -2952,7 +2952,7 @@ function MessageBoard({ title }: { title: string }) {
                 {pendingMessages.map((msg) => (
                   <div key={msg.id} className={cn(
                     "p-2.5 rounded-lg border",
-                    isNight ? "border-blue-800/40 bg-blue-900/20" : "border-blue-100 bg-white"
+                    isNight ? "border-blue-800/40 bg-blue-900/20" : "border-blue-100 bg-blue-50/30"
                   )}>
                     <div className="flex items-center gap-1.5 mb-1">
                       <div className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center text-[9px] font-bold text-blue-600">
