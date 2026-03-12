@@ -5,7 +5,7 @@
  * iPhone: サイドバー非表示 + ボトムナビ固定
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePushNotification } from "@/hooks/usePushNotification";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Link, useLocation } from "wouter";
@@ -123,6 +123,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // ページ遷移時にメインコンテンツのスクロール位置を上部にリセットする
+  const mainRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+    }
+  }, [location]);
 
   const dateStr = now.toLocaleDateString("ja-JP", {
     year: "numeric",
@@ -422,7 +430,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </header>
 
         {/* ページコンテンツ（ボトムナビ分の余白） */}
-        <main className="flex-1 overflow-y-auto bg-background main-content-safe md:pb-4">
+        <main ref={mainRef} className="flex-1 overflow-y-auto bg-background main-content-safe md:pb-4">
           {children}
         </main>
 
