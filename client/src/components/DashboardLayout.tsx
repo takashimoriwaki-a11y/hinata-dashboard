@@ -452,9 +452,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     href={item.href}
                     target="_blank"
                     rel="noopener noreferrer"
+                    style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                     className={cn(
-                      "flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors",
-                      isNight ? "text-slate-300 hover:text-primary active:scale-95" : "text-muted-foreground hover:text-primary active:scale-95"
+                      "flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors select-none",
+                      isNight ? "text-slate-300 active:text-primary active:scale-95" : "text-muted-foreground active:text-primary active:scale-95"
                     )}
                   >
                     <item.icon className="w-5 h-5" />
@@ -465,31 +466,32 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
               const badgeCount = item.badge && item.href === "/minutes" ? (minutesUnchecked?.count ?? 0) : 0;
               return (
-                <Link key={item.label} href={item.href} className="flex-1">
-                  <div
-                    className={cn(
-                      "flex flex-col items-center justify-center gap-0.5 transition-all h-full w-full active:scale-95",
-                      isActive ? "text-primary" : isNight ? "text-slate-300 hover:text-primary" : "text-muted-foreground hover:text-primary"
-                    )}
-                  >
-                    <div className="relative">
-                      <item.icon className={cn("w-5 h-5", isActive && "scale-110")} />
-                      {isActive && (
-                        <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-primary" />
-                      )}
-                      {!isActive && badgeCount > 0 && (
-                        <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
-                          {badgeCount > 99 ? "99+" : badgeCount}
-                        </span>
-                      )}
-                    </div>
-                    <span className={cn("text-[10px]", isActive ? "font-bold" : "font-medium")}>
-                      {item.label}
-                    </span>
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                  className={cn(
+                    "flex-1 flex flex-col items-center justify-center gap-0.5 transition-all relative select-none active:scale-95",
+                    isActive ? "text-primary" : isNight ? "text-slate-300 active:text-primary" : "text-muted-foreground active:text-primary"
+                  )}
+                >
+                  <div className="relative">
+                    <item.icon className={cn("w-5 h-5", isActive && "scale-110")} />
                     {isActive && (
-                      <span className="absolute bottom-0 w-8 h-0.5 bg-primary rounded-full" />
+                      <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-primary" />
+                    )}
+                    {!isActive && badgeCount > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                        {badgeCount > 99 ? "99+" : badgeCount}
+                      </span>
                     )}
                   </div>
+                  <span className={cn("text-[10px]", isActive ? "font-bold" : "font-medium")}>
+                    {item.label}
+                  </span>
+                  {isActive && (
+                    <span className="absolute bottom-0 w-8 h-0.5 bg-primary rounded-full" />
+                  )}
                 </Link>
               );
             })}

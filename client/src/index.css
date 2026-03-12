@@ -167,6 +167,22 @@
   input[type="radio"]:not(:disabled) {
     @apply cursor-pointer;
   }
+
+  /* iOSのタップ遅延（300ms）を除去し、タップ反応を即時にする */
+  button,
+  a,
+  [role="button"],
+  input,
+  select,
+  textarea,
+  label {
+    touch-action: manipulation;
+  }
+
+  /* iOSのタップ時の青いハイライトを除去（独自スタイルで代替） */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
 @layer components {
