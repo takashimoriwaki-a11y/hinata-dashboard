@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO quick_access_links (category, label, href, emoji, color, sortOrder)\nVALUES (\n  'スプレッドシート',\n  'R8.4月緊急携帯１・２当番表',\n  'https://docs.google.com/spreadsheets/d/1NyTMfhqXYnISiKm3mOm8GPWwxGy-KHLuBbmEA6Z7C2A/edit?gid=0#gid=0',\n  '📱',\n  'text-emerald-600',\n  (SELECT COALESCE(MAX(sortOrder), 0) + 1 FROM quick_access_links WHERE category LIKE '%スプレッドシート%')\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute INSERT INTO quick_access_links (category, label, href, emoji, color, sortOrder)\nVALUES (\n  'スプレッドシート',\n  'R8.4月緊急携帯１・２当番表',\n  'https://docs.google.com/spreadsheets/d/1NyTMfhqXYnISiKm3mOm8GPWwxGy-KHLuBbmEA6Z7C2A/edit?gid=0#gid=0',\n  '📱',\n  'text-emerald-600',\n  (SELECT COALESCE(MAX(sortOrder), 0) + 1 FROM quick_access_links WHERE category LIKE '%スプレッドシート%')\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1603
+}
