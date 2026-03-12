@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO team_tools (team, label, href, emoji, color, sortOrder) VALUES ('天理', '同行者一覧', 'https://docs.google.com/spreadsheets/d/1lb4GywyJEiXwk6MwdtkcGp9zhYu17FeO0Rh_czmMwXU/edit?gid=1729320957#gid=1729320957', '📋', 'text-emerald-600', (SELECT COALESCE(MAX(sortOrder), 0) + 1 FROM team_tools WHERE team = '天理'));",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute INSERT INTO team_tools (team, label, href, emoji, color, sortOrder) VALUES ('天理', '同行者一覧', 'https://docs.google.com/spreadsheets/d/1lb4GywyJEiXwk6MwdtkcGp9zhYu17FeO0Rh_czmMwXU/edit?gid=1729320957#gid=1729320957', '📋', 'text-emerald-600', (SELECT COALESCE(MAX(sortOrder), 0) + 1 FROM team_tools WHERE team = '天理'));",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1608
+}
