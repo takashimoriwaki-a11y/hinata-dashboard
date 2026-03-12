@@ -422,13 +422,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </header>
 
         {/* ページコンテンツ（ボトムナビ分の余白） */}
-        <main className="flex-1 overflow-y-auto bg-background pb-20 md:pb-4">
+        <main className="flex-1 overflow-y-auto bg-background main-content-safe md:pb-4">
           {children}
         </main>
 
         {/* ========== ボトムナビゲーションバー（モバイル・PC共通） ========== */}
         <nav className={cn(
-          "fixed bottom-0 left-0 right-0 z-50 border-t border-border",
+          "fixed bottom-0 left-0 right-0 z-50 border-t border-border bottom-nav-safe",
           isNight
             ? "bg-[oklch(0.35_0.015_250)] shadow-[0_-2px_12px_rgba(0,0,0,0.3)]"
             : "bg-background shadow-[0_-2px_12px_rgba(0,0,0,0.08)]"

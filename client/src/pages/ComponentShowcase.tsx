@@ -488,7 +488,7 @@ export default function ComponentsShowcase() {
                         )}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent className="w-auto p-0" align="start" avoidCollisions sideOffset={4}>
                       <div className="p-3 space-y-3">
                         <Calendar
                           mode="single"

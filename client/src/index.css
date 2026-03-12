@@ -273,3 +273,12 @@
     animation: fieldFlash 1.2s ease-in-out;
   }
 }
+
+/* ===== iOS Safe Area (iPhone X以降のホームバー対応) ===== */
+/* viewport-fit=cover と組み合わせて使用 */
+.bottom-nav-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.main-content-safe {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+}

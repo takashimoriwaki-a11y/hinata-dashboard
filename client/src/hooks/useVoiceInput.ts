@@ -421,8 +421,12 @@ export function useVoiceInput({
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      // iOS Safari 対応: audio/mp4 を優先、次に audio/webm
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+      // iOS Safari 対応: iOSでは audio/mp4 を優先（iOS Safariは audio/webm 非対応）
+      // Chrome/Firefoxでは audio/webm;codecs=opus を優先
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as unknown as Record<string, unknown>).MSStream;
+      const mimeType = isIOS
+        ? (MediaRecorder.isTypeSupported("audio/mp4") ? "audio/mp4" : "")
+        : MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
         ? "audio/webm;codecs=opus"
         : MediaRecorder.isTypeSupported("audio/webm")
         ? "audio/webm"
