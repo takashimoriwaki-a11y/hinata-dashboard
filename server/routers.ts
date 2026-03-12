@@ -1288,9 +1288,7 @@ export const appRouter = router({
           "伝達先（その他）",
           "伝達方法",
           "伝達方法（その他）",
-          "病状の経過",
         ];
-
         const row = [
           formatDate(record.createdAt),
           record.createdByName ?? "",
@@ -1301,7 +1299,6 @@ export const appRouter = router({
           record.notifiedToOther ?? "",
           record.notifyMethod ?? "",
           record.notifyMethodOther ?? "",
-          record.clinicalNotes ?? "",
         ];
 
         // 現在のシートの内容を確認してヘッダー行がなければ先に書き込む
@@ -1355,7 +1352,7 @@ export const appRouter = router({
                 // 1. ヘッダー行（1行目）：深青背景・白太字・中央揃え・フォントサイズ11
                 {
                   repeatCell: {
-                    range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 10 },
+                    range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 9 },
                     cell: {
                       userEnteredFormat: {
                         backgroundColor: { red: 0.165, green: 0.329, blue: 0.573 }, // #2A5492 深青
@@ -1372,7 +1369,7 @@ export const appRouter = router({
                 // 2. データ行全体：フォント・垂直中央・パディング
                 {
                   repeatCell: {
-                    range: { sheetId, startRowIndex: 1, endRowIndex: dataEndRow, startColumnIndex: 0, endColumnIndex: 10 },
+                    range: { sheetId, startRowIndex: 1, endRowIndex: dataEndRow, startColumnIndex: 0, endColumnIndex: 9 },
                     cell: {
                       userEnteredFormat: {
                         textFormat: { fontSize: 10, fontFamily: "Noto Sans JP" },
@@ -1383,10 +1380,10 @@ export const appRouter = router({
                     fields: "userEnteredFormat(textFormat,verticalAlignment,padding)",
                   },
                 },
-                // 3. 病状の経過列（J列）のみテキスト折り返し
+                // 3. 伝達方法（その他）列（I列）のみテキスト折り返し
                 {
                   repeatCell: {
-                    range: { sheetId, startRowIndex: 1, endRowIndex: dataEndRow, startColumnIndex: 9, endColumnIndex: 10 },
+                    range: { sheetId, startRowIndex: 1, endRowIndex: dataEndRow, startColumnIndex: 8, endColumnIndex: 9 },
                     cell: {
                       userEnteredFormat: {
                         wrapStrategy: "WRAP",
@@ -1398,7 +1395,7 @@ export const appRouter = router({
                 // 4. 奇数行（データ行）：白背景
                 ...Array.from({ length: Math.ceil((dataEndRow - 1) / 2) }, (_, i) => ({
                   repeatCell: {
-                    range: { sheetId, startRowIndex: 1 + i * 2, endRowIndex: Math.min(2 + i * 2, dataEndRow), startColumnIndex: 0, endColumnIndex: 10 },
+                    range: { sheetId, startRowIndex: 1 + i * 2, endRowIndex: Math.min(2 + i * 2, dataEndRow), startColumnIndex: 0, endColumnIndex: 9 },
                     cell: { userEnteredFormat: { backgroundColor: { red: 1, green: 1, blue: 1 } } },
                     fields: "userEnteredFormat.backgroundColor",
                   },
@@ -1406,7 +1403,7 @@ export const appRouter = router({
                 // 5. 偶数行（データ行）：極淡青背景 #EBF3FB
                 ...Array.from({ length: Math.floor((dataEndRow - 1) / 2) }, (_, i) => ({
                   repeatCell: {
-                    range: { sheetId, startRowIndex: 2 + i * 2, endRowIndex: Math.min(3 + i * 2, dataEndRow), startColumnIndex: 0, endColumnIndex: 10 },
+                    range: { sheetId, startRowIndex: 2 + i * 2, endRowIndex: Math.min(3 + i * 2, dataEndRow), startColumnIndex: 0, endColumnIndex: 9 },
                     cell: { userEnteredFormat: { backgroundColor: { red: 0.922, green: 0.953, blue: 0.984 } } },
                     fields: "userEnteredFormat.backgroundColor",
                   },
@@ -1414,7 +1411,7 @@ export const appRouter = router({
                 // 6. 全セルに枠線を追加
                 {
                   updateBorders: {
-                    range: { sheetId, startRowIndex: 0, endRowIndex: dataEndRow, startColumnIndex: 0, endColumnIndex: 10 },
+                    range: { sheetId, startRowIndex: 0, endRowIndex: dataEndRow, startColumnIndex: 0, endColumnIndex: 9 },
                     top:    { style: "SOLID", width: 1, color: { red: 0.8, green: 0.8, blue: 0.8 } },
                     bottom: { style: "SOLID", width: 1, color: { red: 0.8, green: 0.8, blue: 0.8 } },
                     left:   { style: "SOLID", width: 1, color: { red: 0.8, green: 0.8, blue: 0.8 } },
@@ -1433,14 +1430,14 @@ export const appRouter = router({
                 { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 6, endIndex: 7 }, properties: { pixelSize: 130 }, fields: "pixelSize" } }, // 伝達先(その他)
                 { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 7, endIndex: 8 }, properties: { pixelSize: 110 }, fields: "pixelSize" } }, // 伝達方法
                 { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 8, endIndex: 9 }, properties: { pixelSize: 130 }, fields: "pixelSize" } }, // 伝達方法(その他)
-                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 9, endIndex: 10 }, properties: { pixelSize: 320 }, fields: "pixelSize" } }, // 病状の経過
+
                 // 8. 行の高さ：ヘッダー行を少し高めに
                 { updateDimensionProperties: { range: { sheetId, dimension: "ROWS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 36 }, fields: "pixelSize" } },
                 // 9. オートフィルターを設定（全列）
                 {
                   setBasicFilter: {
                     filter: {
-                      range: { sheetId, startRowIndex: 0, startColumnIndex: 0, endColumnIndex: 10 },
+                      range: { sheetId, startRowIndex: 0, startColumnIndex: 0, endColumnIndex: 9 },
                     },
                   },
                 },
