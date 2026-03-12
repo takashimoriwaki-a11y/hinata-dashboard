@@ -142,7 +142,7 @@ export default function Tasks() {
   const { data: staff = [] } = trpc.tasks.getStaff.useQuery();
 
   // 完了フィルター
-  const [filter, setFilter] = useState<"all" | "active" | "done">("active");
+  const [filter, setFilter] = useState<"all" | "active" | "done">("all");
 
   // 日付フィルター
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");

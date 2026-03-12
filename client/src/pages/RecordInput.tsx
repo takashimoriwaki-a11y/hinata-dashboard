@@ -59,6 +59,9 @@ export default function RecordInput() {
   const [patientName, setPatientName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [showPatientList, setShowPatientList] = useState(false);
+  // 確認パネル内の利用者名検索用state
+  const [previewPatientSearch, setPreviewPatientSearch] = useState("");
+  const [showPreviewPatientList, setShowPreviewPatientList] = useState(false);
   const [nextVisitDate, setNextVisitDate] = useState("");
   const [nextVisitTime, setNextVisitTime] = useState("");
   const [notifiedTo, setNotifiedTo] = useState<typeof NOTIFY_TO_OPTIONS[number] | "">("");
@@ -480,6 +483,11 @@ export default function RecordInput() {
   const { data: patients = [], isLoading: patientsLoading } = trpc.patients.search.useQuery(
     { query: searchQuery, team: team as Team || undefined },
     { enabled: showPatientList || searchQuery.length > 0 }
+  );
+  // 確認パネル内の利用者名検索用クエリ
+  const { data: previewPatients = [], isLoading: previewPatientsLoading } = trpc.patients.search.useQuery(
+    { query: previewPatientSearch },
+    { enabled: showPreviewPatientList || previewPatientSearch.length > 0 }
   );
 
   // 全利用者リスト（音声入力時のマッチング用）
@@ -904,12 +912,76 @@ export default function RecordInput() {
                       )}
                     </span>
                   </div>
-                  <Input
-                    className={cn("text-sm h-8", missingPatient && "border-red-400 focus-visible:ring-red-400")}
-                    value={editingPreview.patientName ?? ""}
-                    onChange={(e) => setEditingPreview((p) => p ? { ...p, patientName: e.target.value, patientId: null } : p)}
-                    placeholder={missingPatient ? "← 利用者名を入力してください" : ""}
-                  />
+                  {/* 利用者名が入力済みの場合：名前を表示し、削除すると検索フィールドに切り替わる */}
+                  {editingPreview.patientName && !showPreviewPatientList ? (
+                    <div className="flex items-center gap-2">
+                      <div className={cn(
+                        "flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-sm",
+                        editingPreview.patientId
+                          ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300"
+                          : "bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300"
+                      )}>
+                        <User className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">{editingPreview.patientName}</span>
+                        {!editingPreview.patientId && <span className="text-[10px] text-amber-500 ml-1">（未登録の可能性）</span>}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingPreview((p) => p ? { ...p, patientName: "", patientId: null } : p);
+                          setPreviewPatientSearch("");
+                          setShowPreviewPatientList(true);
+                        }}
+                        className="text-[10px] text-red-500 hover:text-red-700 whitespace-nowrap border border-red-300 rounded px-1.5 py-1 hover:bg-red-50 dark:hover:bg-red-950/20"
+                      >
+                        × 削除して再検索
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-muted-foreground" />
+                        <Input
+                          className={cn("pl-8 text-sm h-8", missingPatient && "border-red-400 focus-visible:ring-red-400")}
+                          value={previewPatientSearch}
+                          onChange={(e) => { setPreviewPatientSearch(e.target.value); setShowPreviewPatientList(true); }}
+                          onFocus={() => setShowPreviewPatientList(true)}
+                          placeholder={missingPatient ? "利用者名を検索...「未検出」" : "利用者名を検索..."}
+                          autoFocus={showPreviewPatientList}
+                        />
+                      </div>
+                      {showPreviewPatientList && (
+                        <div className="border rounded-md bg-background shadow-sm max-h-40 overflow-y-auto">
+                          {previewPatientsLoading ? (
+                            <div className="flex items-center justify-center p-3">
+                              <Loader2 className="w-3 h-3 animate-spin mr-1.5" />
+                              <span className="text-xs text-muted-foreground">検索中...</span>
+                            </div>
+                          ) : previewPatients.length === 0 ? (
+                            <div className="p-2.5 text-xs text-muted-foreground text-center">
+                              {previewPatientSearch ? "該当する利用者が見つかりません" : "利用者名を入力して検索"}
+                            </div>
+                          ) : (
+                            previewPatients.map((p) => (
+                              <button
+                                key={p.id}
+                                type="button"
+                                className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted flex items-center justify-between border-b last:border-b-0"
+                                onClick={() => {
+                                  setEditingPreview((prev) => prev ? { ...prev, patientName: p.name, patientId: p.id } : prev);
+                                  setPreviewPatientSearch("");
+                                  setShowPreviewPatientList(false);
+                                }}
+                              >
+                                <span>{p.name}</span>
+                                <span className="text-xs text-muted-foreground">{p.team}チーム</span>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* 次回訪問日時 */}
