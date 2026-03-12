@@ -1316,3 +1316,7 @@
 - [x] 議事録の検索・絞り込み機能
   - [x] フロントエンド：タイトル・投稿者名のキーワード検索バーを追加
   - [x] テスト追加（21件全合格）
+
+## Googleカレンダー連携バグ修正（2026-03-12）
+
+- [x] /api/auth/google/calendar でreq.cookiesがundefinedになりNot authenticatedエラーが発生する問題を修正（cookieParserなしでも動作するようreq.headers.cookieを直接パースする方式に変更）

@@ -1,6 +1,7 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import type { Express, Request, Response } from "express";
 import { OAuth2Client } from "google-auth-library";
+import { parse as parseCookieHeader } from "cookie";
 import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { createSessionToken, verifySessionToken } from "./localAuth";
@@ -155,8 +156,10 @@ export function registerGoogleAuthRoutes(app: Express) {
       res.status(503).json({ error: "Google OAuth is not configured" });
       return;
     }
-    // セッションCookieからユーザーを確認
-    const sessionToken = req.cookies?.[COOKIE_NAME];
+    // セッションCookieからユーザーを確認（cookieParserなしでも動作するよう直接パース）
+    const cookieHeader = req.headers.cookie;
+    const cookies = cookieHeader ? parseCookieHeader(cookieHeader) : {};
+    const sessionToken = cookies[COOKIE_NAME];
     if (!sessionToken) {
       res.status(401).json({ error: "Not authenticated" });
       return;
