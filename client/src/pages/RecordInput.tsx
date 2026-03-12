@@ -703,7 +703,7 @@ export default function RecordInput() {
               </div>
               <button
                 type="button"
-                onPointerDown={(e) => { e.preventDefault(); visitVoice.toggleVoice(); }}
+                onClick={(e) => { e.preventDefault(); visitVoice.toggleVoice(); }}
                 className={cn(
                   "relative inline-flex items-center justify-center flex-shrink-0 h-14 w-14 rounded-full",
                   "border-2 transition-all duration-200 select-none touch-manipulation",

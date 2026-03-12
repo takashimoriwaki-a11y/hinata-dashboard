@@ -473,7 +473,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
               )}
             <button
               type="button"
-              onPointerDown={(e) => { e.preventDefault(); if (!isAnalyzing) taskVoice.toggleVoice(); }}
+              onClick={(e) => { e.preventDefault(); if (!isAnalyzing) taskVoice.toggleVoice(); }}
               disabled={isAnalyzing}
               className={cn(
                 "relative inline-flex items-center justify-center flex-shrink-0 h-14 w-14 rounded-full",
@@ -860,7 +860,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
               {newDueDate && (
                 <button
                   type="button"
-                  onPointerDown={(e) => { e.preventDefault(); setNewDueDate(""); setNewDueTime(""); }}
+                  onClick={(e) => { e.preventDefault(); setNewDueDate(""); setNewDueTime(""); }}
                   className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
                   title="期日をクリア"
                 >
@@ -894,7 +894,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
               {newDueTime && (
                 <button
                   type="button"
-                  onPointerDown={(e) => { e.preventDefault(); setNewDueTime(""); }}
+                  onClick={(e) => { e.preventDefault(); setNewDueTime(""); }}
                   className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
                   title="時刻をクリア"
                 >

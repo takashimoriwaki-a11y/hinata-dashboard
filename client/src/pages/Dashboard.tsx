@@ -2521,7 +2521,7 @@ function MessageBoard({ title }: { title: string }) {
                   )}
                 <button
                   type="button"
-                  onPointerDown={(e) => { e.preventDefault(); if (!isAnalyzingMsg) msgVoice.toggleVoice(); }}
+                  onClick={(e) => { e.preventDefault(); if (!isAnalyzingMsg) msgVoice.toggleVoice(); }}
                   disabled={isAnalyzingMsg}
                   className={cn(
                     "relative inline-flex items-center justify-center flex-shrink-0 h-14 w-14 rounded-full",
@@ -2700,7 +2700,7 @@ function MessageBoard({ title }: { title: string }) {
                       <input id="msg-display-from" type="date" value={displayFrom} onChange={(e) => setDisplayFrom(e.target.value)}
                         className="flex-1 text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                       {displayFrom && (
-                        <button type="button" onPointerDown={(e) => { e.preventDefault(); setDisplayFrom(""); setDisplayFromTime(""); }}
+                        <button type="button" onClick={(e) => { e.preventDefault(); setDisplayFrom(""); setDisplayFromTime(""); }}
                           className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors" title="クリア">
                           <X className="w-4 h-4" />
                         </button>
@@ -2714,7 +2714,7 @@ function MessageBoard({ title }: { title: string }) {
                         {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
                       </select>
                       {displayFromTime && (
-                        <button type="button" onPointerDown={(e) => { e.preventDefault(); setDisplayFromTime(""); }}
+                        <button type="button" onClick={(e) => { e.preventDefault(); setDisplayFromTime(""); }}
                           className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors" title="時刻クリア">
                           <X className="w-4 h-4" />
                         </button>
@@ -2728,7 +2728,7 @@ function MessageBoard({ title }: { title: string }) {
                       <input id="msg-display-until" type="date" value={displayUntil} onChange={(e) => setDisplayUntil(e.target.value)}
                         className="flex-1 text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                       {displayUntil && (
-                        <button type="button" onPointerDown={(e) => { e.preventDefault(); setDisplayUntil(""); setDisplayUntilTime(""); }}
+                        <button type="button" onClick={(e) => { e.preventDefault(); setDisplayUntil(""); setDisplayUntilTime(""); }}
                           className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors" title="クリア">
                           <X className="w-4 h-4" />
                         </button>
@@ -2742,7 +2742,7 @@ function MessageBoard({ title }: { title: string }) {
                         {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
                       </select>
                       {displayUntilTime && (
-                        <button type="button" onPointerDown={(e) => { e.preventDefault(); setDisplayUntilTime(""); }}
+                        <button type="button" onClick={(e) => { e.preventDefault(); setDisplayUntilTime(""); }}
                           className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors" title="時刻クリア">
                           <X className="w-4 h-4" />
                         </button>
@@ -2756,7 +2756,7 @@ function MessageBoard({ title }: { title: string }) {
                       <input id="msg-scheduled-at" type="date" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)}
                         className="flex-1 text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                       {scheduledAt && (
-                        <button type="button" onPointerDown={(e) => { e.preventDefault(); setScheduledAt(""); setScheduledAtTime(""); }}
+                        <button type="button" onClick={(e) => { e.preventDefault(); setScheduledAt(""); setScheduledAtTime(""); }}
                           className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors" title="クリア">
                           <X className="w-4 h-4" />
                         </button>
@@ -2770,7 +2770,7 @@ function MessageBoard({ title }: { title: string }) {
                         {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
                       </select>
                       {scheduledAtTime && (
-                        <button type="button" onPointerDown={(e) => { e.preventDefault(); setScheduledAtTime(""); }}
+                        <button type="button" onClick={(e) => { e.preventDefault(); setScheduledAtTime(""); }}
                           className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors" title="時刻クリア">
                           <X className="w-4 h-4" />
                         </button>
@@ -2841,14 +2841,14 @@ function MessageBoard({ title }: { title: string }) {
                           />
                           <div className="flex gap-2 mt-1.5">
                             <button
-                              onPointerDown={() => updateMsg.mutate({ id: msg.id, text: editingText.trim() })}
+                              onClick={() => updateMsg.mutate({ id: msg.id, text: editingText.trim() })}
                               disabled={!editingText.trim() || updateMsg.isPending}
                               className="text-xs px-3 py-1 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
                             >
                               保存
                             </button>
                             <button
-                              onPointerDown={() => { setEditingMsgId(null); setEditingText(""); }}
+                              onClick={() => { setEditingMsgId(null); setEditingText(""); }}
                               className="text-xs px-3 py-1 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors"
                             >
                               キャンセル
@@ -2863,7 +2863,7 @@ function MessageBoard({ title }: { title: string }) {
                     {msg.createdBy === user?.id && (
                       <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 flex-shrink-0 transition-all">
                         <button
-                          onPointerDown={() => {
+                          onClick={() => {
                             setEditingMsgId(msg.id);
                             setEditingText(msg.text);
                           }}
@@ -2873,7 +2873,7 @@ function MessageBoard({ title }: { title: string }) {
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onPointerDown={() => deleteMsg.mutate({ id: msg.id })}
+                          onClick={() => deleteMsg.mutate({ id: msg.id })}
                           className="text-muted-foreground hover:text-destructive transition-colors"
                           title="削除"
                         >
