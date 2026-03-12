@@ -1,0 +1,1 @@
+ALTER TABLE `minutes` ADD `deadline` timestamp;

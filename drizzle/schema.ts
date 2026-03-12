@@ -278,7 +278,7 @@ export type InsertVisitRecord = typeof visitRecords.$inferInsert;
 export const appNotifications = mysqlTable("app_notifications", {
   id: int("id").autoincrement().primaryKey(),
   /** 通知の種類 */
-  type: mysqlEnum("type", ["schedule_updated", "task_today", "new_message"]).notNull(),
+  type: mysqlEnum("type", ["schedule_updated", "task_today", "new_message", "minutes_reminder"]).notNull(),
   /** 通知のタイトル */
   title: varchar("title", { length: 200 }).notNull(),
   /** 通知の本文 */
@@ -287,11 +287,12 @@ export const appNotifications = mysqlTable("app_notifications", {
   resourceId: int("resourceId"),
   /** 既読フラグ（0=未読, 1=既読） */
   isRead: int("isRead").default(0).notNull(),
-  /** 既読にした日時 */
+   /** 既読にした日時 */
   readAt: timestamp("readAt"),
+  /** 対象ユーザーID（nullの場合は全員対象） */
+  targetUserId: int("targetUserId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
-
 export type AppNotification = typeof appNotifications.$inferSelect;
 export type InsertAppNotification = typeof appNotifications.$inferInsert;
 
@@ -539,11 +540,12 @@ export const minutes = mysqlTable("minutes", {
   createdBy: int("createdBy").notNull(),
   /** 投稿者名 */
   createdByName: varchar("createdByName", { length: 100 }).notNull(),
+  /** 確認期限（任意） */
+  deadline: timestamp("deadline"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
-
-export type Minutes = typeof minutes.$inferSelect;
+export type Minutes = typeof minutes.$inferSelect;;
 export type InsertMinutes = typeof minutes.$inferInsert;
 
 /**

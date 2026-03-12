@@ -821,22 +821,44 @@ export async function createNotification(data: Omit<InsertAppNotification, "id" 
   await db.insert(appNotifications).values({ ...data, isRead: 0 });
 }
 
-/** 未読通知一覧を取得する（新しい順） */
-export async function getUnreadNotifications() {
+/** 未読通知一覧を取得する（新しい順・対象ユーザーまたは全員対象） */
+export async function getUnreadNotifications(userId?: number) {
   const db = await getDb();
   if (!db) return [];
+  const whereClause = userId
+    ? and(
+        eq(appNotifications.isRead, 0),
+        or(
+          isNull(appNotifications.targetUserId),
+          eq(appNotifications.targetUserId, userId)
+        )
+      )
+    : eq(appNotifications.isRead, 0);
   return db
     .select()
     .from(appNotifications)
-    .where(eq(appNotifications.isRead, 0))
+    .where(whereClause)
     .orderBy(desc(appNotifications.createdAt))
     .limit(50);
 }
-
-/** 通知一覧を取得する（新しい順、最新100件） */
-export async function getAllNotifications() {
+/** 通知一覧を取得する（新しい順、最新100件・対象ユーザーまたは全員対象） */
+export async function getAllNotifications(userId?: number) {
   const db = await getDb();
   if (!db) return [];
+  const whereClause = userId
+    ? or(
+        isNull(appNotifications.targetUserId),
+        eq(appNotifications.targetUserId, userId)
+      )
+    : undefined;
+  if (whereClause) {
+    return db
+      .select()
+      .from(appNotifications)
+      .where(whereClause)
+      .orderBy(desc(appNotifications.createdAt))
+      .limit(100);
+  }
   return db
     .select()
     .from(appNotifications)

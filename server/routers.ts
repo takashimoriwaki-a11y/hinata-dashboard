@@ -1565,14 +1565,13 @@ export const appRouter = router({
 
   // ========== アプリ内通知 ==========
   notifications: router({
-    // 未読通知一覧を取得
-    getUnread: protectedProcedure.query(async () => {
-      return getUnreadNotifications();
+     // 未読通知一覧を取得（自分対象または全員対象のみ）
+    getUnread: protectedProcedure.query(async ({ ctx }) => {
+      return getUnreadNotifications(ctx.user.id);
     }),
-
-    // 全通知一覧を取得（最新100件）
-    getAll: protectedProcedure.query(async () => {
-      return getAllNotifications();
+    // 全通知一覧を取得（最新100件・自分対象または全員対象のみ）
+    getAll: protectedProcedure.query(async ({ ctx }) => {
+      return getAllNotifications(ctx.user.id);
     }),
 
     // 指定通知を既読にする
@@ -2695,6 +2694,7 @@ export const appRouter = router({
         content: z.string().min(1),
         documentUrl: z.string().url().optional().or(z.literal("")),
         documentLabel: z.string().max(200).optional(),
+        deadline: z.date().optional().nullable(),
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin") {
@@ -2709,11 +2709,78 @@ export const appRouter = router({
           content: input.content,
           documentUrl: input.documentUrl || null,
           documentLabel: input.documentLabel || null,
+          deadline: input.deadline ?? null,
           createdBy: ctx.user.id,
           createdByName: ctx.user.name ?? "",
         });
         broadcastEvent("minutes");
         return { success: true };
+      }),
+    /** 議事録を更新（adminのみ・deadline含む） */
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number().int(),
+        title: z.string().min(1).max(300).optional(),
+        content: z.string().min(1).optional(),
+        documentUrl: z.string().url().optional().or(z.literal("")).nullable(),
+        documentLabel: z.string().max(200).optional().nullable(),
+        deadline: z.date().optional().nullable(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ編集できます" });
+        }
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続エラー" });
+        const { minutes } = await import("../drizzle/schema");
+        const { eq: eqOp } = await import("drizzle-orm");
+        const updateData: Record<string, unknown> = {};
+        if (input.title !== undefined) updateData.title = input.title;
+        if (input.content !== undefined) updateData.content = input.content;
+        if (input.documentUrl !== undefined) updateData.documentUrl = input.documentUrl || null;
+        if (input.documentLabel !== undefined) updateData.documentLabel = input.documentLabel || null;
+        if ("deadline" in input) updateData.deadline = input.deadline ?? null;
+        await db.update(minutes).set(updateData).where(eqOp(minutes.id, input.id));
+        broadcastEvent("minutes");
+        return { success: true };
+      }),
+    /** 未確認スタッフ全員にリマインド通知を送る（adminのみ） */
+    sendReminder: protectedProcedure
+      .input(z.object({ minutesId: z.number().int() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ送信できます" });
+        }
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続エラー" });
+        const { minutes, minutesChecks, appNotifications } = await import("../drizzle/schema");
+        const { eq: eqOp } = await import("drizzle-orm");
+        // 議事録タイトルを取得
+        const minutesRows = await db.select({ title: minutes.title }).from(minutes).where(eqOp(minutes.id, input.minutesId)).limit(1);
+        if (!minutesRows.length) throw new TRPCError({ code: "NOT_FOUND", message: "議事録が見つかりません" });
+        const minutesTitle = minutesRows[0].title;
+        // 全スタッフ（role=user）を取得
+        const allStaff = await db.select({ id: users.id, name: users.name }).from(users).where(eq(users.role, "user"));
+        // 確認済みユーザーIDを取得
+        const checks = await db.select({ userId: minutesChecks.userId }).from(minutesChecks).where(eqOp(minutesChecks.minutesId, input.minutesId));
+        const checkedIds = new Set(checks.map((c) => c.userId));
+        // 未確認スタッフにアプリ内通知を作成
+        const unreadStaff = allStaff.filter((s) => !checkedIds.has(s.id));
+        if (unreadStaff.length === 0) return { success: true, sent: 0 };
+        await db.insert(appNotifications).values(
+          unreadStaff.map((s) => ({
+            type: "minutes_reminder" as const,
+            title: "議事録の確認をお願いします",
+            body: `「${minutesTitle}」をまだ確認していません。議事録タブから確認してください。`,
+            resourceId: input.minutesId,
+            isRead: 0,
+            targetUserId: s.id,
+          }))
+        );
+        broadcastEvent("notifications");
+        return { success: true, sent: unreadStaff.length };
       }),
     /** 議事録を確認チェックする（個人単位で自分のリストから削除） */
     check: protectedProcedure

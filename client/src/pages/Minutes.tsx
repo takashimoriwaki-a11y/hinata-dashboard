@@ -4,8 +4,9 @@
  * 投稿はタイトルとドキュメントURLのみ。タイトルは手動または音声入力。
  * ドキュメントリンクをクリックすると自動的に確認チェックが入る。
  * タブ: 「未確認」「確認済み」で切り替え可能。管理者は既読者一覧を確認できる。
+ * 機能: 検索絞り込み・期限設定・未確認者へのリマインド通知
  */
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -34,9 +35,13 @@ import {
   Users,
   ChevronDown,
   ChevronUp,
+  Search,
+  Bell,
+  Calendar,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, isPast, isToday, addDays } from "date-fns";
 import { ja } from "date-fns/locale";
 
 // SpeechRecognition型定義（TypeScript用）
@@ -53,13 +58,66 @@ type SpeechRecognitionInstance = {
 };
 type SpeechRecognitionConstructor = { new(): SpeechRecognitionInstance };
 
+// 期限バッジコンポーネント
+function DeadlineBadge({ deadline }: { deadline: Date | null | undefined }) {
+  if (!deadline) return null;
+  const d = new Date(deadline);
+  const overdue = isPast(d) && !isToday(d);
+  const dueSoon = !overdue && d <= addDays(new Date(), 2);
+  const dueToday = isToday(d);
+
+  if (overdue) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-[11px] font-medium">
+        <AlertTriangle className="w-3 h-3" />
+        期限切れ {format(d, "M/d", { locale: ja })}
+      </span>
+    );
+  }
+  if (dueToday) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-[11px] font-medium">
+        <Calendar className="w-3 h-3" />
+        今日が期限
+      </span>
+    );
+  }
+  if (dueSoon) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-[11px] font-medium">
+        <Calendar className="w-3 h-3" />
+        期限 {format(d, "M月d日", { locale: ja })}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-[11px]">
+      <Calendar className="w-3 h-3" />
+      期限 {format(d, "M月d日", { locale: ja })}
+    </span>
+  );
+}
+
 // 既読者パネルコンポーネント（管理者のみ表示）
 function ReadersPanel({ minutesId }: { minutesId: number }) {
   const [open, setOpen] = useState(false);
+  const utils = trpc.useUtils();
   const { data, isLoading } = trpc.minutes.getReaders.useQuery(
     { minutesId },
     { enabled: open }
   );
+
+  const sendReminderMutation = trpc.minutes.sendReminder.useMutation({
+    onSuccess: (result) => {
+      if (result.sent === 0) {
+        toast.success("全員確認済みです。リマインドは不要です。");
+      } else {
+        toast.success(`${result.sent}名にリマインド通知を送りました`);
+      }
+      utils.minutes.getReaders.invalidate({ minutesId });
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   return (
     <div className="mt-2">
@@ -123,6 +181,22 @@ function ReadersPanel({ minutesId }: { minutesId: number }) {
                   <p className="text-[11px] text-muted-foreground">全員確認済みです</p>
                 )}
               </div>
+              {/* リマインド送信ボタン（未確認者がいる場合のみ） */}
+              {data && data.unread.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full mt-1 text-xs h-8 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/20"
+                  onClick={() => sendReminderMutation.mutate({ minutesId })}
+                  disabled={sendReminderMutation.isPending}
+                >
+                  {sendReminderMutation.isPending ? (
+                    <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" />送信中...</>
+                  ) : (
+                    <><Bell className="w-3 h-3 mr-1.5" />未確認者 {data.unread.length}名にリマインドを送る</>
+                  )}
+                </Button>
+              )}
             </>
           )}
         </div>
@@ -138,11 +212,14 @@ export default function Minutes() {
 
   // タブ: "unread" | "read"
   const [activeTab, setActiveTab] = useState<"unread" | "read">("unread");
+  // 検索キーワード
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { data: minutesList = [], isLoading } = trpc.minutes.list.useQuery();
   const [createOpen, setCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDocumentUrl, setNewDocumentUrl] = useState("");
+  const [newDeadline, setNewDeadline] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   // 楽観的更新用: チェックしたIDをローカルで管理
   const [localCheckedIds, setLocalCheckedIds] = useState<Set<number>>(new Set());
@@ -217,6 +294,7 @@ export default function Minutes() {
       setCreateOpen(false);
       setNewTitle("");
       setNewDocumentUrl("");
+      setNewDeadline("");
       toast.success("議事録を投稿しました");
     },
     onError: (e) => toast.error(e.message),
@@ -269,8 +347,25 @@ export default function Minutes() {
     (m) => m.checkedByMe || localCheckedIds.has(m.id)
   );
 
-  // 現在のタブに応じたリスト
-  const currentList = activeTab === "unread" ? unreadList : readList;
+  // 現在のタブに応じたリストに検索フィルタを適用
+  const baseList = activeTab === "unread" ? unreadList : readList;
+  const currentList = useMemo(() => {
+    if (!searchQuery.trim()) return baseList;
+    const q = searchQuery.trim().toLowerCase();
+    return baseList.filter((m) =>
+      m.title.toLowerCase().includes(q) ||
+      (m.createdByName && m.createdByName.toLowerCase().includes(q))
+    );
+  }, [baseList, searchQuery]);
+
+  // 期限切れ・期限近い議事録の数（未確認タブのみ）
+  const urgentCount = useMemo(() => {
+    return unreadList.filter((m) => {
+      if (!m.deadline) return false;
+      const d = new Date(m.deadline);
+      return d <= addDays(new Date(), 2);
+    }).length;
+  }, [unreadList]);
 
   return (
     <div className="max-w-2xl mx-auto py-6 px-4 space-y-4">
@@ -294,6 +389,16 @@ export default function Minutes() {
           </Button>
         )}
       </div>
+
+      {/* 期限が近い/切れた議事録の警告バナー */}
+      {urgentCount > 0 && activeTab === "unread" && (
+        <div className="flex items-center gap-2.5 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/50">
+          <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0" />
+          <p className="text-xs text-red-800 dark:text-red-300 font-medium">
+            期限が近い、または期限切れの議事録が <span className="font-bold">{urgentCount}件</span> あります
+          </p>
+        </div>
+      )}
 
       {/* タブ切り替え */}
       <div className="flex gap-1 p-1 rounded-lg bg-muted/50 border border-border">
@@ -331,8 +436,27 @@ export default function Minutes() {
         </button>
       </div>
 
-      {/* 操作説明バナー（未確認タブのみ） */}
-      {activeTab === "unread" && (
+      {/* 検索バー */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        <Input
+          placeholder="タイトルや投稿者で絞り込み..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9 text-sm"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
+      {/* 操作説明バナー（未確認タブのみ・検索なし時） */}
+      {activeTab === "unread" && !searchQuery && (
         <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50">
           <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
           <div className="text-xs text-amber-800 dark:text-amber-300 space-y-1">
@@ -346,13 +470,25 @@ export default function Minutes() {
         </div>
       )}
 
+      {/* 検索結果件数 */}
+      {searchQuery && (
+        <p className="text-xs text-muted-foreground">
+          「{searchQuery}」の検索結果: {currentList.length}件
+        </p>
+      )}
+
       {/* 議事録リスト */}
       {isLoading ? (
         <div className="text-center text-muted-foreground py-12">読み込み中...</div>
       ) : currentList.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            {activeTab === "unread" ? (
+            {searchQuery ? (
+              <>
+                <Search className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <p>「{searchQuery}」に一致する議事録はありません</p>
+              </>
+            ) : activeTab === "unread" ? (
               <>
                 <CheckCircle2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
                 <p>未確認の議事録はありません</p>
@@ -369,8 +505,15 @@ export default function Minutes() {
         <div className="space-y-3">
           {currentList.map((m) => {
             const isChecked = m.checkedByMe || localCheckedIds.has(m.id);
+            const deadline = m.deadline ? new Date(m.deadline) : null;
+            const isOverdue = deadline && isPast(deadline) && !isToday(deadline);
             return (
-              <Card key={m.id} className={`border-border ${isChecked ? "opacity-80" : ""}`}>
+              <Card
+                key={m.id}
+                className={`border-border ${isChecked ? "opacity-80" : ""} ${
+                  isOverdue && !isChecked ? "border-red-300 dark:border-red-700/60" : ""
+                }`}
+              >
                 <CardHeader className="pb-3 pt-4 px-4">
                   <div className="flex items-start gap-3">
                     {/* チェックボタン（未確認タブのみ操作可能） */}
@@ -401,6 +544,12 @@ export default function Minutes() {
                           {m.createdByName} ·{" "}
                           {format(new Date(m.createdAt), "M月d日(E) HH:mm", { locale: ja })}
                         </p>
+                        {/* 期限バッジ */}
+                        {deadline && !isChecked && (
+                          <div className="mt-1">
+                            <DeadlineBadge deadline={deadline} />
+                          </div>
+                        )}
                       </div>
                       {/* 添付ドキュメントリンク */}
                       {m.documentUrl && (
@@ -458,6 +607,7 @@ export default function Minutes() {
         if (!open) {
           setNewTitle("");
           setNewDocumentUrl("");
+          setNewDeadline("");
           recognitionRef.current?.stop();
         }
       }}>
@@ -504,6 +654,34 @@ export default function Minutes() {
               )}
             </div>
 
+            {/* 確認期限（任意） */}
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                確認期限（任意）
+              </p>
+              <Input
+                type="date"
+                value={newDeadline}
+                onChange={(e) => setNewDeadline(e.target.value)}
+                min={format(new Date(), "yyyy-MM-dd")}
+                className="text-sm"
+              />
+              {newDeadline && (
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-muted-foreground">
+                    {format(new Date(newDeadline), "M月d日(E)まで", { locale: ja })}
+                  </p>
+                  <button
+                    onClick={() => setNewDeadline("")}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    ✕ クリア
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* ドキュメントURL（任意） */}
             <div className="space-y-1.5 p-3 bg-muted/30 rounded-lg border border-border">
               <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
@@ -533,10 +711,13 @@ export default function Minutes() {
                 content: newTitle,
                 documentUrl: newDocumentUrl || undefined,
                 documentLabel: newTitle || undefined,
+                deadline: newDeadline ? new Date(newDeadline) : undefined,
               })}
               disabled={!newTitle.trim() || createMutation.isPending}
             >
-              投稿する
+              {createMutation.isPending ? (
+                <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" />投稿中...</>
+              ) : "投稿する"}
             </Button>
           </DialogFooter>
         </DialogContent>
