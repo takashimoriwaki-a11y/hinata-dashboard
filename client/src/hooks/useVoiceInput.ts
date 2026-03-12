@@ -407,7 +407,21 @@ export function useVoiceInput({
         }
       };
 
-      recognition.start();
+      try {
+        recognition.start();
+      } catch (startErr) {
+        // iOS Safariで start() が失敗した場合（NotAllowedError等）
+        const errName = startErr instanceof Error ? startErr.name : String(startErr);
+        if (errName === "NotAllowedError" || errName === "SecurityError") {
+          toast.error("マイクのアクセスが許可されていません。Safari設定 → マイク を確認してください。");
+        } else {
+          toast.error(`音声入力の開始に失敗しました: ${errName}`);
+        }
+        setTranscriptionStatus("error");
+        setTimeout(() => setTranscriptionStatus("idle"), 3000);
+        return false;
+      }
+
       recognitionRef.current = recognition;
       setRecording(true);
       setTranscriptionStatus("recording");
@@ -417,7 +431,11 @@ export function useVoiceInput({
       startElapsedTimer(stopFromTimer);
 
       return true;
-    } catch {
+    } catch (outerErr) {
+      const errName = outerErr instanceof Error ? outerErr.name : String(outerErr);
+      toast.error(`音声入力エラー: ${errName}`);
+      setTranscriptionStatus("error");
+      setTimeout(() => setTranscriptionStatus("idle"), 3000);
       return false;
     }
   }, [lang, onResult, resetSilenceTimer, clearSilenceTimer, stopElapsedTimer, startElapsedTimer, getAutoStopMessage]);
@@ -595,16 +613,23 @@ export function useVoiceInput({
 
   // ---- 公開 API ----
   const startVoice = useCallback(() => {
-    setTranscriptionStatus("recording");
     // iOS Safari 対応: async/await を使わずに同期的に開始する
     // Web Speech API を試みる（同期）
     const usedSpeechAPI = startSpeechRecognition();
     if (!usedSpeechAPI) {
-      // MediaRecorder フォールバック（非同期だが、ユーザーのジェスチャーから
-      // 直接呼び出されるため iOS Safari でも getUserMedia が許可される）
-      startMediaRecorder();
+      if (isIOS) {
+        // iOSではMediaRecorderフォールバックを使わない
+        // （getUserMediaがユーザーのジェスチャーから直接呼ばれない問題を回避）
+        // Web Speech APIが使えない場合はエラーメッセージを表示
+        toast.error("お使いのブラウザは音声入力に対応していません。Safari最新版をお使いください。");
+        setTranscriptionStatus("error");
+        setTimeout(() => setTranscriptionStatus("idle"), 3000);
+      } else {
+        // PC/Android: MediaRecorder フォールバック
+        startMediaRecorder();
+      }
     }
-  }, [startSpeechRecognition, startMediaRecorder]);
+  }, [startSpeechRecognition, startMediaRecorder, isIOS]);
 
   const stopVoice = useCallback(() => {
     if (recognitionRef.current) {

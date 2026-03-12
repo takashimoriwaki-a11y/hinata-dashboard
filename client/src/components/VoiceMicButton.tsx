@@ -127,8 +127,21 @@ export function VoiceMicButton({
   // 残り5秒以下でカウントダウン警告を表示
   const showCountdown = isRecording && silenceCountdown !== null && silenceCountdown <= 5;
 
-  const handleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
+  const touchHandledRef = React.useRef(false);
+
+  const handleClick = () => {
+    // onTouchEndで処理済みの場合はスキップ（二重呼び出し防止）
+    if (touchHandledRef.current) {
+      touchHandledRef.current = false;
+      return;
+    }
+    if (disabled || isProcessing) return;
+    toggleVoice();
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.preventDefault(); // iOSでclickイベントの300ms遅延を防止
+    touchHandledRef.current = true;
     if (disabled || isProcessing) return;
     toggleVoice();
   };
@@ -137,6 +150,7 @@ export function VoiceMicButton({
     <button
       type="button"
       onClick={handleClick}
+      onTouchEnd={handleTouchEnd}
       disabled={disabled || isProcessing}
       className={cn(
         "relative inline-flex items-center justify-center flex-shrink-0",
