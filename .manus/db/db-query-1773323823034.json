@@ -1,0 +1,70 @@
+{
+  "query": "SELECT id, patientName, createdByName, createdAt FROM schedule_changes ORDER BY createdAt DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT id, patientName, createdByName, createdAt FROM schedule_changes ORDER BY createdAt DESC LIMIT 10;",
+  "rows": [
+    {
+      "id": "210001",
+      "patientName": "馬場孝子",
+      "createdByName": "森脇　崇",
+      "createdAt": "2026-03-12 13:28:14"
+    },
+    {
+      "id": "180001",
+      "patientName": "増田誠司",
+      "createdByName": "森脇　崇",
+      "createdAt": "2026-03-12 02:51:14"
+    },
+    {
+      "id": "150002",
+      "patientName": "森本孝枝",
+      "createdByName": "森脇　崇",
+      "createdAt": "2026-03-11 09:44:47"
+    },
+    {
+      "id": "150001",
+      "patientName": "森本孝枝",
+      "createdByName": "森脇　崇",
+      "createdAt": "2026-03-11 09:37:59"
+    },
+    {
+      "id": "120001",
+      "patientName": "上島久典",
+      "createdByName": "森脇　崇",
+      "createdAt": "2026-03-11 03:23:08"
+    },
+    {
+      "id": "90002",
+      "patientName": "森本孝枝",
+      "createdByName": "森脇　崇",
+      "createdAt": "2026-03-10 15:05:12"
+    },
+    {
+      "id": "90001",
+      "patientName": "森本孝枝",
+      "createdByName": "森脇　崇",
+      "createdAt": "2026-03-10 15:03:13"
+    },
+    {
+      "id": "60001",
+      "patientName": "中尾琴乃",
+      "createdByName": "森脇　崇",
+      "createdAt": "2026-03-09 10:09:01"
+    },
+    {
+      "id": "30001",
+      "patientName": "中尾琴乃",
+      "createdByName": "森脇　崇",
+      "createdAt": "2026-03-09 08:19:35"
+    },
+    {
+      "id": "8",
+      "patientName": "中尾琴乃",
+      "createdByName": "森脇　崇",
+      "createdAt": "2026-03-08 13:46:38"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tpatientName\tcreatedByName\tcreatedAt\n210001\t馬場孝子\t森脇　崇\t2026-03-12 13:28:14\n180001\t増田誠司\t森脇　崇\t2026-03-12 02:51:14\n150002\t森本孝枝\t森脇　崇\t2026-03-11 09:44:47\n150001\t森本孝枝\t森脇　崇\t2026-03-11 09:37:59\n120001\t上島久典\t森脇　崇\t2026-03-11 03:23:08\n90002\t森本孝枝\t森脇　崇\t2026-03-10 15:05:12\n90001\t森本孝枝\t森脇　崇\t2026-03-10 15:03:13\n60001\t中尾琴乃\t森脇　崇\t2026-03-09 10:09:01\n30001\t中尾琴乃\t森脇　崇\t2026-03-09 08:19:35\n8\t中尾琴乃\t森脇　崇\t2026-03-08 13:46:38\n",
+  "stderr": "",
+  "execution_time_ms": 1563
+}

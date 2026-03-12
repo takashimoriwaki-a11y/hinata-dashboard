@@ -221,8 +221,10 @@ export default function Minutes() {
   const [newDocumentUrl, setNewDocumentUrl] = useState("");
   const [newDeadline, setNewDeadline] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
-  // 楽観的更新用: チェックしたIDをローカルで管理
+  // 楽観的更新用: 添付を開いて確認済みになったID（リスト移動対象）
   const [localCheckedIds, setLocalCheckedIds] = useState<Set<number>>(new Set());
+  // チェックボタンのみ押した状態（リスト移動なし、チェックマーク表示のみ）
+  const [localPreCheckedIds, setLocalPreCheckedIds] = useState<Set<number>>(new Set());
   const [isFetchingTitle, setIsFetchingTitle] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const fetchTitleTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -301,9 +303,28 @@ export default function Minutes() {
   });
 
   const checkMutation = trpc.minutes.check.useMutation({
+    onSuccess: () => {
+      utils.minutes.list.invalidate();
+      utils.minutes.uncheckedCount.invalidate();
+    },
+    onError: (e) => {
+      toast.error(e.message);
+    },
+  });
+
+  const uncheckMutation = trpc.minutes.uncheck.useMutation({
     onMutate: ({ minutesId }) => {
-      // 楽観的更新: 即座にリストから非表示にする
-      setLocalCheckedIds((prev) => new Set(prev).add(minutesId));
+      // 楽観的更新: 即座にローカルチェックを解除
+      setLocalCheckedIds((prev) => {
+        const s = new Set(prev);
+        s.delete(minutesId);
+        return s;
+      });
+      setLocalPreCheckedIds((prev) => {
+        const s = new Set(prev);
+        s.delete(minutesId);
+        return s;
+      });
     },
     onSuccess: () => {
       utils.minutes.list.invalidate();
@@ -311,11 +332,7 @@ export default function Minutes() {
     },
     onError: (e, { minutesId }) => {
       // エラー時はロールバック
-      setLocalCheckedIds((prev) => {
-        const s = new Set(prev);
-        s.delete(minutesId);
-        return s;
-      });
+      setLocalCheckedIds((prev) => new Set(prev).add(minutesId));
       toast.error(e.message);
     },
   });
@@ -330,11 +347,20 @@ export default function Minutes() {
     onError: (e) => toast.error(e.message),
   });
 
-  // ドキュメントリンクをクリックしたら自動チェック（確認済みにする）
-  const handleDocumentOpen = (minutesId: number) => {
-    if (!localCheckedIds.has(minutesId)) {
+  // ドキュメントリンクをクリックしたら確認済みに移動（チェック状態に関わらず）
+  const handleDocumentOpen = (minutesId: number, checkedByMe: boolean) => {
+    if (!checkedByMe && !localCheckedIds.has(minutesId)) {
+      // 未確認の場合: 添付を開いたら確認済みに移動（DBに保存）
+      setLocalCheckedIds((prev) => new Set(prev).add(minutesId));
+      // プレチェック状態を解除
+      setLocalPreCheckedIds((prev) => {
+        const s = new Set(prev);
+        s.delete(minutesId);
+        return s;
+      });
       checkMutation.mutate({ minutesId });
     }
+    // 既に確認済みの場合は何もしない
   };
 
   // 未確認リスト: サーバーで既読 or ローカルでチェック済みのものを除外
@@ -462,10 +488,11 @@ export default function Minutes() {
           <div className="text-xs text-amber-800 dark:text-amber-300 space-y-1">
             <p className="font-semibold">確認の手順</p>
             <ol className="list-decimal list-inside space-y-0.5 text-amber-700 dark:text-amber-400">
-              <li>まず左の <span className="inline-flex items-center gap-0.5 font-medium">○ チェックボタン</span> を押して確認済みにする</li>
-              <li>その後、ドキュメントリンクを開いて内容を確認する</li>
+              <li>左の <span className="inline-flex items-center gap-0.5 font-medium">○ チェックボタン</span> を押す（チェックマークがつく）</li>
+              <li>添付のドキュメントリンクを開いて内容を確認する</li>
+              <li>ドキュメントを開いた時点で「確認済み」タブに移動</li>
             </ol>
-            <p className="text-amber-600 dark:text-amber-500 text-[11px]">※ ドキュメントを開いた時点でも自動的に確認済みになります</p>
+            <p className="text-amber-600 dark:text-amber-500 text-[11px]">※ 確認済みボタンを再度押すと確認を解除できます</p>
           </div>
         </div>
       )}
@@ -504,7 +531,7 @@ export default function Minutes() {
       ) : (
         <div className="space-y-3">
           {currentList.map((m) => {
-            const isChecked = m.checkedByMe || localCheckedIds.has(m.id);
+            const isChecked = m.checkedByMe || localCheckedIds.has(m.id) || localPreCheckedIds.has(m.id);
             const deadline = m.deadline ? new Date(m.deadline) : null;
             const isOverdue = deadline && isPast(deadline) && !isToday(deadline);
             return (
@@ -516,20 +543,32 @@ export default function Minutes() {
               >
                 <CardHeader className="pb-3 pt-4 px-4">
                   <div className="flex items-start gap-3">
-                    {/* チェックボタン（未確認タブのみ操作可能） */}
+                    {/* チェックボタン（トグル式、リスト移動なし） */}
                     <button
                       onClick={() => {
-                        if (!isChecked && activeTab === "unread") {
-                          checkMutation.mutate({ minutesId: m.id });
+                        const locallyPreChecked = localPreCheckedIds.has(m.id);
+                        const locallyConfirmed = localCheckedIds.has(m.id);
+                        if (m.checkedByMe || locallyConfirmed) {
+                          // 確認済み（添付を開いた状態）→解除
+                          uncheckMutation.mutate({ minutesId: m.id });
+                        } else if (locallyPreChecked) {
+                          // プレチェック済み→解除（ローカルのみ）
+                          setLocalPreCheckedIds((prev) => {
+                            const s = new Set(prev);
+                            s.delete(m.id);
+                            return s;
+                          });
+                        } else {
+                          // 未確認→プレチェック（ローカルのみ、リスト移動なし）
+                          setLocalPreCheckedIds((prev) => new Set(prev).add(m.id));
                         }
                       }}
-                      disabled={isChecked}
                       className={`mt-0.5 flex-shrink-0 transition-colors ${
                         isChecked
-                          ? "text-emerald-500 cursor-default"
+                          ? "text-emerald-500 hover:text-red-400"
                           : "text-muted-foreground hover:text-emerald-500"
                       }`}
-                      title={isChecked ? "確認済み" : "先にここを押して確認済みにする"}
+                      title={isChecked ? "クリックで確認を解除" : "チェックしてから添付を開いてください"}
                     >
                       {isChecked
                         ? <CheckCircle2 className="w-5 h-5" />
@@ -564,7 +603,7 @@ export default function Minutes() {
                             href={m.documentUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            onClick={() => handleDocumentOpen(m.id)}
+                            onClick={() => handleDocumentOpen(m.id, m.checkedByMe)}
                             className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-muted/30 hover:bg-accent transition-colors group w-fit max-w-full"
                           >
                             <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />

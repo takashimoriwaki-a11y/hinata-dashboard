@@ -2830,6 +2830,24 @@ export const appRouter = router({
         broadcastEvent("minutes");
         return { success: true };
       }),
+    /** 議事録の確認チェックを解除する（個人単位） */
+    uncheck: protectedProcedure
+      .input(z.object({ minutesId: z.number().int() }))
+      .mutation(async ({ ctx, input }) => {
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続エラー" });
+        const { minutesChecks } = await import("../drizzle/schema");
+        const { and, eq: eqOp } = await import("drizzle-orm");
+        await db.delete(minutesChecks).where(
+          and(
+            eqOp(minutesChecks.minutesId, input.minutesId),
+            eqOp(minutesChecks.userId, ctx.user.id)
+          )
+        );
+        broadcastEvent("minutes");
+        return { success: true };
+      }),
     /** 議事録の既読者一覧を取得（adminのみ） */
     getReaders: protectedProcedure
       .input(z.object({ minutesId: z.number().int() }))
