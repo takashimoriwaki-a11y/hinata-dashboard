@@ -96,6 +96,8 @@ interface UseVoiceInputReturn {
   lastTranscribedText: string;
   /** 誤変換フィードバックを送信する */
   reportMistranscription: (wrongText: string, correctedText: string) => Promise<void>;
+  /** 最後に認識されたテキストをクリアする（誤変換表示をリセット） */
+  clearLastTranscribedText: () => void;
 }
 
 // SpeechRecognition の型定義（ブラウザ互換）
@@ -665,6 +667,10 @@ export function useVoiceInput({
     }
   }, [context]);
 
+  const clearLastTranscribedText = useCallback(() => {
+    setLastTranscribedText("");
+  }, []);
+
   return {
     isRecording,
     isProcessing,
@@ -677,5 +683,6 @@ export function useVoiceInput({
     transcriptionStatus,
     lastTranscribedText,
     reportMistranscription,
+    clearLastTranscribedText,
   };
 }

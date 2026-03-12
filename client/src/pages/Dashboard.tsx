@@ -256,7 +256,7 @@ function VisitCountCard() {
   };
 
   return (
-    <Card className="fade-in-up stagger-1 shadow-sm flex flex-col h-full">
+    <Card className="fade-in-up stagger-1 shadow-sm flex flex-col">
       <CardHeader className="pb-1 pt-3 px-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -1629,22 +1629,57 @@ const TOOLS_TABS = [
 type ToolsTabId = typeof TOOLS_TABS[number]["id"];
 
 // リンク行コンポーネント
+const DAILY_REPORT_SPREADSHEET_ID = "10Leb7UR6ARVlCGbf5pBa5yxsgm5WAV9m-ETyYrzfBCs";
+
 function LinkRow({ href, label, color, emoji }: { href: string; label: string; color?: string; emoji?: string }) {
   const { isNight } = useTheme();
+  const [isOpening, setIsOpening] = useState(false);
+  const utils = trpc.useUtils();
   // 夜間モード時は-600番台を-400番台に変換して視認性を上げる
   const nightColor = color ? color.replace(/-600$/, "-400").replace(/-700$/, "-300") : "text-foreground";
+
+  const isDailyReport = href.includes(DAILY_REPORT_SPREADSHEET_ID);
+
+  const handleClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!isDailyReport) return; // 業務日報以外は通常のリンク動作
+    e.preventDefault();
+    setIsOpening(true);
+    try {
+      const result = await utils.spreadsheetLinks.getDailyReportSheetGid.fetch();
+      if (result.gid !== null) {
+        window.open(
+          `https://docs.google.com/spreadsheets/d/${DAILY_REPORT_SPREADSHEET_ID}/edit#gid=${result.gid}`,
+          "_blank",
+          "noopener,noreferrer"
+        );
+      } else {
+        // 本日のタブが見つからない場合は通常のリンクで開く
+        window.open(href, "_blank", "noopener,noreferrer");
+      }
+    } catch {
+      // エラー時は通常のリンクで開く
+      window.open(href, "_blank", "noopener,noreferrer");
+    } finally {
+      setIsOpening(false);
+    }
+  };
+
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={handleClick}
       className={cn(
         "flex items-center gap-2 text-sm py-2.5 px-3 rounded-md",
         "bg-muted/50 hover:bg-muted transition-colors font-medium",
+        isOpening ? "opacity-60 cursor-wait" : "",
         isNight ? nightColor : (color ?? "text-foreground")
       )}
     >
-      {emoji ? <span className="flex-shrink-0">{emoji}</span> : <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />}
+      {isOpening
+        ? <span className="flex-shrink-0 w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+        : emoji ? <span className="flex-shrink-0">{emoji}</span> : <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />}
       <span className="truncate">{label}</span>
     </a>
   );
@@ -2459,7 +2494,7 @@ function MessageBoard({ title }: { title: string }) {
   };
 
   return (
-    <Card className="fade-in-up stagger-4 shadow-sm flex flex-col h-full">
+    <Card className="fade-in-up stagger-4 shadow-sm flex flex-col">
       <CardHeader className="pb-2">
         <div className="flex items-center">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -2468,7 +2503,7 @@ function MessageBoard({ title }: { title: string }) {
           </CardTitle>
         </div>
       </CardHeader>
-      <CardContent className="space-y-2 flex-1 overflow-auto">
+      <CardContent className="space-y-2 overflow-auto">
         {/* 投稿フォーム */}
         {showForm && (
           <div className="border border-primary/20 rounded-xl p-4 space-y-3 bg-primary/5">
@@ -3401,7 +3436,7 @@ export default function Dashboard() {
       </div>
 
       {/* 下段: メッセージ・訪問件数を横並び（PC版） */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 items-stretch">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 items-start">
         <MessageBoard title="メッセージ" />
         <VisitCountCard />
       </div>

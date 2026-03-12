@@ -474,6 +474,35 @@ export const appRouter = router({
         broadcastEvent("spreadsheetLinks");
         return { success: true };
       }),
+    // 業務日報の本日の日付タブのgidを取得
+    getDailyReportSheetGid: publicProcedure.query(async () => {
+      const DAILY_REPORT_SPREADSHEET_ID = "10Leb7UR6ARVlCGbf5pBa5yxsgm5WAV9m-ETyYrzfBCs";
+      const auth = getAuth();
+      const client = await auth.getClient();
+      const token = await client.getAccessToken();
+      if (!token.token) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "アクセストークンの取得に失敗しました" });
+
+      const metaRes = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${DAILY_REPORT_SPREADSHEET_ID}?fields=sheets.properties`,
+        { headers: { Authorization: `Bearer ${token.token}` } }
+      );
+      if (!metaRes.ok) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "シート情報の取得に失敗しました" });
+      const meta = await metaRes.json() as { sheets: { properties: { sheetId: number; title: string } }[] };
+
+      // 本日の日付に一致するシートを検索（複数パターン対応）
+      const now = new Date();
+      const month = now.getMonth() + 1;
+      const day = now.getDate();
+      const candidates = [
+        `${month}/${day}`,
+        `${month}月${day}日`,
+        `${String(month).padStart(2, "0")}/${String(day).padStart(2, "0")}`,
+        `${String(month).padStart(2, "0")}月${String(day).padStart(2, "0")}日`,
+      ];
+      const sheet = meta.sheets.find((s) => candidates.includes(s.properties.title));
+      return { gid: sheet?.properties.sheetId ?? null, title: sheet?.properties.title ?? null };
+    }),
+
     // 一括登録（管理者のみ）
     batchUpsert: protectedProcedure
       .input(

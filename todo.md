@@ -1383,3 +1383,9 @@
 ## iPhoneの音声入力が反応しない問題（再修正）（2026-03-12）
 
 - [x] useVoiceInput.tsのiOS Safari対応を根本的に修正する（Web Speech APIの制限を回避）
+
+## 不具合修正（2026-03-12）
+
+- [x] 病状の経過の誤変換報告後に「記録をコピーしてGemへ」ボタンを押したら誤変換報告をリセットする（clearLastTranscribedText()の呼び出しを確認済み）
+- [x] 全チーム共通ツールの業務日報を開く際に本日の日付のタブを開く（LinkRow+getDailyReportSheetGid APIで実装済み確認）
+- [x] メッセージ投稿・キャンセル後にメッセージカードが大きくなる表示バグを修正する（h-full削除・items-stretchをitems-startに変更）
