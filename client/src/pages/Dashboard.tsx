@@ -3331,13 +3331,13 @@ export default function Dashboard() {
             <p className="text-xl md:text-3xl font-extrabold text-white leading-tight tracking-wide whitespace-nowrap" style={{textShadow: '0 2px 8px rgba(0,0,0,0.2)'}}>{userName}<span className="text-lg md:text-2xl">さん</span></p>
             <p className="text-xl md:text-3xl font-extrabold text-white/90 whitespace-nowrap" style={{textShadow: '0 1px 4px rgba(0,0,0,0.2)'}}>{greeting}</p>
           </div>
-          {/* ショートカットボタン（モバイル横スクロール・PC右寄せ） */}
-          <div className="flex flex-row flex-wrap items-center gap-2 justify-center md:justify-end">
+          {/* ショートカットボタン（モバイル: 3列グリッド均等配置 / PC: 折り返し右寄せ） */}
+          <div className="grid grid-cols-3 gap-1.5 md:flex md:flex-row md:flex-wrap md:justify-end md:gap-2">
             <a
               href="https://gemini.google.com/app"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 transition-all text-white text-sm font-semibold px-4 py-2 rounded-full shadow-sm whitespace-nowrap flex-shrink-0" style={{backgroundColor: '#9b7fd4'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#8a6ec3')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#9b7fd4')}
+              className="flex items-center justify-center gap-1.5 transition-all text-white text-sm font-semibold px-3 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#9b7fd4'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#8a6ec3')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#9b7fd4')}
             >
               <span className="text-base leading-none">✨</span>
               Gemini
@@ -3346,7 +3346,7 @@ export default function Dashboard() {
               href="https://homecare.zest.jp/login"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 transition-all text-white text-sm font-semibold px-4 py-2 rounded-full shadow-sm whitespace-nowrap flex-shrink-0" style={{backgroundColor: '#00b5a3'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#009e8e')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#00b5a3')}
+              className="flex items-center justify-center gap-1.5 transition-all text-white text-sm font-semibold px-3 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#00b5a3'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#009e8e')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#00b5a3')}
             >
               <Calendar className="w-4 h-4" />
               ZEST
@@ -3355,28 +3355,28 @@ export default function Dashboard() {
               href="https://login.ibowservice.jp/?action=logout"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 transition-all text-white text-sm font-semibold px-4 py-2 rounded-full shadow-sm whitespace-nowrap flex-shrink-0" style={{backgroundColor: '#4a90d9'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#3a7fc8')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#4a90d9')}
+              className="flex items-center justify-center gap-1.5 transition-all text-white text-sm font-semibold px-3 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#4a90d9'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#3a7fc8')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#4a90d9')}
             >
               <ClipboardList className="w-4 h-4" />
               iBow
             </a>
             <Link
               href="/record"
-              className="flex items-center gap-1.5 transition-all text-white text-sm font-semibold px-4 py-2 rounded-full shadow-sm whitespace-nowrap flex-shrink-0" style={{backgroundColor: '#e05a2b'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#c94d22')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#e05a2b')}
+              className="flex items-center justify-center gap-1.5 transition-all text-white text-sm font-semibold px-3 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#e05a2b'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#c94d22')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#e05a2b')}
             >
               <ClipboardEdit className="w-4 h-4" />
               記録
             </Link>
             <Link
               href="/schedule-change"
-              className="flex items-center gap-1.5 transition-all text-white text-sm font-semibold px-4 py-2 rounded-full shadow-sm whitespace-nowrap flex-shrink-0" style={{backgroundColor: '#7c5cbf'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#6b4dab')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#7c5cbf')}
+              className="flex items-center justify-center gap-1.5 transition-all text-white text-sm font-semibold px-3 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#7c5cbf'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#6b4dab')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#7c5cbf')}
             >
               <CalendarClock className="w-4 h-4" />
               変更連絡
             </Link>
             <Link
               href="/tasks"
-              className="flex items-center gap-1.5 transition-all text-white text-sm font-semibold px-4 py-2 rounded-full shadow-sm whitespace-nowrap flex-shrink-0" style={{backgroundColor: '#2a9d5c'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#228a4f')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#2a9d5c')}
+              className="flex items-center justify-center gap-1.5 transition-all text-white text-sm font-semibold px-3 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#2a9d5c'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#228a4f')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#2a9d5c')}
             >
               <ListTodo className="w-4 h-4" />
               タスク
