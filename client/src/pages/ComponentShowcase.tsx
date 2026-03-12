@@ -503,6 +503,7 @@ export default function ComponentsShowcase() {
                           <div className="flex gap-2">
                             <Input
                               type="time"
+                              step="600"
                               value={
                                 datePickerDate
                                   ? format(datePickerDate, "HH:mm")
@@ -515,7 +516,9 @@ export default function ComponentsShowcase() {
                                   ? new Date(datePickerDate)
                                   : new Date();
                                 newDate.setHours(parseInt(hours));
-                                newDate.setMinutes(parseInt(minutes));
+                                // 10分刻みに丸める
+                                const m = parseInt(minutes);
+                                newDate.setMinutes(Math.round(m / 10) * 10 % 60);
                                 setDatePickerDate(newDate);
                               }}
                             />

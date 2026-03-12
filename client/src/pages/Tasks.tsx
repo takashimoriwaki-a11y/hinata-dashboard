@@ -738,6 +738,7 @@ export default function Tasks() {
                         <label className="text-xs font-medium text-muted-foreground mb-1 block">時刻（任意）</label>
                         <input
                           type="time"
+                          step="600"
                           value={editDueTime}
                           onChange={(e) => setEditDueTime(e.target.value)}
                           disabled={!editDueDate}

@@ -3132,6 +3132,7 @@ function MessageBoard({ title }: { title: string }) {
                 />
                 <input
                   type="time"
+                  step="600"
                   value={editScheduledTime}
                   onChange={(e) => setEditScheduledTime(e.target.value)}
                   className="w-28 text-xs border rounded-md px-2 py-1.5 bg-background text-foreground"
