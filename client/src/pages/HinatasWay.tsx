@@ -151,11 +151,11 @@ export default function HinatasWay() {
         </div>
 
         {/* フッター */}
-        <div className="text-center py-6">
-          <p className="text-xs text-gray-400 italic leading-relaxed">
+        <div className="text-center py-6 border-t border-orange-100 mt-2">
+          <p className="text-sm text-gray-600 italic leading-relaxed font-medium">
             「それぞれの人の生活や人生に明かりを灯すことのできる社会の実現を目指して」
           </p>
-          <p className="text-[10px] text-gray-300 mt-2">株式会社光陽 / こころの訪問看護ステーション ひなた</p>
+          <p className="text-xs text-gray-500 mt-2">株式会社光陽 / こころの訪問看護ステーション ひなた</p>
         </div>
       </div>
     </div>

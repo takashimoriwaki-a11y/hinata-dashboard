@@ -3400,7 +3400,7 @@ export default function Dashboard() {
           </div>
           {/* 今日の一言（夜モード時は非表示） */}
           {!isNight && dailyWord && (
-            <p className="text-[11px] md:text-xs text-white/75 text-center md:text-left italic leading-snug tracking-wide" style={{textShadow: '0 1px 3px rgba(0,0,0,0.15)'}}>
+            <p className="text-xs md:text-sm text-white text-center md:text-left italic leading-snug tracking-wide font-medium" style={{textShadow: '0 1px 4px rgba(0,0,0,0.3)'}}>
               ✦ {dailyWord}
             </p>
           )}
@@ -3458,9 +3458,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 経営理念カード（夜モード時は非表示） */}
-      {!isNight && (
-        <div
+      {/* 経営理念カード（夜モード・昼モード両方表示） */}
+      <div
           className="rounded-2xl overflow-hidden shadow-sm fade-in-up cursor-pointer select-none active:scale-[0.99] transition-transform"
           style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fed7aa 100%)", border: "1px solid #fdba74" }}
           onClick={() => { const [, navigate] = [null, (path: string) => { window.location.href = path; }]; window.location.href = "/hinatas-way"; }}
@@ -3481,8 +3480,7 @@ export default function Dashboard() {
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
             </div>
           </div>
-        </div>
-      )}
+      </div>
 
       {/* メインコンテンツ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 items-start">
