@@ -3458,6 +3458,31 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* 経営理念カード（夜モード時は非表示） */}
+      {!isNight && (
+        <div
+          className="rounded-2xl overflow-hidden shadow-sm fade-in-up cursor-pointer select-none active:scale-[0.99] transition-transform"
+          style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fed7aa 100%)", border: "1px solid #fdba74" }}
+          onClick={() => { const [, navigate] = [null, (path: string) => { window.location.href = path; }]; window.location.href = "/hinatas-way"; }}
+        >
+          <div className="px-4 py-3 md:px-5 md:py-3.5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg, #f97316, #fbbf24)" }}>
+                <span className="text-white text-sm font-bold">光</span>
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold tracking-widest" style={{ color: "#c2410c" }}>HINATA'S WAY</p>
+                <p className="text-sm font-bold leading-snug" style={{ color: "#7c2d12" }}>「存在で支え合う」</p>
+                <p className="text-[11px] leading-relaxed mt-0.5" style={{ color: "#9a3412" }}>私たちは出会うすべての人々と、お互いの存在がこころの支えになる関係を築きます。</p>
+              </div>
+            </div>
+            <div className="flex-shrink-0 text-orange-400">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* メインコンテンツ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 items-start">
         {/* 左カラム: スケジュールスクリーンショット */}
