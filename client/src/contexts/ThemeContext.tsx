@@ -2,15 +2,9 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 
 type Theme = "light" | "dark";
 
-// 5:00～19:00 は昼モード、19:01～4:59 は夜モード（JST基準）
+// 昼モード固定（夜モード無効化）
 function isNightTime(): boolean {
-  const now = new Date();
-  // JSTはUTC+9なので、ブラウザのローカル時刻を使う（ユーザーが日本にいる前提）
-  const hour = now.getHours();
-  const minute = now.getMinutes();
-  const totalMinutes = hour * 60 + minute;
-  // 19:01（1141分）〜翌4:59（299分）は夜モード
-  return totalMinutes < 300 || totalMinutes >= 1141;
+  return false;
 }
 
 interface ThemeContextType {
