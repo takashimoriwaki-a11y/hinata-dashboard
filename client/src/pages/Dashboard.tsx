@@ -3467,17 +3467,18 @@ export default function Dashboard() {
         >
           <div className="px-4 py-3 md:px-5 md:py-3.5 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg, #f97316, #fbbf24)" }}>
-                <span className="text-white text-sm font-bold">光</span>
+              <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg, #f97316, #fbbf24)" }}>
+                <span className="text-white text-xs font-bold tracking-tight">光陽</span>
               </div>
-              <div className="min-w-0">
-                <p className="text-[10px] font-semibold tracking-widest" style={{ color: "#c2410c" }}>HINATA'S WAY</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-semibold tracking-widest" style={{ color: "#c2410c" }}>HINATA'S WAY — 株式会社光陽 企業理念</p>
                 <p className="text-sm font-bold leading-snug" style={{ color: "#7c2d12" }}>「存在で支え合う」</p>
                 <p className="text-[11px] leading-relaxed mt-0.5" style={{ color: "#9a3412" }}>私たちは出会うすべての人々と、お互いの存在がこころの支えになる関係を築きます。</p>
+                <p className="text-[11px] font-semibold mt-1.5 flex items-center gap-0.5" style={{ color: "#ea580c" }}>理念の全文を読む <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg></p>
               </div>
             </div>
             <div className="flex-shrink-0 text-orange-400">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
             </div>
           </div>
         </div>

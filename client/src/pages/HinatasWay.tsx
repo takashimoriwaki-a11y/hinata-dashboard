@@ -27,7 +27,7 @@ export default function HinatasWay() {
         {/* タイトルセクション */}
         <div className="text-center py-4">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 shadow-lg mb-4">
-            <span className="text-2xl">🌸</span>
+            <span className="text-white text-lg font-bold tracking-tight">光陽</span>
           </div>
           <h2 className="text-2xl font-extrabold text-gray-800 tracking-tight leading-snug">
             株式会社光陽 企業理念
