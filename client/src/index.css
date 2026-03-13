@@ -298,6 +298,151 @@
     100% { transform: scale(1.9); opacity: 0; }
   }
 
+  /* ============================================================
+     理念カード専用アニメーション
+     ============================================================ */
+
+  /* 理念カード: フェードイン + 上方向スライド + スケール */
+  @keyframes philosophyCardReveal {
+    0% {
+      opacity: 0;
+      transform: translateY(20px) scale(0.97);
+      filter: blur(2px);
+    }
+    60% {
+      opacity: 0.9;
+      filter: blur(0px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      filter: blur(0px);
+    }
+  }
+
+  /* 理念カード: アイコン（光陽バッジ）の回転フェードイン */
+  @keyframes philosophyIconReveal {
+    0% {
+      opacity: 0;
+      transform: scale(0.6) rotate(-10deg);
+    }
+    70% {
+      transform: scale(1.08) rotate(2deg);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1) rotate(0deg);
+    }
+  }
+
+  /* 理念カード: テキスト行の段階的フェードイン */
+  @keyframes philosophyTextReveal {
+    0% {
+      opacity: 0;
+      transform: translateX(-8px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  /* 理念カード: 光沢シマーエフェクト（カード上を光が走る） */
+  @keyframes philosophyShimmer {
+    0% {
+      background-position: -200% center;
+      opacity: 0;
+    }
+    20% {
+      opacity: 1;
+    }
+    80% {
+      opacity: 1;
+    }
+    100% {
+      background-position: 200% center;
+      opacity: 0;
+    }
+  }
+
+  /* 理念カード: 右矢印アイコンのパルス */
+  @keyframes philosophyChevronPulse {
+    0%, 100% {
+      transform: translateX(0);
+      opacity: 0.6;
+    }
+    50% {
+      transform: translateX(3px);
+      opacity: 1;
+    }
+  }
+
+  /* 理念カード本体: 初期状態（非表示） */
+  .philosophy-card-hidden {
+    opacity: 0;
+    transform: translateY(20px) scale(0.97);
+    filter: blur(2px);
+  }
+
+  /* 理念カード本体: アニメーション実行 */
+  .philosophy-card-visible {
+    animation: philosophyCardReveal 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  /* 理念カード: アイコン */
+  .philosophy-icon-hidden {
+    opacity: 0;
+    transform: scale(0.6) rotate(-10deg);
+  }
+  .philosophy-icon-visible {
+    animation: philosophyIconReveal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s forwards;
+  }
+
+  /* 理念カード: テキスト行1（ラベル） */
+  .philosophy-text1-hidden { opacity: 0; transform: translateX(-8px); }
+  .philosophy-text1-visible {
+    animation: philosophyTextReveal 0.4s ease-out 0.3s forwards;
+  }
+
+  /* 理念カード: テキスト行2（メインコピー） */
+  .philosophy-text2-hidden { opacity: 0; transform: translateX(-8px); }
+  .philosophy-text2-visible {
+    animation: philosophyTextReveal 0.4s ease-out 0.4s forwards;
+  }
+
+  /* 理念カード: テキスト行3（説明文） */
+  .philosophy-text3-hidden { opacity: 0; transform: translateX(-8px); }
+  .philosophy-text3-visible {
+    animation: philosophyTextReveal 0.4s ease-out 0.5s forwards;
+  }
+
+  /* 理念カード: テキスト行4（リンク） */
+  .philosophy-text4-hidden { opacity: 0; transform: translateX(-8px); }
+  .philosophy-text4-visible {
+    animation: philosophyTextReveal 0.4s ease-out 0.6s forwards;
+  }
+
+  /* 理念カード: シマーオーバーレイ */
+  .philosophy-shimmer {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      105deg,
+      transparent 40%,
+      rgba(255, 255, 255, 0.55) 50%,
+      transparent 60%
+    );
+    background-size: 200% 100%;
+    pointer-events: none;
+    border-radius: inherit;
+    animation: philosophyShimmer 1.2s ease-in-out 0.1s forwards;
+  }
+
+  /* 理念カード: 右矢印のパルス */
+  .philosophy-chevron-pulse {
+    animation: philosophyChevronPulse 1.5s ease-in-out 0.8s infinite;
+  }
+
   /* Field flash highlight animation (after voice transcription) */
   @keyframes fieldFlash {
     0%   { background-color: transparent; }
