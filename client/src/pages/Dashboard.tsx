@@ -1732,6 +1732,20 @@ function SheetSubTabs({ quickLinks }: { quickLinks: { id: number; label: string;
   );
 }
 
+function HinatasWayButton() {
+  const [, navigate] = useLocation();
+  return (
+    <button
+      onClick={() => navigate("/hinatas-way")}
+      className="flex items-center gap-2 text-sm py-2.5 px-3 rounded-md w-full text-left bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 border border-amber-200 transition-colors font-medium text-amber-700 select-none touch-manipulation active:scale-95"
+    >
+      <span className="flex-shrink-0">📖</span>
+      <span className="truncate">Hinata's Way</span>
+      <span className="ml-auto text-[10px] text-amber-500 font-normal">経営理念</span>
+    </button>
+  );
+}
+
 function ToolsCard() {
   const [activeTab, setActiveTab] = useState<ToolsTabId>("sheet");
 
@@ -1854,6 +1868,8 @@ function ToolsCard() {
           {/* その他 */}
           {activeTab === "other" && (
             <>
+              {/* Hinata's Way 固定リンク */}
+              <HinatasWayButton />
               {othLinks.map((link) => (
                 <LinkRow key={link.href} href={link.href} label={link.label} color={link.color} emoji={link.emoji} />
               ))}
@@ -3326,6 +3342,21 @@ function MessageBoard({ title }: { title: string }) {
 }
 // ========== メインページ ==========
 
+const DAILY_WORDS: Record<number, string> = {
+  1: "今週も『存在で支え合う』精神で、丁寧な訪問をはじめましょう", // 月
+  2: "当事者の希望に寄り添い、伴走型の支援を大切に", // 火
+  3: "自分らしさと笑顔を大切に。今日も丁寧にケアを届けましょう", // 水
+  4: "地域の方々の安心感と幸福感のために、今日も一歩一歩", // 木
+  5: "丁寧であたたかい、心と身体のケアを届ける1日に", // 金
+  6: "それぞれの人の生活や人生に明かりを灯す仕事をしています", // 土
+  0: "仲間と支えあいながら、今日も笑顔でいきましょう", // 日
+};
+
+function getDailyWord(): string {
+  const day = new Date().getDay(); // 0=日, 1=月, ..., 6=土
+  return DAILY_WORDS[day] ?? "";
+}
+
 function getGreeting(): string {
   const now = new Date();
   const totalMinutes = now.getHours() * 60 + now.getMinutes();
@@ -3346,6 +3377,7 @@ const LOGO_TEXT = "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP4
 
 export default function Dashboard() {
   const greeting = getGreeting();
+  const dailyWord = getDailyWord();
   const userName = "崇";
   const { isNight } = useTheme();
 
@@ -3366,6 +3398,12 @@ export default function Dashboard() {
             <p className="text-xl md:text-3xl font-extrabold text-white leading-tight tracking-wide whitespace-nowrap" style={{textShadow: '0 2px 8px rgba(0,0,0,0.2)'}}>{userName}<span className="text-lg md:text-2xl">さん</span></p>
             <p className="text-xl md:text-3xl font-extrabold text-white/90 whitespace-nowrap" style={{textShadow: '0 1px 4px rgba(0,0,0,0.2)'}}>{greeting}</p>
           </div>
+          {/* 今日の一言（夜モード時は非表示） */}
+          {!isNight && dailyWord && (
+            <p className="text-[11px] md:text-xs text-white/75 text-center md:text-left italic leading-snug tracking-wide" style={{textShadow: '0 1px 3px rgba(0,0,0,0.15)'}}>
+              ✦ {dailyWord}
+            </p>
+          )}
           {/* ショートカットボタン（モバイル: 3列グリッド均等配置 / PC: 折り返し右寄せ） */}
           <div className="grid grid-cols-3 gap-1.5 md:flex md:flex-row md:flex-wrap md:justify-end md:gap-2">
             <a
