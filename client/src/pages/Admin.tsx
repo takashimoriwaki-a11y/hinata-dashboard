@@ -25,12 +25,12 @@ import { getTeamButtonClass, getTeamButtonStyle } from "@shared/teamColors";
 // ============================
 
 const LINK_DEFINITIONS = [
-  { key: "fee_seishin_koriyama", label: "利用者料金一覧（精神郡山）", color: "text-emerald-600" },
-  { key: "fee_shintai",          label: "利用者料金一覧（身体）",     color: "text-blue-600"    },
-  { key: "fee_tenri",            label: "利用者料金一覧（天理）",     color: "text-purple-600"  },
-  { key: "daily_report",         label: "業務日報",                   color: "text-orange-600"  },
-  { key: "attendance",           label: "ひなた勤怠",                 color: "text-rose-600"    },
-  { key: "checkout_checklist",   label: "退勤時チェックリスト",       color: "text-amber-600"   },
+  { key: "fee_seishin_koriyama", label: "利用者料金一覧（精神郡山）", color: "text-emerald-600", fileNameExample: "ひなた 利用者料金一覧 YYYY年M月分（精神郡山）",   hint: "精神郡山チームの利用者料金シート" },
+  { key: "fee_shintai",          label: "利用者料金一覧（身体）",     color: "text-blue-600",   fileNameExample: "ひなた 利用者料金一覧 YYYY年M月分（身体）",         hint: "身体チームの利用者料金シート" },
+  { key: "fee_tenri",            label: "利用者料金一覧（天理）",     color: "text-purple-600", fileNameExample: "ひなた 利用者料金一覧 YYYY年M月分（天理）",         hint: "天理チームの利用者料金シート" },
+  { key: "daily_report",         label: "業務日報",                   color: "text-orange-600", fileNameExample: "ひなた 業務日報 YYYY年M月分",                       hint: "全スタッフ共通の業務日報シート" },
+  { key: "attendance",           label: "ひなた勤怠",                 color: "text-rose-600",   fileNameExample: "ひなた 勤怠管理 YYYY年M月分",                     hint: "スタッフ勤怠管理シート" },
+  { key: "checkout_checklist",   label: "退勤時チェックリスト",       color: "text-amber-600",  fileNameExample: "ひなた 退勤時チェックリスト YYYY年M月分",          hint: "退勤チェックリストシート" },
 ] as const;
 
 type LinkKey = typeof LINK_DEFINITIONS[number]["key"];
@@ -117,13 +117,33 @@ function BulkImportPanel({
 
       {isOpen && (
         <CardContent className="space-y-4 pt-0">
-          <div className="space-y-1.5">
-            <p className="text-xs text-muted-foreground">スプレッドシートのURLを順番に貼り付けてください（上から順に自動割り当て）</p>
-            <div className="bg-card/80 rounded-md p-2.5 text-[11px] text-muted-foreground space-y-0.5 border border-border">
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5">
+              <p className="text-xs font-semibold text-foreground">登録順番とファイル名の目安</p>
+              <Badge className="text-[9px] bg-amber-100 text-amber-700 border-0 px-1.5 py-0">上から順に貼り付け</Badge>
+            </div>
+            <div className="rounded-lg border border-border overflow-hidden">
               {LINK_DEFINITIONS.map((def, i) => (
-                <p key={def.key}><span className="font-semibold text-foreground">{i + 1}.</span> {def.label}</p>
+                <div key={def.key} className={cn(
+                  "flex items-start gap-2.5 px-3 py-2 text-[11px]",
+                  i % 2 === 0 ? "bg-card" : "bg-muted/30",
+                  i < LINK_DEFINITIONS.length - 1 && "border-b border-border/50"
+                )}>
+                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-[10px] mt-0.5">{i + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className={cn("font-semibold leading-tight", def.color)}>{def.label}</p>
+                    <p className="text-muted-foreground mt-0.5 leading-tight">
+                      <span className="font-mono bg-muted/60 px-1 py-0.5 rounded text-[10px]">{def.fileNameExample}</span>
+                    </p>
+                    <p className="text-muted-foreground/70 mt-0.5 text-[10px]">{def.hint}</p>
+                  </div>
+                </div>
               ))}
             </div>
+            <p className="text-[10px] text-muted-foreground/70 flex items-center gap-1">
+              <span>ℹ️</span>
+              <span>YYYY年M月分の部分は実際の年月（例: 2026年4月分）に小文字で書かれています</span>
+            </p>
           </div>
           <textarea
             value={pasteText}
