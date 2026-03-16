@@ -434,10 +434,24 @@ export const appRouter = router({
   // スプレッドシートURL月次管理
   spreadsheetLinks: router({
     // 当月分のリンク一覧を取得（公開）
+    // 当月分がなければ直近登録分を使用（月切替自動対応）
     getCurrent: publicProcedure.query(async () => {
       const now = new Date();
       const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-      return getSpreadsheetLinks(yearMonth);
+      const current = await getSpreadsheetLinks(yearMonth);
+      if (current.length > 0) return current;
+      // 当月分が未登録の場合、全登録から各linkKeyの最新分を返す
+      const all = await getAllSpreadsheetLinks();
+      if (all.length === 0) return [];
+      // linkKeyごとに最新の登録を抽出
+      const latestByKey = new Map<string, typeof all[0]>();
+      for (const link of all) {
+        const existing = latestByKey.get(link.linkKey);
+        if (!existing || link.yearMonth > existing.yearMonth) {
+          latestByKey.set(link.linkKey, link);
+        }
+      }
+      return Array.from(latestByKey.values());
     }),
     // 全年月のリンク一覧を取得（管理者用）
     getAll: protectedProcedure.query(async () => {

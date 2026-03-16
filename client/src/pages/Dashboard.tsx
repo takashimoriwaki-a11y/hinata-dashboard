@@ -1685,11 +1685,25 @@ function LinkRow({ href, label, color, emoji }: { href: string; label: string; c
   );
 }
 
-/** スプレッドシートタブ内の「日々使用」「その他」サブタブ */
+/** スプレッドシートタブ内の「日々使用」「その他」サブタブ
+ * 「日々使用」: 月次DB登録分（5種類）を自動表示
+ * 「その他」: quickAccessLinksから取得
+ */
 function SheetSubTabs({ quickLinks }: { quickLinks: { id: number; label: string; href: string; color: string; emoji: string | null; category: string }[] | undefined }) {
   const [subTab, setSubTab] = useState<"daily" | "other">("daily");
-  const dailyLinks = quickLinks?.filter((l) => l.category === "スプレッドシート（日々使用）") ?? [];
+
+  // 月次リンク（当月分、なければ直近登録）
+  const { data: monthlyLinks, isLoading: monthlyLoading } = trpc.spreadsheetLinks.getCurrent.useQuery();
+
+  // 当月年月
+  const now = new Date();
+  const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  // 当月分か直近登録かを判定（バッジ表示用）
+  const isCurrentMonth = monthlyLinks && monthlyLinks.length > 0 && monthlyLinks[0].yearMonth === currentYearMonth;
+
   const otherLinks = quickLinks?.filter((l) => l.category === "スプレッドシート（その他）") ?? [];
+
   return (
     <div className="space-y-2">
       {/* サブタブバー */}
@@ -1713,14 +1727,46 @@ function SheetSubTabs({ quickLinks }: { quickLinks: { id: number; label: string;
           📁 その他
         </button>
       </div>
-      {/* コンテンツ */}
+
+      {/* 日々使用タブ: 月次DB登録分 */}
       {subTab === "daily" && (
-        dailyLinks.length > 0
-          ? dailyLinks.map((link) => (
-              <LinkRow key={link.id} href={link.href} label={link.label} color={link.color} emoji={link.emoji || undefined} />
+        <div className="space-y-1.5">
+          {/* 年月バッジ */}
+          {monthlyLinks && monthlyLinks.length > 0 && (
+            <div className="flex items-center gap-1.5 px-1">
+              <span className={cn(
+                "text-[10px] font-semibold px-2 py-0.5 rounded-full",
+                isCurrentMonth
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-amber-100 text-amber-700"
+              )}>
+                {isCurrentMonth ? `✔ ${monthlyLinks[0].yearMonth}分` : `⚠ 最新: ${monthlyLinks[0].yearMonth}分`}
+              </span>
+              {!isCurrentMonth && (
+                <span className="text-[10px] text-muted-foreground">当月分は未登録</span>
+              )}
+            </div>
+          )}
+
+          {monthlyLoading ? (
+            <p className="text-xs text-muted-foreground text-center py-3">読み込み中...</p>
+          ) : !monthlyLinks || monthlyLinks.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-3">リンクはまだ登録されていません</p>
+          ) : (
+            monthlyLinks.map((link) => (
+              <LinkRow
+                key={link.id}
+                href={link.url}
+                label={link.label}
+                color={link.color ?? "text-emerald-600"}
+                emoji="📊"
+              />
             ))
-          : <p className="text-xs text-muted-foreground text-center py-3">日々使用のリンクはまだありません</p>
+          )}
+        </div>
       )}
+
+      {/* その他タブ: quickAccessLinksから取得 */}
       {subTab === "other" && (
         otherLinks.length > 0
           ? otherLinks.map((link) => (
