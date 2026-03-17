@@ -587,7 +587,7 @@ export default function RecordInput() {
     exportToSheet.mutate({ id: savedRecordId });
   };
 
-  const GEMS_URL = "https://gemini.google.com/gem/1qqbO6BLZLj9IXwsOjYuePdyQn0QGkifV?usp=sharing";
+  const GEMS_URL = "https://gemini.google.com/gem/8b92361479a4";
 
   const handleCopyAndOpenGem = async () => {
     // 病状の経過テキストのみをコピー（①次回訪問日時の利用者名・チーム名等は除外）
