@@ -45,6 +45,10 @@ function escapeValue(val) {
   if (typeof val === 'boolean') return val ? '1' : '0';
   if (typeof val === 'number') return val.toString();
   if (val instanceof Date) return `'${val.toISOString().slice(0, 19).replace('T', ' ')}'`;
+  // ISO 8601形式の日時文字列をMySQLのdatetime形式に変換
+  if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(val)) {
+    return `'${val.slice(0, 19).replace('T', ' ')}'`;
+  }
   if (typeof val === 'object') return `'${JSON.stringify(val).replace(/'/g, "\\'")}'`;
   return `'${String(val).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 }
