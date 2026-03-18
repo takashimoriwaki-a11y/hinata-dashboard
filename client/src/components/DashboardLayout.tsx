@@ -99,7 +99,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { isNight } = useTheme();
   // SSEリアルタイム同期：他職員の更新を自動反映する
   useRealtimeSync();
-  const { logout } = useAuth({ redirectOnUnauthenticated: true });
+  const { logout, user } = useAuth({ redirectOnUnauthenticated: true });
+  // ログインユーザーの名前の最初の1文字をアバターに表示
+  const userInitial = user?.name ? user.name.charAt(0) : "?";
   const { isSubscribed, isLoading: pushLoading, subscribe, unsubscribe, permission: pushPermission } = usePushNotification();
   const [notifDialogOpen, setNotifDialogOpen] = useState(false);
   const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>("all");
@@ -180,11 +182,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="px-4 py-3 border-b border-sidebar-border">
           <div className="flex items-center gap-2.5">
             <Avatar className="w-9 h-9 flex-shrink-0">
-              <AvatarFallback className="bg-primary text-white text-sm font-bold">崇</AvatarFallback>
+              <AvatarFallback className="bg-primary text-white text-sm font-bold">{userInitial}</AvatarFallback>
             </Avatar>
             <div className="overflow-hidden">
-              <p className="text-sm font-semibold text-sidebar-foreground truncate">森脇 崇</p>
-              <p className="text-[11px] text-sidebar-foreground/60 truncate">統括所長・看護師</p>
+              <p className="text-sm font-semibold text-sidebar-foreground truncate">{user?.name ?? "ゲスト"}</p>
+              <p className="text-[11px] text-sidebar-foreground/60 truncate">こころの訪問看護ステーションひなた</p>
             </div>
           </div>
         </div>
@@ -424,7 +426,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </a>
             <NotificationDropdown />
             <Avatar className="w-8 h-8">
-              <AvatarFallback className="bg-primary text-white text-xs font-bold">崇</AvatarFallback>
+              <AvatarFallback className="bg-primary text-white text-xs font-bold">{userInitial}</AvatarFallback>
             </Avatar>
           </div>
         </header>

@@ -1504,7 +1504,7 @@ export default function ScheduleChange() {
               ) : voiceText ? (
                 <p className="text-xs text-muted-foreground mt-0.5 truncate">「{voiceText.slice(0, 40)}{voiceText.length > 40 ? "..." : ""}」</p>
               ) : (
-                <p className="text-xs text-muted-foreground mt-0.5">マイクをタップして話すと各項目に転記</p>
+                <p className="text-xs text-muted-foreground mt-0.5 whitespace-nowrap">マイクをタップして話すと各項目に転記</p>
               )}
             </div>
             <VoiceMicButton

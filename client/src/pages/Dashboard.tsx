@@ -2604,7 +2604,7 @@ function MessageBoard({ title }: { title: string }) {
                         <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
                         <VoiceHelpDialog mode="message" />
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">マイクをタップして話すと各項目に転記</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 whitespace-nowrap">マイクをタップして話すと各項目に転記</p>
                     </div>
                   )}
                 </div>
@@ -3532,7 +3532,13 @@ function PhilosophyCard() {
 export default function Dashboard() {
   const greeting = getGreeting();
   const dailyWord = getDailyWord();
-  const userName = "崇";
+  const { user: dashboardUser } = useAuth();
+  // ログインユーザーの名前（姓名の場合は名前部分のみ表示）
+  const userName = dashboardUser?.name
+    ? (dashboardUser.name.includes(' ') || dashboardUser.name.includes('　')
+        ? dashboardUser.name.split(/[ 　]/)[1] || dashboardUser.name.split(/[ 　]/)[0]
+        : dashboardUser.name)
+    : "スタッフ";
   const { isNight } = useTheme();
 
   // 時間帯によるウェルカムバナーのグラデーション
