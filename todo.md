@@ -1444,3 +1444,21 @@
 - [x] スクロール慣性（-webkit-overflow-scrolling: touch）を確認・適用
 - [x] ButtonコンポーネントにonPointerDownで即時フォーカス反応を追加
 - [x] transition duration-100に短縮してアニメーション高速化
+
+## Railway移行・Manus非依存化（2026-03-19）
+
+- [x] 現在のManus依存箇所を調査・整理
+- [x] Google OAuth認証情報を環境変数に設定（GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET）
+- [x] Manus LLM API → Google Gemini API に切り替え（llm.ts書き換え）
+- [x] Manus通知API → コンソールログのスタブに変更（notification.ts書き換え）
+- [x] README-RAILWAY.mdをGoogle OAuth情報を含めて更新
+- [x] データベースエクスポートスクリプト作成（export-db.mjs）
+- [x] データベースインポートスクリプト作成（import-db.mjs）
+- [x] データベースエクスポート実行（352件）
+- [ ] RailwayにMySQLデータベースを作成
+- [ ] Railway環境変数を設定（DATABASE_URL / JWT_SECRET / GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET / GEMINI_API_KEY等）
+- [ ] GitHubからRailwayへ自動デプロイ設定
+- [ ] Google OAuth リダイレクトURIをRailwayのURLに更新
+- [ ] Railway上でpnpm db:pushを実行してスキーマ作成
+- [ ] import-db.mjsでデータ移行
+- [ ] 動作確認（ログイン・各機能）
