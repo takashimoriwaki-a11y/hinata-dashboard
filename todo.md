@@ -1433,3 +1433,14 @@
 - [x] SheetSubTabsの「日々使用」タブを月次DBから動的取得に変更
 - [x] 月切替ロジック: 当月分が優先、なければ直近の登録を使用
 - [x] テスト180件全合格・チェックポイント保存
+
+## iPhoneタップ反応改善（2026-03-18）
+
+- [x] index.htmlのviewportメタタグにtouch-action最適化を追加（既存設定確認済み）
+- [x] index.cssにiOS向けタップ遅延除去（touch-action: manipulation）をグローバル適用
+- [x] -webkit-tap-highlight-colorを除去してタップ時のグレーフラッシュを削除
+- [x] ボタン・リンク・インタラクティブ要素のmin-height/min-widthを44px以上に統一
+- [x] active状態のフィードバック（タップ時の即時視覚反応）を追加（hover:none mediaクエリ）
+- [x] スクロール慣性（-webkit-overflow-scrolling: touch）を確認・適用
+- [x] ButtonコンポーネントにonPointerDownで即時フォーカス反応を追加
+- [x] transition duration-100に短縮してアニメーション高速化

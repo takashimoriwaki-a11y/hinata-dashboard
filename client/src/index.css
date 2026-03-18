@@ -189,6 +189,38 @@
     touch-action: manipulation;
   }
 
+  /* onClick が付いたカスタム要素にも touch-action を適用 */
+  [onClick],
+  [data-clickable] {
+    touch-action: manipulation;
+  }
+
+  /* iOSのスクロールコンテナに慣性スクロールを適用 */
+  .overflow-y-auto,
+  .overflow-y-scroll,
+  .overflow-x-auto,
+  .overflow-x-scroll,
+  [data-radix-scroll-area-viewport] {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  /* タッチターゲットの最小サイズを44pxに確保（iOS HIG準拠） */
+  button,
+  [role="button"],
+  [role="tab"],
+  [data-slot="button"],
+  [data-slot="tabs-trigger"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* アニメーション要素のGPUレイヤー促進 */
+  .philosophy-card-animate,
+  .fade-in-up {
+    will-change: transform, opacity;
+  }
+
   /* ボタン・タブのテキスト選択を無効化（長押し誤動作防止） */
   button,
   [role="button"],
@@ -197,6 +229,18 @@
   [data-slot="tabs-trigger"] {
     -webkit-user-select: none;
     user-select: none;
+  }
+
+  /* iOSのactive状態フィードバック（タップ時の即時視覚反応） */
+  @media (hover: none) and (pointer: coarse) {
+    button:active,
+    [role="button"]:active,
+    [role="tab"]:active,
+    a:active {
+      opacity: 0.75;
+      transform: scale(0.97);
+      transition: opacity 0.05s ease, transform 0.05s ease;
+    }
   }
 
   /* iOSのタップ時の青いハイライトを除去（独自スタイルで代替） */
