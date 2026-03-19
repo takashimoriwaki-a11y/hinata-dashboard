@@ -461,7 +461,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     )}
                   >
                     <item.icon className="w-5 h-5" />
-                    <span className="text-[10px] font-medium">{item.label}</span>
+                    <span className="text-[9px] font-medium whitespace-nowrap">{item.label}</span>
                   </a>
                 );
               }
@@ -488,7 +488,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                       </span>
                     )}
                   </div>
-                  <span className={cn("text-[10px]", isActive ? "font-bold" : "font-medium")}>
+                  <span className={cn("text-[9px] whitespace-nowrap", isActive ? "font-bold" : "font-medium")}>
                     {item.label}
                   </span>
                   {isActive && (
