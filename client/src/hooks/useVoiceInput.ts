@@ -242,6 +242,8 @@ export function useVoiceInput({
   const autoStoppedRef = useRef(false);
   // 手動停止フラグ（ユーザーがマイクボタンを押して停止した場合）
   const manuallyStoppedRef = useRef(false);
+  // 暫定テキストをRefで保持（手動停止時にisFinal=falseのテキストを拾うため）
+  const lastInterimTextRef = useRef("");
 
   // ---- 無音タイマー管理 ----
   const clearSilenceTimer = useCallback(() => {
@@ -346,6 +348,7 @@ export function useVoiceInput({
         }
 
         setInterimText(currentInterim);
+        lastInterimTextRef.current = currentInterim; // 暫定テキストをRefに保存
         resetSilenceTimer(stopFromTimer);
       };
 
@@ -369,14 +372,19 @@ export function useVoiceInput({
         stopElapsedTimer();
         setRecording(false);
         setInterimText("");
-        const finalText = (confirmedText + lastBlockText).trim();
+        // isFinal=falseの暫定テキストが残っている場合（話し終えてすぐ手動停止した場合）はそれを使う
+        const rawFinal = (confirmedText + lastBlockText).trim();
+        const finalText = rawFinal || lastInterimTextRef.current.trim();
+        lastInterimTextRef.current = "";
         if (finalText) {
           onResult(finalText);
           setLastTranscribedText(finalText);
           setTranscriptionStatus("done");
-          if (autoStoppedRef.current) {
+          if (autoStoppedRef.current && !manuallyStoppedRef.current) {
+            // タイムアウト自動停止の場合は自動停止メッセージ
             toast.info(getAutoStopMessage(), { duration: 4000 });
           } else {
+            // 手動停止（暫定テキストから拾った場合も含む）は転記完了
             toast.success("✅ 転記完了");
           }
           // 5秒後にステータスをidleに戻す
@@ -452,14 +460,17 @@ export function useVoiceInput({
     if (recognitionRef.current) {
       // iOS再起動ループを停止するために先にフラグを立てる
       autoStoppedRef.current = true;
-      // 手動停止フラグを立てる（onendで「30秒間無音」メッセージを出さないため）
+      // 手動停止フラグを立てる（onendで　30秒間無音」メッセージを出さないため）
       manuallyStoppedRef.current = true;
       recognitionRef.current.stop();
       recognitionRef.current = null;
+      // setTranscriptionStatusはonendに任せる（暫定テキストがある場合はonendでdoneになる）
+    } else {
+      // recognitionRefがない場合（未録音状態）は直接idleに
+      setTranscriptionStatus("idle");
     }
     setRecording(false);
     setInterimText("");
-    setTranscriptionStatus("idle");
   }, [clearSilenceTimer, stopElapsedTimer]);
 
   // ---- MediaRecorder + Gemini Audio API フォールバック実装 ----
