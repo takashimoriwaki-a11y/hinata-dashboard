@@ -120,6 +120,8 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
   // allPatientsRef: クロージャ問題を回避するために最新値をRefで保持
   const allPatientsRef = useRef(allPatients);
   useEffect(() => { allPatientsRef.current = allPatients; }, [allPatients]);
+  // pendingTeamPatientRef: チーム変更後にteamPatientsが再フェッチされるまで利用者名を保留する
+  const pendingTeamPatientRef = useRef<string | null>(null);
 
   // parseVoice mutation
   const parseVoice = trpc.tasks.parseVoice.useMutation({
@@ -173,13 +175,16 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
         const aiName = f.patientName.trim();
         const latestPatients = allPatientsRef.current;
         const applyPatient = (name: string) => {
-          setPatientName(name);
           // AIが「○○チーム」を明示した場合はチーム情報を保持、それ以外はフリーテキストモードに切り替え
           if (assignType === "team" && f.assignTeam && TEAMS.includes(f.assignTeam as Team)) {
             setAssignTypeSafe("team");
             setNewAssignTeam(f.assignTeam as Team);
+            // teamPatientsはチーム変更後に再フェッチされるため、先にRefに保留しておき、
+            // teamPatientsが更新されたタイミングでsetPatientNameを実行する（非同期状態更新の回避）
+            pendingTeamPatientRef.current = name;
           } else {
             setAssignTypeSafe("all");
+            setPatientName(name);
           }
           toast.success(`利用者「${name}」を自動選択しました`);
         };
@@ -291,13 +296,15 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     if (allPatients.length === 0) return; // まだロードされていない
     const { name: aiName, assignType: pendingAssignType, assignTeam: pendingAssignTeam } = pendingAiPatient;
     const applyPatientEffect = (name: string) => {
-      setPatientName(name);
       // AIがチームを明示した場合はチーム情報を保持、それ以外はフリーテキストモードに切り替え
       if (pendingAssignType === "team" && pendingAssignTeam && TEAMS.includes(pendingAssignTeam)) {
         setAssignTypeSafe("team");
         setNewAssignTeam(pendingAssignTeam);
+        // teamPatientsはチーム変更後に再フェッチされるため、Refに保留してteamPatients更新後にセット
+        pendingTeamPatientRef.current = name;
       } else {
         setAssignTypeSafe("all");
+        setPatientName(name);
       }
       toast.success(`利用者「${name}」を自動選択しました`);
       setPendingAiPatient(null);
@@ -324,6 +331,21 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
       setPendingAiPatient(null);
     }
   }, [pendingAiPatient, allPatients, patientName]);
+
+  // teamPatientsが更新されたとき、patientNameがドロップダウンに反映されるよう再セットする
+  // （Reactの状態更新は非同期なので、setNewAssignTeamの直後はteamPatientsが古いチームのデータのままで、
+  //  patientNameがドロップダウンに反映されない問題を修正）
+  useEffect(() => {
+    if (newAssignType !== "team" || teamPatients.length === 0) return;
+    const pending = pendingTeamPatientRef.current;
+    if (pending) {
+      const found = teamPatients.find((p) => p.name === pending);
+      if (found) {
+        setPatientName(found.name);
+        pendingTeamPatientRef.current = null;
+      }
+    }
+  }, [teamPatients, newAssignType]);
 
   // pendingPatientSearchの結果が返ったら自動選択 or 候補ダイアログ表示
   useEffect(() => {

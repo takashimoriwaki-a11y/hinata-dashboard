@@ -240,6 +240,8 @@ export function useVoiceInput({
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // 自動停止フラグ（onend内でトースト内容を切り替えるため）
   const autoStoppedRef = useRef(false);
+  // 手動停止フラグ（ユーザーがマイクボタンを押して停止した場合）
+  const manuallyStoppedRef = useRef(false);
 
   // ---- 無音タイマー管理 ----
   const clearSilenceTimer = useCallback(() => {
@@ -379,13 +381,15 @@ export function useVoiceInput({
           }
           // 5秒後にステータスをidleに戻す
           setTimeout(() => setTranscriptionStatus("idle"), 5000);
-        } else if (autoStoppedRef.current) {
+        } else if (autoStoppedRef.current && !manuallyStoppedRef.current) {
+          // タイムアウト自動停止（手動停止ではない）の場合のみ「30秒間無音」メッセージを表示
           setTranscriptionStatus("idle");
           toast.info(getAutoStopMessage(), { duration: 4000 });
         } else {
           setTranscriptionStatus("idle");
         }
         autoStoppedRef.current = false;
+        manuallyStoppedRef.current = false;
         recognitionRef.current = null;
       };
 
@@ -448,6 +452,8 @@ export function useVoiceInput({
     if (recognitionRef.current) {
       // iOS再起動ループを停止するために先にフラグを立てる
       autoStoppedRef.current = true;
+      // 手動停止フラグを立てる（onendで「30秒間無音」メッセージを出さないため）
+      manuallyStoppedRef.current = true;
       recognitionRef.current.stop();
       recognitionRef.current = null;
     }

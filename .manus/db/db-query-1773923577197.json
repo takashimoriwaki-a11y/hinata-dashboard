@@ -1,0 +1,16 @@
+{
+  "query": "SELECT id, name, nameKana, team FROM patients WHERE name LIKE '%森本%' OR nameKana LIKE '%もりもと%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT id, name, nameKana, team FROM patients WHERE name LIKE '%森本%' OR nameKana LIKE '%もりもと%';",
+  "rows": [
+    {
+      "id": "94",
+      "name": "森本孝枝",
+      "nameKana": "もりもとたかえ",
+      "team": "天理"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tnameKana\tteam\n94\t森本孝枝\tもりもとたかえ\t天理\n",
+  "stderr": "",
+  "execution_time_ms": 1558
+}

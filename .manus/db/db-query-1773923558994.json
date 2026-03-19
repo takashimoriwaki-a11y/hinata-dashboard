@@ -1,0 +1,220 @@
+{
+  "query": "SELECT id, name, nameKana, team, active FROM patients ORDER BY team, name LIMIT 30;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT id, name, nameKana, team, active FROM patients ORDER BY team, name LIMIT 30;",
+  "rows": [
+    {
+      "id": "44",
+      "name": "上島久典",
+      "nameKana": "かみしまひさのり",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "3",
+      "name": "上野光治",
+      "nameKana": "うえのこうじ",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "23",
+      "name": "中島健",
+      "nameKana": "なかじまたけし",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "24",
+      "name": "中森ヒロヱ",
+      "nameKana": "なかもりひろゑ",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "22",
+      "name": "中西ヒサ子",
+      "nameKana": "なかにしひさこ",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "25",
+      "name": "仲川誠司",
+      "nameKana": "なかがわせいじ",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "13",
+      "name": "作道智子",
+      "nameKana": "さくどうともこ",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "12",
+      "name": "作道武士",
+      "nameKana": "さくどうたけし",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "33",
+      "name": "前田幸恵",
+      "nameKana": "まえだゆきえ",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "9",
+      "name": "北村秀隆",
+      "nameKana": "きたむらひでたか",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "10",
+      "name": "北森佳子",
+      "nameKana": "きたもりよしこ",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "8",
+      "name": "北門藤八",
+      "nameKana": "きたもんとうはち",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "43",
+      "name": "原田冨美子",
+      "nameKana": "はらだふみこ",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "31",
+      "name": "古澤秀一",
+      "nameKana": "ふるさわしゅういち",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "41",
+      "name": "吉田浩二郎",
+      "nameKana": "よしだこうじろう",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "39",
+      "name": "吉田澄子",
+      "nameKana": "よしだすみこ",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "40",
+      "name": "吉野千恵子",
+      "nameKana": "よしのちえこ",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "20",
+      "name": "塚本憲章",
+      "nameKana": "つかもとよしふみ",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "34",
+      "name": "増田千鶴子",
+      "nameKana": "ますだちづこ",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "4",
+      "name": "大石忠子",
+      "nameKana": "おおいしただこ",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "5",
+      "name": "大石政直",
+      "nameKana": "おおいしまさなお",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "36",
+      "name": "宮崎昌子",
+      "nameKana": "みやざきまさこ",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "38",
+      "name": "山尾美和子",
+      "nameKana": "やまおみわこ",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "6",
+      "name": "岡田千代子",
+      "nameKana": "おかだちよこ",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "28",
+      "name": "平塚千恵子",
+      "nameKana": "ひらつかちえこ",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "32",
+      "name": "本田イソ子",
+      "nameKana": "ほんだいそこ",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "18",
+      "name": "杉本正江",
+      "nameKana": "すぎもとまさえ",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "17",
+      "name": "杉村八重子",
+      "nameKana": "すぎむらやえこ",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "45",
+      "name": "村上トミカ",
+      "nameKana": "むらかみとみか",
+      "team": "身体",
+      "active": "1"
+    },
+    {
+      "id": "27",
+      "name": "東口梅子",
+      "nameKana": "ひがしぐちうめこ",
+      "team": "身体",
+      "active": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tnameKana\tteam\tactive\n44\t上島久典\tかみしまひさのり\t身体\t1\n3\t上野光治\tうえのこうじ\t身体\t1\n23\t中島健\tなかじまたけし\t身体\t1\n24\t中森ヒロヱ\tなかもりひろゑ\t身体\t1\n22\t中西ヒサ子\tなかにしひさこ\t身体\t1\n25\t仲川誠司\tなかがわせいじ\t身体\t1\n13\t作道智子\tさくどうともこ\t身体\t1\n12\t作道武士\tさくどうたけし\t身体\t1\n33\t前田幸恵\tまえだゆきえ\t身体\t1\n9\t北村秀隆\tきたむらひでたか\t身体\t1\n10\t北森佳子\tきたもりよしこ\t身体\t1\n8\t北門藤八\tきたもんとうはち\t身体\t1\n43\t原田冨美子\tはらだふみこ\t身体\t1\n31\t古澤秀一\tふるさわしゅういち\t身体\t1\n41\t吉田浩二郎\tよしだこうじろう\t身体\t1\n39\t吉田澄子\tよしだすみこ\t身体\t1\n40\t吉野千恵子\tよしのちえこ\t身体\t1\n20\t塚本憲章\tつかもとよしふみ\t身体\t1\n34\t増田千鶴子\tますだちづこ\t身体\t1\n4\t大石忠子\tおおいしただこ\t身体\t1\n5\t大石政直\tおおいしまさなお\t身体\t1\n36\t宮崎昌子\tみやざきまさこ\t身体\t1\n38\t山尾美和子\tやまおみわこ\t身体\t1\n6\t岡田千代子\tおかだちよこ\t身体\t1\n28\t平塚千恵子\tひらつかちえこ\t身体\t1\n32\t本田イソ子\tほんだいそこ\t身体\t1\n18\t杉本正江\tすぎもとまさえ\t身体\t1\n17\t杉村八重子\tすぎむらやえこ\t身体\t1\n45\t村上トミカ\tむらかみとみか\t身体\t1\n27\t東口梅子\tひがしぐちうめこ\t身体\t1\n",
+  "stderr": "",
+  "execution_time_ms": 1562
+}
