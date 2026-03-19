@@ -62,6 +62,7 @@ import {
   UserRound,
   Home,
   FileText,
+  CalendarDays,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -3602,11 +3603,11 @@ export default function Dashboard() {
               新規契約
             </Link>
             <Link
-              href="/schedule-change"
+              href="/schedule-management"
               className="flex items-center justify-center gap-1.5 transition-all text-white text-sm font-semibold px-3 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#7c5cbf'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#6b4dab')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#7c5cbf')}
             >
-              <CalendarClock className="w-4 h-4" />
-              変更連絡
+              <CalendarDays className="w-4 h-4" />
+              スケジュール管理
             </Link>
             <Link
               href="/tasks"
