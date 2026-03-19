@@ -1,0 +1,9 @@
+{
+  "query": "SELECT id, team, day, imageUrl, imageKey, uploadedByName, updatedAt FROM schedule_screenshots ORDER BY updatedAt DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT id, team, day, imageUrl, imageKey, uploadedByName, updatedAt FROM schedule_screenshots ORDER BY updatedAt DESC LIMIT 10;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 2320
+}
