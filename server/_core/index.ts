@@ -8,7 +8,7 @@ import { registerGoogleAuthRoutes } from "./googleAuth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
-import { deleteAllTodayScreenshots, moveTomorrowToToday, getTodayDueTasks } from "../db";
+import { deleteAllTodayScreenshots, moveTomorrowToToday, getTodayDueTasks, getPatients, getAllUsers } from "../db";
 import { notifyOwner } from "./notification";
 import multer from "multer";
 import { ENV } from "./env";
@@ -48,11 +48,38 @@ async function startServer() {
   // context パラメータで画面ごとの医療用語プロンプトを最適化
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 16 * 1024 * 1024 } });
 
+  // 固有名詞キャッシュ（5分間有効）
+  let _namesCache: { staffNames: string[]; patientNames: string[]; expiresAt: number } | null = null;
+
+  async function getDynamicNames(): Promise<{ staffNames: string[]; patientNames: string[] }> {
+    const now = Date.now();
+    if (_namesCache && now < _namesCache.expiresAt) {
+      return { staffNames: _namesCache.staffNames, patientNames: _namesCache.patientNames };
+    }
+    try {
+      const [allUsers, allPatients] = await Promise.all([
+        getAllUsers(),
+        getPatients(),
+      ]);
+      const staffNames = allUsers
+        .map((u: { id: number; name: string | null; team: string | null }) => u.name)
+        .filter((n): n is string => !!n && n.trim().length > 0);
+      const patientNames = allPatients
+        .map((p: { name: string }) => p.name)
+        .filter((n): n is string => !!n && n.trim().length > 0);
+      _namesCache = { staffNames, patientNames, expiresAt: now + 5 * 60 * 1000 };
+      return { staffNames, patientNames };
+    } catch (e) {
+      console.warn("[transcribe] Failed to fetch dynamic names:", e);
+      return { staffNames: [], patientNames: [] };
+    }
+  }
+
   /**
    * コンテキスト別の医療用語プロンプトを返す
    * context: 'clinical_notes' | 'task' | 'schedule_change' | 'message' | 'general'
    */
-  function getMedicalPrompt(context: string): string {
+  function getMedicalPrompt(context: string, staffNames: string[] = [], patientNames: string[] = []): string {
     const BASE_TERMS = `
 訪問看護・精神科・認知症ケアの専門用語を正確に認識してください。
 
@@ -147,7 +174,20 @@ ZEST、iBow、
 `,
     };
 
-    return contextPrompts[context] || `${BASE_TERMS}\n訪問看護ステーションの業務音声を正確に文字起こしてください。`;
+    // 動的固有名詞セクションを追加
+    const dynamicSection = (() => {
+      const parts: string[] = [];
+      if (staffNames.length > 0) {
+        parts.push(`【登録スタッフ名（正確に認識すること）】\n${staffNames.join('、')}`);
+      }
+      if (patientNames.length > 0) {
+        parts.push(`【登録利用者名（正確に認識すること）】\n${patientNames.join('、')}`);
+      }
+      return parts.length > 0 ? `\n\n${parts.join('\n\n')}` : '';
+    })();
+
+    const basePrompt = contextPrompts[context] || `${BASE_TERMS}\n訪問看護ステーションの業務音声を正確に文字起こしてください。`;
+    return basePrompt + dynamicSection;
   }
 
   /**
@@ -157,7 +197,9 @@ ZEST、iBow、
   async function transcribeWithGemini(
     audioBuffer: Buffer,
     mimeType: string,
-    context: string
+    context: string,
+    staffNames: string[] = [],
+    patientNames: string[] = []
   ): Promise<string> {
     const geminiApiKey = ENV.geminiApiKey;
     if (!geminiApiKey) throw new Error("Gemini API key not configured");
@@ -181,7 +223,7 @@ ZEST、iBow、
     };
     const normalizedMime = supportedMimeTypes[mimeType] || supportedMimeTypes[mimeType.split(";")[0]] || "audio/webm";
 
-    const medicalPrompt = getMedicalPrompt(context);
+    const medicalPrompt = getMedicalPrompt(context, staffNames, patientNames);
 
     const systemInstruction = `あなたは訪問看護ステーション「こころの訪問看護ステーションひなた」専属の音声認識専門AIです。
 精神科・認知症・在宅医療の専門用語、奈良県大和郡山市・天理市の地域固有の施設名・人名に精通しており、スタッフの発話を最高精度で文字起こしします。
@@ -235,7 +277,9 @@ ${medicalPrompt}`;
   async function transcribeWithWhisper(
     audioBuffer: Buffer,
     mimeType: string,
-    context: string
+    context: string,
+    staffNames: string[] = [],
+    patientNames: string[] = []
   ): Promise<string> {
     const forgeApiUrl = ENV.forgeApiUrl;
     const forgeApiKey = ENV.forgeApiKey;
@@ -248,8 +292,15 @@ ${medicalPrompt}`;
       schedule_change: "訪問スケジュール変更連絡。訪問キャンセル、日時変更、体調不良、入院、通院、デイサービス、身体チーム、天理チーム、郡山北部チーム、郡山南部チーム。",
       message: "訪問看護チーム申し送りメッセージ。精神科、認知症、利用者、スタッフ、至急、要確認、対応済み、引き継ぎ。",
     };
-    const whisperPrompt = whisperPrompts[context] ||
+    const baseWhisperPrompt = whisperPrompts[context] ||
       "訪問看護ステーション。精神科、認知症、統合失調症、双極性障害、BPSD、服薬管理、受給者証、ケアマネ、相談支援専門員、ADL、セルフケア、不穏、幻覚、妄想。";
+    // Whisperは224トークン制限があるため、固有名詞は最大15名ずつに絞る
+    const dynamicParts: string[] = [];
+    if (staffNames.length > 0) dynamicParts.push(staffNames.slice(0, 15).join('、'));
+    if (patientNames.length > 0) dynamicParts.push(patientNames.slice(0, 15).join('、'));
+    const whisperPrompt = dynamicParts.length > 0
+      ? `${baseWhisperPrompt} ${dynamicParts.join('、')}`
+      : baseWhisperPrompt;
 
     const formData = new FormData();
     const blob = new Blob([new Uint8Array(audioBuffer)], { type: mimeType || "audio/webm" });
@@ -284,10 +335,14 @@ ${medicalPrompt}`;
       const mimeType = req.file.mimetype || "audio/webm";
       const audioBuffer = req.file.buffer;
 
+      // DBから登録済みスタッフ名・利用者名を取得（5分キャッシュ）
+      const { staffNames, patientNames } = await getDynamicNames();
+      console.log(`[transcribe] Dynamic names: ${staffNames.length} staff, ${patientNames.length} patients`);
+
       // まず Gemini Audio API を試みる（最高品質・医療用語対応）
       if (ENV.geminiApiKey) {
         try {
-          const text = await transcribeWithGemini(Buffer.from(audioBuffer), mimeType, context);
+          const text = await transcribeWithGemini(Buffer.from(audioBuffer), mimeType, context, staffNames, patientNames);
           console.log(`[transcribe] Gemini success (context=${context}), length=${text.length}`);
           res.json({ text, engine: "gemini" });
           return;
@@ -299,7 +354,7 @@ ${medicalPrompt}`;
       // Gemini 失敗時は Whisper API にフォールバック
       if (ENV.forgeApiUrl && ENV.forgeApiKey) {
         try {
-          const text = await transcribeWithWhisper(Buffer.from(audioBuffer), mimeType, context);
+          const text = await transcribeWithWhisper(Buffer.from(audioBuffer), mimeType, context, staffNames, patientNames);
           console.log(`[transcribe] Whisper success (context=${context}), length=${text.length}`);
           res.json({ text, engine: "whisper" });
           return;

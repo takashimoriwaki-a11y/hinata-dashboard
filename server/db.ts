@@ -118,6 +118,13 @@ export async function updateUserTeam(userId: number, team: "身体" | "天理" |
   await db.update(users).set({ team }).where(eq(users.id, userId));
 }
 
+/** 全スタッフ（ユーザー）を取得する（音声認識固有名詞用） */
+export async function getAllUsers() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({ id: users.id, name: users.name, team: users.team }).from(users).orderBy(users.name);
+}
+
 /** Googleカレンダー用トークンを保存する */
 export async function updateUserGoogleTokens(
   userId: number,
