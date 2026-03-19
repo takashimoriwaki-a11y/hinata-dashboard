@@ -183,14 +183,24 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
           toast.success(`利用者「${name}」を自動選択しました`);
         };
         if (latestPatients.length > 0) {
+          // 苗字（名前の最初の部分）を抽出するヘルパー
+          const extractFamilyName = (name: string) => name.split('\u3000')[0].split(' ')[0];
           // 完全一致
           const exactMatch = latestPatients.find((p) => p.name === aiName);
           if (exactMatch) {
-            applyPatient(exactMatch.name);
+            // 完全一致でも、同じ苗字の利用者が複数いれば候補ダイアログを表示
+            const familyName = extractFamilyName(exactMatch.name);
+            const sameFamilyPatients = latestPatients.filter((p) => extractFamilyName(p.name) === familyName);
+            if (sameFamilyPatients.length > 1) {
+              setPatientCandidates(sameFamilyPatients);
+              setShowCandidateDialog(true);
+            } else {
+              applyPatient(exactMatch.name);
+            }
           } else {
-            // 部分一致
+            // 部分一致（苗字のみ入力された場合など）
             const partialMatch = latestPatients.filter(
-              (p) => p.name.includes(aiName) || aiName.includes(p.name.split('\u3000')[0].split(' ')[0])
+              (p) => p.name.includes(aiName) || aiName.includes(extractFamilyName(p.name))
             );
             if (partialMatch.length === 1) {
               applyPatient(partialMatch[0].name);
@@ -300,15 +310,26 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
       toast.success(`利用者「${name}」を自動選択しました`);
       setPendingAiPatient(null);
     };
+    // 苗字抽出ヘルパー
+    const extractFamilyNameEffect = (name: string) => name.split('\u3000')[0].split(' ')[0];
     // 完全一致
     const exactMatch = allPatients.find((p) => p.name === aiName);
     if (exactMatch) {
-      applyPatientEffect(exactMatch.name);
+      // 完全一致でも、同じ苗字の利用者が複数いれば候補ダイアログを表示
+      const familyName = extractFamilyNameEffect(exactMatch.name);
+      const sameFamilyPatients = allPatients.filter((p) => extractFamilyNameEffect(p.name) === familyName);
+      if (sameFamilyPatients.length > 1) {
+        setPatientCandidates(sameFamilyPatients);
+        setShowCandidateDialog(true);
+        setPendingAiPatient(null);
+      } else {
+        applyPatientEffect(exactMatch.name);
+      }
       return;
     }
-    // 部分一致
+    // 部分一致（苗字のみ入力された場合など）
     const partialMatch = allPatients.filter(
-      (p) => p.name.includes(aiName) || aiName.includes(p.name.split('\u3000')[0].split(' ')[0])
+      (p) => p.name.includes(aiName) || aiName.includes(extractFamilyNameEffect(p.name))
     );
     if (partialMatch.length === 1) {
       applyPatientEffect(partialMatch[0].name);
