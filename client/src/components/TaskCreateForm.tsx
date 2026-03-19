@@ -179,13 +179,12 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
           if (assignType === "team" && f.assignTeam && TEAMS.includes(f.assignTeam as Team)) {
             setAssignTypeSafe("team");
             setNewAssignTeam(f.assignTeam as Team);
-            // teamPatientsはチーム変更後に再フェッチされるため、先にRefに保留しておき、
-            // teamPatientsが更新されたタイミングでsetPatientNameを実行する（非同期状態更新の回避）
-            pendingTeamPatientRef.current = name;
           } else {
             setAssignTypeSafe("all");
-            setPatientName(name);
           }
+          // チーム指定時はteamPatientsのフェッチ完了を待たず直接セット
+          // （selectのoptionに含まれなくても、後でteamPatientsがロードされたときに反映される）
+          setPatientName(name);
           toast.success(`利用者「${name}」を自動選択しました`);
         };
         if (latestPatients.length > 0) {
@@ -300,12 +299,11 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
       if (pendingAssignType === "team" && pendingAssignTeam && TEAMS.includes(pendingAssignTeam)) {
         setAssignTypeSafe("team");
         setNewAssignTeam(pendingAssignTeam);
-        // teamPatientsはチーム変更後に再フェッチされるため、Refに保留してteamPatients更新後にセット
-        pendingTeamPatientRef.current = name;
       } else {
         setAssignTypeSafe("all");
-        setPatientName(name);
       }
+      // チーム指定時はteamPatientsのフェッチ完了を待たず直接セット
+      setPatientName(name);
       toast.success(`利用者「${name}」を自動選択しました`);
       setPendingAiPatient(null);
     };
@@ -765,6 +763,10 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
                 className="flex-1 text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 <option value="">{newAssignTeam}チームの利用者を選択...</option>
+                {/* AI転記でセットされた利用者名がteamPatientsにまだ含まれていない場合でも表示できるようオプションを追加 */}
+                {patientName && !teamPatients.some((p) => p.name === patientName) && (
+                  <option value={patientName}>{patientName}</option>
+                )}
                 {teamPatients.map((p) => (
                   <option key={p.id} value={p.name}>{p.name}{p.nameKana ? ` (${p.nameKana})` : ""}</option>
                 ))}
