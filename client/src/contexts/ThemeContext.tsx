@@ -2,8 +2,14 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 
 type Theme = "light" | "dark";
 
-// 昼モード固定（夜モード無効化）
+// 時間帯判定：19:01〜4:59 = 夜モード、5:00〜19:00 = 昼モード
 function isNightTime(): boolean {
+  const now = new Date();
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  // 19:01〜4:59 が夜モード
+  if (hours === 19 && minutes === 0) return false; // 19:00 は昼モード
+  if (hours >= 19 || hours < 5) return true;
   return false;
 }
 
