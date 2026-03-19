@@ -143,17 +143,19 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
 
       // 指定先種別（現在が「all」のときのみ上書き）
       const assignType = (f.assignType as AssignType) || "all";
-      setAssignTypeSafe(prev => prev === "all" ? assignType : prev);
-
-      // チーム指定: assignTypeがteamのときに設定（常に上書き — チーム名は明示的に話した場合は必ず反映）
+      // チーム名を明示した場合のみ上書き、それ以外は現在の値を維持
       if (assignType === "team") {
+        setAssignTypeSafe("team");
         if (f.assignTeam && TEAMS.includes(f.assignTeam as Team)) {
           setNewAssignTeam(f.assignTeam as Team);
         } else {
           // チーム名が認識できなかった場合は missing に追加
           missing.push("チーム名（身体・天理・郡山北部・郡山南部）");
         }
+      } else if (assignType === "personal") {
+        setAssignTypeSafe("personal");
       }
+      // assignType === "all" の場合は現在の選択（チーム・個人）を維持する
 
       // 個人指定: assignTypeがpersonalのときに設定（空欄のみ上書き）
       if (assignType === "personal") {
@@ -175,15 +177,8 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
         const aiName = f.patientName.trim();
         const latestPatients = allPatientsRef.current;
         const applyPatient = (name: string) => {
-          // AIが「○○チーム」を明示した場合はチーム情報を保持、それ以外はフリーテキストモードに切り替え
-          if (assignType === "team" && f.assignTeam && TEAMS.includes(f.assignTeam as Team)) {
-            setAssignTypeSafe("team");
-            setNewAssignTeam(f.assignTeam as Team);
-          } else {
-            setAssignTypeSafe("all");
-          }
-          // チーム指定時はteamPatientsのフェッチ完了を待たず直接セット
-          // （selectのoptionに含まれなくても、後でteamPatientsがロードされたときに反映される）
+          // チーム・個人の設定は上の144-156行目で既に処理済みのため、ここでは利用者名のみセット
+          // （setAssignTypeSafeを再度呼ぶと現在のチーム選択が上書きされる問題を防ぐ）
           setPatientName(name);
           toast.success(`利用者「${name}」を自動選択しました`);
         };
@@ -295,14 +290,12 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     if (allPatients.length === 0) return; // まだロードされていない
     const { name: aiName, assignType: pendingAssignType, assignTeam: pendingAssignTeam } = pendingAiPatient;
     const applyPatientEffect = (name: string) => {
-      // AIがチームを明示した場合はチーム情報を保持、それ以外はフリーテキストモードに切り替え
+      // チーム情報を必要な場合のみ設定（現在のチーム選択を上書きしない）
       if (pendingAssignType === "team" && pendingAssignTeam && TEAMS.includes(pendingAssignTeam)) {
         setAssignTypeSafe("team");
         setNewAssignTeam(pendingAssignTeam);
-      } else {
-        setAssignTypeSafe("all");
       }
-      // チーム指定時はteamPatientsのフェッチ完了を待たず直接セット
+      // pendingAssignType === "all" の場合は現在のチーム選択を維持（setAssignTypeSafe("all")を呼ばない）
       setPatientName(name);
       toast.success(`利用者「${name}」を自動選択しました`);
       setPendingAiPatient(null);
