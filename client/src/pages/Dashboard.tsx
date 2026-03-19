@@ -61,6 +61,7 @@ import {
   ListTodo,
   UserRound,
   Home,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -3594,11 +3595,11 @@ export default function Dashboard() {
               iBow
             </a>
             <Link
-              href="/record"
+              href="/new-contract"
               className="flex items-center justify-center gap-1.5 transition-all text-white text-sm font-semibold px-3 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#e05a2b'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#c94d22')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#e05a2b')}
             >
-              <ClipboardEdit className="w-4 h-4" />
-              記録
+              <FileText className="w-4 h-4" />
+              新規契約
             </Link>
             <Link
               href="/schedule-change"
