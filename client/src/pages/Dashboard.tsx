@@ -3543,17 +3543,37 @@ export default function Dashboard() {
     : "スタッフ";
   const { isNight } = useTheme();
 
-  // 時間帯によるウェルカムバナーのグラデーション
-  const bannerGradient = isNight
-    ? "linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)"
-    : "linear-gradient(135deg, #f97316 0%, #fb923c 50%, #fbbf24 100%)";
+  // 月別背景画像マップ（1〜12月）
+  const MONTHLY_BANNER_IMAGES: Record<number, string> = {
+    1: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/banner_jan-Fu5TZMeS6CZ4gmRUtFPEeA.webp',
+    2: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/banner_feb-Xa5NDqzMhPoAejtph4JKfS.webp',
+    3: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/banner_mar-nd9pku83re4FKeYUbiXVyD.webp',
+    4: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/banner_apr-dM2SbcegqUdXeCRWs6MQ55.webp',
+    5: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/banner_may-Kr8nsemNUajNR6fMnS9dmD.webp',
+    6: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/banner_jun-QpNR6MtdSEmWXA3U6rgvrM.webp',
+    7: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/banner_jul-R6eyP98BvmjJHH69y98YYU.webp',
+    8: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/banner_aug-hLvVt9V6o22juQKartQJdF.webp',
+    9: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/banner_sep-oLtSqbpPT9wp4GNkRL9aMG.webp',
+    10: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/banner_oct-CvmHNym4GMryjZmy7sxWQF.webp',
+    11: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/banner_nov-cFdGeHoBsQkUpwhhEmVb4T.webp',
+    12: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/banner_dec-f3iNPRUfnQUbFYXacgJDfz.webp',
+  };
+  const currentMonth = new Date().getMonth() + 1; // 1〜12
+  const bannerBgImage = MONTHLY_BANNER_IMAGES[currentMonth];
+
+  // 時間帯によるウェルカムバナーのグラデーション（背景画像上のオーバーレイ）
+  const bannerOverlay = isNight
+    ? "linear-gradient(135deg, rgba(30,27,75,0.75) 0%, rgba(49,46,129,0.65) 50%, rgba(76,29,149,0.70) 100%)"
+    : "linear-gradient(135deg, rgba(249,115,22,0.55) 0%, rgba(251,146,60,0.45) 50%, rgba(251,191,36,0.50) 100%)";
 
   return (
     <div className="p-3 md:p-4 space-y-3 md:space-y-4 max-w-screen-xl mx-auto">
       {/* ウェルカムバナー */}
-      <div className="relative rounded-2xl overflow-hidden shadow-md fade-in-up" style={{background: bannerGradient}}>
-        {/* 背景装飾 */}
-        <div className="absolute inset-0 opacity-10" style={{backgroundImage: "radial-gradient(circle at 80% 20%, white 0%, transparent 60%)"}} />
+      <div className="relative rounded-2xl overflow-hidden shadow-md fade-in-up">
+        {/* 月別背景画像 */}
+        <div className="absolute inset-0" style={{backgroundImage: `url(${bannerBgImage})`, backgroundSize: 'cover', backgroundPosition: 'center'}} />
+        {/* 時間帯オーバーレイ（文字の読みやすさを確保） */}
+        <div className="absolute inset-0" style={{background: bannerOverlay}} />
         <div className="relative px-4 py-2 md:px-5 md:py-2.5 flex flex-col gap-2">
           {/* 挨拶メッセージ（名前とメッセージを横並び） */}
           <div className="flex flex-row items-baseline gap-2 flex-wrap justify-center md:justify-start">
