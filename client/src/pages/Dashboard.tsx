@@ -1672,12 +1672,14 @@ function LinkRow({ href, label, color, emoji }: { href: string; label: string; c
       target="_blank"
       rel="noopener noreferrer"
       onClick={handleClick}
+      onTouchStart={() => {}}
       className={cn(
         "flex items-center gap-2 text-sm py-2.5 px-3 rounded-md",
         "bg-muted/50 hover:bg-muted transition-colors font-medium",
         isOpening ? "opacity-60 cursor-wait" : "",
         isNight ? nightColor : (color ?? "text-foreground")
       )}
+      style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
     >
       {isOpening
         ? <span className="flex-shrink-0 w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -2094,11 +2096,12 @@ function TeamToolsCard() {
             <button
               key={tab.id}
               onClick={() => setActiveTeam(tab.id)}
+              onTouchStart={() => {}}
               className={cn(
-                "flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md text-[10px] font-bold transition-all",
+                "flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md text-[10px] font-bold transition-colors",
                 getTeamButtonClass(tab.id, activeTeam === tab.id)
               )}
-              style={getTeamButtonStyle(tab.id, activeTeam === tab.id)}
+              style={{ ...getTeamButtonStyle(tab.id, activeTeam === tab.id), touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
             >
               <span className="text-base leading-none">{tab.label}</span>
               <span className="leading-none">{tab.title}</span>
@@ -2113,7 +2116,7 @@ function TeamToolsCard() {
           ) : tools.length === 0 && !showAddForm ? (
             <p className="text-xs text-muted-foreground text-center py-4">
               {activeTeam}チームのツールはまだありません
-              {isAdmin && <span className="block mt-1 text-primary cursor-pointer" onClick={() => setShowAddForm(true)}>+ 追加する</span>}
+              {isAdmin && <span className="block mt-1 text-primary cursor-pointer" onClick={() => setShowAddForm(true)} onTouchStart={() => {}} style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>+ 追加する</span>}
             </p>
           ) : (
             tools.map((tool) => (
@@ -2145,10 +2148,10 @@ function TeamToolsCard() {
                     })()}
                     {isAdmin && (
                       <>
-                        <button onClick={() => startEdit(tool)} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" title="編集">
+                        <button onClick={() => startEdit(tool)} onTouchStart={() => {}} style={{ touchAction: 'manipulation' }} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" title="編集">
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </button>
-                        <button onClick={() => deleteTool.mutate({ id: tool.id })} className="text-muted-foreground hover:text-destructive p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" title="削除">
+                        <button onClick={() => deleteTool.mutate({ id: tool.id })} onTouchStart={() => {}} style={{ touchAction: 'manipulation' }} className="text-muted-foreground hover:text-destructive p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" title="削除">
                           <Trash2 className="w-3 h-3" />
                         </button>
                       </>
@@ -2178,7 +2181,7 @@ function TeamToolsCard() {
         {/* 管理者用追加ボタン */}
         {isAdmin && !showAddForm && tools.length > 0 && (
           <div className="flex justify-end">
-            <Button variant="ghost" size="sm" className="h-6 text-xs text-primary px-2" onClick={() => setShowAddForm(true)}>+ 追加</Button>
+            <Button variant="ghost" size="sm" className="h-6 text-xs text-primary px-2" onClick={() => setShowAddForm(true)} onTouchStart={() => {}} style={{ touchAction: 'manipulation' }}>+ 追加</Button>
           </div>
         )}
       </CardContent>
