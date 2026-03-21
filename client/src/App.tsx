@@ -23,6 +23,8 @@ import Setup from "./pages/Setup";
 import DashboardLayout from "./components/DashboardLayout";
 import SplashScreen from "./components/SplashScreen";
 import OfflineProvider from "./components/OfflineOverlay";
+import PageLoadingBar from "./components/PageLoadingBar";
+import RouteTransitionWrapper from "./components/RouteTransitionWrapper";
 
 function Router() {
   return (
@@ -34,23 +36,25 @@ function Router() {
       {/* 認証が必要なページ（DashboardLayoutが未認証時にリダイレクト） */}
       <Route>
         <DashboardLayout>
-          <Switch>
-            <Route path={"/"} component={Dashboard} />
-            <Route path={"/record"} component={RecordInput} />
-            <Route path={"/patients"} component={PatientList} />
-            <Route path={"/schedule"} component={Schedule} />
-            <Route path={"/tasks"} component={Tasks} />
-            <Route path={"/admin"} component={Admin} />
-            <Route path={"/schedule-change"} component={ScheduleChange} />
-            <Route path={"/schedule-change-history"} component={ScheduleChangeHistory} />
-            <Route path={"/traffic-accident"} component={TrafficAccident} />
-            <Route path={"/new-contract"} component={NewContract} />
-            <Route path={"/schedule-management"} component={ScheduleManagement} />
-            <Route path={"/minutes"} component={Minutes} />
-            <Route path={"/hinatas-way"} component={HinatasWay} />
-            <Route path={"/404"} component={NotFound} />
-            <Route component={NotFound} />
-          </Switch>
+          <RouteTransitionWrapper>
+            <Switch>
+              <Route path={"/"} component={Dashboard} />
+              <Route path={"/record"} component={RecordInput} />
+              <Route path={"/patients"} component={PatientList} />
+              <Route path={"/schedule"} component={Schedule} />
+              <Route path={"/tasks"} component={Tasks} />
+              <Route path={"/admin"} component={Admin} />
+              <Route path={"/schedule-change"} component={ScheduleChange} />
+              <Route path={"/schedule-change-history"} component={ScheduleChangeHistory} />
+              <Route path={"/traffic-accident"} component={TrafficAccident} />
+              <Route path={"/new-contract"} component={NewContract} />
+              <Route path={"/schedule-management"} component={ScheduleManagement} />
+              <Route path={"/minutes"} component={Minutes} />
+              <Route path={"/hinatas-way"} component={HinatasWay} />
+              <Route path={"/404"} component={NotFound} />
+              <Route component={NotFound} />
+            </Switch>
+          </RouteTransitionWrapper>
         </DashboardLayout>
       </Route>
     </Switch>
@@ -80,6 +84,7 @@ function App() {
       <ThemeProvider defaultTheme="light">
         <TooltipProvider>
           <Toaster />
+          <PageLoadingBar />
           {showSplash && <SplashScreen onFinish={handleFinish} duration={2000} />}
           <OfflineProvider>
             <Router />

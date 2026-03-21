@@ -695,7 +695,11 @@ export default function Tasks() {
       <Card className="shadow-sm">
         <CardContent className="p-3 space-y-1.5">
           {isLoading ? (
-            <p className="text-sm text-muted-foreground text-center py-6">読み込み中...</p>
+            <div className="space-y-2 py-2">
+              {[1,2,3,4].map(i => (
+                <div key={i} className="h-16 bg-muted/60 animate-pulse rounded-xl" />
+              ))}
+            </div>
           ) : filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">
               {activeFilterCount > 0

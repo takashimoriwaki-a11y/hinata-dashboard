@@ -506,7 +506,11 @@ export default function Minutes() {
 
       {/* 議事録リスト */}
       {isLoading ? (
-        <div className="text-center text-muted-foreground py-12">読み込み中...</div>
+        <div className="space-y-3">
+          {[1,2,3].map(i => (
+            <div key={i} className="h-24 bg-muted/60 animate-pulse rounded-xl" />
+          ))}
+        </div>
       ) : currentList.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">

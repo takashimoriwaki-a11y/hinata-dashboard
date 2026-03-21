@@ -705,7 +705,11 @@ function ScheduleCommentSection({ team, day }: { team: string; day: string }) {
           )}
           {/* コメント一覧 */}
           {isLoading ? (
-            <div className="text-xs text-muted-foreground py-2 text-center">読み込み中...</div>
+            <div className="space-y-1.5 py-1">
+              {[1,2].map(i => (
+                <div key={i} className="h-8 bg-muted/60 animate-pulse rounded-lg" />
+              ))}
+            </div>
           ) : comments && comments.length > 0 ? (
             <div className="space-y-2">
               {comments.map((c) => (
@@ -2112,7 +2116,11 @@ function TeamToolsCard() {
         {/* ツールリスト */}
         <div className="flex flex-col gap-1.5">
           {isLoading ? (
-            <p className="text-xs text-muted-foreground text-center py-4">読み込み中...</p>
+            <div className="space-y-2 py-1">
+              {[1,2,3].map(i => (
+                <div key={i} className="h-10 bg-muted/60 animate-pulse rounded-lg" />
+              ))}
+            </div>
           ) : tools.length === 0 && !showAddForm ? (
             <p className="text-xs text-muted-foreground text-center py-4">
               {activeTeam}チームのツールはまだありません
@@ -2899,7 +2907,11 @@ function MessageBoard({ title }: { title: string }) {
 
         {/* メッセージ一覧 */}
         {isLoading ? (
-          <p className="text-xs text-muted-foreground text-center py-3">読み込み中...</p>
+          <div className="space-y-2 py-1">
+            {[1,2].map(i => (
+              <div key={i} className="h-14 bg-muted/60 animate-pulse rounded-xl" />
+            ))}
+          </div>
         ) : messages.length === 0 ? (
           <p className="text-xs text-muted-foreground text-center py-3">メッセージはまだありません</p>
         ) : (
