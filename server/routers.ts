@@ -2093,7 +2093,7 @@ export const appRouter = router({
 
         // データ行を追記
         const appendRes = await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A:L")}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+          `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A:L")}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
           {
             method: "POST",
             headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
@@ -2318,7 +2318,7 @@ export const appRouter = router({
           }
 
           const appendRes = await fetch(
-            `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A:L")}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+            `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A:L")}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
             {
               method: "POST",
               headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
