@@ -261,6 +261,46 @@
   * {
     -webkit-tap-highlight-color: transparent;
   }
+
+  /* ===== 全ページ共通: iOS タップ反応の最終強化 =====
+   * shadcn/ui Button・Radix UI ダイアログ・ドロップダウン・カスタムbutton
+   * 全てに対して pointer-events を確実に有効化し、タップ遅延を完全除去する
+   */
+  button:not(:disabled),
+  [data-slot="button"]:not([data-disabled]),
+  [data-slot="tabs-trigger"]:not([data-disabled]),
+  [data-radix-collection-item],
+  [data-radix-popper-content-wrapper] button,
+  [role="dialog"] button,
+  [role="alertdialog"] button,
+  [role="menu"] [role="menuitem"],
+  [role="listbox"] [role="option"],
+  [role="combobox"],
+  [data-slot="select-trigger"],
+  [data-slot="dialog-close"],
+  [data-slot="popover-trigger"],
+  [data-slot="dropdown-menu-trigger"],
+  [data-slot="accordion-trigger"],
+  [data-slot="collapsible-trigger"] {
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
+    pointer-events: auto !important;
+    cursor: pointer;
+  }
+
+  /* iOSのタッチターゲットを全インタラクティブ要素で44px確保 */
+  @media (hover: none) and (pointer: coarse) {
+    button:not(:disabled),
+    [data-slot="button"]:not([data-disabled]),
+    [data-slot="tabs-trigger"]:not([data-disabled]),
+    [role="tab"]:not([aria-disabled="true"]),
+    [role="menuitem"],
+    [role="option"],
+    [data-slot="select-trigger"],
+    [data-slot="accordion-trigger"] {
+      min-height: 44px;
+    }
+  }
 }
 
 @layer components {
