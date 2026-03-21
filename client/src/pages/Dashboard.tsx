@@ -3574,7 +3574,7 @@ export default function Dashboard() {
         <div className="absolute inset-0" style={{backgroundImage: `url(${bannerBgImage})`, backgroundSize: 'cover', backgroundPosition: 'center'}} />
         {/* 時間帯オーバーレイ（文字の読みやすさを確保） */}
         <div className="absolute inset-0" style={{background: bannerOverlay}} />
-        <div className="relative px-4 py-2 md:px-5 md:py-2.5 flex flex-col gap-2">
+        <div className="relative px-4 py-4 md:px-5 md:py-5 flex flex-col gap-2.5">
           {/* 挨拶メッセージ（名前とメッセージを横並び） */}
           <div className="flex flex-row items-baseline gap-2 flex-wrap justify-center md:justify-start">
             <p className="text-xl md:text-3xl font-extrabold text-white leading-tight tracking-wide whitespace-nowrap" style={{textShadow: '0 2px 8px rgba(0,0,0,0.2)'}}>{userName}<span className="text-lg md:text-2xl">さん</span></p>
