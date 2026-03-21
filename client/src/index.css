@@ -187,12 +187,15 @@
   textarea,
   label {
     touch-action: manipulation;
+    /* iOSでのダブルタップ問題を防ぐ */
+    -webkit-touch-callout: none;
   }
 
   /* onClick が付いたカスタム要素にも touch-action を適用 */
   [onClick],
   [data-clickable] {
     touch-action: manipulation;
+    -webkit-touch-callout: none;
   }
 
   /* iOSのスクロールコンテナに慣性スクロールを適用 */
@@ -207,12 +210,12 @@
 
   /* タッチターゲットの最小サイズを44pxに確保（iOS HIG準拠） */
   button,
+  a,
   [role="button"],
   [role="tab"],
   [data-slot="button"],
   [data-slot="tabs-trigger"] {
     min-height: 44px;
-    min-width: 44px;
   }
 
   /* アニメーション要素のGPUレイヤー促進 */
@@ -223,6 +226,7 @@
 
   /* ボタン・タブのテキスト選択を無効化（長押し誤動作防止） */
   button,
+  a,
   [role="button"],
   [role="tab"],
   [data-slot="button"],
@@ -241,6 +245,16 @@
       transform: scale(0.97);
       transition: opacity 0.05s ease, transform 0.05s ease;
     }
+  }
+
+  /* iOSのボトムナビ・ウェルカムバナーボタンのタッチ反応を最優先にする */
+  .bottom-nav-safe a,
+  .bottom-nav-safe button {
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
+    cursor: pointer;
+    /* pointer-eventsを確実に有効化 */
+    pointer-events: auto;
   }
 
   /* iOSのタップ時の青いハイライトを除去（独自スタイルで代替） */

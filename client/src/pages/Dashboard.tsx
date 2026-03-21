@@ -3592,7 +3592,8 @@ export default function Dashboard() {
               href="https://gemini.google.com/app"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1 transition-all text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#9b7fd4'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#8a6ec3')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#9b7fd4')}
+              onTouchStart={() => {}}
+              className="flex items-center justify-center gap-1 transition-colors text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#9b7fd4', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#8a6ec3')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#9b7fd4')}
             >
               <span className="text-sm leading-none">✨</span>
               Gemini
@@ -3601,7 +3602,8 @@ export default function Dashboard() {
               href="https://homecare.zest.jp/login"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1 transition-all text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#00b5a3'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#009e8e')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#00b5a3')}
+              onTouchStart={() => {}}
+              className="flex items-center justify-center gap-1 transition-colors text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#00b5a3', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#009e8e')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#00b5a3')}
             >
               <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4" />
               ZEST
@@ -3610,28 +3612,32 @@ export default function Dashboard() {
               href="https://login.ibowservice.jp/?action=logout"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1 transition-all text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#4a90d9'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#3a7fc8')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#4a90d9')}
+              onTouchStart={() => {}}
+              className="flex items-center justify-center gap-1 transition-colors text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#4a90d9', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#3a7fc8')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#4a90d9')}
             >
               <ClipboardList className="w-3.5 h-3.5 md:w-4 md:h-4" />
               iBow
             </a>
             <Link
               href="/new-contract"
-              className="flex items-center justify-center gap-1 transition-all text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#e05a2b'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#c94d22')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#e05a2b')}
+              onTouchStart={() => {}}
+              className="flex items-center justify-center gap-1 transition-colors text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#e05a2b', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#c94d22')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#e05a2b')}
             >
               <FileText className="w-3.5 h-3.5 md:w-4 md:h-4" />
               新規契約
             </Link>
             <Link
               href="/schedule-management"
-              className="flex items-center justify-center gap-1 transition-all text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#7c5cbf'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#6b4dab')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#7c5cbf')}
+              onTouchStart={() => {}}
+              className="flex items-center justify-center gap-1 transition-colors text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#7c5cbf', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#6b4dab')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#7c5cbf')}
             >
               <CalendarDays className="w-3.5 h-3.5 md:w-4 md:h-4" />
               <span className="leading-tight">スケジュール<br className="md:hidden" />管理</span>
             </Link>
             <Link
               href="/tasks"
-              className="flex items-center justify-center gap-1 transition-all text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#2a9d5c'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#228a4f')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#2a9d5c')}
+              onTouchStart={() => {}}
+              className="flex items-center justify-center gap-1 transition-colors text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#2a9d5c', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#228a4f')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#2a9d5c')}
             >
               <ListTodo className="w-3.5 h-3.5 md:w-4 md:h-4" />
               タスク

@@ -454,7 +454,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     href={item.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                    style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", WebkitTouchCallout: "none" }}
+                    onTouchStart={() => {}}
                     className={cn(
                       "flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors select-none",
                       isNight ? "text-slate-300 active:text-primary active:scale-95" : "text-muted-foreground active:text-primary active:scale-95"
@@ -471,9 +472,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Link
                   key={item.label}
                   href={item.href}
-                  style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                  style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", WebkitTouchCallout: "none" }}
+                  onTouchStart={() => {}}
                   className={cn(
-                    "flex-1 flex flex-col items-center justify-center gap-0.5 transition-all relative select-none active:scale-95",
+                    "flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors relative select-none active:scale-95",
                     isActive ? "text-primary" : isNight ? "text-slate-300 active:text-primary" : "text-muted-foreground active:text-primary"
                   )}
                 >
