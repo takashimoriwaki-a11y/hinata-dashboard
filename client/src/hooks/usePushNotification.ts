@@ -45,7 +45,7 @@ export function usePushNotification() {
   }, []);
 
   // Service Workerを登録してプッシュ通知を購読する
-  const subscribe = useCallback(async (teamFilter?: string | null) => {
+  const subscribe = useCallback(async (teamFilter?: string | null, alreadyGranted?: boolean) => {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       toast.error("このブラウザはプッシュ通知に対応していません");
       return;
@@ -57,11 +57,20 @@ export function usePushNotification() {
 
     setIsLoading(true);
     try {
-      // 通知許可を要求
-      const perm = await Notification.requestPermission();
+      // 通知許可を要求（iOS対応: ダイアログボタンクリック時に既に許可取得済みの場合はスキップ）
+      let perm: NotificationPermission;
+      if (alreadyGranted || Notification.permission === "granted") {
+        perm = "granted";
+      } else {
+        perm = await Notification.requestPermission();
+      }
       setPermission(perm as PushPermission);
       if (perm !== "granted") {
-        toast.error("通知の許可が必要です。ブラウザの設定から許可してください。");
+        if (perm === "denied") {
+          toast.error("iPhoneの場合: 設定アプリ → 「Safari」または「サイト名」 → 「通知」を「許可」にしてください。");
+        } else {
+          toast.error("通知の許可が必要です。ブラウザの設定から許可してください。");
+        }
         return;
       }
 

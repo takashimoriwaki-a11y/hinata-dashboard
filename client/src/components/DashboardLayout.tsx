@@ -105,6 +105,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { isSubscribed, isLoading: pushLoading, subscribe, unsubscribe, permission: pushPermission } = usePushNotification();
   const [notifDialogOpen, setNotifDialogOpen] = useState(false);
   const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>("all");
+  // iOS PWAモードの検出（ホーム画面に追加されている場合はtrue）
+  const isIOSPWA = typeof window !== "undefined" &&
+    /iPhone|iPad|iPod/.test(navigator.userAgent) &&
+    (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+  const isIOS = typeof window !== "undefined" && /iPhone|iPad|iPod/.test(navigator.userAgent);
 
   const handleLogout = async () => {
     try {
@@ -248,12 +253,25 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* ボトムアクション */}
       <div className={cn("border-t border-sidebar-border py-2", mobile && "pb-[76px]")} >
         <button
-          onClick={() => {
+          onTouchStart={() => {}}
+          onClick={async () => {
             if (pushPermission === "unsupported") {
               toast.error("このブラウザはプッシュ通知に対応していません");
-            } else {
-              setNotifDialogOpen(true);
+              return;
             }
+            // iOSではユーザーアクション直後にrequestPermissionを呼ぶ必要がある
+            if (!isSubscribed && "Notification" in window && Notification.permission === "default") {
+              try {
+                const perm = await Notification.requestPermission();
+                if (perm === "denied") {
+                  toast.error("通知がブロックされています。iPhoneの設定アプリ → Safari → 通知 から許可してください。");
+                  return;
+                }
+              } catch {
+                // iOS PWAでない場合は無視してダイアログを開く
+              }
+            }
+            setNotifDialogOpen(true);
           }}
           disabled={pushLoading}
           title={(collapsed && !mobile) ? (isSubscribed ? "通知設定" : "通知を有効にする") : undefined}
@@ -518,11 +536,33 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {/* iOSでPWA未インストールの場合の警告 */}
+            {isIOS && !isIOSPWA && (
+              <div className="flex flex-col gap-1.5 px-3 py-3 bg-amber-50 dark:bg-amber-900/30 rounded-lg text-sm text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700">
+                <p className="font-semibold">⚠️ iPhoneでの通知設定について</p>
+                <p className="text-xs leading-relaxed">
+                  iPhoneでプッシュ通知を受け取るには、まず「ホーム画面に追加」が必要です。
+                </p>
+                <ol className="text-xs leading-relaxed list-decimal list-inside space-y-1">
+                  <li>Safariの共有ボタン（中央下の四角矢印）をタップ</li>
+                  <li>「ホーム画面に追加」を選択</li>
+                  <li>追加後、ホーム画面の「ひなた」アイコンから起動</li>
+                  <li>再度この画面で通知を有効に</li>
+                </ol>
+              </div>
+            )}
             {/* 現在の状態表示 */}
             {isSubscribed && (
               <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg text-sm text-emerald-700 dark:text-emerald-400">
                 <Bell className="w-4 h-4 fill-emerald-500" />
                 通知は現在オンになっています
+              </div>
+            )}
+            {/* 通知がブロックされている場合の警告 */}
+            {pushPermission === "denied" && (
+              <div className="flex flex-col gap-1 px-3 py-2 bg-red-50 dark:bg-red-900/30 rounded-lg text-sm text-red-700 dark:text-red-400">
+                <p className="font-semibold">❌ 通知がブロックされています</p>
+                <p className="text-xs">設定アプリ → 「Safari」 → 「通知」を「許可」に変更してから再度お試しください。</p>
               </div>
             )}
 
@@ -549,9 +589,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             {/* ボタングループ */}
             <div className="flex gap-2 pt-1">
               <button
+                onTouchStart={() => {}}
                 onClick={async () => {
                   const filter = selectedTeamFilter === "all" ? null : selectedTeamFilter;
-                  await subscribe(filter);
+                  // iOS対応: ボタンクリック時に既に許可取得済みの場合はフラグを渡す
+                  const alreadyGranted = "Notification" in window && Notification.permission === "granted";
+                  await subscribe(filter, alreadyGranted);
                   setNotifDialogOpen(false);
                 }}
                 disabled={pushLoading}
