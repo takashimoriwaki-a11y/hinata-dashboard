@@ -16,6 +16,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
@@ -2471,6 +2481,9 @@ function MessageBoard({ title }: { title: string }) {
   // メッセージ編集state
   const [editingMsgId, setEditingMsgId] = useState<number | null>(null);
   const [editingText, setEditingText] = useState("");
+  // メッセージ削除確認ダイアログ用state
+  const [deleteMsgId, setDeleteMsgId] = useState<number | null>(null);
+  const [deleteMsgText, setDeleteMsgText] = useState("");
 
   // メッセージ編集mutation
   const updateMsg = trpc.messages.update.useMutation({
@@ -2975,20 +2988,27 @@ function MessageBoard({ title }: { title: string }) {
                     </div>
                     {/* 編集・削除ボタン（作成者のみ） */}
                     {msg.createdBy === user?.id && (
-                      <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 flex-shrink-0 transition-all">
+                      <div className="md:opacity-0 md:group-hover:opacity-100 flex items-center gap-1 flex-shrink-0 transition-all">
                         <button
+                          onTouchStart={() => {}}
                           onClick={() => {
                             setEditingMsgId(msg.id);
                             setEditingText(msg.text);
                           }}
-                          className="text-muted-foreground hover:text-primary transition-colors"
+                          className="text-muted-foreground hover:text-primary transition-colors p-1 min-w-[32px] min-h-[32px] flex items-center justify-center"
+                          style={{ touchAction: 'manipulation' }}
                           title="修正"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onClick={() => deleteMsg.mutate({ id: msg.id })}
-                          className="text-muted-foreground hover:text-destructive transition-colors"
+                          onTouchStart={() => {}}
+                          onClick={() => {
+                            setDeleteMsgId(msg.id);
+                            setDeleteMsgText(msg.text);
+                          }}
+                          className="text-muted-foreground hover:text-destructive transition-colors p-1 min-w-[32px] min-h-[32px] flex items-center justify-center"
+                          style={{ touchAction: 'manipulation' }}
                           title="削除"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -3172,6 +3192,48 @@ function MessageBoard({ title }: { title: string }) {
           {showForm ? "フォームを閉じる" : "新しい投稿"}
         </button>
       </CardContent>
+
+      {/* メッセージ削除確認ダイアログ */}
+      <AlertDialog open={deleteMsgId !== null} onOpenChange={(open) => { if (!open) { setDeleteMsgId(null); setDeleteMsgText(""); } }}>
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base">メッセージを削除しますか？</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm">
+              この操作は元に戻せません。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteMsgText && (
+            <div className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-foreground/80 line-clamp-3 my-1">
+              {deleteMsgText}
+            </div>
+          )}
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel onClick={() => { setDeleteMsgId(null); setDeleteMsgText(""); }}>
+              キャンセル
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteMsg.isPending}
+              onClick={() => {
+                if (deleteMsgId === null) return;
+                deleteMsg.mutate(
+                  { id: deleteMsgId },
+                  {
+                    onSuccess: () => {
+                      toast.success("メッセージを削除しました");
+                      setDeleteMsgId(null);
+                      setDeleteMsgText("");
+                    },
+                    onError: (e) => toast.error(`削除失敗: ${e.message}`),
+                  }
+                );
+              }}
+            >
+              {deleteMsg.isPending ? "削除中…" : "削除する"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* 予約送信キャンセル確認ダイアログ */}
       <Dialog open={cancelTargetId !== null} onOpenChange={(open) => { if (!open) { setCancelTargetId(null); setCancelTargetText(""); } }}>
