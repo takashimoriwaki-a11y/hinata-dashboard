@@ -1,5 +1,6 @@
 import { and, eq, or, isNull, isNotNull, desc, lte, gte, gt, lt, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import { createPool } from "mysql2";
 import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot, myLinks, InsertMyLink, spreadsheetLinks, InsertSpreadsheetLink, tasks, InsertTask, messages, InsertMessage, messageReactions, InsertMessageReaction, patients, InsertPatient, visitRecords, InsertVisitRecord, appNotifications, InsertAppNotification } from "../drizzle/schema";
 import { screenshotUploadLogs, InsertScreenshotUploadLog, appSettings } from "../drizzle/schema";
 import { scheduleComments, InsertScheduleComment, scheduleCommentReactions, InsertScheduleCommentReaction } from "../drizzle/schema";
@@ -16,7 +17,15 @@ export async function getDb() {
       // trim() to handle accidental whitespace in environment variables
       const dbUrl = process.env.DATABASE_URL.trim();
       console.log("[Database] Connecting with URL prefix:", dbUrl.substring(0, 20) + "...");
-      _db = drizzle(dbUrl);
+      // connectTimeout: 接続タイムアウト(ms), waitForConnections: プール枯渇時に待機
+      const pool = createPool({
+        uri: dbUrl,
+        connectTimeout: 8000,   // 8秒で接続タイムアウト
+        waitForConnections: true,
+        connectionLimit: 5,
+        queueLimit: 10,
+      });
+      _db = drizzle(pool);
     } catch (error) {
       console.error("[Database] Failed to connect:", error);
       _db = null;
