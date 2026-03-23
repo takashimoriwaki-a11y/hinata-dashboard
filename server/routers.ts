@@ -1491,6 +1491,30 @@ export const appRouter = router({
                     fields: "gridProperties.frozenRowCount",
                   },
                 },
+                // 11. 転送日時（A列）に日時書式を設定
+                {
+                  repeatCell: {
+                    range: { sheetId, startRowIndex: 1, endRowIndex: dataEndRow, startColumnIndex: 0, endColumnIndex: 1 },
+                    cell: {
+                      userEnteredFormat: {
+                        numberFormat: { type: "DATE_TIME", pattern: "yyyy/mm/dd hh:mm" },
+                      },
+                    },
+                    fields: "userEnteredFormat.numberFormat",
+                  },
+                },
+                // 12. 次回訪問日時（E列）に日時書式を設定
+                {
+                  repeatCell: {
+                    range: { sheetId, startRowIndex: 1, endRowIndex: dataEndRow, startColumnIndex: 4, endColumnIndex: 5 },
+                    cell: {
+                      userEnteredFormat: {
+                        numberFormat: { type: "DATE_TIME", pattern: "yyyy/mm/dd hh:mm" },
+                      },
+                    },
+                    fields: "userEnteredFormat.numberFormat",
+                  },
+                },
               ],
             };
             await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}:batchUpdate`, {
