@@ -8,7 +8,7 @@ import { registerGoogleAuthRoutes } from "./googleAuth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
-import { deleteAllTodayScreenshots, moveTomorrowToToday, getTodayDueTasks, getPatients, getAllUsers } from "../db";
+import { deleteAllTodayScreenshots, moveTomorrowToToday, getTodayDueTasks, getPatients, getAllUsers, getCommentsByDate, deleteCommentsByDate } from "../db";
 import { notifyOwner } from "./notification";
 import multer from "multer";
 import { ENV } from "./env";
@@ -629,6 +629,143 @@ ${medicalPrompt}`;
 
 startServer().catch(console.error);
 
+// ========== 申し送りコメントをスプレッドシートに転記する ==========
+// 指定日付の申し送りコメントを「申し送り・コメント履歴」タブに転記する
+async function exportCommentsToSheet(dateStr: string): Promise<void> {
+  const VISIT_RECORD_SHEET_ID = "1WOZQ5rI0Fu57nWaiGwComPS_DdEwPgNR6zeOmyrqKpo"; // ひなた_次回訪問日時（同じスプレッドシートに新タブを追加）
+  const COMMENT_SHEET_NAME = "申し送り・コメント履歴";
+
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+  if (!email || !privateKey) {
+    console.warn("[CommentExport] サービスアカウント設定がありません。スキップします。");
+    return;
+  }
+
+  const { GoogleAuth } = await import("google-auth-library");
+  const auth = new GoogleAuth({
+    credentials: { client_email: email, private_key: privateKey.replace(/\\n/g, "\n") },
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  });
+  const client = await auth.getClient();
+  const tokenObj = await client.getAccessToken();
+  const token = tokenObj.token;
+  if (!token) {
+    throw new Error("[CommentExport] 認証トークン取得失敗");
+  }
+
+  // 今日のコメントを取得
+  const comments = await getCommentsByDate(dateStr);
+  if (comments.length === 0) {
+    console.log(`[CommentExport] ${dateStr} のコメントは0件。スキップします。`);
+    await deleteCommentsByDate(dateStr);
+    return;
+  }
+
+  // 「申し送り・コメント履歴」シートが存在するか確認
+  const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}?fields=sheets.properties`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!metaRes.ok) throw new Error(`[CommentExport] シートメタ取得失敗: ${await metaRes.text()}`);
+  const meta = await metaRes.json() as { sheets: { properties: { sheetId: number; title: string } }[] };
+  const existingSheet = meta.sheets.find(s => s.properties.title === COMMENT_SHEET_NAME);
+
+  let commentSheetId: number;
+
+  if (!existingSheet) {
+    // 新タブを作成
+    const addSheetRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}:batchUpdate`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        requests: [{
+          addSheet: {
+            properties: {
+              title: COMMENT_SHEET_NAME,
+              gridProperties: { rowCount: 1000, columnCount: 6 },
+            },
+          },
+        }],
+      }),
+    });
+    if (!addSheetRes.ok) throw new Error(`[CommentExport] シート作成失敗: ${await addSheetRes.text()}`);
+    const addSheetData = await addSheetRes.json() as { replies: { addSheet: { properties: { sheetId: number } } }[] };
+    commentSheetId = addSheetData.replies[0].addSheet.properties.sheetId;
+
+    // ヘッダー行を追加
+    const headerRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}/values/${encodeURIComponent(COMMENT_SHEET_NAME + "!A1")}?valueInputOption=USER_ENTERED`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        range: `${COMMENT_SHEET_NAME}!A1`,
+        majorDimension: "ROWS",
+        values: [["日付", "チーム", "投稿者", "コメント内容", "投稿日時", "リアクション"]],
+      }),
+    });
+    if (!headerRes.ok) console.warn(`[CommentExport] ヘッダー追加失敗: ${await headerRes.text()}`);
+
+    // ヘッダー行の書式設定（太字・背景色）
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}:batchUpdate`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        requests: [
+          {
+            repeatCell: {
+              range: { sheetId: commentSheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 6 },
+              cell: {
+                userEnteredFormat: {
+                  backgroundColor: { red: 0.18, green: 0.38, blue: 0.54 },
+                  textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 }, fontSize: 10 },
+                  horizontalAlignment: "CENTER",
+                  verticalAlignment: "MIDDLE",
+                },
+              },
+              fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+            },
+          },
+          { updateDimensionProperties: { range: { sheetId: commentSheetId, dimension: "ROWS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 36 }, fields: "pixelSize" } },
+          { updateDimensionProperties: { range: { sheetId: commentSheetId, dimension: "COLUMNS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 120 }, fields: "pixelSize" } }, // 日付
+          { updateDimensionProperties: { range: { sheetId: commentSheetId, dimension: "COLUMNS", startIndex: 1, endIndex: 2 }, properties: { pixelSize: 100 }, fields: "pixelSize" } }, // チーム
+          { updateDimensionProperties: { range: { sheetId: commentSheetId, dimension: "COLUMNS", startIndex: 2, endIndex: 3 }, properties: { pixelSize: 100 }, fields: "pixelSize" } }, // 投稿者
+          { updateDimensionProperties: { range: { sheetId: commentSheetId, dimension: "COLUMNS", startIndex: 3, endIndex: 4 }, properties: { pixelSize: 400 }, fields: "pixelSize" } }, // コメント
+          { updateDimensionProperties: { range: { sheetId: commentSheetId, dimension: "COLUMNS", startIndex: 4, endIndex: 5 }, properties: { pixelSize: 150 }, fields: "pixelSize" } }, // 投稿日時
+          { updateDimensionProperties: { range: { sheetId: commentSheetId, dimension: "COLUMNS", startIndex: 5, endIndex: 6 }, properties: { pixelSize: 200 }, fields: "pixelSize" } }, // リアクション
+          { updateSheetProperties: { properties: { sheetId: commentSheetId, gridProperties: { frozenRowCount: 1 } }, fields: "gridProperties.frozenRowCount" } },
+        ],
+      }),
+    });
+  } else {
+    commentSheetId = existingSheet.properties.sheetId;
+  }
+
+  // コメントデータを行に変換
+  const rows = comments.map(c => {
+    const jstDate = new Date(c.createdAt.getTime() + 9 * 60 * 60 * 1000);
+    const timeStr = jstDate.toISOString().slice(0, 16).replace("T", " ");
+    return [
+      dateStr,         // 日付（YYYY-MM-DD）
+      c.team,          // チーム名
+      c.userName,      // 投稿者
+      c.content,       // コメント内容
+      timeStr,         // 投稿日時
+      "",              // リアクション（後で追記可能）
+    ];
+  });
+
+  // データをシートに追記
+  const appendRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}/values/${encodeURIComponent(COMMENT_SHEET_NAME + "!A:F")}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ range: `${COMMENT_SHEET_NAME}!A:F`, majorDimension: "ROWS", values: rows }),
+  });
+  if (!appendRes.ok) throw new Error(`[CommentExport] データ追記失敗: ${await appendRes.text()}`);
+
+  // 転記完了後にDBから削除
+  await deleteCommentsByDate(dateStr);
+  console.log(`[CommentExport] ${comments.length}件のコメントを転記しました: ${dateStr}`);
+}
+
 // ========== 毎日23:59に訪問スケジュールスクショをローテーション ==========
 // 「今日」のスクショを削除し、「明日」のスクショを「今日」に移動する
 function scheduleDailyRotation() {
@@ -647,6 +784,15 @@ function scheduleDailyRotation() {
       lastRotatedDate = dateStr;
       try {
         console.log(`[ScheduleRotation] ${dateStr} 23:59 - 今日のスクショを削除し、明日を今日に移動します`);
+        // 1. 今日のコメントをスプレッドシートに転記してから削除
+        try {
+          await exportCommentsToSheet(dateStr);
+          console.log(`[ScheduleRotation] 申し送りコメント転記完了: ${dateStr}`);
+        } catch (commentErr) {
+          console.error(`[ScheduleRotation] 申し送りコメント転記エラー:`, commentErr);
+          // 転記失敗でもローテーションは続行
+        }
+        // 2. スクショのローテーション
         await deleteAllTodayScreenshots();
         await moveTomorrowToToday();
         console.log(`[ScheduleRotation] 完了`);

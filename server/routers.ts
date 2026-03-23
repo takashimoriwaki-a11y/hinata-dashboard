@@ -76,6 +76,8 @@ import {
   getScheduleCommentCounts,
   getScheduleCommentReactions,
   toggleScheduleCommentReaction,
+  getCommentsByDate,
+  deleteCommentsByDate,
   createScheduleChange,
   getScheduleChanges,
   getScheduleChangeById,

@@ -1132,8 +1132,37 @@ export async function getScheduleComments(team: string, day: string) {
 export async function addScheduleComment(data: InsertScheduleComment) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+  // dateが未設定の場合はJSTの今日の日付を自動セット
+  if (!data.date) {
+    const now = new Date();
+    const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    data.date = jst.toISOString().slice(0, 10);
+  }
   const result = await db.insert(scheduleComments).values(data);
   return (result as any)[0]?.insertId ?? 0;
+}
+
+/** 指定日付の「今日」コメントを全チーム取得する（スプレッドシート転記用） */
+export async function getCommentsByDate(date: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(scheduleComments)
+    .where(eq(scheduleComments.date, date))
+    .orderBy(scheduleComments.team, scheduleComments.createdAt);
+}
+
+/** 指定日付のコメントを全て削除する（ローテーション後の転記済みコメント削除用） */
+export async function deleteCommentsByDate(date: string) {
+  const db = await getDb();
+  if (!db) return;
+  // まずリアクションを削除
+  const comments = await getCommentsByDate(date);
+  for (const c of comments) {
+    await db.delete(scheduleCommentReactions).where(eq(scheduleCommentReactions.commentId, c.id));
+  }
+  await db.delete(scheduleComments).where(eq(scheduleComments.date, date));
 }
 
 /** コメントを削除する（全スタッフ可） */

@@ -1,0 +1,1 @@
+ALTER TABLE `schedule_comments` ADD `date` varchar(10) DEFAULT '' NOT NULL;
