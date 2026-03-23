@@ -74,6 +74,8 @@ import {
   deleteScheduleComment,
   updateScheduleComment,
   getScheduleCommentCounts,
+  getScheduleCommentReactions,
+  toggleScheduleCommentReaction,
   createScheduleChange,
   getScheduleChanges,
   getScheduleChangeById,
@@ -703,7 +705,14 @@ export const appRouter = router({
         day: z.enum(["今日", "明日"]),
       }))
       .query(async ({ input }) => {
-        return getScheduleComments(input.team, input.day);
+        const comments = await getScheduleComments(input.team, input.day);
+        if (comments.length === 0) return [];
+        const ids = comments.map((c) => c.id);
+        const reactions = await getScheduleCommentReactions(ids);
+        return comments.map((c) => ({
+          ...c,
+          reactions: reactions.filter((r) => r.commentId === c.id),
+        }));
       }),
 
     addComment: protectedProcedure
@@ -756,6 +765,22 @@ export const appRouter = router({
         broadcastEvent("scheduleComments");
         return { success: true };
       }),
+    toggleReaction: protectedProcedure
+      .input(z.object({
+        commentId: z.number(),
+        emoji: z.string().min(1).max(10),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const result = await toggleScheduleCommentReaction(
+          input.commentId,
+          ctx.user.id,
+          ctx.user.name ?? "名前未設定",
+          input.emoji
+        );
+        broadcastEvent("scheduleComments");
+        return result;
+      }),
+
     getCommentCounts: publicProcedure
       .input(z.object({
         day: z.enum(["今日", "明日"]),

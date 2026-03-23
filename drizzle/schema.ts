@@ -385,6 +385,25 @@ export type ScheduleComment = typeof scheduleComments.$inferSelect;
 export type InsertScheduleComment = typeof scheduleComments.$inferInsert;
 
 /**
+ * 申し送りコメントリアクションテーブル
+ * スタッフが申し送りコメントに絵文字でリアクションを付けることができる
+ */
+export const scheduleCommentReactions = mysqlTable("schedule_comment_reactions", {
+  id: int("id").autoincrement().primaryKey(),
+  /** リアクション対象のコメントID */
+  commentId: int("commentId").notNull(),
+  /** リアクションしたユーザーID */
+  userId: int("userId").notNull(),
+  /** リアクションしたユーザー名（表示用キャッシュ） */
+  userName: text("userName").notNull(),
+  /** 絵文字 */
+  emoji: varchar("emoji", { length: 10 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type ScheduleCommentReaction = typeof scheduleCommentReactions.$inferSelect;
+export type InsertScheduleCommentReaction = typeof scheduleCommentReactions.$inferInsert;
+
+/**
  * スケジュール変更連絡テーブル
  * 利用者の訪問スケジュール変更・追加・キャンセル、会議予定の変更・追加を管理する
  */

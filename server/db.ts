@@ -2,7 +2,7 @@ import { and, eq, or, isNull, isNotNull, desc, lte, gte, gt, lt, sql } from "dri
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot, myLinks, InsertMyLink, spreadsheetLinks, InsertSpreadsheetLink, tasks, InsertTask, messages, InsertMessage, messageReactions, InsertMessageReaction, patients, InsertPatient, visitRecords, InsertVisitRecord, appNotifications, InsertAppNotification } from "../drizzle/schema";
 import { screenshotUploadLogs, InsertScreenshotUploadLog, appSettings } from "../drizzle/schema";
-import { scheduleComments, InsertScheduleComment } from "../drizzle/schema";
+import { scheduleComments, InsertScheduleComment, scheduleCommentReactions, InsertScheduleCommentReaction } from "../drizzle/schema";
 import { scheduleChanges, InsertScheduleChange } from "../drizzle/schema";
 import { quickAccessLinks, InsertQuickAccessLink } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -1136,23 +1136,61 @@ export async function addScheduleComment(data: InsertScheduleComment) {
   return (result as any)[0]?.insertId ?? 0;
 }
 
-/** コメントを削除する（自分のコメントのみ） */
-export async function deleteScheduleComment(id: number, userId: number) {
+/** コメントを削除する（全スタッフ可） */
+export async function deleteScheduleComment(id: number, _userId: number) {
   const db = await getDb();
   if (!db) return;
-  await db
-    .delete(scheduleComments)
-    .where(and(eq(scheduleComments.id, id), eq(scheduleComments.userId, userId)));
+  // リアクションも先に削除
+  await db.delete(scheduleCommentReactions).where(eq(scheduleCommentReactions.commentId, id));
+  await db.delete(scheduleComments).where(eq(scheduleComments.id, id));
 }
 
-/** コメントを編集する（自分のコメントのみ） */
-export async function updateScheduleComment(id: number, userId: number, content: string) {
+/** コメントを編集する（全スタッフ可） */
+export async function updateScheduleComment(id: number, _userId: number, content: string) {
   const db = await getDb();
   if (!db) return;
   await db
     .update(scheduleComments)
     .set({ content })
-    .where(and(eq(scheduleComments.id, id), eq(scheduleComments.userId, userId)));
+    .where(eq(scheduleComments.id, id));
+}
+
+/** コメントへのリアクションをトグルする（同じ絵文字を再度押すと削除） */
+export async function toggleScheduleCommentReaction(commentId: number, userId: number, userName: string, emoji: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // 既存のリアクションを確認
+  const existing = await db
+    .select()
+    .from(scheduleCommentReactions)
+    .where(
+      and(
+        eq(scheduleCommentReactions.commentId, commentId),
+        eq(scheduleCommentReactions.userId, userId),
+        eq(scheduleCommentReactions.emoji, emoji)
+      )
+    )
+    .limit(1);
+  if (existing.length > 0) {
+    // 既にリアクション済み → 削除（トグルオフ）
+    await db.delete(scheduleCommentReactions).where(eq(scheduleCommentReactions.id, existing[0].id));
+    return { action: "removed" as const };
+  } else {
+    // 未リアクション → 追加
+    await db.insert(scheduleCommentReactions).values({ commentId, userId, userName, emoji });
+    return { action: "added" as const };
+  }
+}
+
+/** コメントのリアクション一覧を取得する */
+export async function getScheduleCommentReactions(commentIds: number[]) {
+  const db = await getDb();
+  if (!db || commentIds.length === 0) return [];
+  const { inArray } = await import("drizzle-orm");
+  return db
+    .select()
+    .from(scheduleCommentReactions)
+    .where(inArray(scheduleCommentReactions.commentId, commentIds));
 }
 
 /** 今日・明日のコメント件数を全チームまとめて取得する */

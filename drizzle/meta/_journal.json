@@ -225,6 +225,13 @@
       "when": 1773273012099,
       "tag": "0031_spotty_lady_vermin",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "5",
+      "when": 1774246324906,
+      "tag": "0032_common_bill_hollister",
+      "breakpoints": true
     }
   ]
 }
