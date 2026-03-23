@@ -617,6 +617,7 @@ function ScheduleCommentSection({ team, day }: { team: string; day: string }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
+  const [deletingCommentId, setDeletingCommentId] = useState<number | null>(null);
 
   const { data: comments, isLoading } = trpc.schedule.getComments.useQuery(
     { team: team as any, day: day as any },
@@ -760,33 +761,57 @@ function ScheduleCommentSection({ team, day }: { team: string; day: string }) {
                     <div className="flex gap-1 flex-shrink-0 mt-0.5">
                       <button
                         onClick={() => handleEditStart(c.id, c.content)}
-                        className="text-muted-foreground/50 hover:text-primary transition-colors"
+                        className="p-1.5 rounded text-muted-foreground/60 hover:text-primary hover:bg-primary/10 transition-colors"
                         title="編集"
                       >
-                        <Pencil className="w-3 h-3" />
+                        <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button
-                        onClick={() => deleteMutation.mutate({ id: c.id })}
-                        className="text-muted-foreground/50 hover:text-destructive transition-colors"
+                        onClick={() => setDeletingCommentId(c.id)}
+                        className="p-1.5 rounded text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
                         disabled={deleteMutation.isPending}
                         title="削除"
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   )}
                 </div>
               ))}
             </div>
-          ) : (
+           ) : (
             <div className="text-xs text-muted-foreground/50 py-2 text-center">コメントはまだありません</div>
           )}
         </div>
       )}
+      {/* 申し送りコメント削除確認ダイアログ */}
+      <AlertDialog open={deletingCommentId !== null} onOpenChange={(open) => { if (!open) setDeletingCommentId(null); }}>
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>コメントを削除しますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              この操作は元に戻せません。本当に削除しますか？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeletingCommentId(null)}>キャンセル</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deletingCommentId !== null) {
+                  deleteMutation.mutate({ id: deletingCommentId });
+                  setDeletingCommentId(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              削除する
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
-
 // ========== ZESTスクリーンショットカード（tRPC+S3+DB版）==========
 
 function ScheduleScreenshotCard() {
@@ -1313,7 +1338,7 @@ function ScheduleScreenshotCard() {
 
         return (
         <div
-          className="fixed inset-0 z-50 bg-black/85 overflow-y-auto"
+          className="fixed inset-0 z-[80] bg-black/85 overflow-y-auto"
           id="modal-scroll-container"
           onClick={() => { setViewUrl(null); setViewMeta(null); }}
         >
@@ -1442,7 +1467,7 @@ function ScheduleScreenshotCard() {
       {/* 個別ライトボックス（1枚フルスクリーン表示） */}
       {lightboxSrc && (
         <div
-          className="fixed inset-0 z-[60] bg-black/95"
+          className="fixed inset-0 z-[90] bg-black/95"
           onClick={() => setLightboxSrc(null)}
         >
           {/* 閉じるボタン */}
