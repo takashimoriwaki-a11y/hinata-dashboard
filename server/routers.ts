@@ -1369,7 +1369,30 @@ export const appRouter = router({
         });
         if (!res.ok) {
           const text = await res.text();
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Sheets API error: ${text}` });
+          let userMessage = "スプレッドシートへの転送に失敗しました";
+          let errorCode: "INTERNAL_SERVER_ERROR" | "FORBIDDEN" | "UNAUTHORIZED" = "INTERNAL_SERVER_ERROR";
+          try {
+            const errJson = JSON.parse(text);
+            const status = res.status;
+            const errMsg = errJson?.error?.message ?? "";
+            if (status === 401 || status === 403) {
+              errorCode = "FORBIDDEN";
+              userMessage = "スプレッドシートへのアクセス権限がありません。管理者にお問い合わせください。";
+            } else if (status === 404) {
+              userMessage = "スプレッドシートが見つかりません。URLや共有設定を確認してください。";
+            } else if (status === 429) {
+              userMessage = "APIの利用制限に達しました。しばらく待ってから再試行してください。";
+            } else if (errMsg.includes("RESOURCE_EXHAUSTED")) {
+              userMessage = "APIの利用制限に達しました。しばらく待ってから再試行してください。";
+            } else if (errMsg.includes("SERVICE_UNAVAILABLE") || status >= 500) {
+              userMessage = "Googleのサービスが一時的に利用できません。しばらく待ってから再試行してください。";
+            } else if (errMsg) {
+              userMessage = `転送エラー: ${errMsg}`;
+            }
+          } catch {
+            // JSONパース失敗時はデフォルトメッセージを使用
+          }
+          throw new TRPCError({ code: errorCode, message: userMessage });
         }
 
         // シートIDを取得してヘッダー書式・列幅・オートフィルターを設定（初回転送時のみ実行）

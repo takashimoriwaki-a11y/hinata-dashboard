@@ -17,7 +17,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   ClipboardEdit, Send, Search, Calendar,
-  User, ChevronDown, Loader2, FileSpreadsheet, CheckCircle2, ExternalLink
+  User, ChevronDown, Loader2, FileSpreadsheet, CheckCircle2, ExternalLink,
+  AlertTriangle, RefreshCw
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -435,6 +436,7 @@ export default function RecordInput() {
 
   // ページ読み込み時に下書きを復元
   const [hasDraft, setHasDraft] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   useEffect(() => {
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
@@ -518,6 +520,7 @@ export default function RecordInput() {
 
   const exportToSheet = trpc.visitRecords.exportToSheet.useMutation({
     onSuccess: () => {
+      setExportError(null);
       toast.success("スプレッドシートへ転送しました！");
       utils.visitRecords.getMine.invalidate();
       // 転送後は全項目リセット（利用者名・次回訪問日時・伝達先・伝達方法）
@@ -536,7 +539,11 @@ export default function RecordInput() {
       localStorage.removeItem(DRAFT_KEY);
       setHasDraft(false);
     },
-    onError: (err) => toast.error(`転送エラー: ${err.message}`),
+    onError: (err) => {
+      const msg = err.message || "スプレッドシートへの転送に失敗しました";
+      setExportError(msg);
+      toast.error(msg, { duration: 6000 });
+    },
   });
 
   const unmarkExported = trpc.visitRecords.unmarkExported.useMutation({
@@ -1480,6 +1487,44 @@ export default function RecordInput() {
               )}
             </Button>
           </div>
+          {/* 転送エラーバナー */}
+          {exportError && (
+            <div className="rounded-lg border border-red-300 bg-red-50 dark:bg-red-950/30 dark:border-red-800 p-3 space-y-2">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-red-700 dark:text-red-400">転送に失敗しました</p>
+                  <p className="text-xs text-red-600 dark:text-red-500 mt-0.5 break-words">{exportError}</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 text-xs border-red-300 text-red-700 hover:bg-red-100 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/50"
+                  onClick={() => {
+                    setExportError(null);
+                    if (savedRecordId) exportToSheet.mutate({ id: savedRecordId });
+                  }}
+                  disabled={exportToSheet.isPending}
+                >
+                  {exportToSheet.isPending ? (
+                    <><Loader2 className="w-3 h-3 mr-1 animate-spin" />再試行中...</>
+                  ) : (
+                    <><RefreshCw className="w-3 h-3 mr-1" />再試行する</>
+                  )}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-xs text-muted-foreground"
+                  onClick={() => setExportError(null)}
+                >
+                  閉じる
+                </Button>
+              </div>
+            </div>
+          )}
           {exported && (
             <div className="flex gap-2">
               <Button
