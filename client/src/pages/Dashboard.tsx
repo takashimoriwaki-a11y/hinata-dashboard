@@ -5,6 +5,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1413,7 +1414,7 @@ function ScheduleScreenshotCard() {
       </Card>
 
       {/* 拡大モーダル（縦スクロールで全チームの今日分を一覧表示） */}
-      {viewMeta && (() => {
+      {viewMeta && createPortal((() => {/* portal-start */
         // 全チームのスクショ（登録済み・未登録問わず）を取得
         const allTeamSlides = TEAMS.map((team) => ({
           team,
@@ -1556,10 +1557,10 @@ function ScheduleScreenshotCard() {
           </div>
         </div>
         );
-      })()}
+      })(), document.body)}
 
       {/* 個別ライトボックス（1枚フルスクリーン表示） */}
-      {lightboxSrc && (
+      {lightboxSrc && createPortal((
         <div
           className="fixed inset-0 z-[90] bg-black/95"
           onClick={() => setLightboxSrc(null)}
@@ -1588,7 +1589,7 @@ function ScheduleScreenshotCard() {
             {lightboxAlt} — ピンチで拡大・ダブルタップでリセット・四隅のクリックまたはESCで閉じる
           </div>
         </div>
-      )}
+      ), document.body)}
     </>
   );
 }
