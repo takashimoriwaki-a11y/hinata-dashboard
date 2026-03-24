@@ -141,8 +141,8 @@ export default function Tasks() {
   // スタッフ一覧（個人指定用）
   const { data: staff = [] } = trpc.tasks.getStaff.useQuery();
 
-  // 完了フィルター
-  const [filter, setFilter] = useState<"all" | "active" | "done">("all");
+  // 完了フィルター（デフォルト: 未完了）
+  const [filter, setFilter] = useState<"all" | "active" | "done">("active");
 
   // 日付フィルター
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
@@ -178,10 +178,8 @@ export default function Tasks() {
         return newVal;
       });
     } else if (user.team === "全チーム" || user.team === "事務員") {
-      // 全チーム所属・事務員は「すべて」（null）をデフォルトに設定
-      setTeamFilterRaw(prev => {
-        // all_teamが保存されていた場合もnullにリセット（旧デフォルト値の移行）
-        if (prev !== null && prev !== "all_team") return prev;
+      // 全チーム所属・事務員は常に「全チーム」（null）をデフォルトに設定（チーム絞り込みなし）
+      setTeamFilterRaw(() => {
         try { localStorage.removeItem("tasks_teamFilter"); } catch {}
         return null;
       });

@@ -1,0 +1,28 @@
+{
+  "query": "SELECT id, name, team, role FROM users WHERE name LIKE '%森脇%' OR name LIKE '%もりわき%' LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT id, name, team, role FROM users WHERE name LIKE '%森脇%' OR name LIKE '%もりわき%' LIMIT 5;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "森脇　崇",
+      "team": "郡山南部",
+      "role": "admin"
+    },
+    {
+      "id": "240017",
+      "name": "森脇　英樹",
+      "team": "事務員",
+      "role": "admin"
+    },
+    {
+      "id": "270005",
+      "name": "森脇　崇",
+      "team": "身体",
+      "role": "user"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tteam\trole\n1\t森脇　崇\t郡山南部\tadmin\n240017\t森脇　英樹\t事務員\tadmin\n270005\t森脇　崇\t身体\tuser\n",
+  "stderr": "",
+  "execution_time_ms": 1689
+}

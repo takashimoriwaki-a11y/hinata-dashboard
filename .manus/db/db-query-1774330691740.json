@@ -1,0 +1,16 @@
+{
+  "query": "SELECT id, name, team, role FROM users WHERE id = 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT id, name, team, role FROM users WHERE id = 1;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "森脇　崇",
+      "team": "全チーム",
+      "role": "admin"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tteam\trole\n1\t森脇　崇\t全チーム\tadmin\n",
+  "stderr": "",
+  "execution_time_ms": 1608
+}
