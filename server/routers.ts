@@ -390,6 +390,17 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         await completeTeamSetup(ctx.user.id, input.team);
         broadcastEvent("users");
+        // 管理者へチーム参加通知を送信
+        try {
+          const { notifyOwner } = await import("./_core/notification");
+          const staffName = ctx.user.name ?? ctx.user.email ?? "不明なスタッフ";
+          await notifyOwner({
+            title: "チーム参加のお知らせ",
+            content: `${staffName} さんが「${input.team}」チームに参加しました。`,
+          });
+        } catch (e) {
+          console.error("[TeamSetup] notifyOwner failed:", e);
+        }
         return { success: true };
       }),
   }),

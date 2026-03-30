@@ -1162,6 +1162,9 @@ function StaffManagementPanel() {
     onError: (e) => toast.error(e.message),
   });
 
+  // チーム未設定フィルター
+  const [showUnsetOnly, setShowUnsetOnly] = useState(false);
+
   // スタッフ情報編集ダイアログ
   const [editStaff, setEditStaff] = useState<{ id: number; name: string; team: TeamStaff; role: "user" | "admin" } | null>(null);
   const [editName, setEditName] = useState("");
@@ -1358,7 +1361,29 @@ function StaffManagementPanel() {
           </div>
         ) : (
           <div className="space-y-2">
-            {staffList.map((staff, idx) => (
+            {/* チーム未設定フィルター */}
+            {(() => {
+              const unsetCount = staffList.filter((s) => !s.teamSetupDone).length;
+              return unsetCount > 0 ? (
+                <div className="flex items-center justify-between bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-xl px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-orange-700 dark:text-orange-400">チーム未設定のスタッフが {unsetCount}名 います</span>
+                  </div>
+                  <button
+                    onClick={() => setShowUnsetOnly((v) => !v)}
+                    className={cn(
+                      "text-xs px-2.5 py-1 rounded-lg font-medium transition-colors",
+                      showUnsetOnly
+                        ? "bg-orange-500 text-white hover:bg-orange-600"
+                        : "bg-white dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 border border-orange-300 dark:border-orange-600 hover:bg-orange-100"
+                    )}
+                  >
+                    {showUnsetOnly ? "全員表示" : "未設定のみ表示"}
+                  </button>
+                </div>
+              ) : null;
+            })()}
+            {(showUnsetOnly ? staffList.filter((s) => !s.teamSetupDone) : staffList).map((staff, idx) => (
               <div key={staff.id}>
                 {idx > 0 && <Separator className="my-2" />}
                 <div className="flex items-start justify-between gap-2">

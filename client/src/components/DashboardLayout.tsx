@@ -54,6 +54,7 @@ import {
 } from "@/components/ui/select";
 import DailyMessageBar from "./DailyMessageBar";
 import { TeamSetupModal } from "./TeamSetupModal";
+import { WelcomeModal } from "./WelcomeModal";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import NotificationDropdown from "./NotificationDropdown";
@@ -113,6 +114,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   });
   const [teamSetupModalDismissed, setTeamSetupModalDismissed] = useState(false);
   const showTeamSetupModal = !!user && !!myProfile && !myProfile.teamSetupDone && !teamSetupModalDismissed;
+  const [welcomeTeam, setWelcomeTeam] = useState<string | null>(null);
+  const showWelcomeModal = welcomeTeam !== null;
   // iOS PWAモードの検出（ホーム画面に追加されている場合はtrue）
   const isIOSPWA = typeof window !== "undefined" &&
     /iPhone|iPad|iPod/.test(navigator.userAgent) &&
@@ -465,7 +468,18 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* 初回チーム設定モーダル */}
         <TeamSetupModal
           open={showTeamSetupModal}
-          onComplete={() => setTeamSetupModalDismissed(true)}
+          onComplete={(team?: string) => {
+            setTeamSetupModalDismissed(true);
+            if (team) setWelcomeTeam(team);
+          }}
+        />
+
+        {/* チーム設定完了後ウェルカムモーダル */}
+        <WelcomeModal
+          open={showWelcomeModal}
+          teamName={welcomeTeam ?? ""}
+          userName={user?.name ?? undefined}
+          onClose={() => setWelcomeTeam(null)}
         />
 
         {/* ========== ボトムナビゲーションバー（モバイル・PC共通） ========== */}

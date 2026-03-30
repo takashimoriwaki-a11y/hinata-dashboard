@@ -17,7 +17,7 @@ const TEAMS: { value: Team; label: string; color: string }[] = [
 
 interface TeamSetupModalProps {
   open: boolean;
-  onComplete: () => void;
+  onComplete: (team?: string) => void;
 }
 
 export function TeamSetupModal({ open, onComplete }: TeamSetupModalProps) {
@@ -28,8 +28,7 @@ export function TeamSetupModal({ open, onComplete }: TeamSetupModalProps) {
     onSuccess: () => {
       utils.userSettings.getMyProfile.invalidate();
       utils.userSettings.getMyTeam.invalidate();
-      toast.success(`${selectedTeam} チームに設定されました。`);
-      onComplete();
+      onComplete(selectedTeam ?? undefined);
     },
     onError: (err) => {
       toast.error(err.message ?? "エラーが発生しました");
