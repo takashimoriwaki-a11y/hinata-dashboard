@@ -1,0 +1,1 @@
+-- already applied via ALTER TABLE

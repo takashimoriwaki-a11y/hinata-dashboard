@@ -5,6 +5,7 @@ import { parse as parseCookieHeader } from "cookie";
 import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { createSessionToken, verifySessionToken } from "./localAuth";
+import { notifyOwner } from "./notification";
 
 function getCalendarCallbackUrl(req: Request, origin?: string): string {
   if (origin) {
@@ -142,6 +143,14 @@ export function registerGoogleAuthRoutes(app: Express) {
             lastSignedIn: new Date(),
           });
           user = await db.getUserByOpenId(openId);
+          // 新規自動登録を管理者に通知
+          notifyOwner({
+            title: `新しい職員が初回ログインしました`,
+            content: `名前: ${name ?? "不明"}
+メール: ${email ?? "不明"}
+初回ログイン時刻: ${new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}
+チーム設定はまだ完了していません。管理画面からロールを設定してください。`,
+          }).catch((err) => console.error("[GoogleAuth] notifyOwner failed:", err));
         } else {
           // 許可ドメイン外のGoogleアカウントはログイン拒否
           console.warn(`[GoogleAuth] Unregistered Google account attempted login: ${email}`);

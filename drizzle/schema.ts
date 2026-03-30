@@ -1,4 +1,4 @@
-import { bigint, int, mediumtext, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { bigint, int, mediumtext, mysqlEnum, mysqlTable, text, timestamp, tinyint, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -24,6 +24,8 @@ export const users = mysqlTable("users", {
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
   /** メール/パスワード認証用のハッシュ化されたパスワード */
   passwordHash: text("passwordHash"),
+  /** 初回ログイン時のチーム設定完了フラグ (0=未設定, 1=設定済) */
+  teamSetupDone: tinyint("teamSetupDone").default(0).notNull(),
   /** Google Calendar用アクセストークン */
   googleAccessToken: text("googleAccessToken"),
   /** Google Calendar用リフレッシュトークン */

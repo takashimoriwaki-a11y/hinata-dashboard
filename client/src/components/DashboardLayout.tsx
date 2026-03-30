@@ -53,6 +53,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import DailyMessageBar from "./DailyMessageBar";
+import { TeamSetupModal } from "./TeamSetupModal";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import NotificationDropdown from "./NotificationDropdown";
@@ -105,6 +106,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { isSubscribed, isLoading: pushLoading, subscribe, unsubscribe, permission: pushPermission } = usePushNotification();
   const [notifDialogOpen, setNotifDialogOpen] = useState(false);
   const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>("all");
+
+  // 初回チーム設定モーダル
+  const { data: myProfile } = trpc.userSettings.getMyProfile.useQuery(undefined, {
+    enabled: !!user,
+  });
+  const [teamSetupModalDismissed, setTeamSetupModalDismissed] = useState(false);
+  const showTeamSetupModal = !!user && !!myProfile && !myProfile.teamSetupDone && !teamSetupModalDismissed;
   // iOS PWAモードの検出（ホーム画面に追加されている場合はtrue）
   const isIOSPWA = typeof window !== "undefined" &&
     /iPhone|iPad|iPod/.test(navigator.userAgent) &&
@@ -453,6 +461,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <main ref={mainRef} className="flex-1 overflow-y-auto bg-background main-content-safe md:pb-4">
           {children}
         </main>
+
+        {/* 初回チーム設定モーダル */}
+        <TeamSetupModal
+          open={showTeamSetupModal}
+          onComplete={() => setTeamSetupModalDismissed(true)}
+        />
 
         {/* ========== ボトムナビゲーションバー（モバイル・PC共通） ========== */}
         <nav className={cn(

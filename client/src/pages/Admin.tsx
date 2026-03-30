@@ -1377,6 +1377,11 @@ function StaffManagementPanel() {
                       {staff.team && (
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-muted text-muted-foreground">{staff.team}</Badge>
                       )}
+                      {!staff.teamSetupDone && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-orange-50 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-700">
+                          チーム未設定
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">{staff.email ?? "メール未設定"}</p>
                     <p className="text-xs text-muted-foreground">最終ログイン: {staff.lastSignedIn ? new Date(staff.lastSignedIn).toLocaleDateString("ja-JP") : "未ログイン"}</p>

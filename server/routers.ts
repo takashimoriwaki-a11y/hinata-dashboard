@@ -62,6 +62,8 @@ import {
   deleteStaffAccount,
   updateStaffRole,
   updateStaffEmail,
+  completeTeamSetup,
+  updateUserRole,
   updateStaffInfo,
   batchCreatePatients,
   batchCreateStaff,
@@ -369,9 +371,24 @@ export const appRouter = router({
     }),
     // チームを更新
     setMyTeam: protectedProcedure
-      .input(z.object({ team: z.enum(["\u8eab\u4f53", "\u5929\u7406", "\u90e1\u5c71\u5317\u90e8", "\u90e1\u5c71\u5357\u90e8"]) }))
+      .input(z.object({ team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]) }))
       .mutation(async ({ ctx, input }) => {
         await updateUserTeam(ctx.user.id, input.team);
+        broadcastEvent("users");
+        return { success: true };
+      }),
+    // プロフィール取得（teamSetupDone含む）
+    getMyProfile: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return { team: null, teamSetupDone: false };
+      const result = await db.select({ team: users.team, teamSetupDone: users.teamSetupDone }).from(users).where(eq(users.id, ctx.user.id)).limit(1);
+      return { team: result[0]?.team ?? null, teamSetupDone: (result[0]?.teamSetupDone ?? 0) === 1 };
+    }),
+    // 初回チーム設定を完了する
+    completeTeamSetup: protectedProcedure
+      .input(z.object({ team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]) }))
+      .mutation(async ({ ctx, input }) => {
+        await completeTeamSetup(ctx.user.id, input.team);
         broadcastEvent("users");
         return { success: true };
       }),

@@ -128,6 +128,20 @@ export async function updateUserTeam(userId: number, team: "身体" | "天理" |
   await db.update(users).set({ team }).where(eq(users.id, userId));
 }
 
+/** 初回チーム設定を完了済みにマークする */
+export async function completeTeamSetup(userId: number, team: "身体" | "天理" | "郡山北部" | "郡山南部" | "事務員" | "全チーム") {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users).set({ team, teamSetupDone: 1 }).where(eq(users.id, userId));
+}
+
+/** ユーザーのロールを変更する（admin専用） */
+export async function updateUserRole(userId: number, role: "user" | "admin") {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users).set({ role }).where(eq(users.id, userId));
+}
+
 /** 全スタッフ（ユーザー）を取得する（音声認識固有名詞用） */
 export async function getAllUsers() {
   const db = await getDb();
@@ -939,6 +953,7 @@ export async function getAllStaff() {
       team: users.team,
       createdAt: users.createdAt,
       lastSignedIn: users.lastSignedIn,
+      teamSetupDone: users.teamSetupDone,
     })
     .from(users)
     .orderBy(users.createdAt);
