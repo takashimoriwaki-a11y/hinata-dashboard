@@ -142,6 +142,26 @@ export async function updateUserRole(userId: number, role: "user" | "admin") {
   await db.update(users).set({ role }).where(eq(users.id, userId));
 }
 
+/**
+ * 既存ユーザーのopenIdをGoogleのIDに統合する。
+ * ローカルアカウントとGoogleアカウントが重複している場合に使用。
+ * 古いgoogle_...レコードを削除してから既存レコードのopenIdを更新する。
+ */
+export async function mergeGoogleAccount(
+  existingUserId: number,
+  newOpenId: string,
+  loginMethod: string
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  // 重複しているgoogle_...のレコードを先に削除（存在する場合）
+  await db.delete(users).where(eq(users.openId, newOpenId));
+  // 既存レコードのopenIdをGoogleのIDに更新
+  await db.update(users)
+    .set({ openId: newOpenId, loginMethod, lastSignedIn: new Date() })
+    .where(eq(users.id, existingUserId));
+}
+
 /** 全スタッフ（ユーザー）を取得する（音声認識固有名詞用） */
 export async function getAllUsers() {
   const db = await getDb();

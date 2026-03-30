@@ -112,16 +112,11 @@ export function registerGoogleAuthRoutes(app: Express) {
 
       if (!user && email) {
         // メールアドレスで既存ユーザーを検索（既存スタッフとGoogleアカウントを紐付け）
-        user = await db.getUserByEmail(email);
-        if (user) {
-          // 既存ユーザーのopenIdをGoogleのIDに更新
-          await db.upsertUser({
-            openId,
-            name: user.name ?? name,
-            email,
-            loginMethod: "google",
-            lastSignedIn: new Date(),
-          });
+        const existingUser = await db.getUserByEmail(email);
+        if (existingUser) {
+          // 既存ユーザーのopenIdをGoogleのIDに統合（重複レコードを削除してから更新）
+          console.log(`[GoogleAuth] Merging existing account for ${email}: ${existingUser.openId} -> ${openId}`);
+          await db.mergeGoogleAccount(existingUser.id, openId, "google");
           // openIdが変わったので再取得
           user = await db.getUserByOpenId(openId);
         }
