@@ -127,13 +127,35 @@ export function registerGoogleAuthRoutes(app: Express) {
       }
 
       if (!user) {
-        // 未登録のGoogleアカウントはログイン拒否（管理者がメールアドレスを事前登録する必要がある）
-        console.warn(`[GoogleAuth] Unregistered Google account attempted login: ${email}`);
-        res.redirect(302, `/login?error=google_not_registered&email=${encodeURIComponent(email ?? "")}`);
-        return;
+        // @kokoronohinata.com ドメインのアカウントは自動登録を許可
+        const ALLOWED_DOMAIN = "kokoronohinata.com";
+        const emailDomain = email ? email.split("@")[1]?.toLowerCase() : null;
+        if (emailDomain === ALLOWED_DOMAIN) {
+          // 自動でユーザーを作成
+          console.log(`[GoogleAuth] Auto-registering new staff from allowed domain: ${email}`);
+          await db.upsertUser({
+            openId,
+            name,
+            email,
+            loginMethod: "google",
+            role: "user",
+            lastSignedIn: new Date(),
+          });
+          user = await db.getUserByOpenId(openId);
+        } else {
+          // 許可ドメイン外のGoogleアカウントはログイン拒否
+          console.warn(`[GoogleAuth] Unregistered Google account attempted login: ${email}`);
+          res.redirect(302, `/login?error=google_not_registered&email=${encodeURIComponent(email ?? "")}`);
+          return;
+        }
       }
 
-      // セッションを作成
+      // セッションを作成（userがundefinedの場合は認証失敗）
+      if (!user) {
+        console.error("[GoogleAuth] User not found after upsert");
+        res.redirect(302, "/login?error=google_auth_failed");
+        return;
+      }
       const sessionToken = await createSessionToken(user.openId, user.name ?? name);
       const cookieOptions = getSessionCookieOptions(req);
       res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
