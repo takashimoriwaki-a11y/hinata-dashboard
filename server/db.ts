@@ -6,6 +6,7 @@ import { screenshotUploadLogs, InsertScreenshotUploadLog, appSettings } from "..
 import { scheduleComments, InsertScheduleComment, scheduleCommentReactions, InsertScheduleCommentReaction } from "../drizzle/schema";
 import { scheduleChanges, InsertScheduleChange } from "../drizzle/schema";
 import { quickAccessLinks, InsertQuickAccessLink } from "../drizzle/schema";
+import { voiceFeedback } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -359,6 +360,11 @@ export async function deleteSpreadsheetLink(id: number) {
 export async function getMyTasks(userId: number, userTeam: string | null) {
   const db = await getDb();
   if (!db) return [];
+
+  // 全チーム・事務員は全タスクを取得（他チームのタスクも表示）
+  if (userTeam === "全チーム" || userTeam === "事務員") {
+    return db.select().from(tasks).orderBy(desc(tasks.createdAt));
+  }
 
   const conditions = [
     eq(tasks.assignType, "all"),
@@ -1325,4 +1331,55 @@ export async function deleteQuickAccessLink(id: number) {
   const db = await getDb();
   if (!db) return;
   await db.delete(quickAccessLinks).where(eq(quickAccessLinks.id, id));
+}
+
+// ============================================================
+// 音声認識フィードバック
+// ============================================================
+/** 音声認識誤変換フィードバックをDBに保存 */
+export async function saveVoiceFeedback(data: {
+  wrongText: string;
+  correctedText: string;
+  context: string;
+  reportedBy?: number;
+  reportedByName?: string;
+}) {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await db.insert(voiceFeedback).values({
+      originalText: data.wrongText,
+      wrongValue: data.wrongText,
+      correctValue: data.correctedText,
+      wrongField: data.context,
+      reportedBy: data.reportedBy ?? 0,
+      reportedByName: data.reportedByName ?? "不明",
+    });
+  } catch (e) {
+    console.warn("[saveVoiceFeedback] failed:", e);
+  }
+}
+
+/** 最近の音声認識フィードバックを取得（Geminiプロンプト強化用） */
+export async function getRecentVoiceFeedbacks(context?: string, limit = 30): Promise<Array<{ wrongValue: string | null; correctValue: string | null; wrongField: string | null }>> {
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    const rows = await db
+      .select({
+        wrongValue: voiceFeedback.wrongValue,
+        correctValue: voiceFeedback.correctValue,
+        wrongField: voiceFeedback.wrongField,
+      })
+      .from(voiceFeedback)
+      .orderBy(desc(voiceFeedback.createdAt))
+      .limit(limit);
+    if (context) {
+      return rows.filter(r => r.wrongField === context);
+    }
+    return rows;
+  } catch (e) {
+    console.warn("[getRecentVoiceFeedbacks] failed:", e);
+    return [];
+  }
 }

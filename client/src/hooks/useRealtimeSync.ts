@@ -44,6 +44,10 @@ const EVENT_QUERY_MAP: Record<string, string[][]> = {
   notifications: [["notifications", "list"]],
   // ユーザー情報
   users: [["user", "getMyTeam"]],
+  // チームツール
+  teamTools: [["teamTools", "list"]],
+  // 議事録
+  minutes: [["minutes", "list"], ["minutes", "uncheckedCount"]],
 };
 
 export function useRealtimeSync() {

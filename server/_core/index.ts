@@ -199,7 +199,8 @@ ZEST、iBow、
     mimeType: string,
     context: string,
     staffNames: string[] = [],
-    patientNames: string[] = []
+    patientNames: string[] = [],
+    feedbackCorrections: Array<{ wrongValue: string | null; correctValue: string | null }> = []
   ): Promise<string> {
     const geminiApiKey = ENV.geminiApiKey;
     if (!geminiApiKey) throw new Error("Gemini API key not configured");
@@ -225,20 +226,28 @@ ZEST、iBow、
 
     const medicalPrompt = getMedicalPrompt(context, staffNames, patientNames);
 
+    // 過去の誤変換フィードバックをプロンプトに反映
+    const feedbackSection = feedbackCorrections.length > 0
+      ? `\n\n【過去の誤認識・補正履歴（必ず正しい認識を優先すること）】\n${feedbackCorrections
+        .filter(f => f.wrongValue && f.correctValue)
+        .map(f => `「${f.wrongValue}」 → 正しくは「${f.correctValue}」`)
+        .join('\n')}`
+      : '';
+
     const systemInstruction = `あなたは訪問看護ステーション「こころの訪問看護ステーションひなた」専属の音声認識専門AIです。
-精神科・認知症・在宅医療の専門用語、奈良県大和郡山市・天理市の地域固有の施設名・人名に精通しており、スタッフの発話を最高精度で文字起こしします。
+精神科・認知症・在宅医療の専門用語、奈良県大和郡山市・天理市の地域固有の施設名・人名に精通しており、スタッフの発話を最高精度で文字起こします。
 
 【絶対に守るべき指示】
 1. 音声の内容をそのまま忠実に文字起こしすること（要約・解釈・補足・修正は一切不要）
 2. 医療専門用語・薬剤名・施設名・固有名詞は正確に認識すること
 3. 言い間違いや訂正表現（「じゃなくて」「ちゃう」「あかん」「違う」「訂正」など）もそのまま起こすこと
 4. 数字・日付・時刻は正確に認識すること（「じゅうはちにち」→「18日」など漢数字・読み上げも正確に変換）
-5. 人名（利用者名・スタッフ名）は聞こえた通りに起こすこと
+5. 人名（利用者名・スタッフ名）は聴こえた通りに起こすこと
 6. チーム名（身体・天理・郡山北部・郡山南部）を正確に認識すること
 7. 文字起こし結果のみを返すこと（説明文・注釈・補足は絶対に不要）
 8. 無音・雑音のみの場合は空文字を返すこと
 
-${medicalPrompt}`;
+${medicalPrompt}${feedbackSection}`;
 
     const result = await ai.models.generateContent({
       model: "gemini-2.5-pro",
@@ -339,10 +348,22 @@ ${medicalPrompt}`;
       const { staffNames, patientNames } = await getDynamicNames();
       console.log(`[transcribe] Dynamic names: ${staffNames.length} staff, ${patientNames.length} patients`);
 
+      // 過去の誤変換フィードバックをDBから取得（プロンプト強化用）
+      let feedbackCorrections: Array<{ wrongValue: string | null; correctValue: string | null }> = [];
+      try {
+        const { getRecentVoiceFeedbacks } = await import("../db");
+        feedbackCorrections = await getRecentVoiceFeedbacks(context, 20);
+        if (feedbackCorrections.length > 0) {
+          console.log(`[transcribe] Loaded ${feedbackCorrections.length} feedback corrections for context=${context}`);
+        }
+      } catch (fbErr) {
+        console.warn("[transcribe] Failed to load feedback corrections:", fbErr);
+      }
+
       // まず Gemini Audio API を試みる（最高品質・医療用語対応）
       if (ENV.geminiApiKey) {
         try {
-          const text = await transcribeWithGemini(Buffer.from(audioBuffer), mimeType, context, staffNames, patientNames);
+          const text = await transcribeWithGemini(Buffer.from(audioBuffer), mimeType, context, staffNames, patientNames, feedbackCorrections);
           console.log(`[transcribe] Gemini success (context=${context}), length=${text.length}`);
           res.json({ text, engine: "gemini" });
           return;
@@ -385,8 +406,18 @@ ${medicalPrompt}`;
         res.status(400).json({ error: "wrongText と correctedText は必須です" });
         return;
       }
-      // フィードバックをログに記録（将来的にDBや補正辞書に保存可能）
+      // フィードバックをDBに保存（次回の認識精度向上に活用）
       console.log(`[voice-feedback] context=${context || "general"} | wrong: "${wrongText}" → corrected: "${correctedText}"`);
+      try {
+        const { saveVoiceFeedback } = await import("../db");
+        await saveVoiceFeedback({
+          wrongText,
+          correctedText,
+          context: context || "general",
+        });
+      } catch (dbErr) {
+        console.warn("[voice-feedback] DB save failed:", dbErr);
+      }
       res.json({ ok: true });
     } catch (e) {
       console.error("[voice-feedback] error:", e);
