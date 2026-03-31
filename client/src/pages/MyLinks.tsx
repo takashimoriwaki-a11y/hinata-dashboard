@@ -1,9 +1,9 @@
 /**
  * マイリンクページ
  * 個人用リンクの管理（追加・編集・削除）とGoogle Picker APIによるDriveファイル選択
- * Google Identity Services（gsi/client）を使ったフロントエンド完結型実装
+ * バックエンドOAuthリダイレクト方式（iOSのPWA対応）
  */
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,10 +41,6 @@ import { toast } from "sonner";
 
 // 環境変数
 const PICKER_API_KEY = import.meta.env.VITE_GOOGLE_PICKER_API_KEY as string | undefined;
-const OAUTH_CLIENT_ID = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID as string | undefined;
-
-// Google Drive APIスコープ
-const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
 
 // MIMEタイプからアイコン・ラベルを取得
 function getMimeInfo(mimeType: string): { emoji: string; label: string } {
@@ -126,7 +122,7 @@ export default function MyLinks() {
 
   // Picker状態
   const [pickerLoading, setPickerLoading] = useState(false);
-  // アクセストークンをrefで保持（再認証を避けるため）
+  // アクセストークンをrefで保持（セッション中は再認証を避けるため）
   const accessTokenRef = useRef<string | null>(null);
   const tokenExpiryRef = useRef<number>(0);
 
@@ -137,37 +133,42 @@ export default function MyLinks() {
     setNewDescription("");
   };
 
-  const handleAdd = () => {
-    if (!newLabel.trim()) { toast.error("ラベルを入力してください"); return; }
-    if (!newUrl.trim()) { toast.error("URLを入力してください"); return; }
-    createLink.mutate({
-      label: newLabel.trim(),
-      url: newUrl.trim(),
-      emoji: newEmoji || "🔗",
-      description: newDescription.trim() || undefined,
-    });
-  };
+  // URLフラグメントからpicker_tokenを取得してPickerを開く（バックエンドOAuthコールバック後）
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash.includes("picker_token=")) return;
 
-  const handleUpdate = () => {
-    if (!editingLink) return;
-    if (!editingLink.label.trim()) { toast.error("ラベルを入力してください"); return; }
-    if (!editingLink.url.trim()) { toast.error("URLを入力してください"); return; }
-    updateLink.mutate({
-      id: editingLink.id,
-      label: editingLink.label.trim(),
-      url: editingLink.url.trim(),
-      emoji: editingLink.emoji || "🔗",
-      description: editingLink.description?.trim() || undefined,
-    });
-  };
+    const params = new URLSearchParams(hash.replace("#", "?"));
+    const token = params.get("picker_token");
+    if (!token) return;
 
-  // Google Picker APIでファイルを選択（フロントエンド完結型）
+    // URLフラグメントをクリア（リロード時に再実行されないよう）
+    window.history.replaceState(null, "", window.location.pathname);
+
+    // トークンを保存してPickerを開く
+    accessTokenRef.current = decodeURIComponent(token);
+    tokenExpiryRef.current = Date.now() + 55 * 60 * 1000; // 55分
+    openPicker(accessTokenRef.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // URLクエリのpicker_errorを処理
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get("picker_error");
+    if (!err) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    toast.error("Driveの認証に失敗しました。再度お試しください。");
+  }, []);
+
+  // Google Picker APIでファイルを選択
   const openPicker = useCallback(async (token: string) => {
     if (!PICKER_API_KEY) {
       toast.error("Picker APIキーが設定されていません");
       return;
     }
     try {
+      setPickerLoading(true);
       // gapi.jsをロード
       await loadScript("google-gapi-script", "https://apis.google.com/js/api.js");
       // pickerモジュールをロード
@@ -199,73 +200,59 @@ export default function MyLinks() {
             setNewUrl(fileUrl);
             setShowAddDialog(true);
           }
+          setPickerLoading(false);
         })
         .build();
       picker.setVisible(true);
     } catch (err) {
       console.error("[GooglePicker] Error:", err);
       toast.error("Pickerの起動に失敗しました");
+      setPickerLoading(false);
     }
   }, []);
 
-  // Google Identity Services（gsi/client）でアクセストークンを取得してPickerを開く
-  const handleDriveAdd = useCallback(async () => {
-    if (!OAUTH_CLIENT_ID) {
-      toast.error("OAuth Client IDが設定されていません");
-      return;
-    }
+  // 「Driveから追加」ボタン押下時の処理
+  const handleDriveAdd = useCallback(() => {
     if (!PICKER_API_KEY) {
       toast.error("Picker APIキーが設定されていません");
       return;
     }
 
-    setPickerLoading(true);
-    try {
-      // 有効なトークンがあればそのまま使う
-      if (accessTokenRef.current && Date.now() < tokenExpiryRef.current) {
-        await openPicker(accessTokenRef.current);
-        return;
-      }
-
-      // gsi/clientスクリプトをロード
-      await loadScript("google-gsi-script", "https://accounts.google.com/gsi/client");
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const google = (window as any).google;
-      if (!google?.accounts?.oauth2) {
-        toast.error("Google認証ライブラリの読み込みに失敗しました");
-        return;
-      }
-
-      // TokenClientを使ってポップアップでアクセストークンを取得
-      const tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: OAUTH_CLIENT_ID,
-        scope: DRIVE_SCOPE,
-        callback: async (response: { access_token?: string; error?: string; expires_in?: number }) => {
-          if (response.error || !response.access_token) {
-            console.error("[GSI] Token error:", response.error);
-            if (response.error !== "popup_closed_by_user") {
-              toast.error("Googleの認証に失敗しました。再度お試しください。");
-            }
-            setPickerLoading(false);
-            return;
-          }
-          // トークンを保存（有効期限: expires_in秒、少し余裕を持たせる）
-          accessTokenRef.current = response.access_token;
-          tokenExpiryRef.current = Date.now() + ((response.expires_in ?? 3600) - 60) * 1000;
-          await openPicker(response.access_token);
-          setPickerLoading(false);
-        },
-      });
-
-      // ポップアップでGoogleサインインを要求
-      tokenClient.requestAccessToken({ prompt: "consent" });
-    } catch (err) {
-      console.error("[DriveAdd] Error:", err);
-      toast.error("Driveの接続に失敗しました");
-      setPickerLoading(false);
+    // 有効なトークンがあればそのまま使う（再認証不要）
+    if (accessTokenRef.current && Date.now() < tokenExpiryRef.current) {
+      openPicker(accessTokenRef.current);
+      return;
     }
+
+    // バックエンドOAuthリダイレクト方式でGoogleサインイン
+    // iOSのPWA環境でも動作する
+    const origin = window.location.origin;
+    window.location.href = `/api/auth/google/picker?origin=${encodeURIComponent(origin)}`;
   }, [openPicker]);
+
+  const handleAdd = () => {
+    if (!newLabel.trim()) { toast.error("ラベルを入力してください"); return; }
+    if (!newUrl.trim()) { toast.error("URLを入力してください"); return; }
+    createLink.mutate({
+      label: newLabel.trim(),
+      url: newUrl.trim(),
+      emoji: newEmoji || "🔗",
+      description: newDescription.trim() || undefined,
+    });
+  };
+
+  const handleUpdate = () => {
+    if (!editingLink) return;
+    if (!editingLink.label.trim()) { toast.error("ラベルを入力してください"); return; }
+    if (!editingLink.url.trim()) { toast.error("URLを入力してください"); return; }
+    updateLink.mutate({
+      id: editingLink.id,
+      label: editingLink.label.trim(),
+      url: editingLink.url.trim(),
+      emoji: editingLink.emoji || "🔗",
+      description: editingLink.description?.trim() || undefined,
+    });
+  };
 
   return (
     <div className="max-w-2xl mx-auto py-6 px-4 space-y-4">
@@ -359,7 +346,8 @@ export default function MyLinks() {
                     )}
                     <p className="text-xs text-muted-foreground/60 truncate">{link.url}</p>
                   </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {/* スマートフォン対応: タップでも表示されるようopacity-100を追加 */}
+                  <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     <Button
                       variant="ghost"
                       size="icon"

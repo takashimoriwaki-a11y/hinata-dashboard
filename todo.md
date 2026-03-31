@@ -1605,3 +1605,7 @@
 ## Google Picker フロントエンド完結型に修正（2026-03-31）
 
 - [x] Google Picker APIをフロントエンド完結型（gsi/clientポップアップ方式）に変更（バックエンドOAuthリダイレクト不要）
+
+## Google Picker バックエンドOAuth方式に変更（2026-03-31）
+
+- [ ] Google PickerをバックエンドOAuthリダイレクト方式に変更（iOSのPWA対応）
