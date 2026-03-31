@@ -1573,13 +1573,13 @@
 - [x] チーム設定完了後のウェルカムメッセージ画面（WelcomeModal）
 
 ## バグ修正・機能改善（2026-03-31）
-- [ ] iPhoneホーム画面からのリンク（ゼスト・iBow・Gemini）をSafariで開くよう修正（target="_blank"をSafari対応に）
-- [ ] 全チーム共通ツールの在庫管理フォーム・感染予防具管理フォームのリンクが開かない問題を修正
-- [ ] メッセージ送信時に姓名が逆になる問題を修正
-- [ ] ウェルカムバナーの「新規契約」ボタンを削除
-- [ ] ウェルカムバナーに「マイリンク」ボタンを追加
-- [ ] 「訪問件数」カードの下に「新規契約」カードを新規作成
-- [ ] マイリンクの追加方法：Googleドライブから検索して追加できる機能を実装
+- [x] iPhoneホーム画面からのリンク（ゼスト・iBow・Gemini）をSafariで開くよう修正（openLink関数でPWA Safari対応）
+- [x] 全チーム共通ツールの在庫管理フォーム・URLをDBに登録
+- [x] メッセージ送信時に姓名が逆になる問題を修正
+- [x] ウェルカムバナーの「新規契約」ボタンを削除
+- [x] ウェルカムバナーに「マイリンク」ボタンを追加
+- [x] 「訪問件数」カードの下に「新規契約」カードを新規作成
+- [x] マイリンクの追加方法：Google Picker APIで自分のDriveからファイル選択して追加できる機能を実装
 
 ## フォームURL設定（2026-03-31）
 
@@ -1590,3 +1590,14 @@
 - [ ] マイリンクページ（/my-links）の作成とルーティング追加
 - [ ] DashboardLayoutのサイドバーにマイリンクナビ項目を追加
 - [ ] Google Drive検索APIをmyLinksルーターに追加
+
+## Safari対応・マイリンクDrive検索（2026-03-31）
+
+- [x] iPhoneでZEST・iBow・GeminiのウェルカムバナーボタンのみSafari対応（openLink関数）
+- [x] マイリンクGoogle Picker API実装（自分のDriveを検索・選択してリンク追加）
+
+## Google Picker API実装（2026-03-31）
+
+- [x] Google Cloud ConsoleでGoogle Picker APIを有効化・APIキー取得（ユーザー対応）
+- [x] マイリンクGoogle Picker APIを使ったDriveファイル選択機能を実装（MyLinks.tsx）
+- [x] バックエンドGoogle Picker OAuthエンドポイント追加（/api/auth/google/picker・/api/auth/google/picker/callback）

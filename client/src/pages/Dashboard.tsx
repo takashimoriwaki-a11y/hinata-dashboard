@@ -82,7 +82,7 @@ import {
   SmilePlus,
 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, openLink } from "@/lib/utils";
 import { getTeamButtonClass, getAllTeamButtonStyle, getTeamButtonStyle } from "@shared/teamColors";
 import { Link, useLocation } from "wouter";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -1174,15 +1174,13 @@ function ScheduleScreenshotCard() {
               <Calendar className="w-4 h-4 text-primary" />
               訪問スケジュール
             </CardTitle>
-            <a
-              href="https://homecare.zest.jp/login"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-primary hover:underline flex items-center gap-1"
+            <button
+              onClick={() => openLink("https://homecare.zest.jp/login")}
+              className="text-xs text-primary hover:underline flex items-center gap-1 cursor-pointer"
             >
               <ExternalLink className="w-3 h-3" />
               ZESTで確認・変更
-            </a>
+            </button>
           </div>
 
           {/* チーム・日付セレクター */}
@@ -1789,11 +1787,9 @@ function LinkRow({ href, label, color, emoji }: { href: string; label: string; c
           "noopener,noreferrer"
         );
       } else {
-        // 本日のタブが見つからない場合は通常のリンクで開く
         window.open(href, "_blank", "noopener,noreferrer");
       }
     } catch {
-      // エラー時は通常のリンクで開く
       window.open(href, "_blank", "noopener,noreferrer");
     } finally {
       setIsOpening(false);
@@ -3779,36 +3775,30 @@ export default function Dashboard() {
           )}
           {/* ショートカットボタン（モバイル: 3列グリッド均等配置 / PC: 折り返し右寄せ） */}
           <div className="grid grid-cols-3 gap-1.5 md:flex md:flex-row md:flex-wrap md:justify-end md:gap-2">
-            <a
-              href="https://gemini.google.com/app"
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() => openLink("https://gemini.google.com/app")}
               onTouchStart={() => {}}
               className="flex items-center justify-center gap-1 transition-colors text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#9b7fd4', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#8a6ec3')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#9b7fd4')}
             >
               <span className="text-sm leading-none">✨</span>
               Gemini
-            </a>
-            <a
-              href="https://homecare.zest.jp/login"
-              target="_blank"
-              rel="noopener noreferrer"
+            </button>
+            <button
+              onClick={() => openLink("https://homecare.zest.jp/login")}
               onTouchStart={() => {}}
               className="flex items-center justify-center gap-1 transition-colors text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#00b5a3', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#009e8e')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#00b5a3')}
             >
               <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4" />
               ZEST
-            </a>
-            <a
-              href="https://login.ibowservice.jp/?action=logout"
-              target="_blank"
-              rel="noopener noreferrer"
+            </button>
+            <button
+              onClick={() => openLink("https://login.ibowservice.jp/?action=logout")}
               onTouchStart={() => {}}
               className="flex items-center justify-center gap-1 transition-colors text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#4a90d9', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#3a7fc8')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#4a90d9')}
             >
               <ClipboardList className="w-3.5 h-3.5 md:w-4 md:h-4" />
               iBow
-            </a>
+            </button>
             <Link
               href="/my-links"
               onTouchStart={() => {}}

@@ -266,4 +266,86 @@ export function registerGoogleAuthRoutes(app: Express) {
       res.redirect(302, "/?calendar_error=callback_failed");
     }
   });
+
+  // ============================================================
+  // Google Picker 用 OAuth（Drive読み取りスコープ）
+  // ============================================================
+
+  // Picker用の認証URLへリダイレクト
+  app.get("/api/auth/google/picker", async (req: Request, res: Response) => {
+    const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
+    if (!clientId) {
+      res.status(503).json({ error: "Google OAuth is not configured" });
+      return;
+    }
+    const cookieHeader = req.headers.cookie;
+    const cookies = cookieHeader ? parseCookieHeader(cookieHeader) : {};
+    const sessionToken = cookies[COOKIE_NAME];
+    if (!sessionToken) {
+      res.status(401).json({ error: "Not authenticated" });
+      return;
+    }
+    const origin = req.query.origin as string | undefined;
+    const callbackUrl = origin
+      ? `${origin}/api/auth/google/picker/callback`
+      : (() => {
+          const proto = req.headers["x-forwarded-proto"] || req.protocol;
+          const host = req.headers["x-forwarded-host"] || req.headers.host;
+          return `${proto}://${host}/api/auth/google/picker/callback`;
+        })();
+    const oauth2Client = new OAuth2Client(clientId, process.env.GOOGLE_OAUTH_CLIENT_SECRET, callbackUrl);
+    const state = Buffer.from(JSON.stringify({ origin: origin ?? null, sessionToken })).toString("base64url");
+    const authUrl = oauth2Client.generateAuthUrl({
+      access_type: "online",
+      scope: [
+        "openid",
+        "email",
+        "profile",
+        "https://www.googleapis.com/auth/drive.readonly",
+      ],
+      state,
+      prompt: "consent",
+    });
+    res.redirect(302, authUrl);
+  });
+
+  // Picker用コールバック: access_tokenを取得してフロントエンドに渡す
+  app.get("/api/auth/google/picker/callback", async (req: Request, res: Response) => {
+    const code = req.query.code as string | undefined;
+    const state = req.query.state as string | undefined;
+    if (!code) {
+      res.redirect(302, "/my-links?picker_error=auth_failed");
+      return;
+    }
+    try {
+      let originFromState: string | null = null;
+      if (state) {
+        try {
+          const decoded = JSON.parse(Buffer.from(state, "base64url").toString());
+          if (decoded.origin) originFromState = decoded.origin;
+        } catch { /* ignore */ }
+      }
+      const callbackUrl = originFromState
+        ? `${originFromState}/api/auth/google/picker/callback`
+        : (() => {
+            const proto = req.headers["x-forwarded-proto"] || req.protocol;
+            const host = req.headers["x-forwarded-host"] || req.headers.host;
+            return `${proto}://${host}/api/auth/google/picker/callback`;
+          })();
+      const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
+      const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+      const oauth2Client = new OAuth2Client(clientId, clientSecret, callbackUrl);
+      const { tokens } = await oauth2Client.getToken(code);
+      if (!tokens.access_token) {
+        res.redirect(302, "/my-links?picker_error=no_token");
+        return;
+      }
+      // access_tokenをURLフラグメントでフロントに渡す
+      const redirectBase = originFromState ?? "";
+      res.redirect(302, `${redirectBase}/my-links#picker_token=${encodeURIComponent(tokens.access_token)}`);
+    } catch (error) {
+      console.error("[GooglePicker] Callback failed", error);
+      res.redirect(302, "/my-links?picker_error=callback_failed");
+    }
+  });
 }

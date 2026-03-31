@@ -1,8 +1,8 @@
 /**
  * マイリンクページ
- * 個人用リンクの管理（追加・編集・削除）とGoogle Driveからのファイル選択
+ * 個人用リンクの管理（追加・編集・削除）とGoogle Picker APIによるDriveファイル選択
  */
-import { useState, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,16 +32,14 @@ import {
   Pencil,
   Trash2,
   ExternalLink,
-  Search,
   Loader2,
-  FileText,
   FolderOpen,
   Star,
-  GripVertical,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+
+// Google Picker APIのAPIキー（VITE環境変数）
+const PICKER_API_KEY = import.meta.env.VITE_GOOGLE_PICKER_API_KEY as string | undefined;
 
 // MIMEタイプからアイコン・ラベルを取得
 function getMimeInfo(mimeType: string): { emoji: string; label: string } {
@@ -55,14 +53,21 @@ function getMimeInfo(mimeType: string): { emoji: string; label: string } {
   return { emoji: "🔗", label: "ファイル" };
 }
 
-type DriveFile = {
-  id: string;
-  name: string;
-  mimeType: string;
-  webViewLink: string;
-  iconLink?: string;
-  modifiedTime: string;
-};
+// Google Picker APIスクリプトを動的ロード
+function loadPickerScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (document.getElementById("google-picker-script")) {
+      resolve();
+      return;
+    }
+    const script = document.createElement("script");
+    script.id = "google-picker-script";
+    script.src = "https://apis.google.com/js/api.js";
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Google API script load failed"));
+    document.head.appendChild(script);
+  });
+}
 
 export default function MyLinks() {
   const utils = trpc.useUtils();
@@ -111,14 +116,32 @@ export default function MyLinks() {
   // 削除確認
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
 
-  // Google Drive検索
-  const [showDriveSearch, setShowDriveSearch] = useState(false);
-  const [driveQuery, setDriveQuery] = useState("");
-  const [driveQueryInput, setDriveQueryInput] = useState("");
-  const { data: driveFiles, isLoading: driveLoading, error: driveError } = trpc.myLinks.searchDrive.useQuery(
-    { query: driveQuery },
-    { enabled: driveQuery.length >= 1, retry: false }
-  );
+  // Picker状態
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [pickerToken, setPickerToken] = useState<string | null>(null);
+
+  // URLフラグメントからpicker_tokenを取得（OAuthコールバック後）
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.includes("picker_token=")) {
+      const match = hash.match(/picker_token=([^&]+)/);
+      if (match) {
+        const token = decodeURIComponent(match[1]);
+        setPickerToken(token);
+        // フラグメントをクリア
+        window.history.replaceState(null, "", window.location.pathname);
+        // トークンが取得できたらすぐにPickerを開く
+        openPickerWithToken(token);
+      }
+    }
+    // picker_errorの確認
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("picker_error")) {
+      toast.error("Driveの認証に失敗しました。再度お試しください。");
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const resetForm = () => {
     setNewLabel("");
@@ -151,20 +174,65 @@ export default function MyLinks() {
     });
   };
 
-  const handleSelectDriveFile = (file: DriveFile) => {
-    const { emoji } = getMimeInfo(file.mimeType);
-    setNewEmoji(emoji);
-    setNewLabel(file.name);
-    setNewUrl(file.webViewLink);
-    setShowDriveSearch(false);
-    setDriveQuery("");
-    setDriveQueryInput("");
-    setShowAddDialog(true);
-  };
+  // Google Picker APIでファイルを選択
+  const openPickerWithToken = useCallback(async (token: string) => {
+    if (!PICKER_API_KEY) {
+      toast.error("Picker APIキーが設定されていません");
+      return;
+    }
+    setPickerLoading(true);
+    try {
+      await loadPickerScript();
+      // gapi.loadでpickerモジュールをロード
+      await new Promise<void>((resolve, reject) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).gapi.load("picker", { callback: resolve, onerror: reject });
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const google = (window as any).google;
+      const picker = new google.picker.PickerBuilder()
+        .setOAuthToken(token)
+        .setDeveloperKey(PICKER_API_KEY)
+        .setLocale("ja")
+        .addView(
+          new google.picker.DocsView()
+            .setIncludeFolders(true)
+            .setSelectFolderEnabled(true)
+        )
+        .addView(new google.picker.DocsUploadView())
+        .setCallback((data: { action: string; docs?: Array<{ id: string; name: string; mimeType: string; url: string }> }) => {
+          if (data.action === google.picker.Action.PICKED && data.docs && data.docs.length > 0) {
+            const doc = data.docs[0];
+            const { emoji } = getMimeInfo(doc.mimeType);
+            setNewEmoji(emoji);
+            setNewLabel(doc.name);
+            // DriveファイルのURLを構築
+            const fileUrl = doc.url || `https://drive.google.com/open?id=${doc.id}`;
+            setNewUrl(fileUrl);
+            setShowAddDialog(true);
+            setPickerToken(null);
+          }
+        })
+        .build();
+      picker.setVisible(true);
+    } catch (err) {
+      console.error("[GooglePicker] Error:", err);
+      toast.error("Pickerの起動に失敗しました");
+    } finally {
+      setPickerLoading(false);
+    }
+  }, []);
 
-  const handleDriveSearch = () => {
-    if (driveQueryInput.trim().length < 1) return;
-    setDriveQuery(driveQueryInput.trim());
+  // 「Driveから追加」ボタン押下時の処理
+  const handleDriveAdd = async () => {
+    // すでにトークンがある場合はそのまま開く
+    if (pickerToken) {
+      openPickerWithToken(pickerToken);
+      return;
+    }
+    // OAuthフローを開始（現在のoriginを渡す）
+    const origin = window.location.origin;
+    window.location.href = `/api/auth/google/picker?origin=${encodeURIComponent(origin)}`;
   };
 
   return (
@@ -184,10 +252,15 @@ export default function MyLinks() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setShowDriveSearch(true)}
+            onClick={handleDriveAdd}
+            disabled={pickerLoading}
             className="gap-1.5"
           >
-            <FolderOpen className="w-4 h-4" />
+            {pickerLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <FolderOpen className="w-4 h-4" />
+            )}
             Driveから追加
           </Button>
           <Button
@@ -199,6 +272,12 @@ export default function MyLinks() {
             追加
           </Button>
         </div>
+      </div>
+
+      {/* 説明バナー */}
+      <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-700 dark:text-blue-300 flex items-start gap-2">
+        <FolderOpen className="w-4 h-4 flex-shrink-0 mt-0.5" />
+        <span>「Driveから追加」を押すとGoogleアカウントでサインインし、自分のDrive内のファイルやフォルダを検索・選択してリンクに追加できます。</span>
       </div>
 
       {/* リンク一覧 */}
@@ -409,63 +488,6 @@ export default function MyLinks() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Google Drive検索ダイアログ */}
-      <Dialog open={showDriveSearch} onOpenChange={(open) => { setShowDriveSearch(open); if (!open) { setDriveQuery(""); setDriveQueryInput(""); } }}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FolderOpen className="w-5 h-5 text-blue-500" />
-              Google Driveから選択
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              <Input
-                value={driveQueryInput}
-                onChange={(e) => setDriveQueryInput(e.target.value)}
-                placeholder="ファイル名で検索..."
-                onKeyDown={(e) => e.key === "Enter" && handleDriveSearch()}
-              />
-              <Button onClick={handleDriveSearch} disabled={driveLoading || driveQueryInput.trim().length < 1}>
-                {driveLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              ※ サービスアカウントがアクセスできるファイルのみ表示されます
-            </p>
-            {driveError && (
-              <div className="rounded-lg bg-destructive/10 text-destructive text-xs p-3">
-                検索エラー: {driveError.message}
-              </div>
-            )}
-            {driveFiles && driveFiles.length === 0 && driveQuery && (
-              <p className="text-sm text-muted-foreground text-center py-4">「{driveQuery}」に一致するファイルが見つかりませんでした</p>
-            )}
-            {driveFiles && driveFiles.length > 0 && (
-              <div className="space-y-1 max-h-80 overflow-y-auto">
-                {driveFiles.map((file) => {
-                  const { emoji, label } = getMimeInfo(file.mimeType);
-                  return (
-                    <button
-                      key={file.id}
-                      onClick={() => handleSelectDriveFile(file)}
-                      className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/50 transition-colors text-left"
-                    >
-                      <span className="text-xl flex-shrink-0">{emoji}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
-                        <p className="text-xs text-muted-foreground">{label} · {new Date(file.modifiedTime).toLocaleDateString("ja-JP")}</p>
-                      </div>
-                      <Plus className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
