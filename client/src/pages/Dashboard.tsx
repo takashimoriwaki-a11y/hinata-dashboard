@@ -3060,10 +3060,7 @@ function MessageBoard({ title }: { title: string }) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-0.5">
                         <span className="text-xs font-semibold text-foreground">
-                          {(() => {
-                            const parts = (msg.createdByName ?? "不明").trim().split(/\s+/);
-                            return parts.length >= 2 ? `${parts[parts.length - 1]} ${parts.slice(0, -1).join(" ")}` : (msg.createdByName ?? "不明");
-                          })()}
+                          {msg.createdByName ?? "不明"}
                         </span>
                         <span className="text-xs text-muted-foreground">
                           {new Date(msg.createdAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
@@ -3213,10 +3210,7 @@ function MessageBoard({ title }: { title: string }) {
                         {(msg.createdByName ?? "不明")[0]}
                       </div>
                       <span className="text-[11px] font-semibold text-foreground">
-                        {(() => {
-                          const parts = (msg.createdByName ?? "不明").trim().split(/\s+/);
-                          return parts.length >= 2 ? `${parts[parts.length - 1]} ${parts.slice(0, -1).join(" ")}` : (msg.createdByName ?? "不明");
-                        })()}
+                        {msg.createdByName ?? "不明"}
                       </span>
                       <span className={cn(
                         "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
@@ -3816,12 +3810,12 @@ export default function Dashboard() {
               iBow
             </a>
             <Link
-              href="/new-contract"
+              href="/my-links"
               onTouchStart={() => {}}
-              className="flex items-center justify-center gap-1 transition-colors text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#e05a2b', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#c94d22')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#e05a2b')}
+              className="flex items-center justify-center gap-1 transition-colors text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#f59e0b', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#d97706')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#f59e0b')}
             >
-              <FileText className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              新規契約
+              <LinkIcon className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              マイリンク
             </Link>
             <Link
               href="/schedule-management"
@@ -3864,7 +3858,27 @@ export default function Dashboard() {
       {/* 下段: メッセージ・訪問件数を横並び（PC版） */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 items-start">
         <MessageBoard title="メッセージ" />
-        <VisitCountCard />
+        <div className="space-y-3 md:space-y-4">
+          <VisitCountCard />
+          {/* 新規契約カード */}
+          <Card className="fade-in-up shadow-sm">
+            <CardHeader className="pb-2 pt-3 px-4">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <FileText className="w-4 h-4 text-primary" />
+                新規契約
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-3">
+              <Link
+                href="/new-contract"
+                className="flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                新規契約ページを開く
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

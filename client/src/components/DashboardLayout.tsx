@@ -31,6 +31,7 @@ import {
   CalendarDays,
   BookOpen,
   ShieldAlert,
+  Star,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
@@ -70,6 +71,7 @@ const navItems = [
   { href: "/tasks", icon: CheckSquare, label: "タスク" },
   { href: "/schedule-change", icon: CalendarClock, label: "変更連絡" },
   { href: "/schedule-change-history", icon: History, label: "変更履歴" },
+  { href: "/my-links", icon: Star, label: "マイリンク" },
 ];
 
 const externalTools = [

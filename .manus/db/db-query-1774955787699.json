@@ -1,0 +1,9 @@
+{
+  "query": "\nINSERT INTO quick_access_links (category, label, href, emoji, color, sortOrder)\nVALUES \n  ('フォーム', '在庫管理フォーム', 'https://docs.google.com/forms/d/1dEuIKFfZaOM6WMPo8GCketpAUfOnoEdHAH1WptR_U2M/viewform', '📦', 'text-amber-600', 10),\n  ('フォーム', '感染予防具在庫管理フォーム', 'https://docs.google.com/forms/d/1RKTgjCt74WqswmpLqk9xi5QSHM-pt4mZJrAS-pTyokQ/viewform', '🧤', 'text-teal-600', 20)\nON DUPLICATE KEY UPDATE label = VALUES(label);\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute \nINSERT INTO quick_access_links (category, label, href, emoji, color, sortOrder)\nVALUES \n  ('フォーム', '在庫管理フォーム', 'https://docs.google.com/forms/d/1dEuIKFfZaOM6WMPo8GCketpAUfOnoEdHAH1WptR_U2M/viewform', '📦', 'text-amber-600', 10),\n  ('フォーム', '感染予防具在庫管理フォーム', 'https://docs.google.com/forms/d/1RKTgjCt74WqswmpLqk9xi5QSHM-pt4mZJrAS-pTyokQ/viewform', '🧤', 'text-teal-600', 20)\nON DUPLICATE KEY UPDATE label = VALUES(label);\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1733
+}

@@ -1571,3 +1571,22 @@
 - [x] チーム設定後に管理者へ通知（notifyOwner経由）
 - [x] 管理画面スタッフ一覧にチーム未設定フィルター追加
 - [x] チーム設定完了後のウェルカムメッセージ画面（WelcomeModal）
+
+## バグ修正・機能改善（2026-03-31）
+- [ ] iPhoneホーム画面からのリンク（ゼスト・iBow・Gemini）をSafariで開くよう修正（target="_blank"をSafari対応に）
+- [ ] 全チーム共通ツールの在庫管理フォーム・感染予防具管理フォームのリンクが開かない問題を修正
+- [ ] メッセージ送信時に姓名が逆になる問題を修正
+- [ ] ウェルカムバナーの「新規契約」ボタンを削除
+- [ ] ウェルカムバナーに「マイリンク」ボタンを追加
+- [ ] 「訪問件数」カードの下に「新規契約」カードを新規作成
+- [ ] マイリンクの追加方法：Googleドライブから検索して追加できる機能を実装
+
+## フォームURL設定（2026-03-31）
+
+- [x] 全チーム共通ツール「フォーム」タブに在庫管理フォームURLを設定
+  - URL: https://docs.google.com/forms/d/1dEuIKFfZaOM6WMPo8GCketpAUfOnoEdHAH1WptR_U2M/viewform
+- [x] 全チーム共通ツール「フォーム」タブに感染予防具在庫管理フォームURLを設定
+  - URL: https://docs.google.com/forms/d/1RKTgjCt74WqswmpLqk9xi5QSHM-pt4mZJrAS-pTyokQ/viewform
+- [ ] マイリンクページ（/my-links）の作成とルーティング追加
+- [ ] DashboardLayoutのサイドバーにマイリンクナビ項目を追加
+- [ ] Google Drive検索APIをmyLinksルーターに追加

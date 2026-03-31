@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE quick_access_links SET href = 'https://docs.google.com/spreadsheets/d/1NJF0qU_7tkFiDMvxAkvPq3WzZ2UtVpEvG_NC0-SQ4xo/edit?gid=0#gid=0', label = '在庫管理表', emoji = '📦' WHERE id = 30001;\nDELETE FROM quick_access_links WHERE id = 30002;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute UPDATE quick_access_links SET href = 'https://docs.google.com/spreadsheets/d/1NJF0qU_7tkFiDMvxAkvPq3WzZ2UtVpEvG_NC0-SQ4xo/edit?gid=0#gid=0', label = '在庫管理表', emoji = '📦' WHERE id = 30001;\nDELETE FROM quick_access_links WHERE id = 30002;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1943
+}

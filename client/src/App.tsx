@@ -18,6 +18,7 @@ import NewContract from "./pages/NewContract";
 import ScheduleManagement from "./pages/ScheduleManagement";
 import Minutes from "./pages/Minutes";
 import HinatasWay from "./pages/HinatasWay";
+import MyLinks from "./pages/MyLinks";
 import Login from "./pages/Login";
 import Setup from "./pages/Setup";
 import DashboardLayout from "./components/DashboardLayout";
@@ -51,6 +52,7 @@ function Router() {
               <Route path={"/schedule-management"} component={ScheduleManagement} />
               <Route path={"/minutes"} component={Minutes} />
               <Route path={"/hinatas-way"} component={HinatasWay} />
+              <Route path={"/my-links"} component={MyLinks} />
               <Route path={"/404"} component={NotFound} />
               <Route component={NotFound} />
             </Switch>

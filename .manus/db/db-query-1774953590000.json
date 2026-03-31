@@ -1,0 +1,34 @@
+{
+  "query": "SELECT id, label, href, category, color, emoji FROM quick_access_links WHERE category = 'フォーム' ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT id, label, href, category, color, emoji FROM quick_access_links WHERE category = 'フォーム' ORDER BY id;",
+  "rows": [
+    {
+      "id": "30001",
+      "label": "在庫管理フォーム",
+      "href": "https://example.com/inventory-form",
+      "category": "フォーム",
+      "color": "text-purple-600",
+      "emoji": "📦"
+    },
+    {
+      "id": "30002",
+      "label": "感染予防具管理フォーム",
+      "href": "https://example.com/infection-prevention-form",
+      "category": "フォーム",
+      "color": "text-purple-600",
+      "emoji": "🧤"
+    },
+    {
+      "id": "30005",
+      "label": "直帰申請フォーム",
+      "href": "https://docs.google.com/forms/d/e/1FAIpQLSdvtkxtq9uW6w_LgBuir6YQamnK2rBYORlFF179Vd4UvwX_jg/viewform?usp=header",
+      "category": "フォーム",
+      "color": "text-purple-600",
+      "emoji": "🏠"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tlabel\thref\tcategory\tcolor\temoji\n30001\t在庫管理フォーム\thttps://example.com/inventory-form\tフォーム\ttext-purple-600\t📦\n30002\t感染予防具管理フォーム\thttps://example.com/infection-prevention-form\tフォーム\ttext-purple-600\t🧤\n30005\t直帰申請フォーム\thttps://docs.google.com/forms/d/e/1FAIpQLSdvtkxtq9uW6w_LgBuir6YQamnK2rBYORlFF179Vd4UvwX_jg/viewform?usp=header\tフォーム\ttext-purple-600\t🏠\n",
+  "stderr": "",
+  "execution_time_ms": 1663
+}

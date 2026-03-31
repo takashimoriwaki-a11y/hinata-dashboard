@@ -1,0 +1,46 @@
+{
+  "query": "SELECT id, category, label, href, emoji, color, sortOrder FROM quick_access_links WHERE category = 'フォーム' ORDER BY sortOrder;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user FDiSGFxpJWQk7hR.7027d9302c46 --database ZgP48RW5U5uSAWGdBswK3V --execute SELECT id, category, label, href, emoji, color, sortOrder FROM quick_access_links WHERE category = 'フォーム' ORDER BY sortOrder;",
+  "rows": [
+    {
+      "id": "90001",
+      "category": "フォーム",
+      "label": "在庫管理フォーム",
+      "href": "https://docs.google.com/forms/d/1dEuIKFfZaOM6WMPo8GCketpAUfOnoEdHAH1WptR_U2M/viewform",
+      "emoji": "📦",
+      "color": "text-amber-600",
+      "sortOrder": "10"
+    },
+    {
+      "id": "90002",
+      "category": "フォーム",
+      "label": "感染予防具在庫管理フォーム",
+      "href": "https://docs.google.com/forms/d/1RKTgjCt74WqswmpLqk9xi5QSHM-pt4mZJrAS-pTyokQ/viewform",
+      "emoji": "🧤",
+      "color": "text-teal-600",
+      "sortOrder": "20"
+    },
+    {
+      "id": "30001",
+      "category": "フォーム",
+      "label": "在庫管理表",
+      "href": "https://docs.google.com/spreadsheets/d/1NJF0qU_7tkFiDMvxAkvPq3WzZ2UtVpEvG_NC0-SQ4xo/edit?gid=0#gid=0",
+      "emoji": "📦",
+      "color": "text-purple-600",
+      "sortOrder": "100"
+    },
+    {
+      "id": "30005",
+      "category": "フォーム",
+      "label": "直帰申請フォーム",
+      "href": "https://docs.google.com/forms/d/e/1FAIpQLSdvtkxtq9uW6w_LgBuir6YQamnK2rBYORlFF179Vd4UvwX_jg/viewform?usp=header",
+      "emoji": "🏠",
+      "color": "text-purple-600",
+      "sortOrder": "104"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tcategory\tlabel\thref\temoji\tcolor\tsortOrder\n90001\tフォーム\t在庫管理フォーム\thttps://docs.google.com/forms/d/1dEuIKFfZaOM6WMPo8GCketpAUfOnoEdHAH1WptR_U2M/viewform\t📦\ttext-amber-600\t10\n90002\tフォーム\t感染予防具在庫管理フォーム\thttps://docs.google.com/forms/d/1RKTgjCt74WqswmpLqk9xi5QSHM-pt4mZJrAS-pTyokQ/viewform\t🧤\ttext-teal-600\t20\n30001\tフォーム\t在庫管理表\thttps://docs.google.com/spreadsheets/d/1NJF0qU_7tkFiDMvxAkvPq3WzZ2UtVpEvG_NC0-SQ4xo/edit?gid=0#gid=0\t📦\ttext-purple-600\t100\n30005\tフォーム\t直帰申請フォーム\thttps://docs.google.com/forms/d/e/1FAIpQLSdvtkxtq9uW6w_LgBuir6YQamnK2rBYORlFF179Vd4UvwX_jg/viewform?usp=header\t🏠\ttext-purple-600\t104\n",
+  "stderr": "",
+  "execution_time_ms": 1632
+}

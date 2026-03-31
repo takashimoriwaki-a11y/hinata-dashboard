@@ -461,6 +461,43 @@ export const appRouter = router({
         broadcastEvent("myLinks");
         return { success: true };
       }),
+    // Google Driveファイル検索
+    searchDrive: protectedProcedure
+      .input(z.object({ query: z.string().min(1).max(200) }))
+      .query(async ({ input }) => {
+        try {
+          const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+          const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+          if (!email || !privateKey) {
+            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Google認証情報が設定されていません" });
+          }
+          const auth = new GoogleAuth({
+            credentials: {
+              client_email: email,
+              private_key: privateKey.replace(/\\n/g, "\n"),
+            },
+            scopes: ["https://www.googleapis.com/auth/drive.readonly"],
+          });
+          const client = await auth.getClient();
+          const token = await client.getAccessToken();
+          if (!token.token) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "トークン取得失敗" });
+          const q = encodeURIComponent(`name contains '${input.query.replace(/'/g, "\\'")}'`);
+          const fields = encodeURIComponent("files(id,name,mimeType,webViewLink,iconLink,modifiedTime)");
+          const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=20&orderBy=modifiedTime+desc`;
+          const res = await fetch(url, {
+            headers: { Authorization: `Bearer ${token.token}` },
+          });
+          if (!res.ok) {
+            const text = await res.text();
+            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Drive APIエラー: ${res.status} ${text}` });
+          }
+          const data = await res.json() as { files: { id: string; name: string; mimeType: string; webViewLink: string; iconLink?: string; modifiedTime: string }[] };
+          return data.files ?? [];
+        } catch (e) {
+          if (e instanceof TRPCError) throw e;
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: String(e) });
+        }
+      }),
   }),
 
   // スプレッドシートURL月次管理
