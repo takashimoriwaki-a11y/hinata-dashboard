@@ -1601,3 +1601,7 @@
 - [x] Google Cloud ConsoleでGoogle Picker APIを有効化・APIキー取得（ユーザー対応）
 - [x] マイリンクGoogle Picker APIを使ったDriveファイル選択機能を実装（MyLinks.tsx）
 - [x] バックエンドGoogle Picker OAuthエンドポイント追加（/api/auth/google/picker・/api/auth/google/picker/callback）
+
+## Google Picker フロントエンド完結型に修正（2026-03-31）
+
+- [x] Google Picker APIをフロントエンド完結型（gsi/clientポップアップ方式）に変更（バックエンドOAuthリダイレクト不要）

@@ -1,8 +1,9 @@
 /**
  * マイリンクページ
  * 個人用リンクの管理（追加・編集・削除）とGoogle Picker APIによるDriveファイル選択
+ * Google Identity Services（gsi/client）を使ったフロントエンド完結型実装
  */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,8 +39,12 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-// Google Picker APIのAPIキー（VITE環境変数）
+// 環境変数
 const PICKER_API_KEY = import.meta.env.VITE_GOOGLE_PICKER_API_KEY as string | undefined;
+const OAUTH_CLIENT_ID = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID as string | undefined;
+
+// Google Drive APIスコープ
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
 
 // MIMEタイプからアイコン・ラベルを取得
 function getMimeInfo(mimeType: string): { emoji: string; label: string } {
@@ -53,18 +58,15 @@ function getMimeInfo(mimeType: string): { emoji: string; label: string } {
   return { emoji: "🔗", label: "ファイル" };
 }
 
-// Google Picker APIスクリプトを動的ロード
-function loadPickerScript(): Promise<void> {
+// Google APIスクリプトを動的ロード
+function loadScript(id: string, src: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    if (document.getElementById("google-picker-script")) {
-      resolve();
-      return;
-    }
+    if (document.getElementById(id)) { resolve(); return; }
     const script = document.createElement("script");
-    script.id = "google-picker-script";
-    script.src = "https://apis.google.com/js/api.js";
+    script.id = id;
+    script.src = src;
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Google API script load failed"));
+    script.onerror = () => reject(new Error(`Failed to load: ${src}`));
     document.head.appendChild(script);
   });
 }
@@ -111,37 +113,22 @@ export default function MyLinks() {
   const [newDescription, setNewDescription] = useState("");
 
   // 編集状態
-  const [editingLink, setEditingLink] = useState<{ id: number; label: string; url: string; emoji: string; description?: string | null } | null>(null);
+  const [editingLink, setEditingLink] = useState<{
+    id: number;
+    label: string;
+    url: string;
+    emoji: string;
+    description?: string | null;
+  } | null>(null);
 
   // 削除確認
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
 
   // Picker状態
   const [pickerLoading, setPickerLoading] = useState(false);
-  const [pickerToken, setPickerToken] = useState<string | null>(null);
-
-  // URLフラグメントからpicker_tokenを取得（OAuthコールバック後）
-  useEffect(() => {
-    const hash = window.location.hash;
-    if (hash.includes("picker_token=")) {
-      const match = hash.match(/picker_token=([^&]+)/);
-      if (match) {
-        const token = decodeURIComponent(match[1]);
-        setPickerToken(token);
-        // フラグメントをクリア
-        window.history.replaceState(null, "", window.location.pathname);
-        // トークンが取得できたらすぐにPickerを開く
-        openPickerWithToken(token);
-      }
-    }
-    // picker_errorの確認
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("picker_error")) {
-      toast.error("Driveの認証に失敗しました。再度お試しください。");
-      window.history.replaceState(null, "", window.location.pathname);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // アクセストークンをrefで保持（再認証を避けるため）
+  const accessTokenRef = useRef<string | null>(null);
+  const tokenExpiryRef = useRef<number>(0);
 
   const resetForm = () => {
     setNewLabel("");
@@ -174,16 +161,16 @@ export default function MyLinks() {
     });
   };
 
-  // Google Picker APIでファイルを選択
-  const openPickerWithToken = useCallback(async (token: string) => {
+  // Google Picker APIでファイルを選択（フロントエンド完結型）
+  const openPicker = useCallback(async (token: string) => {
     if (!PICKER_API_KEY) {
       toast.error("Picker APIキーが設定されていません");
       return;
     }
-    setPickerLoading(true);
     try {
-      await loadPickerScript();
-      // gapi.loadでpickerモジュールをロード
+      // gapi.jsをロード
+      await loadScript("google-gapi-script", "https://apis.google.com/js/api.js");
+      // pickerモジュールをロード
       await new Promise<void>((resolve, reject) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (window as any).gapi.load("picker", { callback: resolve, onerror: reject });
@@ -199,18 +186,18 @@ export default function MyLinks() {
             .setIncludeFolders(true)
             .setSelectFolderEnabled(true)
         )
-        .addView(new google.picker.DocsUploadView())
-        .setCallback((data: { action: string; docs?: Array<{ id: string; name: string; mimeType: string; url: string }> }) => {
+        .setCallback((data: {
+          action: string;
+          docs?: Array<{ id: string; name: string; mimeType: string; url: string }>;
+        }) => {
           if (data.action === google.picker.Action.PICKED && data.docs && data.docs.length > 0) {
             const doc = data.docs[0];
             const { emoji } = getMimeInfo(doc.mimeType);
             setNewEmoji(emoji);
             setNewLabel(doc.name);
-            // DriveファイルのURLを構築
             const fileUrl = doc.url || `https://drive.google.com/open?id=${doc.id}`;
             setNewUrl(fileUrl);
             setShowAddDialog(true);
-            setPickerToken(null);
           }
         })
         .build();
@@ -218,22 +205,67 @@ export default function MyLinks() {
     } catch (err) {
       console.error("[GooglePicker] Error:", err);
       toast.error("Pickerの起動に失敗しました");
-    } finally {
-      setPickerLoading(false);
     }
   }, []);
 
-  // 「Driveから追加」ボタン押下時の処理
-  const handleDriveAdd = async () => {
-    // すでにトークンがある場合はそのまま開く
-    if (pickerToken) {
-      openPickerWithToken(pickerToken);
+  // Google Identity Services（gsi/client）でアクセストークンを取得してPickerを開く
+  const handleDriveAdd = useCallback(async () => {
+    if (!OAUTH_CLIENT_ID) {
+      toast.error("OAuth Client IDが設定されていません");
       return;
     }
-    // OAuthフローを開始（現在のoriginを渡す）
-    const origin = window.location.origin;
-    window.location.href = `/api/auth/google/picker?origin=${encodeURIComponent(origin)}`;
-  };
+    if (!PICKER_API_KEY) {
+      toast.error("Picker APIキーが設定されていません");
+      return;
+    }
+
+    setPickerLoading(true);
+    try {
+      // 有効なトークンがあればそのまま使う
+      if (accessTokenRef.current && Date.now() < tokenExpiryRef.current) {
+        await openPicker(accessTokenRef.current);
+        return;
+      }
+
+      // gsi/clientスクリプトをロード
+      await loadScript("google-gsi-script", "https://accounts.google.com/gsi/client");
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const google = (window as any).google;
+      if (!google?.accounts?.oauth2) {
+        toast.error("Google認証ライブラリの読み込みに失敗しました");
+        return;
+      }
+
+      // TokenClientを使ってポップアップでアクセストークンを取得
+      const tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: OAUTH_CLIENT_ID,
+        scope: DRIVE_SCOPE,
+        callback: async (response: { access_token?: string; error?: string; expires_in?: number }) => {
+          if (response.error || !response.access_token) {
+            console.error("[GSI] Token error:", response.error);
+            if (response.error !== "popup_closed_by_user") {
+              toast.error("Googleの認証に失敗しました。再度お試しください。");
+            }
+            setPickerLoading(false);
+            return;
+          }
+          // トークンを保存（有効期限: expires_in秒、少し余裕を持たせる）
+          accessTokenRef.current = response.access_token;
+          tokenExpiryRef.current = Date.now() + ((response.expires_in ?? 3600) - 60) * 1000;
+          await openPicker(response.access_token);
+          setPickerLoading(false);
+        },
+      });
+
+      // ポップアップでGoogleサインインを要求
+      tokenClient.requestAccessToken({ prompt: "consent" });
+    } catch (err) {
+      console.error("[DriveAdd] Error:", err);
+      toast.error("Driveの接続に失敗しました");
+      setPickerLoading(false);
+    }
+  }, [openPicker]);
 
   return (
     <div className="max-w-2xl mx-auto py-6 px-4 space-y-4">
@@ -277,7 +309,7 @@ export default function MyLinks() {
       {/* 説明バナー */}
       <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-700 dark:text-blue-300 flex items-start gap-2">
         <FolderOpen className="w-4 h-4 flex-shrink-0 mt-0.5" />
-        <span>「Driveから追加」を押すとGoogleアカウントでサインインし、自分のDrive内のファイルやフォルダを検索・選択してリンクに追加できます。</span>
+        <span>「Driveから追加」を押すとGoogleアカウントでサインインし、自分のDrive内のファイルやフォルダを選択してリンクに追加できます。</span>
       </div>
 
       {/* リンク一覧 */}
@@ -297,7 +329,7 @@ export default function MyLinks() {
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
             </div>
           ) : !links || links.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center gap-3">
+            <div className="flex flex-col items-center gap-3 py-10 text-center">
               <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
                 <LinkIcon className="w-5 h-5 text-muted-foreground" />
               </div>
@@ -332,7 +364,13 @@ export default function MyLinks() {
                       variant="ghost"
                       size="icon"
                       className="w-7 h-7"
-                      onClick={() => setEditingLink({ id: link.id, label: link.label, url: link.url, emoji: link.emoji ?? "🔗", description: link.description })}
+                      onClick={() => setEditingLink({
+                        id: link.id,
+                        label: link.label,
+                        url: link.url,
+                        emoji: link.emoji ?? "🔗",
+                        description: link.description,
+                      })}
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </Button>
@@ -462,7 +500,7 @@ export default function MyLinks() {
             </Button>
             <Button onClick={handleUpdate} disabled={updateLink.isPending}>
               {updateLink.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              保存
+              更新
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -480,10 +518,10 @@ export default function MyLinks() {
           <AlertDialogFooter>
             <AlertDialogCancel>キャンセル</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => deleteTargetId !== null && deleteLink.mutate({ id: deleteTargetId })}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              削除
+              {deleteLink.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "削除"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
