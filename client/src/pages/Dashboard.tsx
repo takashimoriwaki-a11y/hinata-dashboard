@@ -4,7 +4,7 @@
  * 機能: 訪問件数表示、ZESTスクリーンショット、業務ツールクイックアクセス、タスク、申し送り、訪問推移グラフ
  */
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
@@ -1825,18 +1825,17 @@ function LinkRow({ href, label, color, emoji }: { href: string; label: string; c
  */
 function SheetSubTabs({ quickLinks }: { quickLinks: { id: number; label: string; href: string; color: string; emoji: string | null; category: string }[] | undefined }) {
   const [subTab, setSubTab] = useState<"daily" | "other">("daily");
-
   // 月次リンク（当月分、なければ直近登録）
   const { data: monthlyLinks, isLoading: monthlyLoading } = trpc.spreadsheetLinks.getCurrent.useQuery();
-
-  // 当月年月
-  const now = new Date();
-  const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-
+  // 当月年月（マウント時に一度計算）
+  const currentYearMonth = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  }, []);
   // 当月分か直近登録かを判定（バッジ表示用）
   const isCurrentMonth = monthlyLinks && monthlyLinks.length > 0 && monthlyLinks[0].yearMonth === currentYearMonth;
-
-  const otherLinks = quickLinks?.filter((l) => l.category === "スプレッドシート（その他）") ?? [];
+  // useMemoでフィルタリングをメモ化
+  const otherLinks = useMemo(() => quickLinks?.filter((l) => l.category === "スプレッドシート（その他）") ?? [], [quickLinks]);
 
   return (
     <div className="space-y-2">
@@ -1934,15 +1933,25 @@ function ToolsCard() {
 
   // クイックアクセスリンク（tRPC + DB）
   const { data: quickLinks } = trpc.quickAccessLinks.list.useQuery();
-  const docLinks: { label: string; href: string; color: string; emoji?: string }[] = quickLinks
-    ? quickLinks.filter((l) => l.category === "ドキュメント").map((l) => ({ label: l.label, href: l.href, color: l.color, emoji: l.emoji || undefined }))
-    : documentLinks;
-  const frmLinks: { label: string; href: string; color: string; emoji?: string }[] = quickLinks
-    ? quickLinks.filter((l) => l.category === "フォーム").map((l) => ({ label: l.label, href: l.href, color: l.color, emoji: l.emoji || undefined }))
-    : formLinks;
-  const othLinks: { label: string; href: string; color: string; emoji?: string }[] = quickLinks
-    ? quickLinks.filter((l) => l.category === "その他").map((l) => ({ label: l.label, href: l.href, color: l.color, emoji: l.emoji || undefined }))
-    : otherLinks;
+  // useMemoでフィルタリング処理をメモ化（quickLinksが変わらない限り再計算しない）
+  const docLinks = useMemo<{ label: string; href: string; color: string; emoji?: string }[]>(() =>
+    quickLinks
+      ? quickLinks.filter((l) => l.category === "ドキュメント").map((l) => ({ label: l.label, href: l.href, color: l.color, emoji: l.emoji || undefined }))
+      : documentLinks,
+    [quickLinks]
+  );
+  const frmLinks = useMemo<{ label: string; href: string; color: string; emoji?: string }[]>(() =>
+    quickLinks
+      ? quickLinks.filter((l) => l.category === "フォーム").map((l) => ({ label: l.label, href: l.href, color: l.color, emoji: l.emoji || undefined }))
+      : formLinks,
+    [quickLinks]
+  );
+  const othLinks = useMemo<{ label: string; href: string; color: string; emoji?: string }[]>(() =>
+    quickLinks
+      ? quickLinks.filter((l) => l.category === "その他").map((l) => ({ label: l.label, href: l.href, color: l.color, emoji: l.emoji || undefined }))
+      : otherLinks,
+    [quickLinks]
+  );
 
   // マイリンク（tRPC + DB）
   const utils = trpc.useUtils();
@@ -2331,15 +2340,19 @@ function TasksCard() {
 
   // DBから未完了タスクを取得
   const { data: tasks = [] } = trpc.tasks.getMine.useQuery();
-  const incomplete = tasks
-    .filter((t) => t.done === 0)
-    .sort((a, b) => {
-      // 期日なしは常に末尾、期日ありは昇順
-      if (!a.dueDate && !b.dueDate) return 0;
-      if (!a.dueDate) return 1;
-      if (!b.dueDate) return -1;
-      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-    });
+  // useMemoでフィルタリング・ソートをメモ化（tasksが変わらない限り再計算しない）
+  const incomplete = useMemo(() =>
+    tasks
+      .filter((t) => t.done === 0)
+      .sort((a, b) => {
+        // 期日なしは常に末尾、期日ありは昇順
+        if (!a.dueDate && !b.dueDate) return 0;
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      }),
+    [tasks]
+  );
 
   const toggleTask = trpc.tasks.toggle.useMutation({
     onMutate: async ({ id, done }) => {

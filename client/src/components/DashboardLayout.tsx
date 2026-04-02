@@ -97,6 +97,26 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { data: minutesUnchecked } = trpc.minutes.uncheckedCount.useQuery(undefined, {
     refetchInterval: 60000,
   });
+  
+  // タブ切り替え高速化：主要ページのデータをプリフェッチ
+  const utils = trpc.useUtils();
+  useEffect(() => {
+    // ホーム以外のページでホームのデータを事前読み込み
+    if (location !== '/') {
+      utils.visits.getCurrent.prefetch();
+      utils.messages.getActive.prefetch();
+      utils.tasks.getMine.prefetch();
+      utils.schedule.getAll.prefetch();
+    }
+    // タスクタブ以外でタスクデータを事前読み込み
+    if (location !== '/tasks') {
+      utils.tasks.getMine.prefetch();
+    }
+    // 記録タブ以外で利用者データを事前読み込み
+    if (location !== '/record') {
+      utils.patients.list.prefetch({});
+    }
+  }, [location, utils]);
   const [collapsed, setCollapsed] = useState(true);
   // モバイル用ドロワー開閉
   const [mobileOpen, setMobileOpen] = useState(false);

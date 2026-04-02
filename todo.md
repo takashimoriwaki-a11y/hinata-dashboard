@@ -1608,4 +1608,11 @@
 
 ## Google Picker バックエンドOAuth方式に変更（2026-03-31）
 
-- [ ] Google PickerをバックエンドOAuthリダイレクト方式に変更（iOSのPWA対応）
+- [x] Google PickerをバックエンドOAuthリダイレクト方式に変更（iOSのPWA対応）
+
+## タブ切り替え高速化（2026-03-31）
+
+- [x] React Queryのキャッシュ戦略最適化（staleTime・cacheTime設定）
+- [x] 主要ページのデータプリフェッチ実装
+- [x] 不要な再レンダリングを防ぐメモ化の強化
+- [x] ローディング状態の最適化（Suspense活用）
