@@ -25,12 +25,12 @@ import { getTeamButtonClass, getTeamButtonStyle } from "@shared/teamColors";
 // ============================
 
 const LINK_DEFINITIONS = [
-  { key: "fee_seishin_koriyama", label: "利用者料金一覧（精神郡山）", color: "text-emerald-600", fileNameExample: "ひなた 利用者料金一覧 YYYY年M月分（精神郡山）",   hint: "精神郡山チームの利用者料金シート" },
-  { key: "fee_shintai",          label: "利用者料金一覧（身体）",     color: "text-blue-600",   fileNameExample: "ひなた 利用者料金一覧 YYYY年M月分（身体）",         hint: "身体チームの利用者料金シート" },
-  { key: "fee_tenri",            label: "利用者料金一覧（天理）",     color: "text-purple-600", fileNameExample: "ひなた 利用者料金一覧 YYYY年M月分（天理）",         hint: "天理チームの利用者料金シート" },
-  { key: "daily_report",         label: "業務日報",                   color: "text-orange-600", fileNameExample: "ひなた 業務日報 YYYY年M月分",                       hint: "全スタッフ共通の業務日報シート" },
-  { key: "attendance",           label: "ひなた勤怠",                 color: "text-rose-600",   fileNameExample: "ひなた 勤怠管理 YYYY年M月分",                     hint: "スタッフ勤怠管理シート" },
-  { key: "checkout_checklist",   label: "退勤時チェックリスト",       color: "text-amber-600",  fileNameExample: "ひなた 退勤時チェックリスト YYYY年M月分",          hint: "退勤チェックリストシート" },
+  { key: "fee_seishin_koriyama", label: "利用者料金一覧（精神郡山）", color: "text-emerald-600", displayTarget: "team" as const,   fileNameExample: "ひなた 利用者料金一覧 YYYY年M月分（精神郡山）",   hint: "精神郡山チームの利用者料金シート（チームツールに表示）" },
+  { key: "fee_shintai",          label: "利用者料金一覧（身体）",     color: "text-blue-600",   displayTarget: "team" as const,   fileNameExample: "ひなた 利用者料金一覧 YYYY年M月分（身体）",         hint: "身体チームの利用者料金シート（チームツールに表示）" },
+  { key: "fee_tenri",            label: "利用者料金一覧（天理）",     color: "text-purple-600", displayTarget: "team" as const,   fileNameExample: "ひなた 利用者料金一覧 YYYY年M月分（天理）",         hint: "天理チームの利用者料金シート（チームツールに表示）" },
+  { key: "daily_report",         label: "業務日報",                   color: "text-orange-600", displayTarget: "common" as const, fileNameExample: "ひなた 業務日報 YYYY年M月分",                       hint: "全スタッフ共通の業務日報シート（全チーム共通ツールに表示）" },
+  { key: "attendance",           label: "ひなた勤怠",                 color: "text-rose-600",   displayTarget: "common" as const, fileNameExample: "ひなた 勤怠管理 YYYY年M月分",                     hint: "スタッフ勤怠管理シート（全チーム共通ツールに表示）" },
+  { key: "checkout_checklist",   label: "退勤時チェックリスト",       color: "text-amber-600",  displayTarget: "common" as const, fileNameExample: "ひなた 退勤時チェックリスト YYYY年M月分",          hint: "退勤チェックリストシート（全チーム共通ツールに表示）" },
 ] as const;
 
 type LinkKey = typeof LINK_DEFINITIONS[number]["key"];
@@ -93,7 +93,7 @@ function BulkImportPanel({
     if (validLinks.length === 0) { toast.error("有効なURLが見つかりませんでした"); return; }
     batchUpsert.mutate({
       yearMonth: selectedYearMonth,
-      links: validLinks.map((l) => ({ linkKey: l.key, label: l.label, url: l.url, color: l.color })),
+      links: validLinks.map((l) => ({ linkKey: l.key, label: l.label, url: l.url, color: l.color, displayTarget: l.displayTarget })),
     });
   };
 
@@ -131,11 +131,17 @@ function BulkImportPanel({
                 )}>
                   <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-[10px] mt-0.5">{i + 1}</span>
                   <div className="min-w-0 flex-1">
-                    <p className={cn("font-semibold leading-tight", def.color)}>{def.label}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className={cn("font-semibold leading-tight", def.color)}>{def.label}</p>
+                      {def.displayTarget === "team" ? (
+                        <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0 rounded-full font-medium border border-emerald-200">チームツール</span>
+                      ) : (
+                        <span className="text-[9px] bg-blue-100 text-blue-700 px-1.5 py-0 rounded-full font-medium border border-blue-200">全チーム共通</span>
+                      )}
+                    </div>
                     <p className="text-muted-foreground mt-0.5 leading-tight">
                       <span className="font-mono bg-muted/60 px-1 py-0.5 rounded text-[10px]">{def.fileNameExample}</span>
                     </p>
-                    <p className="text-muted-foreground/70 mt-0.5 text-[10px]">{def.hint}</p>
                   </div>
                 </div>
               ))}
@@ -852,19 +858,7 @@ export default function Admin() {
             一括インポート
           </button>
         )}
-        {currentUser?.role === "admin" && (
-          <button
-            onClick={() => setActiveSection("quickaccess")}
-            className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
-              activeSection === "quickaccess"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            クイックアクセス
-          </button>
-        )}
+        {/* クイックアクセスはホーム画面から削除済みのため非表示 */}
         {currentUser?.role === "admin" && (
           <button
             onClick={() => setActiveSection("settings")}
@@ -1073,8 +1067,7 @@ export default function Admin() {
       {/* システム設定セクション */}
       {activeSection === "settings" && <SystemSettingsPanel />}
 
-      {/* クイックアクセスリンク管理セクション */}
-      {activeSection === "quickaccess" && <QuickAccessLinksPanel />}
+      {/* クイックアクセスリンク管理セクション（ホーム画面から削除済みのため非表示） */}
     </div>
   );
 }

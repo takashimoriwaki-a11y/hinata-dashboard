@@ -365,7 +365,7 @@ export async function upsertSpreadsheetLink(data: InsertSpreadsheetLink) {
   if (existing.length > 0) {
     await db
       .update(spreadsheetLinks)
-      .set({ url: data.url, label: data.label, color: data.color, updatedAt: new Date() })
+      .set({ url: data.url, label: data.label, color: data.color, displayTarget: data.displayTarget ?? "common", updatedAt: new Date() })
       .where(eq(spreadsheetLinks.id, existing[0].id));
     return existing[0].id;
   } else {

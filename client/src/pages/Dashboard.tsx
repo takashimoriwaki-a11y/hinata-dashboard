@@ -1887,11 +1887,7 @@ function SheetSubTabs({ quickLinks }: { quickLinks: { id: number; label: string;
             <p className="text-xs text-muted-foreground text-center py-3">リンクはまだ登録されていません</p>
           ) : (
             monthlyLinks
-              .filter((link) => !([
-                "fee_seishin_koriyama",
-                "fee_shintai",
-                "fee_tenri",
-              ] as string[]).includes(link.linkKey))
+              .filter((link) => (link.displayTarget ?? "common") === "common")
               .map((link) => (
                 <LinkRow
                   key={link.id}

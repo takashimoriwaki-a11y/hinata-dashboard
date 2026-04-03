@@ -1,0 +1,1 @@
+ALTER TABLE `spreadsheet_links` ADD `displayTarget` varchar(10) DEFAULT 'common' NOT NULL;

@@ -246,6 +246,13 @@
       "when": 1774878185743,
       "tag": "0034_easy_steve_rogers",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "5",
+      "when": 1775207534891,
+      "tag": "0035_majestic_wolfsbane",
+      "breakpoints": true
     }
   ]
 }

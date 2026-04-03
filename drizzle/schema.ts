@@ -107,10 +107,14 @@ export const spreadsheetLinks = mysqlTable("spreadsheet_links", {
   createdBy: int("createdBy"),
   /** 色クラス（表示用） */
   color: varchar("color", { length: 50 }).default("text-emerald-600"),
+  /**
+   * 表示先：'team'=チームツール, 'common'=全チーム共通ツール
+   * fee_* は常に 'team' 固定
+   */
+  displayTarget: varchar("displayTarget", { length: 10 }).default("common").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
-
 export type SpreadsheetLink = typeof spreadsheetLinks.$inferSelect;
 export type InsertSpreadsheetLink = typeof spreadsheetLinks.$inferInsert;
 

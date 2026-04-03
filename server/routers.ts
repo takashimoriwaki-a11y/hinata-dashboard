@@ -535,15 +535,18 @@ export const appRouter = router({
           yearMonth: z.string().regex(/^\d{4}-\d{2}$/, "年月はYYYY-MM形式で入力してください"),
           url: z.string().url({ message: "有効なURLを入力してください" }),
           color: z.string().max(50).optional(),
+          displayTarget: z.enum(["team", "common"]).default("common"),
         })
       )
       .mutation(async ({ ctx, input }) => {
+        const displayTarget = input.linkKey.startsWith("fee_") ? "team" : input.displayTarget;
         const id = await upsertSpreadsheetLink({
           linkKey: input.linkKey,
           label: input.label,
           yearMonth: input.yearMonth,
           url: input.url,
           color: input.color ?? "text-emerald-600",
+          displayTarget,
           createdBy: ctx.user.id,
         });
         broadcastEvent("spreadsheetLinks");
@@ -597,22 +600,25 @@ export const appRouter = router({
               label: z.string().min(1).max(100),
               url: z.string().url({ message: "有効なURLを入力してください" }),
               color: z.string().max(50).optional(),
+              displayTarget: z.enum(["team", "common"]).default("common"),
             })
           ).min(1).max(20),
         })
       )
       .mutation(async ({ ctx, input }) => {
         const results = await Promise.all(
-          input.links.map((link) =>
-            upsertSpreadsheetLink({
+          input.links.map((link) => {
+            const displayTarget = link.linkKey.startsWith("fee_") ? "team" : link.displayTarget;
+            return upsertSpreadsheetLink({
               linkKey: link.linkKey,
               label: link.label,
               yearMonth: input.yearMonth,
               url: link.url,
               color: link.color ?? "text-emerald-600",
+              displayTarget,
               createdBy: ctx.user.id,
-            })
-          )
+            });
+          })
         );
         broadcastEvent("spreadsheetLinks");
         return { success: true, count: results.length };
