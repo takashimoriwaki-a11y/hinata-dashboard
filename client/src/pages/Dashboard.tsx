@@ -1886,17 +1886,19 @@ function SheetSubTabs({ quickLinks }: { quickLinks: { id: number; label: string;
           ) : !monthlyLinks || monthlyLinks.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-3">リンクはまだ登録されていません</p>
           ) : (
-            monthlyLinks
-              .filter((link) => (link.displayTarget ?? "common") === "common")
-              .map((link) => (
-                <LinkRow
-                  key={link.id}
-                  href={link.url}
-                  label={link.label}
-                  color={link.color ?? "text-emerald-600"}
-                  emoji="📊"
-                />
-              ))
+            <>
+              {monthlyLinks
+                .filter((link) => (link.displayTarget ?? "common") === "common")
+                .map((link) => (
+                  <LinkRow
+                    key={link.id}
+                    href={link.url}
+                    label={link.label}
+                    color={link.color ?? "text-emerald-600"}
+                    emoji="📊"
+                  />
+                ))}
+            </>
           )}
         </div>
       )}
