@@ -1886,15 +1886,21 @@ function SheetSubTabs({ quickLinks }: { quickLinks: { id: number; label: string;
           ) : !monthlyLinks || monthlyLinks.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-3">リンクはまだ登録されていません</p>
           ) : (
-            monthlyLinks.map((link) => (
-              <LinkRow
-                key={link.id}
-                href={link.url}
-                label={link.label}
-                color={link.color ?? "text-emerald-600"}
-                emoji="📊"
-              />
-            ))
+            monthlyLinks
+              .filter((link) => !([
+                "fee_seishin_koriyama",
+                "fee_shintai",
+                "fee_tenri",
+              ] as string[]).includes(link.linkKey))
+              .map((link) => (
+                <LinkRow
+                  key={link.id}
+                  href={link.url}
+                  label={link.label}
+                  color={link.color ?? "text-emerald-600"}
+                  emoji="📊"
+                />
+              ))
           )}
         </div>
       )}
@@ -2181,6 +2187,20 @@ function TeamToolsCard() {
     { retry: false }
   );
 
+  // 月次利用者料金一覧（DB登録分）
+  const { data: monthlyLinks } = trpc.spreadsheetLinks.getCurrent.useQuery();
+  // チームに対応するlinkKeyを決定
+  const teamFeeKey = useMemo(() => {
+    if (activeTeam === "身体") return "fee_shintai";
+    if (activeTeam === "天理") return "fee_tenri";
+    // 郡山北部・郡山南部は精神郡山
+    return "fee_seishin_koriyama";
+  }, [activeTeam]);
+  // 当該チームの月次利用者料金リンク
+  const teamFeeLink = useMemo(() => {
+    return monthlyLinks?.find((l) => l.linkKey === teamFeeKey) ?? null;
+  }, [monthlyLinks, teamFeeKey]);
+
   // 管理者用: ツール追加・編集・削除
   const isAdmin = user?.role === "admin";
   const [showAddForm, setShowAddForm] = useState(false);
@@ -2250,19 +2270,31 @@ function TeamToolsCard() {
 
         {/* ツールリスト */}
         <div className="flex flex-col gap-1.5">
+          {/* 月次利用者料金一覧（DB登録分を先頭に表示） */}
+          {teamFeeLink && (
+            <LinkRow
+              href={teamFeeLink.url}
+              label={teamFeeLink.label}
+              color={teamFeeLink.color ?? "text-emerald-600"}
+              emoji="📊"
+            />
+          )}
           {isLoading ? (
             <div className="space-y-2 py-1">
               {[1,2,3].map(i => (
                 <div key={i} className="h-10 bg-muted/60 animate-pulse rounded-lg" />
               ))}
             </div>
-          ) : tools.length === 0 && !showAddForm ? (
+          ) : tools.length === 0 && !showAddForm && !teamFeeLink ? (
             <p className="text-xs text-muted-foreground text-center py-4">
               {activeTeam}チームのツールはまだありません
               {isAdmin && <span className="block mt-1 text-primary cursor-pointer" onClick={() => setShowAddForm(true)} onTouchStart={() => {}} style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>+ 追加する</span>}
             </p>
           ) : (
-            tools.map((tool) => (
+            tools
+              // 月次URLが登録されている場合、静的な利用者料金一覧リンクは非表示
+              .filter((tool) => !(teamFeeLink && tool.label.includes("利用者料金一覧")))
+              .map((tool) => (
               <div key={tool.id}>
                 {editingId === tool.id ? (
                   <div className="flex flex-col gap-1.5 p-2 bg-muted/30 rounded-md">
