@@ -98,7 +98,7 @@ export default function Login() {
             <Button
               type="button"
               variant="outline"
-              className="w-full h-11 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 font-medium flex items-center justify-center gap-3"
+              className="w-full h-11 bg-white dark:bg-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-700 border border-gray-300 dark:border-zinc-600 text-gray-800 dark:text-white font-medium flex items-center justify-center gap-3"
               onClick={handleGoogleLogin}
             >
               {/* Googleアイコン（SVG） */}
@@ -126,10 +126,10 @@ export default function Login() {
             {/* 区切り線 */}
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-gray-200" />
+                <span className="w-full border-t border-gray-200 dark:border-zinc-600" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-gray-400">または</span>
+                <span className="bg-card px-2 text-muted-foreground">または</span>
               </div>
             </div>
 
