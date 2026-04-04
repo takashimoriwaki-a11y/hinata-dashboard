@@ -409,10 +409,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           "fixed top-0 left-0 z-50 flex flex-col w-72",
           "bg-sidebar text-sidebar-foreground border-r border-sidebar-border shadow-xl",
           "transition-transform duration-300 ease-in-out md:hidden",
-          "top-0 bottom-0",
+          "top-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
-        style={{ height: "100dvh" }}
+        style={{ height: "calc(100dvh - 60px - env(safe-area-inset-bottom, 0px))" }}
       >
         <div className="flex flex-col h-full overflow-hidden">
           <div className="flex-1 overflow-y-auto">
