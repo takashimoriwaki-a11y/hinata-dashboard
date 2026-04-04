@@ -3838,7 +3838,7 @@ export default function Dashboard() {
             <button
               onClick={() => openLink("https://login.ibowservice.jp/?action=logout")}
               onTouchStart={() => {}}
-              className="flex items-center justify-center gap-1 transition-colors text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#4a90d9', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#3a7fc8')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#4a90d9')}
+              className="flex items-center justify-center gap-1 transition-colors text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#f97316', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#ea6c0a')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#f97316')}
             >
               <ClipboardList className="w-3.5 h-3.5 md:w-4 md:h-4" />
               iBow
@@ -3854,7 +3854,7 @@ export default function Dashboard() {
             <Link
               href="/schedule-management"
               onTouchStart={() => {}}
-              className="flex items-center justify-center gap-1 transition-colors text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#7c5cbf', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#6b4dab')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#7c5cbf')}
+              className="flex items-center justify-center gap-1 transition-colors text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#eab308', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#ca9a06')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#eab308')}
             >
               <CalendarDays className="w-3.5 h-3.5 md:w-4 md:h-4" />
               <span className="leading-tight">スケジュール<br className="md:hidden" />管理</span>
@@ -3862,7 +3862,7 @@ export default function Dashboard() {
             <Link
               href="/tasks"
               onTouchStart={() => {}}
-              className="flex items-center justify-center gap-1 transition-colors text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#2a9d5c', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#228a4f')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#2a9d5c')}
+              className="flex items-center justify-center gap-1 transition-colors text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#f87171', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#ef5555')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#f87171')}
             >
               <ListTodo className="w-3.5 h-3.5 md:w-4 md:h-4" />
               タスク
