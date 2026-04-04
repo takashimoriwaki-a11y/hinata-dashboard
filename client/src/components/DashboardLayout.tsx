@@ -99,24 +99,28 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   });
   
   // タブ切り替え高速化：主要ページのデータをプリフェッチ
+  // utils は毎レンダーで参照が変わる可能性があるため依存配列から除外し、
+  // useRef で安定した参照を保持することで無限ループを防ぐ
   const utils = trpc.useUtils();
+  const utilsRef = useRef(utils);
   useEffect(() => {
+    utilsRef.current = utils;
+  });
+  useEffect(() => {
+    const u = utilsRef.current;
     // ホーム以外のページでホームのデータを事前読み込み
     if (location !== '/') {
-      utils.visits.getCurrent.prefetch();
-      utils.messages.getActive.prefetch();
-      utils.tasks.getMine.prefetch();
-      utils.schedule.getAll.prefetch();
-    }
-    // タスクタブ以外でタスクデータを事前読み込み
-    if (location !== '/tasks') {
-      utils.tasks.getMine.prefetch();
+      u.visits.getCurrent.prefetch();
+      u.messages.getActive.prefetch();
+      u.tasks.getMine.prefetch();
+      u.schedule.getAll.prefetch();
     }
     // 記録タブ以外で利用者データを事前読み込み
     if (location !== '/record') {
-      utils.patients.list.prefetch({});
+      u.patients.list.prefetch({});
     }
-  }, [location, utils]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location]);
   const [collapsed, setCollapsed] = useState(true);
   // モバイル用ドロワー開閉
   const [mobileOpen, setMobileOpen] = useState(false);

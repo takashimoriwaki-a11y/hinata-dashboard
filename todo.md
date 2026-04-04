@@ -1643,3 +1643,9 @@
 - [ ] 管理画面：月次データ登録状況確認パネル（未登録スプレッドシートの一覧表示）
 - [ ] 管理画面：新規スプレッドシート追加対応（LINK_DEFINITIONSへの追加UI）
 - [ ] メッセージ：予約送信待ちを登録した本人にのみ表示
+
+## React error #310 修正（2026-04-05）
+
+- [x] DashboardLayout.tsx: prefetch useEffectの依存配列から `utils` を除去し、useRefで安定した参照を保持するよう修正（無限ループ防止）
+- [x] DashboardLayout.tsx: tasks.getMineの重複prefetchを削除
+- [x] useRealtimeSync.ts: SSE接続useEffectの依存配列から `utils` を除去し、useRefで安定した参照を保持するよう修正（初回マウント時のみ接続）

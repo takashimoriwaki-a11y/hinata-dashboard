@@ -55,6 +55,13 @@ export function useRealtimeSync() {
   const esRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // utils の最新参照を useRef で保持することで、
+  // useEffect の依存配列から utils を除外し、無限ループを防ぐ
+  const utilsRef = useRef(utils);
+  useEffect(() => {
+    utilsRef.current = utils;
+  });
+
   useEffect(() => {
     let active = true;
 
@@ -76,7 +83,7 @@ export function useRealtimeSync() {
             try {
               const [router, procedure] = key;
               // @ts-expect-error dynamic key access
-              utils[router]?.[procedure]?.invalidate?.();
+              utilsRef.current[router]?.[procedure]?.invalidate?.();
             } catch {
               // 無効化失敗は無視（ページが未マウントの場合など）
             }
@@ -102,5 +109,6 @@ export function useRealtimeSync() {
       esRef.current?.close();
       esRef.current = null;
     };
-  }, [utils]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 初回マウント時のみ接続（utils は utilsRef 経由で常に最新を参照）
 }
