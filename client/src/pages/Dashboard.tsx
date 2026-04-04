@@ -2453,35 +2453,36 @@ function TeamToolsCard() {
           </div>
         )}
 
-        {/* チーム目標セクション */}
-        {filteredGoals.length > 0 && (
-          <div className="border-t border-border/50 pt-3 space-y-2">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground/70">
-              <Target className="w-3.5 h-3.5 text-primary" />
-              <span>チーム目標</span>
-            </div>
-            {filteredGoals.map(g => (
-              <div key={g.id} className="rounded-lg bg-muted/40 p-2.5 space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full border", TEAM_BADGE_COLORS[g.team] ?? "bg-muted/60 text-foreground border-border")}>
-                    {g.team}
+        {/* チーム目標セクション（チームタブに連動） */}
+        <div key={`goals-${activeTeam}`} className={cn(
+          "border-t border-border/50 pt-3 space-y-2",
+          filteredGoals.length === 0 ? "hidden" : "animate-fade-in-overlay"
+        )}>
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground/70">
+            <Target className="w-3.5 h-3.5 text-primary" />
+            <span>チーム目標</span>
+          </div>
+          {filteredGoals.map(g => (
+            <div key={g.id} className="rounded-lg bg-muted/40 p-2.5 space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full border", TEAM_BADGE_COLORS[g.team] ?? "bg-muted/60 text-foreground border-border")}>
+                  {g.team}
+                </span>
+                {(g.startDate || g.endDate) && (
+                  <span className="text-xs text-muted-foreground">
+                    {g.startDate ? String(g.startDate).slice(0, 10).replace(/-/g, "/") : ""}
+                    {" 〜 "}
+                    {g.endDate ? String(g.endDate).slice(0, 10).replace(/-/g, "/") : ""}
                   </span>
-                  {(g.startDate || g.endDate) && (
-                    <span className="text-xs text-muted-foreground">
-                      {g.startDate ? String(g.startDate).slice(0, 10).replace(/-/g, "/") : ""}
-                      {" 〜 "}
-                      {g.endDate ? String(g.endDate).slice(0, 10).replace(/-/g, "/") : ""}
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm font-semibold leading-snug text-foreground">{g.title}</p>
-                {g.body && (
-                  <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">{g.body}</p>
                 )}
               </div>
-            ))}
-          </div>
-        )}
+              <p className="text-sm font-semibold leading-snug text-foreground">{g.title}</p>
+              {g.body && (
+                <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">{g.body}</p>
+              )}
+            </div>
+          ))}
+        </div>
       </CardContent>
     </Card>
   );
