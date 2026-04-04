@@ -198,11 +198,11 @@ type DayType = typeof DAYS[number];
 // チーム目標カード
 // ============================
 const TEAM_BADGE_COLORS: Record<string, string> = {
-  "身体": "bg-blue-100 text-blue-800 border-blue-200",
-  "天理": "bg-purple-100 text-purple-800 border-purple-200",
-  "郡山北部": "bg-green-100 text-green-800 border-green-200",
-  "郡山南部": "bg-orange-100 text-orange-800 border-orange-200",
-  "全チーム": "bg-gray-100 text-gray-800 border-gray-200",
+  "身体": "bg-blue-500/20 text-blue-300 border-blue-400/40 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-400/40",
+  "天理": "bg-purple-500/20 text-purple-300 border-purple-400/40 dark:bg-purple-500/20 dark:text-purple-300 dark:border-purple-400/40",
+  "郡山北部": "bg-green-500/20 text-green-300 border-green-400/40 dark:bg-green-500/20 dark:text-green-300 dark:border-green-400/40",
+  "郡山南部": "bg-orange-500/20 text-orange-300 border-orange-400/40 dark:bg-orange-500/20 dark:text-orange-300 dark:border-orange-400/40",
+  "全チーム": "bg-muted/60 text-foreground border-border",
 };
 
 function TeamGoalsCard() {
@@ -3879,7 +3879,7 @@ export default function Dashboard() {
     : "linear-gradient(135deg, rgba(249,115,22,0.55) 0%, rgba(251,146,60,0.45) 50%, rgba(251,191,36,0.50) 100%)";
 
   return (
-    <div className="p-3 md:p-4 space-y-3 md:space-y-4 max-w-screen-xl mx-auto">
+    <div className="p-3 md:p-4 pb-6 md:pb-4 space-y-3 md:space-y-4 max-w-screen-xl mx-auto">
       {/* ウェルカムバナー */}
       <div className="relative rounded-2xl overflow-hidden shadow-md fade-in-up">
         {/* 月別背景画像 */}
@@ -3899,11 +3899,11 @@ export default function Dashboard() {
             </p>
           )}
           {/* ショートカットボタン（モバイル: 3列グリッド均等配置 / PC: 折り返し右寄せ） */}
-          <div className="grid grid-cols-3 gap-1.5 md:flex md:flex-row md:flex-wrap md:justify-end md:gap-2">
+          <div className="grid grid-cols-3 gap-1.5 md:flex md:flex-row md:flex-wrap md:justify-end md:gap-2 items-stretch">
             <button
               onClick={() => openLink("https://gemini.google.com/app")}
               onTouchStart={() => {}}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none" style={{backgroundColor: '#7c6fcd', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#6a5eb8')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#7c6fcd')}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#7c6fcd', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#6a5eb8')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#7c6fcd')}
             >
               <span className="text-sm leading-none">✨</span>
               Gemini
@@ -3911,7 +3911,7 @@ export default function Dashboard() {
             <button
               onClick={() => openLink("https://homecare.zest.jp/login")}
               onTouchStart={() => {}}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none" style={{backgroundColor: '#0ea5a0', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#0c9490')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#0ea5a0')}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#0ea5a0', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#0c9490')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#0ea5a0')}
             >
               <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4" />
               ZEST
@@ -3919,7 +3919,7 @@ export default function Dashboard() {
             <button
               onClick={() => openLink("https://login.ibowservice.jp/?action=logout")}
               onTouchStart={() => {}}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none" style={{backgroundColor: '#e07b2a', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#cc6e22')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#e07b2a')}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#e07b2a', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#cc6e22')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#e07b2a')}
             >
               <ClipboardList className="w-3.5 h-3.5 md:w-4 md:h-4" />
               iBow
@@ -3927,7 +3927,7 @@ export default function Dashboard() {
             <button
               onClick={() => openLink("https://mimamodrive.tokiomarine-smartmobility.co.jp/?_gl=1*191av7l*_gcl_au*MTExMzk5MjkyNC4xNzc1MzE4NjA2")}
               onTouchStart={() => {}}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none" style={{backgroundColor: '#3b8fd4', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#2e7fc0')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#3b8fd4')}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#3b8fd4', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#2e7fc0')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#3b8fd4')}
             >
               <Car className="w-3.5 h-3.5 md:w-4 md:h-4" />
               DRIVE
@@ -3935,7 +3935,7 @@ export default function Dashboard() {
             <Link
               href="/schedule-management"
               onTouchStart={() => {}}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none" style={{backgroundColor: '#3a9e6e', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#2e8a5c')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#3a9e6e')}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#3a9e6e', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#2e8a5c')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#3a9e6e')}
             >
               <CalendarDays className="w-3.5 h-3.5 md:w-4 md:h-4" />
               <span className="leading-tight">スケジュール<br className="md:hidden" />管理</span>
@@ -3943,7 +3943,7 @@ export default function Dashboard() {
             <Link
               href="/tasks"
               onTouchStart={() => {}}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none" style={{backgroundColor: '#d95f5f', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#c45050')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#d95f5f')}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#d95f5f', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#c45050')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#d95f5f')}
             >
               <ListTodo className="w-3.5 h-3.5 md:w-4 md:h-4" />
               タスク
@@ -3957,13 +3957,29 @@ export default function Dashboard() {
 
       {/* メインコンテンツ: PC版2カラム、モバイル1カラム */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4 items-start">
-        {/* 左カラム: スケジュール・メッセージ・訪問件数・新規契約 */}
+        {/* 左カラム（PC）: スケジュール・メッセージ・訪問件数・新規契約 */}
+        {/* モバイル: 訪問スケジュール→チームツール→全チーム共通ツール→未完了タスク→メッセージ→訪問件数→新規契約 */}
         <div className="space-y-3 md:space-y-4">
+          {/* 訪問スケジュール（モバイル・PC共通で最初） */}
           <ScheduleScreenshotCard />
+          {/* チームツール（モバイル: 2番目、PC: 右カラム） */}
+          <div className="lg:hidden">
+            <TeamToolsCard />
+          </div>
+          {/* 全チーム共通ツール（モバイル: 3番目、PC: 右カラム） */}
+          <div className="lg:hidden">
+            <ToolsCard />
+          </div>
+          {/* 未完了タスク（モバイル: 4番目、PC: 右カラム） */}
+          <div className="lg:hidden">
+            <TasksCard />
+          </div>
+          {/* メッセージ（モバイル: 5番目、PC: 左カラム2番目） */}
           <MessageBoard title="メッセージ" />
           <TeamGoalsCard />
+          {/* 訪問件数（モバイル: 6番目、PC: 左カラム3番目） */}
           <VisitCountCard />
-          {/* 新規契約カード */}
+          {/* 新規契約（モバイル: 7番目、PC: 左カラム4番目） */}
           <Card className="fade-in-up shadow-sm">
             <CardHeader className="pb-2 pt-3 px-4">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -3983,8 +3999,8 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* 右カラム: ツール・タスク */}
-        <div className="space-y-3 md:space-y-4">
+        {/* 右カラム（PCのみ表示）: ツール・タスク */}
+        <div className="hidden lg:block space-y-3 md:space-y-4">
           <TeamToolsCard />
           <ToolsCard />
           <TasksCard />
