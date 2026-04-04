@@ -1251,7 +1251,7 @@ function ScheduleScreenshotCard() {
             </div>
           ) : (
             /* スワイプカルーセル */
-            <div className="space-y-2">
+            <div key={showAllTeams ? "all" : selectedTeam} className="space-y-2 animate-fade-in-overlay">
               <div
                 className="relative overflow-hidden rounded-lg border border-border touch-pan-y"
                 onTouchStart={handleTouchStart}
@@ -2421,7 +2421,7 @@ function TasksCard() {
             </p>
           ) : (
               incomplete.slice(0, 5).map((task) => (
-              <div key={task.id} className="flex items-start gap-2 group">
+              <div key={task.id} className="flex items-start gap-2 group animate-list-item-in">
                 <button
                   onClick={() => toggleTask.mutate({ id: task.id, done: task.done === 0 })}
                   className="flex-shrink-0 mt-0.5"
@@ -3086,7 +3086,7 @@ function MessageBoard({ title }: { title: string }) {
             {messages.map((msg) => {
               const reactionCounts = getReactionCounts(msg.reactions ?? []);
               return (
-                <div key={msg.id} className="p-2.5 bg-muted/30 rounded-xl group">
+                <div key={msg.id} className="p-2.5 bg-muted/30 rounded-xl group animate-list-item-in">
                   <div className="flex gap-2">
                     <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
                       {(msg.createdByName ?? "不明")[0]}
@@ -3236,7 +3236,7 @@ function MessageBoard({ title }: { title: string }) {
               )}>
                 {pendingMessages.map((msg) => (
                   <div key={msg.id} className={cn(
-                    "p-2.5 rounded-lg border",
+                    "p-2.5 rounded-lg border animate-list-item-in",
                     isNight ? "border-blue-800/40 bg-blue-900/20" : "border-blue-100 bg-blue-50/30"
                   )}>
                     <div className="flex items-center gap-1.5 mb-1">

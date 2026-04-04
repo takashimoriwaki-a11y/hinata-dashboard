@@ -728,3 +728,20 @@ button:not(:disabled),
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* タスク・メッセージリストアイテムのアニメーション */
+@keyframes listItemIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes listItemOut {
+  from { opacity: 1; transform: translateY(0); max-height: 200px; }
+  to   { opacity: 0; transform: translateY(-4px); max-height: 0; }
+}
+.animate-list-item-in {
+  animation: listItemIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-list-item-out {
+  animation: listItemOut 0.18s ease-in both;
+  overflow: hidden;
+}
