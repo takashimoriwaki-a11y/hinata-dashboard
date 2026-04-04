@@ -429,8 +429,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* トップヘッダー */}
         <header className={cn(
-          "flex items-center justify-between px-3 md:px-4 py-2.5 border-b border-border shadow-sm flex-shrink-0",
-          isNight ? "bg-[oklch(0.35_0.015_250)]" : "bg-background"
+          "flex items-center justify-between px-3 md:px-4 py-2.5 border-b border-border shadow-sm flex-shrink-0 bg-sidebar"
         )}>
           <div className="flex items-center gap-2 md:gap-3 min-w-0">
             {/* モバイル: ハンバーガーメニュー */}
@@ -510,10 +509,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* ========== ボトムナビゲーションバー（モバイル・PC共通） ========== */}
         <nav className={cn(
-          "fixed bottom-0 left-0 right-0 z-50 border-t border-border bottom-nav-safe",
-          isNight
-            ? "bg-[oklch(0.35_0.015_250)] shadow-[0_-2px_12px_rgba(0,0,0,0.3)]"
-            : "bg-background shadow-[0_-2px_12px_rgba(0,0,0,0.08)]"
+          "fixed bottom-0 left-0 right-0 z-50 border-t border-sidebar-border bottom-nav-safe bg-sidebar",
+          isNight ? "shadow-[0_-2px_12px_rgba(0,0,0,0.3)]" : "shadow-[0_-2px_12px_rgba(0,0,0,0.08)]"
         )}>
           <div className="flex items-stretch h-[60px] max-w-screen-sm mx-auto md:max-w-none">
             {bottomNavItems.map((item) => {
