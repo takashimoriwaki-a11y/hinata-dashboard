@@ -3873,25 +3873,19 @@ export default function Dashboard() {
       {/* 経営理念カード（夜モード・昼モード両方表示・フェードインアニメーション付き） */}
       <PhilosophyCard />
 
-      {/* メインコンテンツ */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 items-start">
-        {/* 左カラム: スケジュールスクリーンショット */}
-        <div className="lg:col-span-2 space-y-3 md:space-y-4">
+      {/* メインコンテンツ: PC版2カラム、モバイル1カラム */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4 items-start">
+        {/* 左カラム: スケジュール・メッセージ */}
+        <div className="space-y-3 md:space-y-4">
           <ScheduleScreenshotCard />
+          <MessageBoard title="メッセージ" />
         </div>
 
-        {/* 右カラム: ツール・タスク */}
+        {/* 右カラム: ツール・タスク・訪問件数 */}
         <div className="space-y-3 md:space-y-4">
           <TeamToolsCard />
           <ToolsCard />
           <TasksCard />
-        </div>
-      </div>
-
-      {/* 下段: メッセージ・訪問件数を横並び（PC版） */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 items-start">
-        <MessageBoard title="メッセージ" />
-        <div className="space-y-3 md:space-y-4">
           <VisitCountCard />
           {/* 新規契約カード */}
           <Card className="fade-in-up shadow-sm">
@@ -3913,6 +3907,8 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
+
+
     </div>
   );
 }

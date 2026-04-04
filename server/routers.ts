@@ -1074,9 +1074,11 @@ export const appRouter = router({
     }),
 
     // 予約送信待ちメッセージ一覧（まだ送信されていないもの）
-    getPending: protectedProcedure.query(async () => {
+    // 管理者は全件、一般ユーザーは自分が登録したものだけ返す
+    getPending: protectedProcedure.query(async ({ ctx }) => {
       const msgs = await getPendingMessages();
-      return msgs;
+      if (ctx.user.role === "admin") return msgs;
+      return msgs.filter((m) => m.createdBy === ctx.user.id);
     }),
 
     // メッセージを作成する
