@@ -1002,6 +1002,7 @@ export async function createStaffAccount(data: {
     passwordHash: data.passwordHash,
     role: data.role,
     team: data.team,
+    teamSetupDone: 1,
     loginMethod: "local",
     lastSignedIn: new Date(),
   });
@@ -1028,6 +1029,7 @@ export async function batchCreateStaff(data: Array<{ name: string; email: string
       passwordHash,
       role: d.role,
       team: d.team as any,
+      teamSetupDone: 1,
       loginMethod: "local",
       lastSignedIn: new Date(),
     });
@@ -1069,6 +1071,7 @@ export async function updateStaffInfo(userId: number, data: {
     name: data.name,
     team: data.team,
     role: data.role,
+    teamSetupDone: 1,
   }).where(eq(users.id, userId));
 }
 

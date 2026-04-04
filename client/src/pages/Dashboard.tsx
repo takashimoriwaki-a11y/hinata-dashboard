@@ -2275,10 +2275,8 @@ function TeamToolsCard() {
 
   // チーム目標（アクティブな目標を取得）
   const { data: goals = [] } = trpc.teamGoals.getActive.useQuery();
-  // 現在のチームまたは「全チーム」に該当する目標のみ表示
-  const filteredGoals = useMemo(() => {
-    return goals.filter(g => g.team === activeTeam || g.team === "全チーム");
-  }, [goals, activeTeam]);
+  // 全チームの目標を表示（チームタブに関わらず全目標を確認できる）
+  const filteredGoals = goals;
 
   // 月次利用者料金一覧（DB登録分）
   const { data: monthlyLinks } = trpc.spreadsheetLinks.getCurrent.useQuery();
