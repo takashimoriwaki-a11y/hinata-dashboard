@@ -2273,6 +2273,13 @@ function TeamToolsCard() {
     { retry: false }
   );
 
+  // チーム目標（アクティブな目標を取得）
+  const { data: goals = [] } = trpc.teamGoals.getActive.useQuery();
+  // 現在のチームまたは「全チーム」に該当する目標のみ表示
+  const filteredGoals = useMemo(() => {
+    return goals.filter(g => g.team === activeTeam || g.team === "全チーム");
+  }, [goals, activeTeam]);
+
   // 月次利用者料金一覧（DB登録分）
   const { data: monthlyLinks } = trpc.spreadsheetLinks.getCurrent.useQuery();
   // チームに対応するlinkKeyを決定
@@ -2443,6 +2450,36 @@ function TeamToolsCard() {
         {isAdmin && !showAddForm && tools.length > 0 && (
           <div className="flex justify-end">
             <Button variant="ghost" size="sm" className="h-6 text-xs text-primary px-2" onClick={() => setShowAddForm(true)} onTouchStart={() => {}} style={{ touchAction: 'manipulation' }}>+ 追加</Button>
+          </div>
+        )}
+
+        {/* チーム目標セクション */}
+        {filteredGoals.length > 0 && (
+          <div className="border-t border-border/50 pt-3 space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground/70">
+              <Target className="w-3.5 h-3.5 text-primary" />
+              <span>チーム目標</span>
+            </div>
+            {filteredGoals.map(g => (
+              <div key={g.id} className="rounded-lg bg-muted/40 p-2.5 space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full border", TEAM_BADGE_COLORS[g.team] ?? "bg-muted/60 text-foreground border-border")}>
+                    {g.team}
+                  </span>
+                  {(g.startDate || g.endDate) && (
+                    <span className="text-xs text-muted-foreground">
+                      {g.startDate ? String(g.startDate).slice(0, 10).replace(/-/g, "/") : ""}
+                      {" 〜 "}
+                      {g.endDate ? String(g.endDate).slice(0, 10).replace(/-/g, "/") : ""}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm font-semibold leading-snug text-foreground">{g.title}</p>
+                {g.body && (
+                  <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">{g.body}</p>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </CardContent>
@@ -3976,7 +4013,6 @@ export default function Dashboard() {
           </div>
           {/* メッセージ（モバイル: 5番目、PC: 左カラム2番目） */}
           <MessageBoard title="メッセージ" />
-          <TeamGoalsCard />
           {/* 訪問件数（モバイル: 6番目、PC: 左カラム3番目） */}
           <VisitCountCard />
           {/* 新規契約（モバイル: 7番目、PC: 左カラム4番目） */}
