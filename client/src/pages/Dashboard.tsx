@@ -5,6 +5,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useCountUp } from "@/hooks/useCountUp";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
@@ -275,6 +276,11 @@ function VisitCountCard() {
     return "bg-red-500";
   };
 
+  // カウントアップアニメーション
+  const animatedMain = useCountUp(data.mainActual, 900, 100);
+  const animatedSub = useCountUp(data.subActual, 900, 200);
+  const animatedTotal = useCountUp(data.totalActualEquiv, 900, 300);
+
   return (
     <Card className="fade-in-up stagger-1 shadow-sm flex flex-col">
       <CardHeader className="pb-1 pt-3 px-4">
@@ -303,7 +309,7 @@ function VisitCountCard() {
           <div className="space-y-1.5 border-2 border-orange-400 dark:border-orange-500 rounded-xl p-2.5 bg-orange-50/50 dark:bg-orange-950/30">
             <p className="text-xs font-bold text-orange-600 dark:text-orange-400">メイン</p>
             <p className="text-2xl font-bold text-foreground tabular-nums">
-              {data.mainActual}
+              {animatedMain}
               <span className="text-sm font-semibold text-orange-500 dark:text-orange-400 ml-1">
                 / {data.mainDailyTargetCumul > 0 ? data.mainDailyTargetCumul : "—"}
               </span>
@@ -331,7 +337,7 @@ function VisitCountCard() {
           <div className="space-y-1.5 border-2 border-sky-400 dark:border-sky-500 rounded-xl p-2.5 bg-sky-50/50 dark:bg-sky-950/30">
             <p className="text-xs font-bold text-sky-600 dark:text-sky-400">サブ</p>
             <p className="text-2xl font-bold text-foreground tabular-nums">
-              {data.subActual}
+              {animatedSub}
               <span className="text-sm font-semibold text-sky-500 dark:text-sky-400 ml-1">
                 / {data.subDailyTargetCumul > 0 ? data.subDailyTargetCumul : "—"}
               </span>
@@ -361,7 +367,7 @@ function VisitCountCard() {
           <div className="space-y-1.5 border-[3px] border-emerald-500 dark:border-emerald-400 rounded-xl p-2.5 bg-emerald-50/60 dark:bg-emerald-950/40 shadow-sm shadow-emerald-200 dark:shadow-emerald-900">
             <p className="text-xs font-extrabold text-emerald-700 dark:text-emerald-300">合計</p>
             <p className="text-2xl font-bold text-foreground tabular-nums">
-              {data.totalActualEquiv}
+              {animatedTotal}
               <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 ml-1">
                 / {data.totalTargetEquiv}
               </span>
@@ -1251,7 +1257,7 @@ function ScheduleScreenshotCard() {
             </div>
           ) : (
             /* スワイプカルーセル */
-            <div key={showAllTeams ? "all" : selectedTeam} className="space-y-2 animate-fade-in-overlay">
+            <div key={showAllTeams ? "all" : `${selectedTeam}-${selectedDay}`} className="space-y-2 animate-fade-in-overlay">
               <div
                 className="relative overflow-hidden rounded-lg border border-border touch-pan-y"
                 onTouchStart={handleTouchStart}
@@ -2433,7 +2439,7 @@ function TasksCard() {
                   )}
                 </button>
                 <div className="flex-1 min-w-0">
-                  <span className={cn("text-sm block", task.done ? "line-through text-muted-foreground" : "text-foreground")}>
+                  <span className={cn("text-sm block transition-colors duration-300", task.done ? "animate-strike text-muted-foreground" : "text-foreground")}>
                     {task.text}
                   </span>
                   {(task as any).patientName && (

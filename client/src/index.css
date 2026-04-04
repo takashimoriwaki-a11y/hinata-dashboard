@@ -745,3 +745,13 @@ button:not(:disabled),
   animation: listItemOut 0.18s ease-in both;
   overflow: hidden;
 }
+
+/* タスク完了時の打ち消し線アニメーション */
+@keyframes strikeThrough {
+  from { text-decoration-color: transparent; }
+  to   { text-decoration-color: currentColor; }
+}
+.animate-strike {
+  text-decoration: line-through;
+  animation: strikeThrough 0.3s ease-out forwards;
+}
