@@ -1968,7 +1968,11 @@ function TeamGoalsPanel() {
     }
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  // JST（日本時間）で今日の日付を取得
+  const today = (() => {
+    const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+    return jst.toISOString().slice(0, 10);
+  })();
 
   function isActive(g: typeof goals[0]) {
     const start = g.startDate ? String(g.startDate).slice(0, 10) : null;
