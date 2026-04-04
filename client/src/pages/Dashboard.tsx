@@ -5,7 +5,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { useCountUp } from "@/hooks/useCountUp";
+import { useCountUp, useAnimatedProgress } from "@/hooks/useCountUp";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
@@ -193,6 +193,7 @@ type DayType = typeof DAYS[number];
 
 function VisitCountCard() {
   const { isNight } = useTheme();
+  const [refetchCount, setRefetchCount] = useState(0);
   const { data: visitData, isLoading, refetch } = trpc.visits.getCurrent.useQuery(undefined, {
     refetchInterval: 5 * 60 * 1000, // 5分ごとに自動更新
     staleTime: 3 * 60 * 1000,
@@ -276,10 +277,14 @@ function VisitCountCard() {
     return "bg-red-500";
   };
 
-  // カウントアップアニメーション
-  const animatedMain = useCountUp(data.mainActual, 900, 100);
-  const animatedSub = useCountUp(data.subActual, 900, 200);
-  const animatedTotal = useCountUp(data.totalActualEquiv, 900, 300);
+  // カウントアップアニメーション（refetchCountが変わるたびに0から再カウント）
+  const animatedMain = useCountUp(data.mainActual, 900, 100, refetchCount);
+  const animatedSub = useCountUp(data.subActual, 900, 200, refetchCount);
+  const animatedTotal = useCountUp(data.totalActualEquiv, 900, 300, refetchCount);
+  // プログレスバーアニメーション（同様にrefetchCountで再トリガー）
+  const animatedMainPct = useAnimatedProgress(mainPct, 900, 100, refetchCount);
+  const animatedSubPct = useAnimatedProgress(subPct, 900, 200, refetchCount);
+  const animatedTotalPct = useAnimatedProgress(totalPct, 900, 300, refetchCount);
 
   return (
     <Card className="fade-in-up stagger-1 shadow-sm flex flex-col">
@@ -293,7 +298,7 @@ function VisitCountCard() {
             variant="ghost"
             size="icon"
             className="w-7 h-7 text-muted-foreground"
-            onClick={() => refetch()}
+            onClick={() => { refetch(); setRefetchCount(c => c + 1); }}
             title="更新"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -314,7 +319,7 @@ function VisitCountCard() {
                 / {data.mainDailyTargetCumul > 0 ? data.mainDailyTargetCumul : "—"}
               </span>
             </p>
-            <Progress value={mainPct} className="h-2" indicatorClassName={data.mainDailyTargetCumul > 0 ? getPctBarColor(mainPct) : undefined} />
+            <Progress value={animatedMainPct} className="h-2" indicatorClassName={data.mainDailyTargetCumul > 0 ? getPctBarColor(mainPct) : undefined} />
             <div className="flex items-center justify-between">
               <p className={cn(
                 "text-sm font-extrabold",
@@ -342,7 +347,7 @@ function VisitCountCard() {
                 / {data.subDailyTargetCumul > 0 ? data.subDailyTargetCumul : "—"}
               </span>
             </p>
-            <Progress value={subPct} className="h-2" indicatorClassName={data.subDailyTargetCumul > 0 ? getPctBarColor(subPct) : undefined} />
+            <Progress value={animatedSubPct} className="h-2" indicatorClassName={data.subDailyTargetCumul > 0 ? getPctBarColor(subPct) : undefined} />
             <div className="flex items-center justify-between">
               <p className={cn(
                 "text-sm font-extrabold",
@@ -372,7 +377,7 @@ function VisitCountCard() {
                 / {data.totalTargetEquiv}
               </span>
             </p>
-            <Progress value={totalPct} className="h-2" indicatorClassName={getPctBarColor(totalPct)} />
+            <Progress value={animatedTotalPct} className="h-2" indicatorClassName={getPctBarColor(totalPct)} />
             <div className="flex items-center justify-between">
               <p className={cn(
                 "text-base font-extrabold",
@@ -2433,7 +2438,7 @@ function TasksCard() {
                   className="flex-shrink-0 mt-0.5"
                 >
                   {task.done ? (
-                    <CheckCircle2 className="w-4 h-4 text-primary" />
+                    <CheckCircle2 className="w-4 h-4 text-primary animate-check-bounce" />
                   ) : (
                     <Circle className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                   )}
