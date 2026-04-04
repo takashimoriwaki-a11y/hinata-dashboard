@@ -56,8 +56,8 @@ export function getTeamTextStyle(teamName: string): React.CSSProperties {
 // 後方互換性のため旧関数も残す
 export function getTeamButtonClass(_teamName: string, isActive: boolean): string {
   return isActive
-    ? "text-white border-transparent shadow-md scale-105 transition-transform"
-    : "text-white border-transparent opacity-80 hover:opacity-100 transition-opacity";
+    ? "text-white border-transparent shadow-md -translate-y-0.5 transition-all duration-200 select-none"
+    : "text-white border-transparent opacity-80 hover:opacity-100 hover:-translate-y-0.5 hover:shadow-sm active:scale-95 transition-all duration-200 select-none touch-manipulation";
 }
 
 export function getAllTeamButtonStyle(isActive: boolean): { backgroundColor: string; color: string } {

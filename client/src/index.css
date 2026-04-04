@@ -691,3 +691,19 @@ button:not(:disabled),
   box-shadow: 0 0 0 2.5px oklch(0.78 0.18 50 / 0.28) !important;
   outline: none !important;
 }
+
+/* モーダルオーバーレイのフェードインアニメーション */
+@keyframes fadeInOverlay {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideUpModal {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-fade-in-overlay {
+  animation: fadeInOverlay 0.2s ease-out both;
+}
+.animate-slide-up-modal {
+  animation: slideUpModal 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}

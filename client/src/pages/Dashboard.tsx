@@ -1432,7 +1432,7 @@ function ScheduleScreenshotCard() {
 
         return (
         <div
-          className="fixed inset-0 z-[80] bg-black/85 overflow-y-auto"
+          className="fixed inset-0 z-[80] bg-black/85 overflow-y-auto animate-fade-in-overlay"
           id="modal-scroll-container"
           onClick={() => { setViewUrl(null); setViewMeta(null); }}
         >
@@ -1561,7 +1561,7 @@ function ScheduleScreenshotCard() {
       {/* 個別ライトボックス（1枚フルスクリーン表示） */}
       {lightboxSrc && createPortal((
         <div
-          className="fixed inset-0 z-[90] bg-black/95"
+          className="fixed inset-0 z-[90] bg-black/95 animate-fade-in-overlay"
           onClick={() => setLightboxSrc(null)}
         >
           {/* 閉じるボタン */}
@@ -1806,7 +1806,7 @@ function LinkRow({ href, label, color, emoji }: { href: string; label: string; c
       onTouchStart={() => {}}
       className={cn(
         "flex items-center gap-2 text-sm py-2.5 px-3 rounded-md",
-        "bg-muted/50 hover:bg-muted transition-colors font-medium",
+        "bg-muted/50 hover:bg-muted transition-all duration-200 font-medium hover:-translate-y-0.5 hover:shadow-sm active:scale-95 select-none",
         isOpening ? "opacity-60 cursor-wait" : "",
         isNight ? nightColor : (color ?? "text-foreground")
       )}
@@ -3520,7 +3520,7 @@ function MessageBoard({ title }: { title: string }) {
 
       {/* 誤変換報告ダイアログ */}
       {showMsgFeedbackDialog && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in-overlay">
           <div className="w-full max-w-sm bg-background rounded-2xl shadow-xl border border-border p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-foreground">誤変換を報告</h3>
