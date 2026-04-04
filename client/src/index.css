@@ -707,3 +707,24 @@ button:not(:disabled),
 .animate-slide-up-modal {
   animation: slideUpModal 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+/* 画像ライトボックスのスケールアップアニメーション */
+@keyframes scaleUpImage {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.animate-scale-up-image {
+  animation: scaleUpImage 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ページ遷移のフェードイン＋スライドアップアニメーション */
+@keyframes pageTransitionIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ページ遷移のフェードイン＋スライドアップアニメーション */
+@keyframes pageTransitionIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

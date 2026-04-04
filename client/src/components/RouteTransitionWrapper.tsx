@@ -1,6 +1,6 @@
 /**
- * RouteTransitionWrapper - ページ遷移時にフェードインアニメーションを適用するラッパー
- * ルートが変わるたびに子コンポーネントをフェードイン表示する
+ * RouteTransitionWrapper - ページ遷移時にフェードイン＋スライドアップアニメーションを適用するラッパー
+ * ルートが変わるたびに子コンポーネントをフェードイン＋下から上へスライドして表示する
  */
 
 import { useEffect, useState, useRef } from "react";
@@ -12,7 +12,7 @@ interface RouteTransitionWrapperProps {
 
 export default function RouteTransitionWrapper({ children }: RouteTransitionWrapperProps) {
   const [location] = useLocation();
-  const [opacity, setOpacity] = useState(1);
+  const [visible, setVisible] = useState(true);
   const prevLocation = useRef(location);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -21,12 +21,12 @@ export default function RouteTransitionWrapper({ children }: RouteTransitionWrap
     if (prevLocation.current === location) return;
     prevLocation.current = location;
 
-    // 一瞬透明にしてからフェードイン
-    setOpacity(0);
+    // 一瞬非表示にしてからアニメーション付きで表示
+    setVisible(false);
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
-      setOpacity(1);
-    }, 50);
+      setVisible(true);
+    }, 40);
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -35,11 +35,17 @@ export default function RouteTransitionWrapper({ children }: RouteTransitionWrap
 
   return (
     <div
-      style={{
-        opacity,
-        transition: opacity === 1 ? "opacity 0.18s ease-out" : "none",
-        willChange: "opacity",
-      }}
+      style={
+        visible
+          ? {
+              animation: "pageTransitionIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both",
+              willChange: "opacity, transform",
+            }
+          : {
+              opacity: 0,
+              transform: "translateY(8px)",
+            }
+      }
     >
       {children}
     </div>

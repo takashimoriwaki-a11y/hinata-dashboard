@@ -1518,7 +1518,7 @@ function StaffManagementPanel() {
     {/* スタッフ情報編集ダイアログ */}
     {editStaff && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in-overlay">
-        <div className="bg-background rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+        <div className="bg-background rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4 animate-slide-up-modal">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-semibold text-foreground">スタッフ情報の編集</h3>
             <button

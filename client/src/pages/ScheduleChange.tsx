@@ -384,7 +384,7 @@ function PatientAutocomplete({
         {/* 音声入力候補選択ダイアログ */}
         {showVoiceDialog && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fade-in-overlay">
-            <div className="bg-popover border border-border rounded-2xl shadow-2xl w-[90vw] max-w-sm mx-4 overflow-hidden">
+            <div className="bg-popover border border-border rounded-2xl shadow-2xl w-[90vw] max-w-sm mx-4 overflow-hidden animate-slide-up-modal">
               <div className="px-4 py-3 border-b border-border bg-muted/30">
                 <p className="text-sm font-semibold text-foreground">利用者を選択してください</p>
                 <p className="text-xs text-muted-foreground mt-0.5">「{voiceCandidates[0]?.name.split(/[　 ]/)[0]}」さんが{voiceCandidates.length}名登録されています</p>
@@ -2150,7 +2150,7 @@ export default function ScheduleChange() {
       {/* 音声入力後の利用者候補選択ダイアログ */}
       {showVoicePatientDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fade-in-overlay">
-          <div className="bg-popover border border-border rounded-2xl shadow-2xl w-[90vw] max-w-sm mx-4 overflow-hidden">
+          <div className="bg-popover border border-border rounded-2xl shadow-2xl w-[90vw] max-w-sm mx-4 overflow-hidden animate-slide-up-modal">
             <div className="px-4 py-3 border-b border-border bg-muted/30">
               <p className="text-sm font-semibold text-foreground">利用者を選択してください</p>
               <p className="text-xs text-muted-foreground mt-0.5">
@@ -2210,7 +2210,7 @@ export default function ScheduleChange() {
       {/* 誤変換報告ダイアログ */}
       {showFeedbackDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in-overlay">
-          <div className="bg-popover border border-border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+          <div className="bg-popover border border-border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-slide-up-modal">
             <div className="px-4 py-3 border-b border-border bg-muted/30 flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold text-foreground">誤変換を報告する</p>

@@ -1437,7 +1437,7 @@ function ScheduleScreenshotCard() {
           onClick={() => { setViewUrl(null); setViewMeta(null); }}
         >
           <div
-            className="relative max-w-2xl w-full mx-auto bg-card text-card-foreground rounded-xl shadow-2xl mt-4 mb-10"
+            className="relative max-w-2xl w-full mx-auto bg-card text-card-foreground rounded-xl shadow-2xl mt-4 mb-10 animate-slide-up-modal"
             onClick={(e) => e.stopPropagation()}
           >
             {/* モーダルヘッダー（sticky） */}
@@ -1574,7 +1574,7 @@ function ScheduleScreenshotCard() {
           </button>
           {/* ピンチズーム・ダブルタップ対応画像（クリックで閉じないようstopPropagation） */}
           <div
-            className="absolute inset-0 flex items-center justify-center"
+            className="absolute inset-0 flex items-center justify-center animate-scale-up-image"
             onClick={(e) => e.stopPropagation()}
           >
             <PinchZoomImage
@@ -3521,7 +3521,7 @@ function MessageBoard({ title }: { title: string }) {
       {/* 誤変換報告ダイアログ */}
       {showMsgFeedbackDialog && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in-overlay">
-          <div className="w-full max-w-sm bg-background rounded-2xl shadow-xl border border-border p-5 space-y-4">
+          <div className="w-full max-w-sm bg-background rounded-2xl shadow-xl border border-border p-5 space-y-4 animate-slide-up-modal">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-foreground">誤変換を報告</h3>
               <button
