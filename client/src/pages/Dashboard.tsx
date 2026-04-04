@@ -255,35 +255,7 @@ function VisitCountCard() {
     staleTime: 3 * 60 * 1000,
   });
 
-  // ローディング中はスケルトン表示
-  if (isLoading) {
-    return (
-      <Card className="fade-in-up stagger-1 shadow-sm">
-        <CardHeader className="pb-1 pt-3 px-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <Activity className="w-4 h-4 text-primary" />
-              訪問件数
-            </CardTitle>
-          </div>
-          <p className="text-xs text-muted-foreground">読み込み中...</p>
-        </CardHeader>
-        <CardContent className="space-y-3 px-4 pb-3">
-          <div className="grid grid-cols-3 gap-2">
-            {["メイン", "サブ", "合計"].map((label) => (
-              <div key={label} className="space-y-1.5 border border-border rounded-xl p-2.5 bg-muted/20 animate-pulse">
-                <p className="text-xs text-muted-foreground font-medium">{label}</p>
-                <div className="h-8 bg-muted rounded" />
-                <div className="h-2 bg-muted rounded-full" />
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // データがない場合はフォールバック
+  // データがない場合はフォールバック（isLoadingの場合も含む）
   const data = visitData ?? {
     currentMonth: "3月",
     lastUpdatedDate: "—",
@@ -358,6 +330,34 @@ function VisitCountCard() {
   // 先月実績カウントアップ
   const animatedPrevActual = useCountUp(data.prevTotalActual, 1000, 400, refetchCount);
   const animatedPrevPct = useAnimatedProgress(prevPct, 1000, 400, refetchCount);
+
+  // ローディング中はスケルトン表示（早期リターンを使わずフックルール違反を防止）
+  if (isLoading) {
+    return (
+      <Card className="fade-in-up stagger-1 shadow-sm">
+        <CardHeader className="pb-1 pt-3 px-4">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Activity className="w-4 h-4 text-primary" />
+              訪問件数
+            </CardTitle>
+          </div>
+          <p className="text-xs text-muted-foreground">読み込み中...</p>
+        </CardHeader>
+        <CardContent className="space-y-3 px-4 pb-3">
+          <div className="grid grid-cols-3 gap-2">
+            {["メイン", "サブ", "合計"].map((label) => (
+              <div key={label} className="space-y-1.5 border border-border rounded-xl p-2.5 bg-muted/20 animate-pulse">
+                <p className="text-xs text-muted-foreground font-medium">{label}</p>
+                <div className="h-8 bg-muted rounded" />
+                <div className="h-2 bg-muted rounded-full" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <>
