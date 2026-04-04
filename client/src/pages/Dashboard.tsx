@@ -3875,17 +3875,10 @@ export default function Dashboard() {
 
       {/* メインコンテンツ: PC版2カラム、モバイル1カラム */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4 items-start">
-        {/* 左カラム: スケジュール・メッセージ */}
+        {/* 左カラム: スケジュール・メッセージ・訪問件数・新規契約 */}
         <div className="space-y-3 md:space-y-4">
           <ScheduleScreenshotCard />
           <MessageBoard title="メッセージ" />
-        </div>
-
-        {/* 右カラム: ツール・タスク・訪問件数 */}
-        <div className="space-y-3 md:space-y-4">
-          <TeamToolsCard />
-          <ToolsCard />
-          <TasksCard />
           <VisitCountCard />
           {/* 新規契約カード */}
           <Card className="fade-in-up shadow-sm">
@@ -3905,6 +3898,13 @@ export default function Dashboard() {
               </Link>
             </CardContent>
           </Card>
+        </div>
+
+        {/* 右カラム: ツール・タスク */}
+        <div className="space-y-3 md:space-y-4">
+          <TeamToolsCard />
+          <ToolsCard />
+          <TasksCard />
         </div>
       </div>
 
