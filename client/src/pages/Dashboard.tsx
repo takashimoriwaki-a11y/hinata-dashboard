@@ -83,6 +83,7 @@ import {
   CalendarDays,
   SmilePlus,
   Car,
+  Target,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, openLink } from "@/lib/utils";
@@ -191,6 +192,58 @@ type DayType = typeof DAYS[number];
 // チームカラーはshared/teamColors.tsで管理（getTeamButtonClassを使用）
 
 // ========== サブコンポーネント ==========
+
+
+// ============================
+// チーム目標カード
+// ============================
+const TEAM_BADGE_COLORS: Record<string, string> = {
+  "身体": "bg-blue-100 text-blue-800 border-blue-200",
+  "天理": "bg-purple-100 text-purple-800 border-purple-200",
+  "郡山北部": "bg-green-100 text-green-800 border-green-200",
+  "郡山南部": "bg-orange-100 text-orange-800 border-orange-200",
+  "全チーム": "bg-gray-100 text-gray-800 border-gray-200",
+};
+
+function TeamGoalsCard() {
+  const { data: goals = [], isLoading } = trpc.teamGoals.getActive.useQuery();
+
+  if (isLoading) return null;
+  if (goals.length === 0) return null;
+
+  return (
+    <Card className="fade-in-up shadow-sm border-l-4 border-l-primary/60">
+      <CardHeader className="pb-2 pt-3 px-4">
+        <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <Target className="w-4 h-4 text-primary" />
+          チーム目標
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-4 pb-3 space-y-3">
+        {goals.map(g => (
+          <div key={g.id} className="rounded-lg bg-muted/40 p-3 space-y-1.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full border", TEAM_BADGE_COLORS[g.team] ?? "bg-gray-100 text-gray-800")}>
+                {g.team}
+              </span>
+              {(g.startDate || g.endDate) && (
+                <span className="text-xs text-muted-foreground">
+                  {g.startDate ? String(g.startDate).slice(0, 10).replace(/-/g, "/") : ""}
+                  {" 〜 "}
+                  {g.endDate ? String(g.endDate).slice(0, 10).replace(/-/g, "/") : ""}
+                </span>
+              )}
+            </div>
+            <p className="text-sm font-semibold leading-snug">{g.title}</p>
+            {g.body && (
+              <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">{g.body}</p>
+            )}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
 
 function VisitCountCard() {
   const { isNight } = useTheme();
@@ -3908,6 +3961,7 @@ export default function Dashboard() {
         <div className="space-y-3 md:space-y-4">
           <ScheduleScreenshotCard />
           <MessageBoard title="メッセージ" />
+          <TeamGoalsCard />
           <VisitCountCard />
           {/* 新規契約カード */}
           <Card className="fade-in-up shadow-sm">

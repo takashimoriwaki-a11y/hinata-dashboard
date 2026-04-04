@@ -1,4 +1,4 @@
-import { bigint, int, mediumtext, mysqlEnum, mysqlTable, text, timestamp, tinyint, varchar } from "drizzle-orm/mysql-core";
+import { bigint, date, int, mediumtext, mysqlEnum, mysqlTable, text, timestamp, tinyint, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -592,3 +592,29 @@ export const minutesChecks = mysqlTable("minutes_checks", {
 
 export type MinutesCheck = typeof minutesChecks.$inferSelect;
 export type InsertMinutesCheck = typeof minutesChecks.$inferInsert;
+
+/**
+ * チーム目標テーブル
+ * 管理者が各チームに対して期間付きの目標を登録する
+ */
+export const teamGoals = mysqlTable("team_goals", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 対象チーム（"全チーム"は全員に表示） */
+  team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部", "全チーム"]).notNull(),
+  /** 目標タイトル */
+  title: varchar("title", { length: 200 }).notNull(),
+  /** 目標の詳細（任意） */
+  body: text("body"),
+  /** 表示開始日（YYYY-MM-DD形式、nullの場合は常時表示） */
+  startDate: date("startDate"),
+  /** 表示終了日（YYYY-MM-DD形式、nullの場合は常時表示） */
+  endDate: date("endDate"),
+  /** 登録者ユーザーID */
+  createdBy: int("createdBy").notNull(),
+  /** 登録者名 */
+  createdByName: varchar("createdByName", { length: 100 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type TeamGoal = typeof teamGoals.$inferSelect;
+export type InsertTeamGoal = typeof teamGoals.$inferInsert;

@@ -1,7 +1,7 @@
 import { and, eq, or, isNull, isNotNull, desc, lte, gte, gt, lt, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2";
-import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot, myLinks, InsertMyLink, spreadsheetLinks, InsertSpreadsheetLink, tasks, InsertTask, messages, InsertMessage, messageReactions, InsertMessageReaction, patients, InsertPatient, visitRecords, InsertVisitRecord, appNotifications, InsertAppNotification } from "../drizzle/schema";
+import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot, myLinks, InsertMyLink, spreadsheetLinks, InsertSpreadsheetLink, tasks, InsertTask, messages, InsertMessage, messageReactions, InsertMessageReaction, patients, InsertPatient, visitRecords, InsertVisitRecord, appNotifications, InsertAppNotification, teamGoals, InsertTeamGoal } from "../drizzle/schema";
 import { screenshotUploadLogs, InsertScreenshotUploadLog, appSettings } from "../drizzle/schema";
 import { scheduleComments, InsertScheduleComment, scheduleCommentReactions, InsertScheduleCommentReaction } from "../drizzle/schema";
 import { scheduleChanges, InsertScheduleChange } from "../drizzle/schema";
@@ -1417,4 +1417,93 @@ export async function getRecentVoiceFeedbacks(context?: string, limit = 30): Pro
     console.warn("[getRecentVoiceFeedbacks] failed:", e);
     return [];
   }
+}
+
+// ========== チーム目標 ==========
+
+/** 今日有効なチーム目標を取得（期間指定なし＋今日が期間内のもの） */
+export async function getActiveTeamGoals(todayStr: string): Promise<typeof teamGoals.$inferSelect[]> {
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    const rows = await db
+      .select()
+      .from(teamGoals)
+      .orderBy(teamGoals.team, teamGoals.createdAt);
+    // 期間フィルタ（JS側で処理）
+    return rows.filter(g => {
+      const start = g.startDate ? String(g.startDate).slice(0, 10) : null;
+      const end = g.endDate ? String(g.endDate).slice(0, 10) : null;
+      if (start && todayStr < start) return false;
+      if (end && todayStr > end) return false;
+      return true;
+    });
+  } catch (e) {
+    console.warn("[getActiveTeamGoals] failed:", e);
+    return [];
+  }
+}
+
+/** 全チーム目標を取得（管理画面用） */
+export async function getAllTeamGoals(): Promise<typeof teamGoals.$inferSelect[]> {
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    return await db.select().from(teamGoals).orderBy(teamGoals.team, teamGoals.createdAt);
+  } catch (e) {
+    console.warn("[getAllTeamGoals] failed:", e);
+    return [];
+  }
+}
+
+/** チーム目標を作成する */
+export async function createTeamGoal(data: {
+  team: "身体" | "天理" | "郡山北部" | "郡山南部" | "全チーム";
+  title: string;
+  body?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  createdBy: number;
+  createdByName: string;
+}): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const insertData: InsertTeamGoal = {
+    team: data.team,
+    title: data.title,
+    body: data.body ?? null,
+    startDate: data.startDate ? new Date(data.startDate) : null,
+    endDate: data.endDate ? new Date(data.endDate) : null,
+    createdBy: data.createdBy,
+    createdByName: data.createdByName,
+  };
+  await db.insert(teamGoals).values(insertData);
+}
+
+/** チーム目標を更新する */
+export async function updateTeamGoal(id: number, data: {
+  team?: "身体" | "天理" | "郡山北部" | "郡山南部" | "全チーム";
+  title?: string;
+  body?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+}): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const { eq: eqOp } = await import("drizzle-orm");
+  const updateData: Record<string, unknown> = {};
+  if (data.team !== undefined) updateData.team = data.team;
+  if (data.title !== undefined) updateData.title = data.title;
+  if (data.body !== undefined) updateData.body = data.body;
+  if (data.startDate !== undefined) updateData.startDate = data.startDate;
+  if (data.endDate !== undefined) updateData.endDate = data.endDate;
+  await db.update(teamGoals).set(updateData).where(eqOp(teamGoals.id, id));
+}
+
+/** チーム目標を削除する */
+export async function deleteTeamGoal(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const { eq: eqOp } = await import("drizzle-orm");
+  await db.delete(teamGoals).where(eqOp(teamGoals.id, id));
 }

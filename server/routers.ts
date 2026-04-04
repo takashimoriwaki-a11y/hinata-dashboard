@@ -84,6 +84,11 @@ import {
   getScheduleChanges,
   getScheduleChangeById,
   markScheduleChangeExported,
+  getActiveTeamGoals,
+  getAllTeamGoals,
+  createTeamGoal,
+  updateTeamGoal,
+  deleteTeamGoal,
 } from "./db";
 import { storagePut } from "./storage";
 import { eq } from "drizzle-orm";
@@ -3190,6 +3195,67 @@ export const appRouter = router({
           colorId: (item.colorId ?? null) as string | null,
         }));
         return { events };
+      }),
+  }),
+  teamGoals: router({
+    /** 今日有効なチーム目標を取得（所属チームでフィルタ） */
+    getActive: protectedProcedure.query(async ({ ctx }) => {
+      const today = new Date();
+      const jst = new Date(today.getTime() + 9 * 60 * 60 * 1000);
+      const todayStr = jst.toISOString().slice(0, 10);
+      const goals = await getActiveTeamGoals(todayStr);
+      const userTeam = ctx.user.team ?? "身体";
+      if (userTeam === "全チーム") {
+        return goals;
+      }
+      return goals.filter(g => g.team === userTeam || g.team === "全チーム");
+    }),
+    /** 全チーム目標を取得（管理画面用） */
+    getAll: protectedProcedure.query(async () => {
+      return await getAllTeamGoals();
+    }),
+    /** チーム目標を作成する */
+    create: protectedProcedure
+      .input(z.object({
+        team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "全チーム"]),
+        title: z.string().min(1).max(200),
+        body: z.string().max(2000).nullable().optional(),
+        startDate: z.string().nullable().optional(),
+        endDate: z.string().nullable().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await createTeamGoal({
+          team: input.team,
+          title: input.title,
+          body: input.body ?? null,
+          startDate: input.startDate ?? null,
+          endDate: input.endDate ?? null,
+          createdBy: ctx.user.id,
+          createdByName: ctx.user.name ?? "不明",
+        });
+        return { success: true };
+      }),
+    /** チーム目標を更新する */
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "全チーム"]).optional(),
+        title: z.string().min(1).max(200).optional(),
+        body: z.string().max(2000).nullable().optional(),
+        startDate: z.string().nullable().optional(),
+        endDate: z.string().nullable().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        await updateTeamGoal(id, data);
+        return { success: true };
+      }),
+    /** チーム目標を削除する */
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await deleteTeamGoal(input.id);
+        return { success: true };
       }),
   }),
 });
