@@ -3198,17 +3198,12 @@ export const appRouter = router({
       }),
   }),
   teamGoals: router({
-    /** 今日有効なチーム目標を取得（所属チームでフィルタ） */
-    getActive: protectedProcedure.query(async ({ ctx }) => {
+    /** 今日有効なチーム目標を全チーム分取得（フロントエンド側でチームタブに応じてフィルタ） */
+    getActive: protectedProcedure.query(async () => {
       const today = new Date();
       const jst = new Date(today.getTime() + 9 * 60 * 60 * 1000);
       const todayStr = jst.toISOString().slice(0, 10);
-      const goals = await getActiveTeamGoals(todayStr);
-      const userTeam = ctx.user.team ?? "身体";
-      if (userTeam === "全チーム") {
-        return goals;
-      }
-      return goals.filter(g => g.team === userTeam || g.team === "全チーム");
+      return await getActiveTeamGoals(todayStr);
     }),
     /** 全チーム目標を取得（管理画面用） */
     getAll: protectedProcedure.query(async () => {
