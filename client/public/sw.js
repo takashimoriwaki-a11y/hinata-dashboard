@@ -1,12 +1,11 @@
 // ひなたダッシュボード Service Worker
 // Web Push通知の受信と表示 + PWAキャッシュ管理 + オフライン専用ページ対応
 
-const CACHE_NAME = "hinata-pwa-v2";
+const CACHE_NAME = "hinata-pwa-v4";
 const OFFLINE_URL = "/offline.html";
 
-// 起動時に必ずキャッシュするアセット
+// 起動時に必ずキャッシュするアセット（HTMLは含めない）
 const PRECACHE_ASSETS = [
-  "/",
   "/offline.html",
   "/manifest.json",
   "/icon-192x192.png",
@@ -26,6 +25,7 @@ self.addEventListener("install", (event) => {
       );
     })
   );
+  // 新しいSWを即座にアクティブにする
   self.skipWaiting();
 });
 
@@ -38,9 +38,18 @@ self.addEventListener("activate", (event) => {
           .filter((key) => key !== CACHE_NAME)
           .map((key) => caches.delete(key))
       )
-    )
+    ).then(() => {
+      // 全クライアントを即座に制御下に置く
+      return self.clients.claim();
+    }).then(() => {
+      // 全クライアントにリロードを促す（古いバンドルを確実に排除）
+      return self.clients.matchAll({ type: "window" }).then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({ type: "SW_ACTIVATED" });
+        });
+      });
+    })
   );
-  self.clients.claim();
 });
 
 // ===== フェッチ戦略 =====
@@ -53,22 +62,13 @@ self.addEventListener("fetch", (event) => {
   }
 
   // ナビゲーションリクエスト（ページ遷移）
+  // SPAのHTMLは常にネットワークから取得し、キャッシュしない
+  // オフライン時のみオフライン専用ページを返す
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request)
-        .then((response) => {
-          // 成功したらキャッシュに保存して返す
-          if (response.ok) {
-            const cloned = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
-          }
-          return response;
-        })
         .catch(async () => {
-          // オフライン時: キャッシュ済みページがあればそれを返す
-          const cached = await caches.match(event.request);
-          if (cached) return cached;
-          // なければオフライン専用ページを返す
+          // オフライン時のみオフライン専用ページを返す（古いHTMLはキャッシュしない）
           const offlinePage = await caches.match(OFFLINE_URL);
           return offlinePage ?? new Response("オフラインです", { status: 503 });
         })
@@ -77,16 +77,34 @@ self.addEventListener("fetch", (event) => {
   }
 
   // 静的アセット（JS/CSS/画像等）: Network First → Cache Fallback
+  // ※ /assets/ 配下のハッシュ付きファイルのみキャッシュする
+  if (url.pathname.startsWith("/assets/")) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok) {
+            const cloned = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // その他の静的ファイル（アイコン、manifest等）: Cache First → Network Fallback
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+      return fetch(event.request).then((response) => {
         if (response.ok) {
           const cloned = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
         }
         return response;
-      })
-      .catch(() => caches.match(event.request))
+      });
+    })
   );
 });
 

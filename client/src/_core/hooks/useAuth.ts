@@ -69,7 +69,9 @@ export function useAuth(options?: UseAuthOptions) {
     if (meQuery.isLoading || logoutMutation.isPending) return;
     if (state.user) return;
     if (typeof window === "undefined") return;
-    if (window.location.pathname === redirectPath) return;
+    // redirectPath はURL全体の場合があるため、pathname のみで比較する
+    const redirectPathname = (() => { try { return new URL(redirectPath, window.location.origin).pathname; } catch { return redirectPath; } })();
+    if (window.location.pathname === redirectPathname) return;
 
     window.location.href = redirectPath;
   }, [

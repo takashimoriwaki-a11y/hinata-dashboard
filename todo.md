@@ -1649,3 +1649,8 @@
 - [x] DashboardLayout.tsx: prefetch useEffectの依存配列から `utils` を除去し、useRefで安定した参照を保持するよう修正（無限ループ防止）
 - [x] DashboardLayout.tsx: tasks.getMineの重複prefetchを削除
 - [x] useRealtimeSync.ts: SSE接続useEffectの依存配列から `utils` を除去し、useRefで安定した参照を保持するよう修正（初回マウント時のみ接続）
+
+## React error #310 追加調査（2026-04-05）
+
+- [x] ソースマップを使ってエラー発生箇所（48:56660）を特定する
+- [x] 残存する副作用コードを修正する

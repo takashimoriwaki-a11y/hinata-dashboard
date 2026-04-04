@@ -81,6 +81,17 @@ const trpcClient = trpc.createClient({
   ],
 });
 
+// Service Worker が新しいバージョンにアクティベートされたらページをリロードして
+// 古いキャッシュされたバンドルを確実に排除する
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data?.type === "SW_ACTIVATED") {
+      // 既にリロード中でなければリロード
+      window.location.reload();
+    }
+  });
+}
+
 createRoot(document.getElementById("root")!).render(
   <trpc.Provider client={trpcClient} queryClient={queryClient}>
     <QueryClientProvider client={queryClient}>
