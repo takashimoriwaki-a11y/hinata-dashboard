@@ -2322,10 +2322,10 @@ function TeamToolsCard() {
                     })()}
                     {isAdmin && (
                       <>
-                        <button onClick={() => startEdit(tool)} onTouchStart={() => {}} style={{ touchAction: 'manipulation' }} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" title="編集">
+                        <button onClick={() => startEdit(tool)} onTouchStart={() => {}} style={{ touchAction: 'manipulation' }} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95 touch-manipulation" title="編集">
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </button>
-                        <button onClick={() => deleteTool.mutate({ id: tool.id })} onTouchStart={() => {}} style={{ touchAction: 'manipulation' }} className="text-muted-foreground hover:text-destructive p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" title="削除">
+                        <button onClick={() => deleteTool.mutate({ id: tool.id })} onTouchStart={() => {}} style={{ touchAction: 'manipulation' }} className="text-muted-foreground hover:text-destructive p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95 touch-manipulation" title="削除">
                           <Trash2 className="w-3 h-3" />
                         </button>
                       </>
@@ -2983,8 +2983,7 @@ function MessageBoard({ title }: { title: string }) {
                       <input id="msg-display-from" type="date" value={displayFrom} onChange={(e) => setDisplayFrom(e.target.value)}
                         className="flex-1 text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                       {displayFrom && (
-                        <button type="button" onClick={(e) => { e.preventDefault(); setDisplayFrom(""); setDisplayFromTime(""); }}
-                          className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors" title="クリア">
+                        <button type="button" onClick={(e) => { e.preventDefault(); setDisplayFrom(""); setDisplayFromTime(""); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all active:scale-95 touch-manipulation" title="クリア">
                           <X className="w-4 h-4" />
                         </button>
                       )}
@@ -2997,8 +2996,7 @@ function MessageBoard({ title }: { title: string }) {
                         {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
                       </select>
                       {displayFromTime && (
-                        <button type="button" onClick={(e) => { e.preventDefault(); setDisplayFromTime(""); }}
-                          className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors" title="時刻クリア">
+                        <button type="button" onClick={(e) => { e.preventDefault(); setDisplayFromTime(""); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all active:scale-95 touch-manipulation" title="時刻クリア">
                           <X className="w-4 h-4" />
                         </button>
                       )}
@@ -3011,8 +3009,7 @@ function MessageBoard({ title }: { title: string }) {
                       <input id="msg-display-until" type="date" value={displayUntil} onChange={(e) => setDisplayUntil(e.target.value)}
                         className="flex-1 text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                       {displayUntil && (
-                        <button type="button" onClick={(e) => { e.preventDefault(); setDisplayUntil(""); setDisplayUntilTime(""); }}
-                          className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors" title="クリア">
+                        <button type="button" onClick={(e) => { e.preventDefault(); setDisplayUntil(""); setDisplayUntilTime(""); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all active:scale-95 touch-manipulation" title="クリア">
                           <X className="w-4 h-4" />
                         </button>
                       )}
@@ -3025,8 +3022,7 @@ function MessageBoard({ title }: { title: string }) {
                         {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
                       </select>
                       {displayUntilTime && (
-                        <button type="button" onClick={(e) => { e.preventDefault(); setDisplayUntilTime(""); }}
-                          className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors" title="時刻クリア">
+                        <button type="button" onClick={(e) => { e.preventDefault(); setDisplayUntilTime(""); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all active:scale-95 touch-manipulation" title="時刻クリア">
                           <X className="w-4 h-4" />
                         </button>
                       )}
@@ -3039,8 +3035,7 @@ function MessageBoard({ title }: { title: string }) {
                       <input id="msg-scheduled-at" type="date" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)}
                         className="flex-1 text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                       {scheduledAt && (
-                        <button type="button" onClick={(e) => { e.preventDefault(); setScheduledAt(""); setScheduledAtTime(""); }}
-                          className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors" title="クリア">
+                        <button type="button" onClick={(e) => { e.preventDefault(); setScheduledAt(""); setScheduledAtTime(""); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all active:scale-95 touch-manipulation" title="クリア">
                           <X className="w-4 h-4" />
                         </button>
                       )}
@@ -3053,8 +3048,7 @@ function MessageBoard({ title }: { title: string }) {
                         {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
                       </select>
                       {scheduledAtTime && (
-                        <button type="button" onClick={(e) => { e.preventDefault(); setScheduledAtTime(""); }}
-                          className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors" title="時刻クリア">
+                        <button type="button" onClick={(e) => { e.preventDefault(); setScheduledAtTime(""); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all active:scale-95 touch-manipulation" title="時刻クリア">
                           <X className="w-4 h-4" />
                         </button>
                       )}

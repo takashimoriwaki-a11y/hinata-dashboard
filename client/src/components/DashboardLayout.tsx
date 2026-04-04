@@ -248,7 +248,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   "text-sm font-medium",
                   (collapsed && !mobile) ? "justify-center px-0" : "px-3",
                   isActive
-                    ? "bg-primary text-white shadow-sm"
+                    ? "bg-primary text-white shadow-md -translate-y-0.5"
                     : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                 )}
               >
