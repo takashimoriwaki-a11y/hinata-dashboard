@@ -96,7 +96,7 @@
   --sidebar-primary-foreground: oklch(1 0 0);
   --sidebar-accent: oklch(0.96 0.01 80);
   --sidebar-accent-foreground: oklch(0.25 0.01 60);
-  --sidebar-border: oklch(0.9 0.008 80);
+  --sidebar-border: oklch(0.80 0.012 80);
   --sidebar-ring: oklch(0.65 0.22 45);
 }
 
@@ -112,8 +112,8 @@
   /* Primary: 明るめのオレンジで視認性を確保 */
   --primary: oklch(0.78 0.18 50);
   --primary-foreground: oklch(0.15 0.01 60);
-  /* 背景: 落ちついスレートグレー（明るめに調整↑） */
-  --background: oklch(0.38 0.015 250);
+  /* 背景: 落ちついスレートグレー（サイドバーより暗めにしてコンテンツエリアを引き立てる） */
+  --background: oklch(0.33 0.015 250);
   --foreground: oklch(0.95 0.008 250);
   /* カード: 背景より少し明るめ */
   --card: oklch(0.43 0.018 250);
