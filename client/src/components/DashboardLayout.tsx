@@ -244,7 +244,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <div
                 title={(collapsed && !mobile) ? item.label : undefined}
                 className={cn(
-                  "flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-150 select-none active:scale-95 active:opacity-80",
+                  "flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
                   "text-sm font-medium",
                   (collapsed && !mobile) ? "justify-center px-0" : "px-3",
                   isActive
@@ -272,7 +272,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             rel="noopener noreferrer"
             title={(collapsed && !mobile) ? tool.label : undefined}
             className={cn(
-              "flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-150 select-none active:scale-95 active:opacity-80",
+              "flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
               "text-sm font-medium text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground",
               (collapsed && !mobile) ? "justify-center px-0" : "px-3"
             )}
