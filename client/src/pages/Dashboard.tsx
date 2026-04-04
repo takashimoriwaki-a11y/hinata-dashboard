@@ -2467,10 +2467,11 @@ function TeamToolsCard() {
                   {g.team}
                 </span>
                 {(g.startDate || g.endDate) && (
-                  <span className="text-xs text-muted-foreground">
-                    {g.startDate ? String(g.startDate).slice(0, 10).replace(/-/g, "/") : ""}
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <CalendarDays className="w-3 h-3 flex-shrink-0" />
+                    {g.startDate ? (() => { const d = new Date(g.startDate); return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`; })() : ""}
                     {" 〜 "}
-                    {g.endDate ? String(g.endDate).slice(0, 10).replace(/-/g, "/") : ""}
+                    {g.endDate ? (() => { const d = new Date(g.endDate); return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`; })() : ""}
                   </span>
                 )}
               </div>
