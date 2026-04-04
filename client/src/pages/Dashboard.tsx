@@ -80,6 +80,7 @@ import {
   FileText,
   CalendarDays,
   SmilePlus,
+  Car,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, openLink } from "@/lib/utils";
@@ -3845,9 +3846,9 @@ export default function Dashboard() {
             <button
               onClick={() => openLink("https://mimamodrive.tokiomarine-smartmobility.co.jp/?_gl=1*191av7l*_gcl_au*MTExMzk5MjkyNC4xNzc1MzE4NjA2")}
               onTouchStart={() => {}}
-              className="flex items-center justify-center gap-1 transition-colors text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#e85d04', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#d04e00')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#e85d04')}
+              className="flex items-center justify-center gap-1 transition-colors text-white text-xs md:text-sm font-semibold px-2 py-2.5 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap" style={{backgroundColor: '#29ABE2', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#1a96cc')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#29ABE2')}
             >
-              <Activity className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              <Car className="w-3.5 h-3.5 md:w-4 md:h-4" />
               DRIVE
             </button>
             <Link
