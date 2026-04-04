@@ -6,6 +6,7 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useCountUp, useAnimatedProgress } from "@/hooks/useCountUp";
+import { Confetti } from "@/components/Confetti";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
@@ -194,6 +195,8 @@ type DayType = typeof DAYS[number];
 function VisitCountCard() {
   const { isNight } = useTheme();
   const [refetchCount, setRefetchCount] = useState(0);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const prevAchievedRef = useRef(false);
   const { data: visitData, isLoading, refetch } = trpc.visits.getCurrent.useQuery(undefined, {
     refetchInterval: 5 * 60 * 1000, // 5分ごとに自動更新
     staleTime: 3 * 60 * 1000,
@@ -277,6 +280,20 @@ function VisitCountCard() {
     return "bg-red-500";
   };
 
+  // 100%達成時に紙吹雪を表示
+  useEffect(() => {
+    const isAchieved = totalPct >= 100;
+    if (isAchieved && !prevAchievedRef.current) {
+      setShowConfetti(true);
+      const timer = setTimeout(() => setShowConfetti(false), 4000);
+      prevAchievedRef.current = true;
+      return () => clearTimeout(timer);
+    }
+    if (!isAchieved) {
+      prevAchievedRef.current = false;
+    }
+  }, [totalPct]);
+
   // カウントアップアニメーション（refetchCountが変わるたびに0から再カウント）
   const animatedMain = useCountUp(data.mainActual, 900, 100, refetchCount);
   const animatedSub = useCountUp(data.subActual, 900, 200, refetchCount);
@@ -285,8 +302,13 @@ function VisitCountCard() {
   const animatedMainPct = useAnimatedProgress(mainPct, 900, 100, refetchCount);
   const animatedSubPct = useAnimatedProgress(subPct, 900, 200, refetchCount);
   const animatedTotalPct = useAnimatedProgress(totalPct, 900, 300, refetchCount);
+  // 先月実績カウントアップ
+  const animatedPrevActual = useCountUp(data.prevTotalActual, 1000, 400, refetchCount);
+  const animatedPrevPct = useAnimatedProgress(prevPct, 1000, 400, refetchCount);
 
   return (
+    <>
+    <Confetti active={showConfetti} duration={4000} />
     <Card className="fade-in-up stagger-1 shadow-sm flex flex-col">
       <CardHeader className="pb-1 pt-3 px-4">
         <div className="flex items-center justify-between">
@@ -425,12 +447,12 @@ function VisitCountCard() {
                   ? (prevAchieved ? "bg-emerald-800/80 text-emerald-200" : "bg-amber-800/80 text-amber-200")
                   : (prevAchieved ? "bg-emerald-500 text-white" : "bg-amber-500 text-white")
               )}>
-                達成率 {Math.round(prevPct)}%
+                達成率 {Math.round(animatedPrevPct)}%
               </Badge>
             </div>
           </div>
           <div className="flex items-center justify-between text-sm mb-1">
-            <span className="font-bold tabular-nums text-foreground">{data.prevTotalActual.toLocaleString()} 件</span>
+            <span className="font-bold tabular-nums text-foreground">{animatedPrevActual.toLocaleString()} 件</span>
             <span className="text-xs text-muted-foreground">目標 {data.prevTotalTarget.toLocaleString()} 件</span>
           </div>
           {/* 横棒グラフ */}
@@ -438,14 +460,14 @@ function VisitCountCard() {
             <div
               className="absolute inset-y-0 left-0 rounded-full transition-all duration-700"
               style={{
-                width: `${Math.min(prevPct, 100)}%`,
+                width: `${Math.min(animatedPrevPct, 100)}%`,
                 background: prevAchieved
                   ? 'linear-gradient(90deg, #10b981 0%, #34d399 100%)'
                   : 'linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)'
               }}
             />
             <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow">
-              {data.prevTotalActual.toLocaleString()} / {data.prevTotalTarget.toLocaleString()} 件
+              {animatedPrevActual.toLocaleString()} / {data.prevTotalTarget.toLocaleString()} 件
             </span>
           </div>
           {/* 達成・未達成メッセージ */}
@@ -463,6 +485,7 @@ function VisitCountCard() {
         </div>
       </CardContent>
     </Card>
+    </>
   );
 }
 

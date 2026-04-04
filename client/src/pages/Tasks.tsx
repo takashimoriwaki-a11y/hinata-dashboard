@@ -927,7 +927,7 @@ export default function Tasks() {
                       className="flex-shrink-0 mt-0.5"
                     >
                       {task.done ? (
-                        <CheckCircle2 className="w-5 h-5 text-primary" />
+                        <CheckCircle2 className="w-5 h-5 text-primary animate-check-bounce" />
                       ) : (
                         <Circle className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
                       )}
