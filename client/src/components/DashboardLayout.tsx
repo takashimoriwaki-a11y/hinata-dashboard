@@ -305,7 +305,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </nav>
 
       {/* ボトムアクション */}
-      <div className="border-t border-sidebar-border py-2 flex-shrink-0">
+      <div className="border-t border-sidebar-border py-2 pb-[68px] flex-shrink-0">
         <button
           onTouchStart={() => {}}
           onClick={async () => {
