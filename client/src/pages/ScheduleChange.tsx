@@ -616,12 +616,14 @@ function DateTimePicker({
   label,
   required,
   placeholder = "日時を選択",
+  confidence,
 }: {
   value: string;
   onChange: (val: string) => void;
   label?: string;
   required?: boolean;
   placeholder?: string;
+  confidence?: 'high' | 'medium' | 'low' | null;
 }) {
   const [open, setOpen] = useState(false);
   const [hour, setHour] = useState(() => {
@@ -678,12 +680,47 @@ function DateTimePicker({
   const hours = Array.from({ length: 24 }, (_, i) => pad(i));
   const minutes = ["00", "10", "20", "30", "40", "50"];
 
+  // 日付を±1日する
+  const adjustDay = (delta: number) => {
+    if (!value) return;
+    const d = new Date(value);
+    d.setDate(d.getDate() + delta);
+    const pad2 = (n: number) => String(n).padStart(2, '0');
+    const iso = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+    onChange(iso);
+    setSelectedDate(d);
+    setHour(pad2(d.getHours()));
+    setMinute(pad2(d.getMinutes()));
+  };
+
+  // 時刻を±30分する
+  const adjustMinutes = (delta: number) => {
+    if (!value) return;
+    const d = new Date(value);
+    d.setMinutes(d.getMinutes() + delta);
+    const pad2 = (n: number) => String(n).padStart(2, '0');
+    const iso = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+    onChange(iso);
+    setSelectedDate(d);
+    setHour(pad2(d.getHours()));
+    setMinute(pad2(d.getMinutes()));
+  };
+
+  const confidenceBadge = confidence === 'medium' ? (
+    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 font-medium border border-yellow-200 dark:border-yellow-700 flex-shrink-0">推測</span>
+  ) : confidence === 'low' ? (
+    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 font-medium border border-orange-200 dark:border-orange-700 flex-shrink-0">要確認</span>
+  ) : null;
+
   return (
     <div className="space-y-1">
       {label && (
-        <Label className="text-xs text-muted-foreground">
-          {label}{required && <span className="text-destructive ml-1">*</span>}
-        </Label>
+        <div className="flex items-center gap-1.5">
+          <Label className="text-xs text-muted-foreground">
+            {label}{required && <span className="text-destructive ml-1">*</span>}
+          </Label>
+          {confidenceBadge}
+        </div>
       )}
       <Popover open={open} onOpenChange={setOpen}>
         <div className="flex items-center gap-1">
@@ -759,6 +796,33 @@ function DateTimePicker({
           </div>
         </PopoverContent>
       </Popover>
+      {/* 音声入力後のクイック修正ボタン */}
+      {value && (
+        <div className="flex items-center gap-1.5 mt-1">
+          <span className="text-[10px] text-muted-foreground">日付:</span>
+          <button
+            type="button"
+            onClick={() => adjustDay(-1)}
+            className="text-[11px] px-2 py-0.5 rounded border border-border bg-muted/50 hover:bg-muted text-foreground transition-colors"
+          >−1日</button>
+          <button
+            type="button"
+            onClick={() => adjustDay(1)}
+            className="text-[11px] px-2 py-0.5 rounded border border-border bg-muted/50 hover:bg-muted text-foreground transition-colors"
+          >+1日</button>
+          <span className="text-[10px] text-muted-foreground ml-2">時刻:</span>
+          <button
+            type="button"
+            onClick={() => adjustMinutes(-30)}
+            className="text-[11px] px-2 py-0.5 rounded border border-border bg-muted/50 hover:bg-muted text-foreground transition-colors"
+          >−30分</button>
+          <button
+            type="button"
+            onClick={() => adjustMinutes(30)}
+            className="text-[11px] px-2 py-0.5 rounded border border-border bg-muted/50 hover:bg-muted text-foreground transition-colors"
+          >+30分</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -970,6 +1034,9 @@ export default function ScheduleChange() {
   const [showVoicePatientDialog, setShowVoicePatientDialog] = useState(false);
   // 候補選択後に適用するその他のフィールドを一時保存
   const [pendingVoiceFields, setPendingVoiceFields] = useState<{ appliedCount: number } | null>(null);
+  // 日時解析信頼度スコア
+  const [fromDatetimeConfidence, setFromDatetimeConfidence] = useState<'high' | 'medium' | 'low' | null>(null);
+  const [toDatetimeConfidence, setToDatetimeConfidence] = useState<'high' | 'medium' | 'low' | null>(null);
   // 誤変換報告・転記完了フラグ
   const [voiceTranscribed, setVoiceTranscribed] = useState(false);
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
@@ -1213,6 +1280,11 @@ export default function ScheduleChange() {
 
       if (f.fromDatetime) { setFromDatetime(prev => prev.trim() ? prev : f.fromDatetime!); applied++; }
       else { missing.push("変更前日時"); }
+      // 信頼度スコアを保存
+      const fConf = (f as Record<string, unknown>).fromDatetimeConfidence as 'high' | 'medium' | 'low' | null;
+      const tConf = (f as Record<string, unknown>).toDatetimeConfidence as 'high' | 'medium' | 'low' | null;
+      if (fConf) setFromDatetimeConfidence(fConf);
+      if (tConf) setToDatetimeConfidence(tConf);
 
       if (f.toDatetime) { setToDatetime(prev => prev.trim() ? prev : f.toDatetime!); applied++; }
       // toDatetimeはキャンセル時は不要なので missing には追加しない
@@ -1489,6 +1561,66 @@ export default function ScheduleChange() {
             : "border-primary/20 bg-primary/5"
       )}>
         <CardContent className="p-4 space-y-3">
+          {/* 利用者候補選択パネル（最上部インライン表示） */}
+          {showVoicePatientDialog && voicePatientCandidates.length > 0 && (
+            <div className="rounded-xl border-2 border-primary/60 bg-primary/5 overflow-hidden animate-slide-up-modal">
+              <div className="px-4 py-2.5 bg-primary/10 border-b border-primary/20 flex items-center gap-2">
+                <span className="text-base">👤</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground">利用者を選択してください</p>
+                  <p className="text-xs text-muted-foreground">
+                    「{voicePatientCandidates[0]?.name.split(/[　 ]/)[0]}」さんが{voicePatientCandidates.length}名登録されています
+                  </p>
+                </div>
+              </div>
+              <div className="max-h-48 overflow-y-auto">
+                {voicePatientCandidates.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => {
+                      setPatientName(p.name);
+                      const validTeams = ["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"];
+                      if (p.team && validTeams.includes(p.team) && !team) {
+                        setTeam(p.team as Team);
+                        triggerDraftSave({ team: p.team as Team });
+                      }
+                      const prevApplied = (pendingVoiceFields?.appliedCount as number) ?? 0;
+                      toast.success(`音声内容を${prevApplied + 1}項目に自動転記しました`);
+                      setShowVoicePatientDialog(false);
+                      setVoicePatientCandidates([]);
+                      setPendingVoiceFields(null);
+                    }}
+                    className="w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-primary/10 active:bg-primary/20 transition-colors border-b border-border/50 last:border-0"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{p.name}</p>
+                      {p.nameKana && (
+                        <p className="text-xs text-muted-foreground mt-0.5">{p.nameKana}</p>
+                      )}
+                    </div>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground flex-shrink-0">
+                      {p.team}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="px-4 py-2 border-t border-border/50">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowVoicePatientDialog(false);
+                    setVoicePatientCandidates([]);
+                    setPendingVoiceFields(null);
+                  }}
+                  className="w-full py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  キャンセル（手動で入力）
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
@@ -1845,6 +1977,7 @@ export default function ScheduleChange() {
                   label="追加する日時"
                   required
                   placeholder="追加する日時を選択"
+                  confidence={toDatetimeConfidence}
                 />
               ) : (
                 <>
@@ -1854,6 +1987,7 @@ export default function ScheduleChange() {
                     label={changeType === "visit_cancel" ? "キャンセルの日" : "変更前の日時"}
                     required={changeType === "visit_change" || changeType === "visit_cancel"}
                     placeholder={changeType === "visit_cancel" ? "キャンセルの日を選択" : "変更前の日時を選択"}
+                    confidence={fromDatetimeConfidence}
                   />
                   {changeType !== "visit_cancel" && (
                     <DateTimePicker
@@ -1862,6 +1996,7 @@ export default function ScheduleChange() {
                       label="変更後の日時"
                       required={changeType === "visit_change"}
                       placeholder="変更後の日時を選択"
+                      confidence={toDatetimeConfidence}
                     />
                   )}
                 </>
@@ -1969,6 +2104,7 @@ export default function ScheduleChange() {
                   onChange={(v) => { setFromDatetime(v); triggerDraftSave({ fromDatetime: v }); }}
                   label="変更前の日時"
                   placeholder="変更前の日時を選択"
+                  confidence={fromDatetimeConfidence}
                 />
               )}
               <DateTimePicker
@@ -1977,6 +2113,7 @@ export default function ScheduleChange() {
                 label={changeType === "meeting_change" ? "変更後の日時" : "開催日時"}
                 required
                 placeholder="日時を選択"
+                confidence={toDatetimeConfidence}
               />
             </CardContent>
           </Card>
@@ -2145,66 +2282,6 @@ export default function ScheduleChange() {
             </>
           )}
         </Button>
-      )}
-
-      {/* 音声入力後の利用者候補選択ダイアログ */}
-      {showVoicePatientDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fade-in-overlay">
-          <div className="bg-popover border border-border rounded-2xl shadow-2xl w-[90vw] max-w-sm mx-4 overflow-hidden animate-slide-up-modal">
-            <div className="px-4 py-3 border-b border-border bg-muted/30">
-              <p className="text-sm font-semibold text-foreground">利用者を選択してください</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                「{voicePatientCandidates[0]?.name.split(/[　 ]/)[0]}」さんが{voicePatientCandidates.length}名登録されています
-              </p>
-            </div>
-            <div className="max-h-64 overflow-y-auto">
-              {voicePatientCandidates.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => {
-                    setPatientName(p.name);
-                    // チーム未選択の場合は利用者のチームを自動セット
-                    const validTeams = ["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"];
-                    if (p.team && validTeams.includes(p.team) && !team) {
-                      setTeam(p.team as Team);
-                      triggerDraftSave({ team: p.team as Team });
-                    }
-                    const prevApplied = (pendingVoiceFields?.appliedCount as number) ?? 0;
-                    toast.success(`音声内容を${prevApplied + 1}項目に自動転記しました`);
-                    setShowVoicePatientDialog(false);
-                    setVoicePatientCandidates([]);
-                    setPendingVoiceFields(null);
-                  }}
-                  className="w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-primary/10 active:bg-primary/20 transition-colors border-b border-border/50 last:border-0"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{p.name}</p>
-                    {p.nameKana && (
-                      <p className="text-xs text-muted-foreground mt-0.5">{p.nameKana}</p>
-                    )}
-                  </div>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground flex-shrink-0">
-                    {p.team}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <div className="px-4 py-3 border-t border-border">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowVoicePatientDialog(false);
-                  setVoicePatientCandidates([]);
-                  setPendingVoiceFields(null);
-                }}
-                className="w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                キャンセル（手動で入力）
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* 誤変換報告ダイアログ */}
