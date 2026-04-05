@@ -2953,8 +2953,8 @@ export const appRouter = router({
         const minutesRows = await db.select({ title: minutes.title }).from(minutes).where(eqOp(minutes.id, input.minutesId)).limit(1);
         if (!minutesRows.length) throw new TRPCError({ code: "NOT_FOUND", message: "議事録が見つかりません" });
         const minutesTitle = minutesRows[0].title;
-        // 全スタッフ（role=user）を取得
-        const allStaff = await db.select({ id: users.id, name: users.name }).from(users).where(eq(users.role, "user"));
+        // 全スタッフ（管理者・事務員含む全ユーザー）を取得
+        const allStaff = await db.select({ id: users.id, name: users.name }).from(users);
         // 確認済みユーザーIDを取得
         const checks = await db.select({ userId: minutesChecks.userId }).from(minutesChecks).where(eqOp(minutesChecks.minutesId, input.minutesId));
         const checkedIds = new Set(checks.map((c) => c.userId));
@@ -3025,8 +3025,8 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続エラー" });
         const { minutesChecks } = await import("../drizzle/schema");
-        // 全スタッフ（role=user）を取得
-        const allStaff = await db.select({ id: users.id, name: users.name }).from(users).where(eq(users.role, "user"));
+        // 全スタッフ（管理者・事務員含む全ユーザー）を取得
+        const allStaff = await db.select({ id: users.id, name: users.name }).from(users);
         // この議事録をチェック済みのユーザーIDを取得
         const checks = await db.select().from(minutesChecks).where(eq(minutesChecks.minutesId, input.minutesId));
         const checkedUserIds = new Set(checks.map((c) => c.userId));
