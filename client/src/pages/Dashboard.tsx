@@ -2363,7 +2363,15 @@ function TeamToolsCard() {
             <LinkRow
               href={teamFeeLink.url}
               label={teamFeeLink.label}
-              color={teamFeeLink.color ?? "text-emerald-600"}
+              color={(() => {
+                const teamTextColorMap: Record<TeamTabId, string> = {
+                  "身体": "text-blue-600",
+                  "天理": "text-emerald-600",
+                  "郡山北部": "text-orange-600",
+                  "郡山南部": "text-purple-600",
+                };
+                return teamTextColorMap[activeTeam];
+              })()}
               emoji="📊"
             />
           )}
@@ -2398,7 +2406,7 @@ function TeamToolsCard() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-1 group">
-                    {/* チームに応じた文字色を自動適用（colorが未設定の場合はチームカラーを使用） */}
+                    {/* チームに応じた文字色を常にチームカラーで統一 */}
                     {(() => {
                       const teamTextColorMap: Record<TeamTabId, string> = {
                         "身体": "text-blue-600",
@@ -2406,8 +2414,7 @@ function TeamToolsCard() {
                         "郡山北部": "text-orange-600",
                         "郡山南部": "text-purple-600",
                       };
-                      const autoColor = tool.color || teamTextColorMap[activeTeam];
-                      return <LinkRow href={tool.href} label={tool.label} color={autoColor} emoji={tool.emoji ?? undefined} />;
+                      return <LinkRow href={tool.href} label={tool.label} color={teamTextColorMap[activeTeam]} emoji={tool.emoji ?? undefined} />;
                     })()}
                     {isAdmin && (
                       <>
