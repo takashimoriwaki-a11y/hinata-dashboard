@@ -1404,6 +1404,16 @@ export default function ScheduleChange() {
   const patientListRef = useRef(patientList);
   useEffect(() => { patientListRef.current = patientList; }, [patientList]);
 
+  // 音声解析完了後に音声入力カードへ自動スクロール
+  useEffect(() => {
+    if (voiceTranscribed) {
+      setTimeout(() => {
+        const el = document.getElementById("sc-voice-card");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 150);
+    }
+  }, [voiceTranscribed]);
+
   const handleVoiceResult = useCallback((text: string) => {
     setVoiceError(null);
     setVoiceText(text);
@@ -1557,7 +1567,7 @@ export default function ScheduleChange() {
       </div>
 
       {/* 音声入力カード */}
-      <Card className={cn(
+      <Card id="sc-voice-card" className={cn(
         "border-2 transition-colors duration-300",
         isVoiceRecording
           ? "border-red-400/60 bg-red-50 dark:bg-red-950/20"
@@ -1735,7 +1745,17 @@ export default function ScheduleChange() {
           {/* 未転記項目バナー */}
           {missingVoiceFields.length > 0 && !isParsingVoice && (
             <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2.5 space-y-1.5">
-              <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">💬 聴き取れなかった項目があります</p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">💬 聴き取れなかった項目があります</p>
+                <button
+                  type="button"
+                  onClick={() => setMissingVoiceFields([])}
+                  className="w-5 h-5 flex items-center justify-center rounded-full text-amber-600 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-800 transition-colors"
+                  aria-label="閉じる"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
               <div className="flex flex-wrap gap-1">
                 {missingVoiceFields.map((field) => {
                   const fieldIdMap: Record<string, string> = {

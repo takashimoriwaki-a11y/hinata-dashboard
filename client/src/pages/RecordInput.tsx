@@ -506,6 +506,16 @@ export default function RecordInput() {
   const allPatientsRef = useRef<typeof allPatients>([]);
   useEffect(() => { allPatientsRef.current = allPatients; }, [allPatients]);
 
+  // 音声解析完了後に音声入力エリアへ自動スクロール
+  useEffect(() => {
+    if (voicePreview) {
+      setTimeout(() => {
+        const el = document.getElementById("record-voice-area");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 150);
+    }
+  }, [voicePreview]);
+
   // 音声確定からの自動転送フラグ（createRecord.onSuccessで参照）
   const autoExportRef = useRef(false);
 
@@ -637,6 +647,11 @@ export default function RecordInput() {
     setClinicalNotes("");
     setSavedRecordId(null);
     setExported(false);
+    // 音声入力関連状態をクリア
+    setVoicePreview(null);
+    setEditingPreview(null);
+    setVisitVoiceText("");
+    setVisitVoiceError(null);
     // 下書きを削除
     localStorage.removeItem(DRAFT_KEY);
     setHasDraft(false);
@@ -677,7 +692,7 @@ export default function RecordInput() {
         <CardContent className="space-y-4">
 
           {/* 一括音声入力エリア（最上部） */}
-          <div className={cn(
+          <div id="record-voice-area" className={cn(
             "rounded-xl border-2 p-3 space-y-2 transition-colors duration-300",
             visitVoice.isRecording
               ? (visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5
