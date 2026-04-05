@@ -1237,6 +1237,11 @@ export default function ScheduleChange() {
     setReason("");
     setSubmitted(false);
     setLastRecord(null);
+    setMissingVoiceFields([]);
+    setVoiceText("");
+    setVoiceInterimText("");
+    setVoiceTranscribed(false);
+    setVoicePatientCandidates([]);
   };
 
   // 音声入力テキストをLLMで解析しフォームに自動転記
