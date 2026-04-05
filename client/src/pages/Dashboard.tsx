@@ -2273,10 +2273,7 @@ function TeamToolsCard() {
     { retry: false }
   );
 
-  // チーム目標（アクティブな目標を取得）
-  const { data: goals = [] } = trpc.teamGoals.getActive.useQuery();
   // 全チームの目標を表示（チームタブに関わらず全目標を確認できる）
-  const filteredGoals = goals;
 
   // 月次利用者料金一覧（DB登録分）
   const { data: monthlyLinks } = trpc.spreadsheetLinks.getCurrent.useQuery();
@@ -2451,37 +2448,7 @@ function TeamToolsCard() {
           </div>
         )}
 
-        {/* チーム目標セクション（チームタブに連動） */}
-        <div key={`goals-${activeTeam}`} className={cn(
-          "border-t border-border/50 pt-3 space-y-2",
-          filteredGoals.length === 0 ? "hidden" : "animate-fade-in-overlay"
-        )}>
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground/70">
-            <Target className="w-3.5 h-3.5 text-primary" />
-            <span>チーム目標</span>
-          </div>
-          {filteredGoals.map(g => (
-            <div key={g.id} className="rounded-lg bg-muted/40 p-2.5 space-y-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full border", TEAM_BADGE_COLORS[g.team] ?? "bg-muted/60 text-foreground border-border")}>
-                  {g.team}
-                </span>
-                {(g.startDate || g.endDate) && (
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <CalendarDays className="w-3 h-3 flex-shrink-0" />
-                    {g.startDate ? (() => { const d = new Date(g.startDate); return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`; })() : ""}
-                    {" 〜 "}
-                    {g.endDate ? (() => { const d = new Date(g.endDate); return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`; })() : ""}
-                  </span>
-                )}
-              </div>
-              <p className="text-sm font-semibold leading-snug text-foreground">{g.title}</p>
-              {g.body && (
-                <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">{g.body}</p>
-              )}
-            </div>
-          ))}
-        </div>
+
       </CardContent>
     </Card>
   );
@@ -3773,108 +3740,56 @@ const LOGO_MARK = "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP4
 const LOGO_TEXT = "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/hinata_logo_text_9eb540dd.svg";
 
 // ========== 理念カードアニメーション ==========
-function PhilosophyCard() {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
-  const [shimmerActive, setShimmerActive] = useState(false);
+// チーム目標テロップ（横スクロール）
+function TeamGoalsTicker() {
+  const { data: goals = [] } = trpc.teamGoals.getActive.useQuery();
 
-  useEffect(() => {
-    const el = cardRef.current;
-    if (!el) return;
+  // 目標がない場合は何も表示しない
+  if (goals.length === 0) return null;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && !isVisible) {
-            setIsVisible(true);
-            // シマーエフェクトはカードが表示されてから少し遅れて発火
-            setTimeout(() => setShimmerActive(true), 100);
-            observer.unobserve(el);
-          }
-        });
-      },
-      { threshold: 0.15, rootMargin: "0px 0px -20px 0px" }
-    );
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [isVisible]);
+  // テロップアイテムを2セット繰り返してシームレスなループを実現
+  const items = [...goals, ...goals];
 
   return (
     <div
-      ref={cardRef}
-      className={cn(
-        "relative rounded-2xl overflow-hidden shadow-sm cursor-pointer select-none transition-[box-shadow,transform] duration-300 hover:shadow-md hover:scale-[1.01] active:scale-[0.99]",
-        isVisible ? "philosophy-card-visible" : "philosophy-card-hidden"
-      )}
-      style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fed7aa 100%)", border: "1px solid #fdba74" }}
-      onClick={() => { window.location.href = "/hinatas-way"; }}
+      className="relative overflow-hidden rounded-xl"
+      style={{
+        background: "linear-gradient(135deg, rgba(30,30,50,0.85) 0%, rgba(20,20,40,0.9) 100%)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        backdropFilter: "blur(4px)",
+      }}
     >
-      {/* 光沢シマーオーバーレイ */}
-      {shimmerActive && <div className="philosophy-shimmer" />}
+      {/* 左右のフェードマスク */}
+      <div className="absolute left-0 top-0 bottom-0 w-8 z-10 pointer-events-none" style={{background: "linear-gradient(to right, rgba(30,30,50,0.9), transparent)"}} />
+      <div className="absolute right-0 top-0 bottom-0 w-8 z-10 pointer-events-none" style={{background: "linear-gradient(to left, rgba(30,30,50,0.9), transparent)"}} />
 
-      <div className="px-4 py-3 md:px-5 md:py-3.5 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          {/* 光陽バッジアイコン */}
-          <div
-            className={cn(
-              "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center",
-              isVisible ? "philosophy-icon-visible" : "philosophy-icon-hidden"
-            )}
-            style={{ background: "linear-gradient(135deg, #f97316, #fbbf24)" }}
-          >
-            <span className="text-white text-xs font-bold tracking-tight">光陽</span>
-          </div>
-
-          <div className="min-w-0 flex-1">
-            {/* ラベル */}
-            <p
-              className={cn(
-                "text-[10px] font-semibold tracking-widest",
-                isVisible ? "philosophy-text1-visible" : "philosophy-text1-hidden"
+      {/* テロップ本体 */}
+      <div className="flex items-center gap-0 py-2.5 px-2 team-goals-ticker-track">
+        {items.map((g, idx) => {
+          const startStr = g.startDate ? (() => { const d = new Date(g.startDate); return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`; })() : null;
+          const endStr = g.endDate ? (() => { const d = new Date(g.endDate); return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`; })() : null;
+          return (
+            <div key={`${g.id}-${idx}`} className="flex items-center gap-3 flex-shrink-0 px-4">
+              {/* チームバッジ */}
+              <span className={cn(
+                "text-xs font-bold px-2 py-0.5 rounded-full border flex-shrink-0",
+                TEAM_BADGE_COLORS[g.team] ?? "bg-muted/60 text-foreground border-border"
+              )}>
+                {g.team}
+              </span>
+              {/* 目標タイトル */}
+              <span className="text-sm font-semibold text-white whitespace-nowrap">{g.title}</span>
+              {/* 期間 */}
+              {(startStr || endStr) && (
+                <span className="text-[10px] text-white/50 whitespace-nowrap flex-shrink-0">
+                  {startStr ?? ""}{startStr && endStr ? " 〜 " : ""}{endStr ?? ""}
+                </span>
               )}
-              style={{ color: "#c2410c" }}
-            >
-              HINATA'S WAY — 株式会社光陽 企業理念
-            </p>
-            {/* メインコピー */}
-            <p
-              className={cn(
-                "text-sm font-bold leading-snug",
-                isVisible ? "philosophy-text2-visible" : "philosophy-text2-hidden"
-              )}
-              style={{ color: "#7c2d12" }}
-            >
-              「存在で支え合う」
-            </p>
-            {/* 説明文 */}
-            <p
-              className={cn(
-                "text-[11px] leading-relaxed mt-0.5",
-                isVisible ? "philosophy-text3-visible" : "philosophy-text3-hidden"
-              )}
-              style={{ color: "#9a3412" }}
-            >
-              私たちは出会うすべての人々と、お互いの存在がこころの支えになる関係を築きます。
-            </p>
-            {/* リンク */}
-            <p
-              className={cn(
-                "text-[11px] font-semibold mt-1.5 flex items-center gap-0.5",
-                isVisible ? "philosophy-text4-visible" : "philosophy-text4-hidden"
-              )}
-              style={{ color: "#ea580c" }}
-            >
-              理念の全文を読む
-              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-            </p>
-          </div>
-        </div>
-
-        {/* 右矢印（パルスアニメーション） */}
-        <div className={cn("flex-shrink-0 text-orange-400", isVisible && "philosophy-chevron-pulse")}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-        </div>
+              {/* 区切り */}
+              <span className="text-white/20 text-lg flex-shrink-0 ml-2">｜</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -3990,7 +3905,7 @@ export default function Dashboard() {
       </div>
 
       {/* 経営理念カード（夜モード・昼モード両方表示・フェードインアニメーション付き） */}
-      <PhilosophyCard />
+      <TeamGoalsTicker />
 
       {/* メインコンテンツ: PC版2カラム、モバイル1カラム */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4 items-start">

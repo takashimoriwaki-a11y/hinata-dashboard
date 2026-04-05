@@ -767,3 +767,18 @@ button:not(:disabled),
 .animate-check-bounce {
   animation: checkBounce 0.4s ease-out forwards;
 }
+
+/* チーム目標テロップ（横スクロールアニメーション） */
+@keyframes team-goals-ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.team-goals-ticker-track {
+  animation: team-goals-ticker 30s linear infinite;
+  width: max-content;
+}
+
+.team-goals-ticker-track:hover {
+  animation-play-state: paused;
+}
