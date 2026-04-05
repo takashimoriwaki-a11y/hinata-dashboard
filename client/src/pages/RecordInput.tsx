@@ -709,16 +709,23 @@ export default function RecordInput() {
                   <VoiceHelpDialog mode="record" />
                 </div>
                 {visitVoice.transcriptionStatus === "recording" || visitVoice.isRecording ? (
-                  <p className={cn(
-                    "text-xs font-medium mt-0.5",
-                    visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5
-                      ? "text-orange-600 dark:text-orange-400"
-                      : "text-red-600 dark:text-red-400 animate-pulse"
-                  )}>
-                    {visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5
-                      ? `あと${visitVoice.silenceCountdown}秒で自動停止`
-                      : "🎤 話してください..."}
-                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className={cn(
+                      "text-xs font-medium",
+                      visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5
+                        ? "text-orange-600 dark:text-orange-400"
+                        : "text-red-600 dark:text-red-400 animate-pulse"
+                    )}>
+                      {visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5
+                        ? `あと${visitVoice.silenceCountdown}秒で自動停止`
+                        : "🎤 話してください..."}
+                    </p>
+                    {visitVoice.isRecording && !(visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5) && (
+                      <span className="text-[10px] font-mono font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">
+                        {formatElapsedTime(visitVoice.elapsedSeconds)}
+                      </span>
+                    )}
+                  </div>
                 ) : visitVoice.transcriptionStatus === "uploading" ? (
                   <p className="text-xs text-blue-600 dark:text-blue-400 font-medium animate-pulse mt-0.5">⬆️ 音声を受信中...</p>
                 ) : visitVoice.transcriptionStatus === "analyzing" || isParsingVisitVoice ? (
@@ -731,6 +738,13 @@ export default function RecordInput() {
                   <p className="text-xs text-muted-foreground mt-0.5 whitespace-nowrap">マイクをタップして話すと各項目に転記</p>
                 )}
               </div>
+              <span className="relative inline-flex flex-col items-center justify-center flex-shrink-0 gap-0.5">
+              {visitVoice.isRecording && !(visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5) && (
+                <>
+                  <span className="absolute pointer-events-none rounded-full" style={{ inset: 0, animation: "voiceRing 1.4s ease-out infinite", backgroundColor: "rgba(239, 68, 68, 0.35)" }} />
+                  <span className="absolute pointer-events-none rounded-full" style={{ inset: 0, animation: "voiceRing2 1.4s ease-out 0.5s infinite", backgroundColor: "rgba(239, 68, 68, 0.25)" }} />
+                </>
+              )}
               <button
                 id="visit-voice-mic-btn"
                 type="button"
@@ -767,6 +781,13 @@ export default function RecordInput() {
                   <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
                 )}
               </button>
+              {/* 録音中経過時間バッジ */}
+              {visitVoice.isRecording && !(visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5) && (
+                <span className="text-[9px] font-mono font-semibold tabular-nums leading-none px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">
+                  {formatElapsedTime(visitVoice.elapsedSeconds)}
+                </span>
+              )}
+              </span>
             </div>
 
             {/* 録音中の暫定テキストプレビュー（録音終了後も残す） */}
@@ -1731,6 +1752,7 @@ export default function RecordInput() {
                   toggleVoice: notesVoice.toggleVoice,
                   interimText: notesVoice.interimText,
                   silenceCountdown: notesVoice.silenceCountdown,
+                  elapsedSeconds: notesVoice.elapsedSeconds,
                 }}
                 size="lg"
                 previewMode="tooltip"

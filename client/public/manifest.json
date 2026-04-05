@@ -1,6 +1,6 @@
 {
   "name": "ひなた訪問看護ダッシュボード",
-  "short_name": "ひなた",
+  "short_name": "ダッシュボード",
   "description": "こころの訪問看護ステーションひなた スタッフ向けダッシュボード",
   "start_url": "/",
   "display": "standalone",

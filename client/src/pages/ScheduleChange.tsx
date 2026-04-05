@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { formatElapsedTime } from "@/hooks/useVoiceInput";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -1027,6 +1028,18 @@ export default function ScheduleChange() {
   const [isParsingVoice, setIsParsingVoice] = useState(false);
   const [isVoiceRecording, setIsVoiceRecording] = useState(false);
   const [voiceInterimText, setVoiceInterimText] = useState("");
+  // 録音経過時間
+  const [voiceElapsedSeconds, setVoiceElapsedSeconds] = useState(0);
+  const voiceElapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (isVoiceRecording) {
+      setVoiceElapsedSeconds(0);
+      voiceElapsedTimerRef.current = setInterval(() => setVoiceElapsedSeconds(s => s + 1), 1000);
+    } else {
+      if (voiceElapsedTimerRef.current) { clearInterval(voiceElapsedTimerRef.current); voiceElapsedTimerRef.current = null; }
+    }
+    return () => { if (voiceElapsedTimerRef.current) { clearInterval(voiceElapsedTimerRef.current); voiceElapsedTimerRef.current = null; } };
+  }, [isVoiceRecording]);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [missingVoiceFields, setMissingVoiceFields] = useState<string[]>([]);
   // 音声入力後の利用者候補選択ダイアログ用
@@ -1643,9 +1656,14 @@ export default function ScheduleChange() {
                 <VoiceHelpDialog mode="schedule" />
               </div>
               {isVoiceRecording ? (
-                <p className="text-xs font-medium text-red-600 dark:text-red-400 animate-pulse mt-0.5">
-                  🎙️ 話してください...
-                </p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-xs font-medium text-red-600 dark:text-red-400 animate-pulse">
+                    🎩️ 話してください...
+                  </p>
+                  <span className="text-[10px] font-mono font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">
+                    {formatElapsedTime(voiceElapsedSeconds)}
+                  </span>
+                </div>
               ) : isParsingVoice ? (
                 <p className="text-xs text-primary font-medium animate-pulse mt-0.5">AIが解析中...</p>
               ) : voiceText ? (
@@ -1779,8 +1797,12 @@ export default function ScheduleChange() {
                         void el.offsetWidth; // reflowでアニメーションをリセット
                         el.classList.add("highlight-pulse");
                         el.addEventListener("animationend", () => el.classList.remove("highlight-pulse"), { once: true });
+                        // input/textareaは直接フォーカス、Card要素（div）の場合は内部の最初のフォーカス可能要素を探す
                         if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
                           setTimeout(() => el.focus(), 300);
+                        } else {
+                          const focusable = el.querySelector<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])');
+                          if (focusable) setTimeout(() => focusable.focus(), 300);
                         }
                       }}
                       className={`text-[10px] px-2 py-0.5 rounded-full font-medium transition-all ${

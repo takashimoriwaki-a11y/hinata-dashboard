@@ -5,7 +5,7 @@
  * アプリ内の全ての音声入力ボタンはこのコンポーネントを使用する。
  *
  * - タップ1回でON/OFFトグル
- * - 録音中: 赤背景 + 波形バーアニメーション + ping + 外側リング波形
+ * - 録音中: 赤背景 + 波形バーアニメーション + ping + 外側リング波形 + 経過時間バッジ
  * - 処理中: スピナー表示
  * - 通常時: マイクアイコン
  * - 録音中は interimText（暫定テキスト）をボタン横にリアルタイム表示
@@ -17,7 +17,7 @@
 
 import React from "react";
 import { Loader2, Mic } from "lucide-react";
-import { useVoiceInput } from "@/hooks/useVoiceInput";
+import { useVoiceInput, formatElapsedTime } from "@/hooks/useVoiceInput";
 import { cn } from "@/lib/utils";
 
 /** 外部フック状態の型（useVoiceInput の戻り値のサブセット） */
@@ -27,6 +27,8 @@ export interface VoiceExternalState {
   toggleVoice: () => void;
   interimText: string;
   silenceCountdown: number | null;
+  /** 録音開始からの経過秒数（録音中のみ更新） */
+  elapsedSeconds?: number;
 }
 
 interface VoiceMicButtonProps {
@@ -60,6 +62,12 @@ interface VoiceMicButtonProps {
    * notesVoice など既存フックのボタンをこのコンポーネントに統一する際に使用。
    */
   externalState?: VoiceExternalState;
+  /**
+   * 経過時間バッジの表示位置（デフォルト: "below"）
+   * - "below": ボタン下部に表示
+   * - "none": 非表示
+   */
+  elapsedPosition?: "below" | "none";
 }
 
 const sizeConfig = {
@@ -71,6 +79,7 @@ const sizeConfig = {
     previewText: "text-xs",
     countdown: "text-[9px]",
     ringRadius: "rounded-lg",
+    elapsed: "text-[9px]",
   },
   md: {
     button: "h-10 w-10 rounded-xl",
@@ -80,6 +89,7 @@ const sizeConfig = {
     previewText: "text-sm",
     countdown: "text-[10px]",
     ringRadius: "rounded-xl",
+    elapsed: "text-[10px]",
   },
   lg: {
     button: "h-14 w-14 rounded-full",
@@ -89,6 +99,7 @@ const sizeConfig = {
     previewText: "text-sm",
     countdown: "text-sm",
     ringRadius: "rounded-full",
+    elapsed: "text-xs",
   },
 };
 
@@ -102,6 +113,7 @@ export function VoiceMicButton({
   previewMode = "tooltip",
   context = "general",
   externalState,
+  elapsedPosition = "below",
 }: VoiceMicButtonProps) {
   // externalState が指定されていない場合のみ内部フックを使用
   const internalHook = useVoiceInput({
@@ -113,6 +125,9 @@ export function VoiceMicButton({
   // 使用する状態を決定（外部 > 内部）
   const { isRecording, isProcessing, toggleVoice, interimText, silenceCountdown } =
     externalState ?? internalHook;
+
+  // elapsedSeconds: externalStateに含まれていれば使用、なければ内部フックから取得
+  const elapsedSeconds = externalState?.elapsedSeconds ?? internalHook.elapsedSeconds;
 
   // interimText変化時にコールバックを呼び出す
   const prevInterimRef = React.useRef("");
@@ -260,12 +275,13 @@ export function VoiceMicButton({
 
   // 外側リング波形アニメーション付きラッパー
   const buttonWithRings = (
-    <span className="relative inline-flex items-center justify-center flex-shrink-0">
+    <span className="relative inline-flex flex-col items-center justify-center flex-shrink-0 gap-0.5">
       {/* 外側リング（1枚目）: 録音中かつカウントダウンなし */}
       {isRecording && !showCountdown && (
         <span
-          className={cn("absolute inset-0 pointer-events-none", cfg.ringRadius)}
+          className={cn("absolute pointer-events-none", cfg.ringRadius)}
           style={{
+            inset: 0,
             animation: "voiceRing 1.4s ease-out infinite",
             backgroundColor: "rgba(239, 68, 68, 0.35)",
           }}
@@ -274,14 +290,29 @@ export function VoiceMicButton({
       {/* 外側リング（2枚目）: 0.5秒遅延 */}
       {isRecording && !showCountdown && (
         <span
-          className={cn("absolute inset-0 pointer-events-none", cfg.ringRadius)}
+          className={cn("absolute pointer-events-none", cfg.ringRadius)}
           style={{
+            inset: 0,
             animation: "voiceRing2 1.4s ease-out 0.5s infinite",
             backgroundColor: "rgba(239, 68, 68, 0.25)",
           }}
         />
       )}
       {innerButton}
+      {/* 経過時間バッジ: 録音中かつelapsedPosition="below"のとき表示 */}
+      {isRecording && elapsedPosition === "below" && !showCountdown && (
+        <span
+          className={cn(
+            "font-mono font-semibold tabular-nums leading-none pointer-events-none",
+            "px-1.5 py-0.5 rounded-full",
+            "bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300",
+            "animate-in fade-in-0 duration-200",
+            cfg.elapsed
+          )}
+        >
+          {formatElapsedTime(elapsedSeconds)}
+        </span>
+      )}
     </span>
   );
 

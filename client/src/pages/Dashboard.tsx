@@ -3001,7 +3001,16 @@ function MessageBoard({ title }: { title: string }) {
                           onClick={() => {
                             if (targetId) {
                               const el = document.getElementById(targetId);
-                              if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); el.focus(); }
+                              if (el) {
+                              el.scrollIntoView({ behavior: "smooth", block: "center" });
+                              // スクロール完了待機後にフォーカスを当てる
+                              if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) {
+                                setTimeout(() => el.focus(), 300);
+                              } else {
+                                const focusable = el.querySelector<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])');
+                                if (focusable) setTimeout(() => focusable.focus(), 300);
+                              }
+                            }
                             }
                           }}
                           className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 font-medium hover:bg-amber-300 dark:hover:bg-amber-700 transition-colors cursor-pointer underline underline-offset-2"

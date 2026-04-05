@@ -22,7 +22,7 @@ import { getTeamButtonClass, getTeamButtonStyle } from "@shared/teamColors";
 import { trpc } from "@/lib/trpc";
 import { VoiceHelpDialog } from "@/components/VoiceHelpDialog";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { useVoiceInput } from "@/hooks/useVoiceInput";
+import { useVoiceInput, formatElapsedTime } from "@/hooks/useVoiceInput";
 
 type AssignType = "all" | "team" | "personal";
 type RepeatType = "none" | "weekly" | "monthly";
@@ -476,16 +476,23 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
               ) : taskVoice.isRecording ? (
                 <div>
                   <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
-                  <p className={cn(
-                    "text-xs font-medium mt-0.5",
-                    taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5
-                      ? "text-orange-600 dark:text-orange-400"
-                      : "text-red-600 dark:text-red-400 animate-pulse"
-                  )}>
-                    {taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5
-                      ? `あと${taskVoice.silenceCountdown}秒で自動停止`
-                      : "🎤 話してください..."}
-                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className={cn(
+                      "text-xs font-medium",
+                      taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5
+                        ? "text-orange-600 dark:text-orange-400"
+                        : "text-red-600 dark:text-red-400 animate-pulse"
+                    )}>
+                      {taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5
+                        ? `あと${taskVoice.silenceCountdown}秒で自動停止`
+                        : "🎤 話してください..."}
+                    </p>
+                    {taskVoice.isRecording && !(taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5) && (
+                      <span className="text-[10px] font-mono font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">
+                        {formatElapsedTime(taskVoice.elapsedSeconds)}
+                      </span>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div>
@@ -498,11 +505,11 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
               )}
             </div>
             {/* 外側リング波形ラッパー */}
-            <span className="relative inline-flex items-center justify-center flex-shrink-0">
+            <span className="relative inline-flex flex-col items-center justify-center flex-shrink-0 gap-0.5">
               {taskVoice.isRecording && !( taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5) && (
                 <>
-                  <span className="absolute inset-0 pointer-events-none rounded-full" style={{ animation: "voiceRing 1.4s ease-out infinite", backgroundColor: "rgba(239, 68, 68, 0.35)" }} />
-                  <span className="absolute inset-0 pointer-events-none rounded-full" style={{ animation: "voiceRing2 1.4s ease-out 0.5s infinite", backgroundColor: "rgba(239, 68, 68, 0.25)" }} />
+                  <span className="absolute pointer-events-none rounded-full" style={{ inset: 0, animation: "voiceRing 1.4s ease-out infinite", backgroundColor: "rgba(239, 68, 68, 0.35)" }} />
+                  <span className="absolute pointer-events-none rounded-full" style={{ inset: 0, animation: "voiceRing2 1.4s ease-out 0.5s infinite", backgroundColor: "rgba(239, 68, 68, 0.25)" }} />
                 </>
               )}
             <button
@@ -543,6 +550,12 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
                 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
               )}
             </button>
+            {/* 録音中経過時間バッジ */}
+            {taskVoice.isRecording && !(taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5) && (
+              <span className="text-[9px] font-mono font-semibold tabular-nums leading-none px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 animate-in fade-in-0 duration-200">
+                {formatElapsedTime(taskVoice.elapsedSeconds)}
+              </span>
+            )}
             </span>
           </div>
 
