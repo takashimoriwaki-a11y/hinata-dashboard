@@ -717,6 +717,7 @@ export default function RecordInput() {
                 )}
               </div>
               <button
+                id="visit-voice-mic-btn"
                 type="button"
                 onClick={(e) => { e.preventDefault(); visitVoice.toggleVoice(); }}
                 className={cn(
@@ -823,8 +824,9 @@ export default function RecordInput() {
             {/* 例文（常時表示） */}
             <div className="space-y-1">
               <p className="text-[10px] font-medium text-muted-foreground">話しかけの例</p>
-              <div className="rounded-lg bg-background/70 border border-border px-3 py-2">
-                <span className="text-[11px] text-muted-foreground leading-snug">○○チームの○○さん、次回訪問は明後日の×時×分、本人に口頭で伝えた。</span>
+              <div className="rounded-lg bg-background/70 border border-border px-3 py-2 space-y-1.5">
+                <p className="text-[11px] text-muted-foreground leading-snug">○○チームの○○さん、次回訪問は来週火曜の14時、本人に口頭で伝えた。</p>
+                <p className="text-[10px] text-muted-foreground/70 leading-snug border-t border-border pt-1.5">日時の言い方の例：「明日の14時」「来週火曜の午後3時」「再来週月曜の午前10時半」「今週金曜の午後」</p>
               </div>
             </div>
 
@@ -1267,15 +1269,21 @@ export default function RecordInput() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="text-xs h-9 px-3"
+                    className="text-xs h-9 px-3 flex items-center gap-1.5"
                     onClick={() => {
                       setVoicePreview(null);
                       setEditingPreview(null);
                       setVisitVoiceText("");
                       setVisitVoiceError(null);
+                      // 少し遅延してマイクボタンを自動クリック
+                      setTimeout(() => {
+                        const micBtn = document.getElementById("visit-voice-mic-btn");
+                        if (micBtn) micBtn.click();
+                      }, 150);
                     }}
                   >
-                    やり直す
+                    <span className="text-sm">🎤</span>
+                    もう一度録音
                   </Button>
                 </div>
               </div>

@@ -1688,8 +1688,9 @@ export default function ScheduleChange() {
           {true && (
             <div>
               <p className="text-[10px] font-medium text-muted-foreground mb-1.5">話しかけの例</p>
-              <div className="rounded-lg bg-background/70 border border-border px-3 py-2">
-                <span className="text-[11px] text-muted-foreground leading-snug">○○チームの○○さん、次回の訪問は明後日の×時から×月×日の×時に変更。本人の受診のため。</span>
+              <div className="rounded-lg bg-background/70 border border-border px-3 py-2 space-y-1.5">
+                <p className="text-[11px] text-muted-foreground leading-snug">○○チームの○○さん、次回の訪問は明後日の14時から来週火曜の15時に変更。本人の受診のため。</p>
+                <p className="text-[10px] text-muted-foreground/70 leading-snug border-t border-border pt-1.5">日時の言い方の例：「明日の14時」「来週火曜の午後3時」「再来週月曜の午前10時半」「今週金曜の午後」「4月・十六日の15時」</p>
               </div>
             </div>
           )}

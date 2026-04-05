@@ -658,6 +658,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
                   </p>
                 ))}
               </div>
+              <p className="text-[10px] text-muted-foreground/70 leading-snug px-1">日付の言い方の例：「明日」「来週火曜」「再来週月曜」「今週金曜」「4月十六日」</p>
             </div>
           )}
 
