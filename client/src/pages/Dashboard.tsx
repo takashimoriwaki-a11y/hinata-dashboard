@@ -1983,7 +1983,7 @@ function SheetSubTabs({ quickLinks }: { quickLinks: { id: number; label: string;
                     key={link.id}
                     href={link.url}
                     label={link.label}
-                    color={link.color ?? "text-emerald-600"}
+                    colorStyle={{ color: "white" }}
                     emoji="📊"
                   />
                 ))}
@@ -1996,7 +1996,7 @@ function SheetSubTabs({ quickLinks }: { quickLinks: { id: number; label: string;
       {subTab === "other" && (
         otherLinks.length > 0
           ? otherLinks.map((link) => (
-              <LinkRow key={link.id} href={link.href} label={link.label} color={link.color} emoji={link.emoji || undefined} />
+              <LinkRow key={link.id} href={link.href} label={link.label} colorStyle={{ color: "white" }} emoji={link.emoji || undefined} />
             ))
           : <p className="text-xs text-muted-foreground text-center py-3">その他のリンクはまだありません</p>
       )}
@@ -2128,7 +2128,7 @@ function ToolsCard() {
             <>
               {docLinks.length > 0
                 ? docLinks.map((link) => (
-                    <LinkRow key={link.href} href={link.href} label={link.label} color={link.color} emoji={link.emoji} />
+                    <LinkRow key={link.href} href={link.href} label={link.label} colorStyle={{ color: "white" }} emoji={link.emoji} />
                   ))
                 : <p className="text-xs text-muted-foreground text-center py-4">ドキュメントリンクはまだありません</p>
               }
@@ -2140,7 +2140,7 @@ function ToolsCard() {
             <>
               {frmLinks.length > 0
                 ? frmLinks.map((link) => (
-                    <LinkRow key={link.href} href={link.href} label={link.label} color={link.color} emoji={link.emoji} />
+                    <LinkRow key={link.href} href={link.href} label={link.label} colorStyle={{ color: "white" }} emoji={link.emoji} />
                   ))
                 : <p className="text-xs text-muted-foreground text-center py-4">フォームリンクはまだありません</p>
               }
@@ -2153,7 +2153,7 @@ function ToolsCard() {
               {/* Hinata's Way 固定リンク */}
               <HinatasWayButton />
               {othLinks.map((link) => (
-                <LinkRow key={link.href} href={link.href} label={link.label} color={link.color} emoji={link.emoji} />
+                <LinkRow key={link.href} href={link.href} label={link.label} colorStyle={{ color: "white" }} emoji={link.emoji} />
               ))}
             </>
           )}
