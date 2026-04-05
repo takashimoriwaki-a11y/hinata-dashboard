@@ -1400,7 +1400,13 @@ export const appRouter = router({
         if (!record) throw new TRPCError({ code: "NOT_FOUND", message: "記録が見つかりません" });
 
         const VISIT_RECORD_SHEET_ID = "1WOZQ5rI0Fu57nWaiGwComPS_DdEwPgNR6zeOmyrqKpo"; // ひなた_次回訪問日時
-        const SHEET_NAME = "シート1";
+        // チームに基づいてシート名を決定（チーム別タブ）
+        const getVisitTeamSheetName = (team: string | null | undefined): string => {
+          const validTeams = ["身体", "天理", "郡山北部", "郡山南部"];
+          if (team && validTeams.includes(team)) return team;
+          return "その他";
+        };
+        const SHEET_NAME = getVisitTeamSheetName(record.team);
 
         // サービスアカウント認証
         const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
@@ -1448,6 +1454,23 @@ export const appRouter = router({
           record.notifyMethod ?? "",
           record.notifyMethodOther ?? "",
         ];
+
+        // シートの存在確認（チーム別タブの自動作成対応）
+        const metaCheckRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}?fields=sheets.properties`, {
+          headers: { Authorization: `Bearer ${token.token}` },
+        });
+        if (metaCheckRes.ok) {
+          const metaCheck = await metaCheckRes.json() as { sheets?: { properties: { title: string } }[] };
+          const sheetAlreadyExists = metaCheck.sheets?.some(s => s.properties.title === SHEET_NAME);
+          if (!sheetAlreadyExists) {
+            // シートがなければ新規作成
+            await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}:batchUpdate`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ requests: [{ addSheet: { properties: { title: SHEET_NAME } } }] }),
+            });
+          }
+        }
 
         // 現在のシートの内容を確認してヘッダー行がなければ先に書き込む
         const checkUrl = `https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A1")}?valueRenderOption=UNFORMATTED_VALUE`;
@@ -1506,8 +1529,10 @@ export const appRouter = router({
             headers: { Authorization: `Bearer ${token.token}` },
           });
           if (metaRes.ok) {
-            const meta = await metaRes.json();
-            const sheetId = meta.sheets?.[0]?.properties?.sheetId ?? 0;
+            const meta = await metaRes.json() as { sheets?: { properties: { title: string; sheetId: number } }[] };
+            // シート名で該当タブのsheetIdを取得（チーム別タブ対応）
+            const sheetInfo = meta.sheets?.find(s => s.properties.title === SHEET_NAME);
+            const sheetId = sheetInfo?.properties?.sheetId ?? 0;
 
             // 転送済み行数を取得して書式を適用
             const valuesRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A:A")}`, {
@@ -2154,7 +2179,13 @@ export const appRouter = router({
         if (!record) throw new TRPCError({ code: "NOT_FOUND", message: "記録が見つかりません" });
 
         const CHANGE_SHEET_ID = input.spreadsheetId ?? "1ki462aQRaNTj5FrI_1MJ1OyATFGqODz6HCtmuriIDEU";
-        const SHEET_NAME = input.sheetName ?? "スケジュール変更連絡";
+        // チームに基づいてシート名を決定（チーム別タブ）
+        const getTeamSheetName = (team: string | null | undefined): string => {
+          const validTeams = ["身体", "天理", "郡山北部", "郡山南部"];
+          if (team && validTeams.includes(team)) return team;
+          return "スケジュール変更連絡";
+        };
+        const SHEET_NAME = input.sheetName ?? getTeamSheetName(record.team);
 
         const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
         const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
@@ -2385,7 +2416,13 @@ export const appRouter = router({
         if (!record) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "作成した記録が見つかりません" });
 
         const CHANGE_SHEET_ID = input.spreadsheetId ?? "1ki462aQRaNTj5FrI_1MJ1OyATFGqODz6HCtmuriIDEU";
-        const SHEET_NAME = input.sheetName ?? "スケジュール変更連絡";
+        // チームに基づいてシート名を決定（チーム別タブ）
+        const getTeamSheetNameForCreate = (team: string | null | undefined): string => {
+          const validTeams = ["身体", "天理", "郡山北部", "郡山南部"];
+          if (team && validTeams.includes(team)) return team;
+          return "スケジュール変更連絡";
+        };
+        const SHEET_NAME = input.sheetName ?? getTeamSheetNameForCreate(record.team);
 
         const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
         const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;

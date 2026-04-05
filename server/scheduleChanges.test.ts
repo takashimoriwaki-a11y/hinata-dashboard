@@ -132,3 +132,81 @@ describe("scheduleChange changeType validation", () => {
     expect(validTypes).not.toContain("invalid_type");
   });
 });
+
+describe("チーム別シート名ロジック（スケジュール変更連絡）", () => {
+  // routers.tsと同じロジックをここでテスト
+  const getTeamSheetName = (team: string | null | undefined): string => {
+    const validTeams = ["身体", "天理", "郡山北部", "郡山南部"];
+    if (team && validTeams.includes(team)) return team;
+    return "スケジュール変更連絡";
+  };
+
+  it("身体チームは「身体」タブに転記される", () => {
+    expect(getTeamSheetName("身体")).toBe("身体");
+  });
+
+  it("天理チームは「天理」タブに転記される", () => {
+    expect(getTeamSheetName("天理")).toBe("天理");
+  });
+
+  it("郡山北部チームは「郡山北部」タブに転記される", () => {
+    expect(getTeamSheetName("郡山北部")).toBe("郡山北部");
+  });
+
+  it("郡山南部チームは「郡山南部」タブに転記される", () => {
+    expect(getTeamSheetName("郡山南部")).toBe("郡山南部");
+  });
+
+  it("全チームはデフォルトの「スケジュール変更連絡」タブに転記される", () => {
+    expect(getTeamSheetName("全チーム")).toBe("スケジュール変更連絡");
+  });
+
+  it("事務員はデフォルトの「スケジュール変更連絡」タブに転記される", () => {
+    expect(getTeamSheetName("事務員")).toBe("スケジュール変更連絡");
+  });
+
+  it("チームがnullの場合はデフォルトの「スケジュール変更連絡」タブに転記される", () => {
+    expect(getTeamSheetName(null)).toBe("スケジュール変更連絡");
+  });
+
+  it("チームがundefinedの場合はデフォルトの「スケジュール変更連絡」タブに転記される", () => {
+    expect(getTeamSheetName(undefined)).toBe("スケジュール変更連絡");
+  });
+});
+
+describe("チーム別シート名ロジック（次回訪問日時）", () => {
+  // routers.tsと同じロジックをここでテスト
+  const getVisitTeamSheetName = (team: string | null | undefined): string => {
+    const validTeams = ["身体", "天理", "郡山北部", "郡山南部"];
+    if (team && validTeams.includes(team)) return team;
+    return "その他";
+  };
+
+  it("身体チームは「身体」タブに転記される", () => {
+    expect(getVisitTeamSheetName("身体")).toBe("身体");
+  });
+
+  it("天理チームは「天理」タブに転記される", () => {
+    expect(getVisitTeamSheetName("天理")).toBe("天理");
+  });
+
+  it("郡山北部チームは「郡山北部」タブに転記される", () => {
+    expect(getVisitTeamSheetName("郡山北部")).toBe("郡山北部");
+  });
+
+  it("郡山南部チームは「郡山南部」タブに転記される", () => {
+    expect(getVisitTeamSheetName("郡山南部")).toBe("郡山南部");
+  });
+
+  it("全チームはデフォルトの「その他」タブに転記される", () => {
+    expect(getVisitTeamSheetName("全チーム")).toBe("その他");
+  });
+
+  it("チームがnullの場合はデフォルトの「その他」タブに転記される", () => {
+    expect(getVisitTeamSheetName(null)).toBe("その他");
+  });
+
+  it("チームがundefinedの場合はデフォルトの「その他」タブに転記される", () => {
+    expect(getVisitTeamSheetName(undefined)).toBe("その他");
+  });
+});
