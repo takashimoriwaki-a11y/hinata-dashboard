@@ -1974,9 +1974,26 @@ function TeamGoalsPanel() {
     return jst.toISOString().slice(0, 10);
   })();
 
+  // DateオブジェクトまたはISO文字列をYYYY-MM-DD形式に変換するヘルパー
+  function toDateStr(val: unknown): string | null {
+    if (!val) return null;
+    if (val instanceof Date) {
+      const jst = new Date(val.getTime() + 9 * 60 * 60 * 1000);
+      return jst.toISOString().slice(0, 10);
+    }
+    const s = String(val);
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) {
+      const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+      return jst.toISOString().slice(0, 10);
+    }
+    return null;
+  }
+
   function isActive(g: typeof goals[0]) {
-    const start = g.startDate ? String(g.startDate).slice(0, 10) : null;
-    const end = g.endDate ? String(g.endDate).slice(0, 10) : null;
+    const start = toDateStr(g.startDate);
+    const end = toDateStr(g.endDate);
     if (start && today < start) return false;
     if (end && today > end) return false;
     return true;
@@ -2096,9 +2113,9 @@ function TeamGoalsPanel() {
                           )}
                           {(g.startDate || g.endDate) && (
                             <span className="text-xs text-muted-foreground">
-                              {g.startDate ? String(g.startDate).slice(0, 10).replace(/-/g, "/") : "〜"}
+                              {toDateStr(g.startDate)?.replace(/-/g, "/") ?? "〜"}
                               {" 〜 "}
-                              {g.endDate ? String(g.endDate).slice(0, 10).replace(/-/g, "/") : ""}
+                              {toDateStr(g.endDate)?.replace(/-/g, "/") ?? ""}
                             </span>
                           )}
                         </div>

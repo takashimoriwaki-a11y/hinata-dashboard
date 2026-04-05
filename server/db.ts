@@ -1434,9 +1434,26 @@ export async function getActiveTeamGoals(todayStr: string): Promise<typeof teamG
       .from(teamGoals)
       .orderBy(teamGoals.team, teamGoals.createdAt);
     // 期間フィルタ（JS側で処理）
+    // DBのdate型はDateオブジェクトまたはISO文字列で返る可能性があるため両方対応
+    const toYMD = (val: unknown): string | null => {
+      if (!val) return null;
+      if (val instanceof Date) {
+        // JSTオフセットを加算してUTCのYYYY-MM-DDとして取得
+        const jst = new Date(val.getTime() + 9 * 60 * 60 * 1000);
+        return jst.toISOString().slice(0, 10);
+      }
+      const s = String(val);
+      if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+      const d = new Date(s);
+      if (!isNaN(d.getTime())) {
+        const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+        return jst.toISOString().slice(0, 10);
+      }
+      return null;
+    };
     return rows.filter(g => {
-      const start = g.startDate ? String(g.startDate).slice(0, 10) : null;
-      const end = g.endDate ? String(g.endDate).slice(0, 10) : null;
+      const start = toYMD(g.startDate);
+      const end = toYMD(g.endDate);
       if (start && todayStr < start) return false;
       if (end && todayStr > end) return false;
       return true;

@@ -98,18 +98,21 @@ export default function TeamGoalsTicker() {
           style={{ animationDuration: `${duration}s` }}
         >
           {items.map((g, idx) => {
-            const startStr = g.startDate
-              ? (() => {
-                  const d = new Date(g.startDate);
-                  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
-                })()
-              : null;
-            const endStr = g.endDate
-              ? (() => {
-                  const d = new Date(g.endDate);
-                  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
-                })()
-              : null;
+            // DateオブジェクトまたはISO文字列をJST基準で「YYYY年M月D日」に変換
+            const toJSTDateLabel = (val: unknown): string | null => {
+              if (!val) return null;
+              let d: Date;
+              if (val instanceof Date) {
+                d = new Date(val.getTime() + 9 * 60 * 60 * 1000);
+              } else {
+                const parsed = new Date(String(val));
+                if (isNaN(parsed.getTime())) return null;
+                d = new Date(parsed.getTime() + 9 * 60 * 60 * 1000);
+              }
+              return `${d.getUTCFullYear()}年${d.getUTCMonth() + 1}月${d.getUTCDate()}日`;
+            };
+            const startStr = toJSTDateLabel(g.startDate);
+            const endStr = toJSTDateLabel(g.endDate);
             return (
               <div key={`${g.id}-${idx}`} className="flex items-center gap-2.5 flex-shrink-0 px-5">
                 {/* チームバッジ */}
