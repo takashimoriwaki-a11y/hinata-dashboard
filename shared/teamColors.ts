@@ -13,11 +13,12 @@ export const TEAM_COLOR_VALUES: Record<TeamName, {
   active: string;
   inactive: string;
   text: string;
+  nightText: string;
 }> = {
-  "身体":    { active: "#3b82f6", inactive: "#93c5fd", text: "#2563eb" },   // blue-500 / blue-300 / blue-600
-  "天理":    { active: "#10b981", inactive: "#6ee7b7", text: "#059669" },   // emerald-500 / emerald-300 / emerald-600
-  "郡山北部": { active: "#f97316", inactive: "#fdba74", text: "#ea580c" },  // orange-500 / orange-300 / orange-600
-  "郡山南部": { active: "#a855f7", inactive: "#d8b4fe", text: "#9333ea" },  // purple-500 / purple-300 / purple-600
+  "身体":    { active: "#3b82f6", inactive: "#93c5fd", text: "#2563eb", nightText: "#60a5fa" },   // blue-500 / blue-300 / blue-600 / blue-400
+  "天理":    { active: "#10b981", inactive: "#6ee7b7", text: "#059669", nightText: "#34d399" },   // emerald-500 / emerald-300 / emerald-600 / emerald-400
+  "郡山北部": { active: "#f97316", inactive: "#fdba74", text: "#ea580c", nightText: "#fb923c" },  // orange-500 / orange-300 / orange-600 / orange-400
+  "郡山南部": { active: "#a855f7", inactive: "#d8b4fe", text: "#9333ea", nightText: "#c084fc" },  // purple-500 / purple-300 / purple-600 / purple-400
 };
 
 /** 全チームボタン用カラー */
@@ -45,12 +46,21 @@ export function getTeamButtonStyle(teamName: string, isActive: boolean): React.C
 }
 
 /**
- * チーム名からテキスト色のインラインスタイルを返すヘルパー
+ * チーム名からテキスト色のインラインスタイルを返すヘルパー（昼モード用）
  */
 export function getTeamTextStyle(teamName: string): React.CSSProperties {
   const colors = TEAM_COLOR_VALUES[teamName as TeamName];
   if (!colors) return { color: ALL_TEAM_COLOR.active };
   return { color: colors.text };
+}
+
+/**
+ * チーム名からテキスト色のインラインスタイルを返すヘルパー（夜間モード用・明るめ）
+ */
+export function getTeamTextStyleNight(teamName: string): React.CSSProperties {
+  const colors = TEAM_COLOR_VALUES[teamName as TeamName];
+  if (!colors) return { color: "#67e8f9" }; // cyan-300
+  return { color: colors.nightText };
 }
 
 // 後方互換性のため旧関数も残す

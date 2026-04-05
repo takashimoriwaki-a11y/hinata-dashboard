@@ -87,7 +87,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, openLink } from "@/lib/utils";
-import { getTeamButtonClass, getAllTeamButtonStyle, getTeamButtonStyle } from "@shared/teamColors";
+import { getTeamButtonClass, getAllTeamButtonStyle, getTeamButtonStyle, getTeamTextStyle, getTeamTextStyleNight } from "@shared/teamColors";
 import { Link, useLocation } from "wouter";
 import { useTheme } from "@/contexts/ThemeContext";
 import TaskCreateForm from "@/components/TaskCreateForm";
@@ -1853,12 +1853,12 @@ type ToolsTabId = typeof TOOLS_TABS[number]["id"];
 // リンク行コンポーネント
 const DAILY_REPORT_SPREADSHEET_ID = "10Leb7UR6ARVlCGbf5pBa5yxsgm5WAV9m-ETyYrzfBCs";
 
-function LinkRow({ href, label, color, emoji }: { href: string; label: string; color?: string; emoji?: string }) {
+function LinkRow({ href, label, color, colorStyle, emoji }: { href: string; label: string; color?: string; colorStyle?: React.CSSProperties; emoji?: string }) {
   const { isNight } = useTheme();
   const [isOpening, setIsOpening] = useState(false);
   const utils = trpc.useUtils();
-  // 夜間モード時は-600番台を-400番台に変換して視認性を上げる
-  const nightColor = color ? color.replace(/-600$/, "-400").replace(/-700$/, "-300") : "text-foreground";
+  // colorStyle優先。colorが指定されている場合は夜間モード変換を適用
+  const nightColor = color ? color.replace(/-600$/, "-400").replace(/-700$/, "-300") : undefined;
 
   const isDailyReport = href.includes(DAILY_REPORT_SPREADSHEET_ID);
 
@@ -1895,9 +1895,10 @@ function LinkRow({ href, label, color, emoji }: { href: string; label: string; c
         "flex items-center gap-2 text-sm py-2.5 px-3 rounded-md",
         "bg-muted/50 hover:bg-muted transition-all duration-200 font-medium hover:-translate-y-0.5 hover:shadow-sm active:scale-95 select-none",
         isOpening ? "opacity-60 cursor-wait" : "",
-        isNight ? nightColor : (color ?? "text-foreground")
+        !colorStyle && (isNight ? (nightColor ?? "text-foreground") : (color ?? "text-foreground")),
       )}
-      style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
+      style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', ...(colorStyle ?? {}) }}
+      // colorStyleがない場合はTailwindクラスで色を適用（後方互換）
     >
       {isOpening
         ? <span className="flex-shrink-0 w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -2363,15 +2364,7 @@ function TeamToolsCard() {
             <LinkRow
               href={teamFeeLink.url}
               label={teamFeeLink.label}
-              color={(() => {
-                const teamTextColorMap: Record<TeamTabId, string> = {
-                  "身体": "text-blue-600",
-                  "天理": "text-emerald-600",
-                  "郡山北部": "text-orange-600",
-                  "郡山南部": "text-purple-600",
-                };
-                return teamTextColorMap[activeTeam];
-              })()}
+              colorStyle={isNight ? getTeamTextStyleNight(activeTeam) : getTeamTextStyle(activeTeam)}
               emoji="📊"
             />
           )}
@@ -2406,16 +2399,13 @@ function TeamToolsCard() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-1 group">
-                    {/* チームに応じた文字色を常にチームカラーで統一 */}
-                    {(() => {
-                      const teamTextColorMap: Record<TeamTabId, string> = {
-                        "身体": "text-blue-600",
-                        "天理": "text-emerald-600",
-                        "郡山北部": "text-orange-600",
-                        "郡山南部": "text-purple-600",
-                      };
-                      return <LinkRow href={tool.href} label={tool.label} color={teamTextColorMap[activeTeam]} emoji={tool.emoji ?? undefined} />;
-                    })()}
+                    {/* チームに応じた文字色：インラインスタイルで夜間モード対応 */}
+                    <LinkRow
+                      href={tool.href}
+                      label={tool.label}
+                      colorStyle={isNight ? getTeamTextStyleNight(activeTeam) : getTeamTextStyle(activeTeam)}
+                      emoji={tool.emoji ?? undefined}
+                    />
                     {isAdmin && (
                       <>
                         <button onClick={() => startEdit(tool)} onTouchStart={() => {}} style={{ touchAction: 'manipulation' }} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95 touch-manipulation" title="編集">
