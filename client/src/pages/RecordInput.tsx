@@ -1020,7 +1020,7 @@ export default function RecordInput() {
                       </div>
                       <Input
                         type="date"
-                        className={cn("text-sm h-8", missingDate && "border-red-400 focus-visible:ring-red-400")}
+                        className={cn("text-xs h-8 px-2 w-full", missingDate && "border-red-400 focus-visible:ring-red-400")}
                         value={editingPreview.visitDate ?? ""}
                         onChange={(e) => setEditingPreview((p) => p ? { ...p, visitDate: e.target.value } : p)}
                       />
@@ -1032,7 +1032,7 @@ export default function RecordInput() {
                       </div>
                       <Input
                         type="time"
-                        className={cn("text-sm h-8", missingTime && "border-red-400 focus-visible:ring-red-400")}
+                        className={cn("text-xs h-8 px-2 w-full", missingTime && "border-red-400 focus-visible:ring-red-400")}
                         value={editingPreview.visitTime ?? ""}
                         onChange={(e) => setEditingPreview((p) => p ? { ...p, visitTime: e.target.value } : p)}
                       />
