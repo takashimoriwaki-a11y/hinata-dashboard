@@ -2208,7 +2208,7 @@ function ToolsCard() {
                       ) : (
                         <div className="flex items-center gap-1">
                           <a href={link.url} target="_blank" rel="noopener noreferrer"
-                            className="flex-1 flex items-center gap-2 text-sm py-2.5 px-3 rounded-md bg-muted/50 hover:bg-muted text-primary transition-colors min-w-0 font-medium">
+                            className="flex-1 flex items-center gap-2 text-sm py-2.5 px-3 rounded-md bg-muted/50 hover:bg-muted text-white transition-colors min-w-0 font-medium">
                             <span className="flex-shrink-0">{link.emoji ?? "🔗"}</span>
                             <span className="truncate">{link.label}</span>
                           </a>

@@ -168,12 +168,29 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     return () => clearInterval(timer);
   }, []);
 
-  // ページ遷移時にメインコンテンツのスクロール位置を上部にリセットする
+  // ページ遷移時にスクロール位置を記憶・復元する
   const mainRef = useRef<HTMLElement>(null);
+  const prevLocationRef = useRef<string>(location);
   useEffect(() => {
-    if (mainRef.current) {
-      mainRef.current.scrollTop = 0;
+    const el = mainRef.current;
+    if (!el) return;
+
+    // 前のページのスクロール位置を保存
+    const prevPath = prevLocationRef.current;
+    if (prevPath !== location) {
+      sessionStorage.setItem(`scroll:${prevPath}`, String(el.scrollTop));
+      prevLocationRef.current = location;
     }
+
+    // 新しいページの保存済みスクロール位置を復元（なければ先頭）
+    const saved = sessionStorage.getItem(`scroll:${location}`);
+    // DOMが描画された後に復元するため少し遅延させる
+    const timer = setTimeout(() => {
+      if (mainRef.current) {
+        mainRef.current.scrollTop = saved ? parseInt(saved, 10) : 0;
+      }
+    }, 50);
+    return () => clearTimeout(timer);
   }, [location]);
 
   const dateStr = now.toLocaleDateString("ja-JP", {
