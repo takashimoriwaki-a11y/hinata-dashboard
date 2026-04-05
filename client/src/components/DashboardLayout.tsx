@@ -213,7 +213,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   // サイドバー内容（PC・モバイル共通）
   const SidebarContent = ({ mobile = false }: { mobile?: boolean }) => (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       {/* ロゴエリア */}
       <div className={cn(
         "flex items-center border-b border-sidebar-border py-3",
@@ -252,7 +252,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       )}
 
       {/* ナビゲーション */}
-      <nav className="flex-1 py-3 overflow-y-auto">
+      <nav className="flex-1 py-3 overflow-y-auto min-h-0">
         {(!collapsed || mobile) && (
           <p className="px-4 text-[10px] font-semibold text-sidebar-foreground/40 uppercase tracking-wider mb-1">
             メニュー
@@ -423,10 +423,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* ========== モバイル用ドロワー ========== */}
       <aside
         className={cn(
-          "fixed top-0 left-0 z-50 flex flex-col w-72",
+          "fixed top-0 left-0 z-50 flex flex-col w-72 overflow-hidden",
           "bg-sidebar text-sidebar-foreground border-r border-sidebar-border shadow-xl",
           "transition-transform duration-300 ease-in-out md:hidden",
-          "top-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
         style={{ height: "calc(100dvh - 60px - env(safe-area-inset-bottom, 0px))" }}

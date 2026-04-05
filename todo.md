@@ -1713,3 +1713,4 @@
 - [x] サイドバーの管理画面ボタンがボトムタブバーと重なる問題を修正（PC版・ iPhone版両方、SidebarContentをflex flex-col h-full構造に変更）
 - [x] ページ移動時に全ページのスクロール位置を記憶する機能を追加する（sessionStorageで各ページのスクロール位置を記憶・復元）
 - [x] マイリンクの文字色を白色に統一する
+- [x] モバイル版サイドバーの「管理画面」ボタンがボトムタブバーに被る問題を再修正（asideにoverflow-hidden、SidebarContentとnavにmin-h-0追加）
