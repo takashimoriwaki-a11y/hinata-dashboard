@@ -1705,7 +1705,29 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const { invokeLLM } = await import("./_core/llm");
         const today = new Date();
-        const todayStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
+        // JSTで今日の日付を計算
+        const jstNow = new Date(today.getTime() + 9 * 60 * 60 * 1000);
+        const todayStr = `${jstNow.getUTCFullYear()}年${jstNow.getUTCMonth() + 1}月${jstNow.getUTCDate()}日`;
+        const todayISO = `${jstNow.getUTCFullYear()}-${String(jstNow.getUTCMonth() + 1).padStart(2, '0')}-${String(jstNow.getUTCDate()).padStart(2, '0')}`;
+        const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][jstNow.getUTCDay()];
+        // 今週・来週の各曜日の日付を計算（月曜始まり）
+        const weekDates: Record<string, string> = {};
+        const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+        for (let i = 0; i < 14; i++) {
+          const d = new Date(jstNow.getTime() + i * 24 * 60 * 60 * 1000);
+          const dn = dayNames[d.getUTCDay()];
+          const ds = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+          if (i === 0) weekDates[`今日(${dn})`] = ds;
+          else if (i === 1) weekDates[`明日(${dn})`] = ds;
+          else if (i === 2) weekDates[`明後日(${dn})`] = ds;
+          else {
+            const label = i <= 6 ? `今週${dn}曜日` : `来週${dn}曜日`;
+            if (!weekDates[label]) weekDates[label] = ds;
+          }
+        }
+        const weekDatesStr = Object.entries(weekDates)
+          .map(([k, v]) => `${k}=${v}`)
+          .join('、');
         // 読み仮名付き利用者リストを構築（読み仮名があれば「正式名（読み）」形式で表示）
         let patientListStr = '';
         if (input.patientNamesWithKana && input.patientNamesWithKana.length > 0) {
@@ -1717,19 +1739,50 @@ export const appRouter = router({
           patientListStr = `\n\n登録済利用者リスト（この中から最も近い名前を選んでpatientNameに返すこと。姓のみで言及されても正式名を返すこと）:\n${input.patientNames.join('、')}`;
         }
         const systemPrompt = `あなたは訪問看護ステーションの業務アシスタントです。スタッフが音声で伝えた内容から、利用者名・次回訪問日時・伝達先・伝達方法を抽出してJSONで返してください。
-今日は${todayStr}です。日付は「明日」「明後日」「今日」などの相対表現も解釈してYYYY-MM-DD形式で返してください。時刻はHH:mm形式で返してください。
-重要：音声入力では言い間違いを訂正する場合があります。以下のような訂正・言い直しを示す表現がある場合は、その後に続く内容（最後に言及された内容）を正しい値として採用してください。
+
+【今日の情報】
+今日は${todayStr}（${dayOfWeek}曜日）です。
+今後14日間の曜日対応表：${weekDatesStr}
+
+【日付の解釈ルール】
+- 「今日」「本日」→ ${todayISO}
+- 「明日」「あした」→ 明日の日付
+- 「明後日」「あさって」→ 明後日の日付
+- 「今週○曜日」「今週の○曜日」→ 今週の該当曜日（上記対応表を参照）
+- 「来週○曜日」「来週の○曜日」→ 来週の該当曜日（上記対応表を参照）
+- 「○曜日」だけで「今週・来週」の指定がない場合→ 今日以降で最も近い該当曜日
+- 「○月○日」「○日」→ 今月または翌月の該当日（過去にならないよう解釈）
+- 「今月○日」「来月○日」→ 明示的な月を使って解釈
+- 日付は必ずYYYY-MM-DD形式で返すこと
+
+【時刻の解釈ルール】
+- 「○時」だけで分の指定がない場合→ 「○時00分」として解釈（例：「14時」→「14:00」）
+- 「○時半」→ 「○時30分」として解釈（例：「10時半」→「10:30」）
+- 「○時○分」→ そのまま解釈
+- 「午前○時」「朝○時」→ 00:00〜11:59の範囲で解釈
+- 「午後○時」「昼○時」「夜○時」→ 12:00〜23:59の範囲で解釈（「午後1時」→「13:00」）
+- 「夕方○時」→ 16:00〜18:59の範囲で解釈
+- 「夜○時」→ 19:00〜23:59の範囲で解釈
+- 時刻は必ずHH:mm形式で返すこと（例：「9:00」ではなく「09:00」）
+
+【訂正表現の処理】
+音声入力では言い間違いを訂正する場合があります。以下のような訂正・言い直しを示す表現がある場合は、その後に続く内容（最後に言及された内容）を正しい値として採用してください。
 訂正表現の例：「じゃなくて」「ではなく」「違います」「違う」「あ、違う」「間違えました」「間違い」「取り消して」「やっぱり」「やっぱ」「えーと」「あ、えーと」「そうじゃなくて」「ちがう」「いや」「いや、違う」「ごめん」「ごめんなさい」「訂正します」「訂正して」「修正して」「変えて」「なくて」「じゃなく」「ではなくて」「でなく」「でなくて」「ちょっと待って」「待って」「ちょっと待ってください」「もう一度」「もう一回」「やり直し」「やり直して」「最初から」「リセット」「キャンセル」「なしで」「なしにして」「消して」「削除して」「戻して」「前に戻って」「そうではなくて」「そうじゃない」「そうじゃないです」「そうではない」「そうではありません」「別の」「別にして」「他の」「他にして」「違う人」「違う名前」「違う日」「違う時間」「違う日時」「ではなかった」「じゃなかった」「ではありません」「じゃありません」「ではないです」「じゃないです」「ちゃう」「ちゃうちゃう」「あかん」「あかんあかん」「ちゃうんちゃう」「ちゃうわ」「ちゃいます」「ちゃいますよ」「ちゃうで」「ちゃうやん」「ちゃうやろ」「ちゃうんや」「ちゃうんです」「ちゃうかな」「ちゃうかも」「あれちゃう」「それちゃう」「ちゃうかった」「ちゃうかったわ」「ちゃうかったです」「違うわ」「違うやん」「違うやろ」「違うんや」「違うんちゃう」「違うかな」「違うかも」「違うかった」「あ、ちゃう」「あ、ちゃうちゃう」「ちゃうちゃう、」「あかんわ」「あかんやん」「あかんやろ」「それあかん」「それはあかん」「それちゃうわ」「それちゃうやん」「それちゃうやろ」「それちゃうんや」「それちゃうんちゃう」「それちゃうかな」「それちゃうかも」「それちゃうかった」
-抽出項目:
+
+【抽出項目】
 - patientName: 利用者名。「○○さん」「○○の」など利用者を指す表現から抽出。利用者リストがある場合はリストから最も近い名前を完全な形で返す（姓のみ・読み仮名・略称で言及されても正式名を返す）。訂正表現がある場合は最後に言及された利用者名を使用すること。不明ならnull
-- visitDate: 次回訪問日（YYYY-MM-DD形式）
-- visitTime: 次回訪問時刻（HH:mm形式）
+- visitDate: 次回訪問日（YYYY-MM-DD形式）。上記の日付解釈ルールに従って解釈すること
+- visitTime: 次回訪問時刻（HH:mm形式）。上記の時刻解釈ルールに従って解釈すること
 - notifiedTo: 伝達先。「本人」「家族」「その他」のいずれか。不明ならnull
 - notifiedToOther: notifiedToが「その他」の場合の自由記述
 - notifyMethod: 伝達方法。「口頭」「カレンダー記入」「付箋」「電話」「その他」のいずれか。不明ならnull
 - notifyMethodOther: notifyMethodが「その他」の場合の自由記述
 - team: 利用者が所属するチーム。「身体」「天理」「郡山北部」「郡山南部」のいずれか。「しんたい」「からだ」と言われたら「身体」、「てんり」と言われたら「天理」、「きたべ」「きたぶ」「北部」と言われたら「郡山北部」、「みなみ」「南部」と言われたら「郡山南部」を返す。不明ならnull
+- visitDateConfidence: visitDateの解析信頼度。「high」（明確に日付が述べられた）「medium」（相対表現・曜日指定など推測が必要）「low」（日付が不明確または推測困難）のいずれか
+- visitTimeConfidence: visitTimeの解析信頼度。「high」（明確に時刻が述べられた）「medium」（時間帯表現など推測が必要）「low」（時刻が不明確または推測困難）のいずれか
+
 不明な項目はnullを返してください。必ず有効なJSONのみを返してください。${patientListStr}`;
+
 
         const res = await invokeLLM({
           messages: [
@@ -1752,8 +1805,10 @@ export const appRouter = router({
                   notifyMethod: { type: ["string", "null"] },
                   notifyMethodOther: { type: ["string", "null"] },
                   team: { type: ["string", "null"] },
+                  visitDateConfidence: { type: ["string", "null"] },
+                  visitTimeConfidence: { type: ["string", "null"] },
                 },
-                required: ["patientName", "visitDate", "visitTime", "notifiedTo", "notifiedToOther", "notifyMethod", "notifyMethodOther", "team"],
+                required: ["patientName", "visitDate", "visitTime", "notifiedTo", "notifiedToOther", "notifyMethod", "notifyMethodOther", "team", "visitDateConfidence", "visitTimeConfidence"],
                 additionalProperties: false,
               },
             },
@@ -1772,6 +1827,8 @@ export const appRouter = router({
             notifyMethod: string | null;
             notifyMethodOther: string | null;
             team: string | null;
+            visitDateConfidence: 'high' | 'medium' | 'low' | null;
+            visitTimeConfidence: 'high' | 'medium' | 'low' | null;
           };
           return { success: true, fields: parsed };
         } catch {

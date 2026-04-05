@@ -185,6 +185,9 @@ export default function RecordInput() {
     notifyMethod?: string;
     notifyMethodOther?: string;
     team?: string;
+    visitDateConfidence?: 'high' | 'medium' | 'low' | null;
+    visitTimeConfidence?: 'high' | 'medium' | 'low' | null;
+    rawVoiceText?: string;
   };
   const [voicePreview, setVoicePreview] = useState<VoicePreview | null>(null);
   const [editingPreview, setEditingPreview] = useState<VoicePreview | null>(null);
@@ -402,6 +405,9 @@ export default function RecordInput() {
         notifyMethod: f.notifyMethod ?? undefined,
         notifyMethodOther: f.notifyMethodOther ?? undefined,
         team: f.team ?? undefined,
+        visitDateConfidence: (f as any).visitDateConfidence ?? null,
+        visitTimeConfidence: (f as any).visitTimeConfidence ?? null,
+        rawVoiceText: (parseVisitVoiceMutation as any)._lastInput?.text ?? undefined,
       };
       setVoicePreview(preview);
       setEditingPreview({ ...preview });
@@ -883,6 +889,14 @@ export default function RecordInput() {
                   }
                 </p>
 
+                {/* 認識された音声テキスト表示 */}
+                {visitVoiceText && (
+                  <div className="rounded-lg bg-background/60 border border-border/50 px-3 py-2">
+                    <p className="text-[9px] font-medium text-muted-foreground mb-0.5">🎤 認識された音声</p>
+                    <p className="text-[11px] text-foreground/80 leading-snug">{visitVoiceText}</p>
+                  </div>
+                )}
+
                 {/* チーム */}
                 {editingPreview.team && (
                   <div className="space-y-1">
@@ -1014,28 +1028,90 @@ export default function RecordInput() {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 flex-wrap">
                         <label className={cn("text-[9px] text-muted-foreground", missingDate && "text-red-400")}>日付</label>
                         {missingDate && <span className="text-[9px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
+                        {!missingDate && editingPreview.visitDateConfidence === 'medium' && (
+                          <span className="text-[9px] font-medium text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded px-1 py-0.5 leading-none">推測</span>
+                        )}
+                        {!missingDate && editingPreview.visitDateConfidence === 'low' && (
+                          <span className="text-[9px] font-medium text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-950/40 border border-orange-300 dark:border-orange-700 rounded px-1 py-0.5 leading-none">要確認</span>
+                        )}
                       </div>
                       <Input
                         type="date"
-                        className={cn("text-xs h-8 px-2 w-full", missingDate && "border-red-400 focus-visible:ring-red-400")}
+                        className={cn("text-xs h-8 px-2 w-full", missingDate && "border-red-400 focus-visible:ring-red-400", !missingDate && editingPreview.visitDateConfidence === 'medium' && "border-amber-400", !missingDate && editingPreview.visitDateConfidence === 'low' && "border-orange-400")}
                         value={editingPreview.visitDate ?? ""}
                         onChange={(e) => setEditingPreview((p) => p ? { ...p, visitDate: e.target.value } : p)}
                       />
+                      {/* 日付のクイック修正ボタン */}
+                      {editingPreview.visitDate && (
+                        <div className="flex gap-1">
+                          {[-1, 1].map((delta) => (
+                            <button
+                              key={delta}
+                              type="button"
+                              className="flex-1 text-[10px] h-6 rounded border border-border bg-background/70 hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                              onClick={() => {
+                                setEditingPreview((p) => {
+                                  if (!p?.visitDate) return p;
+                                  const d = new Date(p.visitDate + 'T00:00:00');
+                                  d.setDate(d.getDate() + delta);
+                                  const y = d.getFullYear();
+                                  const m = String(d.getMonth() + 1).padStart(2, '0');
+                                  const day = String(d.getDate()).padStart(2, '0');
+                                  return { ...p, visitDate: `${y}-${m}-${day}`, visitDateConfidence: 'high' };
+                                });
+                              }}
+                            >
+                              {delta === -1 ? '− 1日' : '+ 1日'}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-1">
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 flex-wrap">
                         <label className={cn("text-[9px] text-muted-foreground", missingTime && "text-red-400")}>時刻</label>
                         {missingTime && <span className="text-[9px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
+                        {!missingTime && editingPreview.visitTimeConfidence === 'medium' && (
+                          <span className="text-[9px] font-medium text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded px-1 py-0.5 leading-none">推測</span>
+                        )}
+                        {!missingTime && editingPreview.visitTimeConfidence === 'low' && (
+                          <span className="text-[9px] font-medium text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-950/40 border border-orange-300 dark:border-orange-700 rounded px-1 py-0.5 leading-none">要確認</span>
+                        )}
                       </div>
                       <Input
                         type="time"
-                        className={cn("text-xs h-8 px-2 w-full", missingTime && "border-red-400 focus-visible:ring-red-400")}
+                        className={cn("text-xs h-8 px-2 w-full", missingTime && "border-red-400 focus-visible:ring-red-400", !missingTime && editingPreview.visitTimeConfidence === 'medium' && "border-amber-400", !missingTime && editingPreview.visitTimeConfidence === 'low' && "border-orange-400")}
                         value={editingPreview.visitTime ?? ""}
                         onChange={(e) => setEditingPreview((p) => p ? { ...p, visitTime: e.target.value } : p)}
                       />
+                      {/* 時刻のクイック修正ボタン */}
+                      {editingPreview.visitTime && (
+                        <div className="flex gap-1">
+                          {[-30, 30].map((delta) => (
+                            <button
+                              key={delta}
+                              type="button"
+                              className="flex-1 text-[10px] h-6 rounded border border-border bg-background/70 hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                              onClick={() => {
+                                setEditingPreview((p) => {
+                                  if (!p?.visitTime) return p;
+                                  const [h, m] = p.visitTime.split(':').map(Number);
+                                  const totalMin = h * 60 + m + delta;
+                                  const clampedMin = Math.max(0, Math.min(23 * 60 + 59, totalMin));
+                                  const nh = Math.floor(clampedMin / 60);
+                                  const nm = clampedMin % 60;
+                                  return { ...p, visitTime: `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`, visitTimeConfidence: 'high' };
+                                });
+                              }}
+                            >
+                              {delta === -30 ? '−30分' : '+30分'}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
