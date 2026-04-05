@@ -196,7 +196,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   // サイドバー内容（PC・モバイル共通）
   const SidebarContent = ({ mobile = false }: { mobile?: boolean }) => (
-    <>
+    <div className="flex flex-col h-full">
       {/* ロゴエリア */}
       <div className={cn(
         "flex items-center border-b border-sidebar-border py-3",
@@ -288,7 +288,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </nav>
 
       {/* ボトムアクション */}
-      <div className={cn("border-t border-sidebar-border py-2", mobile && "pb-[76px]")} >
+      <div className="border-t border-sidebar-border py-2 flex-shrink-0">
         <button
           onTouchStart={() => {}}
           onClick={async () => {
@@ -353,7 +353,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           {(!collapsed || mobile) && <span>ログアウト</span>}
         </button>
       </div>
-    </>
+    </div>
   );
 
   return (
@@ -414,11 +414,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         )}
         style={{ height: "calc(100dvh - 60px - env(safe-area-inset-bottom, 0px))" }}
       >
-        <div className="flex flex-col h-full overflow-hidden">
-          <div className="flex-1 overflow-y-auto">
-            <SidebarContent mobile />
-          </div>
-        </div>
+        <SidebarContent mobile />
       </aside>
 
       {/* ========== メインコンテンツエリア ========== */}
