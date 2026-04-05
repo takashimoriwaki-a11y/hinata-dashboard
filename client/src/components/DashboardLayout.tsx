@@ -53,7 +53,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import DailyMessageBar from "./DailyMessageBar";
+import TeamGoalsTicker from "./TeamGoalsTicker";
 import { TeamSetupModal } from "./TeamSetupModal";
 import { WelcomeModal } from "./WelcomeModal";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -424,8 +424,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* ========== メインコンテンツエリア ========== */}
       <div className="flex flex-col flex-1 overflow-hidden min-w-0">
 
-        {/* ========== 今日の一言バー ========== */}
-        <DailyMessageBar />
+        {/* ========== チーム目標テロップ ========== */}
+        <TeamGoalsTicker />
 
         {/* トップヘッダー */}
         <header className={cn(
