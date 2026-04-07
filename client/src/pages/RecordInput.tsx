@@ -592,6 +592,9 @@ export default function RecordInput() {
       nextVisitAt = new Date(dt);
     }
 
+    // 1回タップで保存→転送を自動実行
+    autoExportRef.current = true;
+
     createRecord.mutate({
       patientId: patientId ?? undefined,
       patientName: patientName || "未選択",
@@ -1676,10 +1679,12 @@ export default function RecordInput() {
         <Button
           className="w-full bg-orange-500 hover:bg-orange-600 text-white border-orange-500"
           onClick={handleSave}
-          disabled={createRecord.isPending || !team}
+          disabled={createRecord.isPending || exportToSheet.isPending || !team}
         >
           {createRecord.isPending ? (
             <><Loader2 className="w-4 h-4 mr-2 animate-spin" />保存中...</>
+          ) : exportToSheet.isPending ? (
+            <><Loader2 className="w-4 h-4 mr-2 animate-spin" />転送中...</>
           ) : (
             <><FileSpreadsheet className="w-4 h-4 mr-2" />次回訪問日時をスプレッドシートへ転送</>
           )}
