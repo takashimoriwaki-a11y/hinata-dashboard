@@ -76,7 +76,7 @@ const navItems = [
 
 const externalTools = [
   { label: "ZEST（スケジュール）", href: "https://homecare.zest.jp/login", icon: ExternalLink },
-  { label: "iBow（電子カルテ）", href: "https://login.ibowservice.jp/?action=logout", icon: ExternalLink },
+
 ];
 
 // ボトムナビゲーション
