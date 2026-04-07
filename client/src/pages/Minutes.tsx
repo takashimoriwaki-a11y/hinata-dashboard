@@ -39,6 +39,7 @@ import {
   Bell,
   Calendar,
   AlertTriangle,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, isPast, isToday, addDays } from "date-fns";
@@ -408,12 +409,10 @@ export default function Minutes() {
             </p>
           </div>
         </div>
-        {isAdmin && (
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="w-4 h-4 mr-1" />
-            投稿
-          </Button>
-        )}
+        <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Plus className="w-4 h-4 mr-1" />
+          投稿
+        </Button>
       </div>
 
       {/* 期限が近い/切れた議事録の警告バナー */}
@@ -638,13 +637,26 @@ export default function Minutes() {
                     )}
                   </div>
                 </CardHeader>
+                {/* 確認済みタブ: 未確認に戻すボタン */}
+                {activeTab === "read" && isChecked && (
+                  <div className="px-4 pb-3">
+                    <button
+                      onClick={() => uncheckMutation.mutate({ minutesId: m.id })}
+                      disabled={uncheckMutation.isPending}
+                      className="flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 border border-amber-300 dark:border-amber-600 rounded-md px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors disabled:opacity-50"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      未確認に戻す
+                    </button>
+                  </div>
+                )}
               </Card>
             );
           })}
         </div>
       )}
 
-      {/* 投稿ダイアログ（adminのみ） */}
+      {/* 投稿ダイアログ（全職員） */}
       <Dialog open={createOpen} onOpenChange={(open) => {
         setCreateOpen(open);
         if (!open) {

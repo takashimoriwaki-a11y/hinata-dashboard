@@ -3024,9 +3024,7 @@ export const appRouter = router({
         deadline: z.date().optional().nullable(),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin") {
-          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ投稿できます" });
-        }
+        // 全職員が投稿可能（権限チェックなし）
         const { getDb } = await import("./db");
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続エラー" });
