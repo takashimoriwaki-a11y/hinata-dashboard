@@ -84,6 +84,8 @@ import {
   SmilePlus,
   Car,
   Target,
+  BookmarkPlus,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, openLink } from "@/lib/utils";
@@ -1853,7 +1855,7 @@ type ToolsTabId = typeof TOOLS_TABS[number]["id"];
 // リンク行コンポーネント
 const DAILY_REPORT_SPREADSHEET_ID = "10Leb7UR6ARVlCGbf5pBa5yxsgm5WAV9m-ETyYrzfBCs";
 
-function LinkRow({ href, label, color, colorStyle, emoji }: { href: string; label: string; color?: string; colorStyle?: React.CSSProperties; emoji?: string }) {
+function LinkRow({ href, label, color, colorStyle, emoji, onAddToMyLinks, isInMyLinks }: { href: string; label: string; color?: string; colorStyle?: React.CSSProperties; emoji?: string; onAddToMyLinks?: () => void; isInMyLinks?: boolean }) {
   const { isNight } = useTheme();
   const [isOpening, setIsOpening] = useState(false);
   const utils = trpc.useUtils();
@@ -1890,29 +1892,45 @@ function LinkRow({ href, label, color, colorStyle, emoji }: { href: string; labe
     : {};
 
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={handleClick}
-      onTouchStart={() => {}}
-      className={cn(
-        "flex items-center gap-2 text-sm py-2.5 px-3 rounded-md",
-        "bg-muted/50 hover:bg-muted transition-all duration-200 font-medium hover:-translate-y-0.5 hover:shadow-sm active:scale-95 select-none",
-        isOpening ? "opacity-60 cursor-wait" : "",
-        // colorStyleがある場合: 昼は text-foreground、夜は colorStyle（インラインスタイル）
-        // colorStyleがない場合: Tailwindクラスで色を適用（後方互換）
-        colorStyle
-          ? (!isNight ? "text-foreground" : "")
-          : (isNight ? (nightColor ?? "text-foreground") : (color ?? "text-foreground")),
+    <div className="flex items-center gap-1">
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={handleClick}
+        onTouchStart={() => {}}
+        className={cn(
+          "flex-1 flex items-center gap-2 text-sm py-2.5 px-3 rounded-md min-w-0",
+          "bg-muted/50 hover:bg-muted transition-all duration-200 font-medium hover:-translate-y-0.5 hover:shadow-sm active:scale-95 select-none",
+          isOpening ? "opacity-60 cursor-wait" : "",
+          // colorStyleがある場合: 昼は text-foreground、夜は colorStyle（インラインスタイル）
+          // colorStyleがない場合: Tailwindクラスで色を適用（後方互換）
+          colorStyle
+            ? (!isNight ? "text-foreground" : "")
+            : (isNight ? (nightColor ?? "text-foreground") : (color ?? "text-foreground")),
+        )}
+        style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', ...resolvedStyle }}
+      >
+        {isOpening
+          ? <span className="flex-shrink-0 w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          : emoji ? <span className="flex-shrink-0">{emoji}</span> : <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />}
+        <span className="truncate">{label}</span>
+      </a>
+      {onAddToMyLinks && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onAddToMyLinks(); }}
+          title={isInMyLinks ? "マイリンクに登録済み" : "マイリンクに追加"}
+          className={cn(
+            "flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-md transition-colors",
+            isInMyLinks
+              ? "text-amber-500 bg-amber-50 dark:bg-amber-950/30"
+              : "text-muted-foreground hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+          )}
+        >
+          {isInMyLinks ? <Check className="w-3.5 h-3.5" /> : <BookmarkPlus className="w-3.5 h-3.5" />}
+        </button>
       )}
-      style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', ...resolvedStyle }}
-    >
-      {isOpening
-        ? <span className="flex-shrink-0 w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-        : emoji ? <span className="flex-shrink-0">{emoji}</span> : <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />}
-      <span className="truncate">{label}</span>
-    </a>
+    </div>
   );
 }
 
@@ -1920,7 +1938,7 @@ function LinkRow({ href, label, color, colorStyle, emoji }: { href: string; labe
  * 「日々使用」: 月次DB登録分（5種類）を自動表示
  * 「その他」: quickAccessLinksから取得
  */
-function SheetSubTabs({ quickLinks }: { quickLinks: { id: number; label: string; href: string; color: string; emoji: string | null; category: string }[] | undefined }) {
+function SheetSubTabs({ quickLinks, myLinksData, addToMyLinks }: { quickLinks: { id: number; label: string; href: string; color: string; emoji: string | null; category: string }[] | undefined; myLinksData?: { url: string }[]; addToMyLinks?: (label: string, url: string, emoji: string) => void }) {
   const [subTab, setSubTab] = useState<"daily" | "other">("daily");
   // 月次リンク（当月分、なければ直近登録）
   const { data: monthlyLinks, isLoading: monthlyLoading } = trpc.spreadsheetLinks.getCurrent.useQuery();
@@ -1993,6 +2011,8 @@ function SheetSubTabs({ quickLinks }: { quickLinks: { id: number; label: string;
                     label={link.label}
                     colorStyle={{ color: "white" }}
                     emoji="📊"
+                    onAddToMyLinks={addToMyLinks ? () => addToMyLinks(link.label, link.url, "📊") : undefined}
+                    isInMyLinks={myLinksData?.some((ml) => ml.url === link.url)}
                   />
                 ))}
             </>
@@ -2004,7 +2024,15 @@ function SheetSubTabs({ quickLinks }: { quickLinks: { id: number; label: string;
       {subTab === "other" && (
         otherLinks.length > 0
           ? otherLinks.map((link) => (
-              <LinkRow key={link.id} href={link.href} label={link.label} colorStyle={{ color: "white" }} emoji={link.emoji || undefined} />
+              <LinkRow
+                key={link.id}
+                href={link.href}
+                label={link.label}
+                colorStyle={{ color: "white" }}
+                emoji={link.emoji || undefined}
+                onAddToMyLinks={addToMyLinks ? () => addToMyLinks(link.label, link.href, link.emoji || "🔗") : undefined}
+                isInMyLinks={myLinksData?.some((ml) => ml.url === link.href)}
+              />
             ))
           : <p className="text-xs text-muted-foreground text-center py-3">その他のリンクはまだありません</p>
       )}
@@ -2085,6 +2113,15 @@ function ToolsCard() {
     setNewLabel(""); setNewHref(""); setNewEmoji("🔗"); setShowAddForm(false);
   };
 
+  // 共有ドライブからマイリンクに追加
+  const addToMyLinks = (label: string, url: string, emoji: string) => {
+    if (myLinksData?.some((ml) => ml.url === url)) {
+      toast.info("すでにマイリンクに登録されています");
+      return;
+    }
+    createLink.mutate({ label, url, emoji });
+  };
+
   const startEdit = (link: { id: number; label: string; url: string; emoji: string | null }) => {
     setEditingId(link.id); setEditLabel(link.label); setEditHref(link.url); setEditEmoji(link.emoji ?? "🔗");
   };
@@ -2128,7 +2165,7 @@ function ToolsCard() {
 
           {/* スプレッドシート */}
           {activeTab === "sheet" && (
-            <SheetSubTabs quickLinks={quickLinks} />
+            <SheetSubTabs quickLinks={quickLinks} myLinksData={myLinksData} addToMyLinks={addToMyLinks} />
           )}
 
           {/* ドキュメント */}
@@ -2136,7 +2173,15 @@ function ToolsCard() {
             <>
               {docLinks.length > 0
                 ? docLinks.map((link) => (
-                    <LinkRow key={link.href} href={link.href} label={link.label} colorStyle={{ color: "white" }} emoji={link.emoji} />
+                    <LinkRow
+                      key={link.href}
+                      href={link.href}
+                      label={link.label}
+                      colorStyle={{ color: "white" }}
+                      emoji={link.emoji}
+                      onAddToMyLinks={() => addToMyLinks(link.label, link.href, link.emoji || "📄")}
+                      isInMyLinks={myLinksData?.some((ml) => ml.url === link.href)}
+                    />
                   ))
                 : <p className="text-xs text-muted-foreground text-center py-4">ドキュメントリンクはまだありません</p>
               }
@@ -2148,7 +2193,15 @@ function ToolsCard() {
             <>
               {frmLinks.length > 0
                 ? frmLinks.map((link) => (
-                    <LinkRow key={link.href} href={link.href} label={link.label} colorStyle={{ color: "white" }} emoji={link.emoji} />
+                    <LinkRow
+                      key={link.href}
+                      href={link.href}
+                      label={link.label}
+                      colorStyle={{ color: "white" }}
+                      emoji={link.emoji}
+                      onAddToMyLinks={() => addToMyLinks(link.label, link.href, link.emoji || "📝")}
+                      isInMyLinks={myLinksData?.some((ml) => ml.url === link.href)}
+                    />
                   ))
                 : <p className="text-xs text-muted-foreground text-center py-4">フォームリンクはまだありません</p>
               }
@@ -2161,7 +2214,15 @@ function ToolsCard() {
               {/* Hinata's Way 固定リンク */}
               <HinatasWayButton />
               {othLinks.map((link) => (
-                <LinkRow key={link.href} href={link.href} label={link.label} colorStyle={{ color: "white" }} emoji={link.emoji} />
+                <LinkRow
+                  key={link.href}
+                  href={link.href}
+                  label={link.label}
+                  colorStyle={{ color: "white" }}
+                  emoji={link.emoji}
+                  onAddToMyLinks={() => addToMyLinks(link.label, link.href, link.emoji || "🔗")}
+                  isInMyLinks={myLinksData?.some((ml) => ml.url === link.href)}
+                />
               ))}
             </>
           )}
