@@ -618,3 +618,33 @@ export const teamGoals = mysqlTable("team_goals", {
 });
 export type TeamGoal = typeof teamGoals.$inferSelect;
 export type InsertTeamGoal = typeof teamGoals.$inferInsert;
+
+/**
+ * ツール操作ログテーブル
+ * チームツール・全チーム共通ツールの追加・更新・削除操作を記録する
+ */
+export const toolAuditLogs = mysqlTable("tool_audit_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 操作種別: create=追加, update=更新, delete=削除 */
+  action: mysqlEnum("action", ["create", "update", "delete"]).notNull(),
+  /** ツール種別: team=チームツール, common=全チーム共通ツール */
+  toolType: mysqlEnum("toolType", ["team", "common"]).notNull(),
+  /** 対象チーム（チームツールの場合のみ） */
+  team: varchar("team", { length: 50 }),
+  /** カテゴリ（全チーム共通ツールの場合のみ） */
+  category: varchar("category", { length: 100 }),
+  /** ツール名 */
+  toolLabel: varchar("toolLabel", { length: 200 }).notNull(),
+  /** ツールURL */
+  toolHref: varchar("toolHref", { length: 2000 }),
+  /** 操作前のラベル（更新時） */
+  previousLabel: varchar("previousLabel", { length: 200 }),
+  /** 操作したユーザーID */
+  operatedBy: int("operatedBy").notNull(),
+  /** 操作したユーザー名 */
+  operatedByName: varchar("operatedByName", { length: 100 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ToolAuditLog = typeof toolAuditLogs.$inferSelect;
+export type InsertToolAuditLog = typeof toolAuditLogs.$inferInsert;

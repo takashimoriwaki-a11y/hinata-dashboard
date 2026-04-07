@@ -792,7 +792,7 @@ export default function Admin() {
   }, []);
 
   // セクション切り替え
-  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "teamGoals">("sheets");
+  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "teamGoals" | "toolLogs">("sheets");
   const { user: currentUser } = useAuth();
 
   return (
@@ -883,6 +883,19 @@ export default function Admin() {
             )}
           >
             システム設定
+          </button>
+        )}
+        {(currentUser?.role === "admin" || (currentUser as any)?.team === "事務員") && (
+          <button
+            onClick={() => setActiveSection("toolLogs")}
+            className={cn(
+              "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
+              activeSection === "toolLogs"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            ツール操作ログ
           </button>
         )}
       </div>
@@ -1082,6 +1095,8 @@ export default function Admin() {
       {activeSection === "settings" && <SystemSettingsPanel />}
 
       {/* クイックアクセスリンク管理セクション（ホーム画面から削除済みのため非表示） */}
+      {/* ツール操作ログセクション */}
+      {activeSection === "toolLogs" && <ToolAuditLogsPanel />}
     </div>
   );
 }
@@ -2537,5 +2552,129 @@ function QuickAccessLinksPanel() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// ============================
+// ツール操作ログパネル
+// ============================
+function ToolAuditLogsPanel() {
+  const [toolTypeFilter, setToolTypeFilter] = useState<"all" | "team" | "common">("all");
+  const { data: logs, isLoading, refetch } = trpc.toolAuditLogs.list.useQuery(
+    { limit: 200, toolType: toolTypeFilter },
+    { refetchOnWindowFocus: false }
+  );
+
+  const actionLabel = (action: string) => {
+    if (action === "create") return { label: "追加", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" };
+    if (action === "update") return { label: "更新", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" };
+    if (action === "delete") return { label: "削除", color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300" };
+    return { label: action, color: "bg-gray-100 text-gray-800" };
+  };
+
+  const toolTypeLabel = (type: string) => {
+    if (type === "team") return "チームツール";
+    if (type === "common") return "全チーム共通";
+    return type;
+  };
+
+  return (
+    <Card className="shadow-sm">
+      <CardHeader className="pb-2 pt-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base font-semibold">ツール操作ログ</CardTitle>
+          <Button variant="ghost" size="sm" onClick={() => refetch()} className="text-xs">
+            <RotateCcw className="w-3.5 h-3.5 mr-1" />
+            更新
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">ツールの追加・更新・削除の操作履歴（最新200件）</p>
+      </CardHeader>
+      <CardContent>
+        {/* フィルター */}
+        <div className="flex gap-2 mb-4">
+          {(["all", "team", "common"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setToolTypeFilter(t)}
+              className={cn(
+                "px-3 py-1 text-xs rounded-full border transition-colors",
+                toolTypeFilter === t
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {t === "all" ? "すべて" : t === "team" ? "チームツール" : "全チーム共通"}
+            </button>
+          ))}
+        </div>
+
+        {isLoading ? (
+          <div className="text-center py-8 text-muted-foreground text-sm">読み込み中...</div>
+        ) : !logs || logs.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground text-sm">操作ログがありません</div>
+        ) : (
+          <div className="space-y-2">
+            {logs.map((log) => {
+              const { label, color } = actionLabel(log.action);
+              return (
+                <div
+                  key={log.id}
+                  className="flex items-start gap-3 p-3 rounded-lg border border-border bg-card hover:bg-accent/30 transition-colors"
+                >
+                  <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5", color)}>
+                    {label}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium text-foreground truncate">{log.toolLabel}</span>
+                      <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                        {toolTypeLabel(log.toolType)}
+                      </span>
+                      {log.team && (
+                        <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                          {log.team}
+                        </span>
+                      )}
+                      {log.category && (
+                        <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                          {log.category}
+                        </span>
+                      )}
+                    </div>
+                    {log.action === "update" && log.previousLabel && log.previousLabel !== log.toolLabel && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        変更前: {log.previousLabel}
+                      </p>
+                    )}
+                    {log.toolHref && (
+                      <a
+                        href={log.toolHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-500 hover:underline truncate block mt-0.5 max-w-xs"
+                      >
+                        {log.toolHref}
+                      </a>
+                    )}
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs text-muted-foreground">
+                        {log.operatedByName}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(log.createdAt).toLocaleString("ja-JP", {
+                          year: "numeric", month: "2-digit", day: "2-digit",
+                          hour: "2-digit", minute: "2-digit"
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

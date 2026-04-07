@@ -3418,6 +3418,36 @@ export const appRouter = router({
         return { events };
       }),
   }),
+  /** ツール操作ログ */
+  toolAuditLogs: router({
+    /** ツール操作ログ一覧を取得（管理者・事務員のみ） */
+    list: protectedProcedure
+      .input(z.object({
+        limit: z.number().int().min(1).max(200).default(100),
+        toolType: z.enum(["team", "common", "all"]).default("all"),
+      }))
+      .query(async ({ ctx, input }) => {
+        const canView = ctx.user.role === "admin" || (ctx.user as any).team === "事務員";
+        if (!canView) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者または事務員のみ閲覧できます" });
+        }
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) return [];
+        const { toolAuditLogs } = await import("../drizzle/schema");
+        const { desc, eq } = await import("drizzle-orm");
+        if (input.toolType === "all") {
+          return db.select().from(toolAuditLogs)
+            .orderBy(desc(toolAuditLogs.createdAt))
+            .limit(input.limit);
+        }
+        return db.select().from(toolAuditLogs)
+          .where(eq(toolAuditLogs.toolType, input.toolType as "team" | "common"))
+          .orderBy(desc(toolAuditLogs.createdAt))
+          .limit(input.limit);
+      }),
+  }),
+
   teamGoals: router({
     /** 今日有効なチーム目標を全チーム分取得（フロントエンド側でチームタブに応じてフィルタ） */
     getActive: protectedProcedure.query(async () => {
