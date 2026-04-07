@@ -466,6 +466,63 @@ export const appRouter = router({
         broadcastEvent("myLinks");
         return { success: true };
       }),
+    // フォルダ内ファイル一覧取得（共有ドライブ対応）
+    listDriveFolder: protectedProcedure
+      .input(z.object({
+        folderId: z.string().min(1),
+        driveId: z.string().optional(),
+      }))
+      .query(async ({ input }) => {
+        try {
+          const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+          const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+          if (!email || !privateKey) {
+            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Google認証情報が設定されていません" });
+          }
+          const auth = new GoogleAuth({
+            credentials: {
+              client_email: email,
+              private_key: privateKey.replace(/\\n/g, "\n"),
+            },
+            scopes: ["https://www.googleapis.com/auth/drive.readonly"],
+          });
+          const client = await auth.getClient();
+          const token = await client.getAccessToken();
+          if (!token.token) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "トークン取得失敗" });
+
+          const params = new URLSearchParams({
+            q: `'${input.folderId}' in parents and trashed = false`,
+            fields: "files(id,name,mimeType,webViewLink,iconLink,modifiedTime,size),nextPageToken",
+            pageSize: "100",
+            orderBy: "folder,name",
+            includeItemsFromAllDrives: "true",
+            supportsAllDrives: "true",
+          });
+          if (input.driveId) {
+            params.set("driveId", input.driveId);
+            params.set("corpora", "drive");
+          }
+          const url = `https://www.googleapis.com/drive/v3/files?${params.toString()}`;
+          const res = await fetch(url, {
+            headers: { Authorization: `Bearer ${token.token}` },
+          });
+          if (!res.ok) {
+            const text = await res.text();
+            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Drive APIエラー: ${res.status} ${text}` });
+          }
+          const data = await res.json() as {
+            files: { id: string; name: string; mimeType: string; webViewLink: string; iconLink?: string; modifiedTime: string; size?: string }[];
+            nextPageToken?: string;
+          };
+          return {
+            files: data.files ?? [],
+            hasMore: !!data.nextPageToken,
+          };
+        } catch (e) {
+          if (e instanceof TRPCError) throw e;
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: String(e) });
+        }
+      }),
     // Google Driveファイル検索
     searchDrive: protectedProcedure
       .input(z.object({ query: z.string().min(1).max(200) }))
