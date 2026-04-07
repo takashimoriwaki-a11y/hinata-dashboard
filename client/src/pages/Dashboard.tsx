@@ -3973,14 +3973,7 @@ export default function Dashboard() {
               <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4" />
               ZEST
             </button>
-            <button
-              onClick={() => openLink("https://login.ibowservice.jp/?action=logout")}
-              onTouchStart={() => {}}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#e07b2a', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#cc6e22')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#e07b2a')}
-            >
-              <ClipboardList className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              iBow
-            </button>
+
             <button
               onClick={() => openLink("https://mimamodrive.tokiomarine-smartmobility.co.jp/?_gl=1*191av7l*_gcl_au*MTExMzk5MjkyNC4xNzc1MzE4NjA2")}
               onTouchStart={() => {}}
