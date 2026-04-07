@@ -2854,8 +2854,9 @@ export const appRouter = router({
         sortOrder: z.number().int().default(0),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin") {
-          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
+        const canManage2857 = ctx.user.role === "admin" || (ctx.user as any).team === "事務員";
+        if (!canManage2857) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者または事務員のみ変更できます" });
         }
         const { createQuickAccessLink } = await import("./db");
         const id = await createQuickAccessLink(input);
@@ -2873,8 +2874,9 @@ export const appRouter = router({
         sortOrder: z.number().int().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin") {
-          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
+        const canManageQAUpdate = ctx.user.role === "admin" || (ctx.user as any).team === "事務員";
+        if (!canManageQAUpdate) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者または事務員のみ変更できます" });
         }
         const { updateQuickAccessLink } = await import("./db");
         const { id, ...data } = input;
@@ -2886,8 +2888,9 @@ export const appRouter = router({
     delete: protectedProcedure
       .input(z.object({ id: z.number().int() }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin") {
-          throw new TRPCError({ code: "FORBIDDEN", message: "\u7ba1\u7406\u8005\u306e\u307f\u5909\u66f4\u3067\u304d\u307e\u3059" });
+        const canManageQADelete = ctx.user.role === "admin" || (ctx.user as any).team === "事務員";
+        if (!canManageQADelete) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者または事務員のみ変更できます" });
         }
         const { deleteQuickAccessLink } = await import("./db");
         await deleteQuickAccessLink(input.id);
@@ -2924,8 +2927,9 @@ export const appRouter = router({
         sortOrder: z.number().int().default(0),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin") {
-          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
+        const canManageTTCreate = ctx.user.role === "admin" || (ctx.user as any).team === "事務員";
+        if (!canManageTTCreate) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者または事務員のみ変更できます" });
         }
         const { getDb } = await import("./db");
         const db = await getDb();
@@ -2954,8 +2958,9 @@ export const appRouter = router({
         sortOrder: z.number().int().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin") {
-          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
+        const canManageTTUpdate = ctx.user.role === "admin" || (ctx.user as any).team === "事務員";
+        if (!canManageTTUpdate) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者または事務員のみ変更できます" });
         }
         const { getDb } = await import("./db");
         const db = await getDb();
@@ -2971,8 +2976,9 @@ export const appRouter = router({
     delete: protectedProcedure
       .input(z.object({ id: z.number().int() }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin") {
-          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
+        const canManageTTDelete = ctx.user.role === "admin" || (ctx.user as any).team === "事務員";
+        if (!canManageTTDelete) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者または事務員のみ変更できます" });
         }
         const { getDb } = await import("./db");
         const db = await getDb();

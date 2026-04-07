@@ -2055,6 +2055,8 @@ function HinatasWayButton() {
 }
 
 function ToolsCard() {
+  const { user } = useAuth();
+  const canManageTools = user?.role === "admin" || (user as any)?.team === "事務員";
   const [activeTab, setActiveTab] = useState<ToolsTabId>("sheet");
 
   // 当月スプレッドシートリンク（tRPC + DB）
@@ -2132,6 +2134,45 @@ function ToolsCard() {
     updateLink.mutate({ id: editingId, label: editLabel.trim(), url: editHref.trim(), emoji: editEmoji || "🔗" });
   };
 
+  // 全チーム共通ツール管理者用追加フォーム
+  const [showQAAddForm, setShowQAAddForm] = useState(false);
+  const [qaNewLabel, setQANewLabel] = useState("");
+  const [qaNewHref, setQANewHref] = useState("");
+  const [qaNewEmoji, setQANewEmoji] = useState("🔗");
+  const [qaNewCategory, setQANewCategory] = useState<"スプレッドシート" | "ドキュメント" | "フォーム" | "その他">("その他");
+  const [qaEditingId, setQAEditingId] = useState<number | null>(null);
+  const [qaEditLabel, setQAEditLabel] = useState("");
+  const [qaEditHref, setQAEditHref] = useState("");
+  const [qaEditEmoji, setQAEditEmoji] = useState("");
+
+  const createQALink = trpc.quickAccessLinks.create.useMutation({
+    onSuccess: () => { utils.quickAccessLinks.list.invalidate(); toast.success("ツールを追加しました"); setShowQAAddForm(false); setQANewLabel(""); setQANewHref(""); setQANewEmoji("🔗"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const updateQALink = trpc.quickAccessLinks.update.useMutation({
+    onSuccess: () => { utils.quickAccessLinks.list.invalidate(); setQAEditingId(null); toast.success("ツールを更新しました"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const deleteQALink = trpc.quickAccessLinks.delete.useMutation({
+    onSuccess: () => { utils.quickAccessLinks.list.invalidate(); toast.success("ツールを削除しました"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const addQATool = () => {
+    if (!qaNewLabel.trim() || !qaNewHref.trim()) { toast.error("ラベルとURLを入力してください"); return; }
+    createQALink.mutate({ category: qaNewCategory, label: qaNewLabel.trim(), href: qaNewHref.trim(), emoji: qaNewEmoji || "🔗" });
+  };
+
+  const startQAEdit = (link: { id: number; label: string; href: string; emoji: string | null }) => {
+    setQAEditingId(link.id); setQAEditLabel(link.label); setQAEditHref(link.href); setQAEditEmoji(link.emoji ?? "🔗");
+  };
+
+  const saveQAEdit = () => {
+    if (qaEditingId === null) return;
+    if (!qaEditLabel.trim() || !qaEditHref.trim()) { toast.error("ラベルとURLを入力してください"); return; }
+    updateQALink.mutate({ id: qaEditingId, label: qaEditLabel.trim(), href: qaEditHref.trim(), emoji: qaEditEmoji || "🔗" });
+  };
+
   return (
     <Card className="fade-in-up stagger-2 shadow-sm">
       <CardHeader className="pb-2">
@@ -2171,8 +2212,46 @@ function ToolsCard() {
           {/* ドキュメント */}
           {activeTab === "doc" && (
             <>
-              {docLinks.length > 0
-                ? docLinks.map((link) => (
+              {quickLinks
+                ? quickLinks.filter((l) => l.category === "ドキュメント").map((link) => (
+                    <div key={link.id} className="flex items-center gap-1 group">
+                      {qaEditingId === link.id ? (
+                        <div className="flex-1 space-y-1 p-2 bg-muted/30 rounded-md">
+                          <div className="flex gap-1">
+                            <input value={qaEditEmoji} onChange={e => setQAEditEmoji(e.target.value)} className="w-10 text-center border rounded px-1 py-1 text-xs bg-background" placeholder="🔗" />
+                            <input value={qaEditLabel} onChange={e => setQAEditLabel(e.target.value)} className="flex-1 border rounded px-2 py-1 text-xs bg-background" placeholder="ラベル" />
+                          </div>
+                          <input value={qaEditHref} onChange={e => setQAEditHref(e.target.value)} className="w-full border rounded px-2 py-1 text-xs bg-background" placeholder="https://..." />
+                          <div className="flex gap-1 justify-end">
+                            <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setQAEditingId(null)}>キャンセル</Button>
+                            <Button size="sm" className="h-6 text-xs" onClick={saveQAEdit} disabled={updateQALink.isPending}>保存</Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <LinkRow
+                            href={link.href}
+                            label={link.label}
+                            colorStyle={{ color: "white" }}
+                            emoji={link.emoji || undefined}
+                            onAddToMyLinks={() => addToMyLinks(link.label, link.href, link.emoji || "📄")}
+                            isInMyLinks={myLinksData?.some((ml) => ml.url === link.href)}
+                          />
+                          {canManageTools && (
+                            <>
+                              <button onClick={() => startQAEdit({ id: link.id, label: link.label, href: link.href, emoji: link.emoji })} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all" title="編集">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                              </button>
+                              <button onClick={() => deleteQALink.mutate({ id: link.id })} className="text-muted-foreground hover:text-destructive p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all" title="削除">
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ))
+                : docLinks.map((link) => (
                     <LinkRow
                       key={link.href}
                       href={link.href}
@@ -2183,16 +2262,74 @@ function ToolsCard() {
                       isInMyLinks={myLinksData?.some((ml) => ml.url === link.href)}
                     />
                   ))
-                : <p className="text-xs text-muted-foreground text-center py-4">ドキュメントリンクはまだありません</p>
               }
+              {quickLinks && quickLinks.filter((l) => l.category === "ドキュメント").length === 0 && !showQAAddForm && (
+                <p className="text-xs text-muted-foreground text-center py-4">ドキュメントリンクはまだありません</p>
+              )}
+              {canManageTools && !showQAAddForm && (
+                <div className="flex justify-end">
+                  <Button variant="ghost" size="sm" className="h-6 text-xs text-primary px-2" onClick={() => { setQANewCategory("ドキュメント"); setShowQAAddForm(true); }}>+ 追加</Button>
+                </div>
+              )}
+              {canManageTools && showQAAddForm && qaNewCategory === "ドキュメント" && (
+                <div className="flex flex-col gap-1.5 p-2 bg-muted/30 rounded-md">
+                  <div className="flex gap-1">
+                    <input value={qaNewEmoji} onChange={e => setQANewEmoji(e.target.value)} className="w-10 text-center border rounded px-1 py-1 text-xs bg-background" placeholder="🔗" />
+                    <input value={qaNewLabel} onChange={e => setQANewLabel(e.target.value)} className="flex-1 border rounded px-2 py-1 text-xs bg-background" placeholder="ラベル" />
+                  </div>
+                  <input value={qaNewHref} onChange={e => setQANewHref(e.target.value)} className="w-full border rounded px-2 py-1 text-xs bg-background" placeholder="https://..." />
+                  <div className="flex gap-1 justify-end">
+                    <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setShowQAAddForm(false)}>キャンセル</Button>
+                    <Button size="sm" className="h-6 text-xs" onClick={addQATool} disabled={createQALink.isPending}>追加</Button>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
           {/* フォーム */}
           {activeTab === "form" && (
             <>
-              {frmLinks.length > 0
-                ? frmLinks.map((link) => (
+              {quickLinks
+                ? quickLinks.filter((l) => l.category === "フォーム").map((link) => (
+                    <div key={link.id} className="flex items-center gap-1 group">
+                      {qaEditingId === link.id ? (
+                        <div className="flex-1 space-y-1 p-2 bg-muted/30 rounded-md">
+                          <div className="flex gap-1">
+                            <input value={qaEditEmoji} onChange={e => setQAEditEmoji(e.target.value)} className="w-10 text-center border rounded px-1 py-1 text-xs bg-background" placeholder="🔗" />
+                            <input value={qaEditLabel} onChange={e => setQAEditLabel(e.target.value)} className="flex-1 border rounded px-2 py-1 text-xs bg-background" placeholder="ラベル" />
+                          </div>
+                          <input value={qaEditHref} onChange={e => setQAEditHref(e.target.value)} className="w-full border rounded px-2 py-1 text-xs bg-background" placeholder="https://..." />
+                          <div className="flex gap-1 justify-end">
+                            <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setQAEditingId(null)}>キャンセル</Button>
+                            <Button size="sm" className="h-6 text-xs" onClick={saveQAEdit} disabled={updateQALink.isPending}>保存</Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <LinkRow
+                            href={link.href}
+                            label={link.label}
+                            colorStyle={{ color: "white" }}
+                            emoji={link.emoji || undefined}
+                            onAddToMyLinks={() => addToMyLinks(link.label, link.href, link.emoji || "📝")}
+                            isInMyLinks={myLinksData?.some((ml) => ml.url === link.href)}
+                          />
+                          {canManageTools && (
+                            <>
+                              <button onClick={() => startQAEdit({ id: link.id, label: link.label, href: link.href, emoji: link.emoji })} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all" title="編集">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                              </button>
+                              <button onClick={() => deleteQALink.mutate({ id: link.id })} className="text-muted-foreground hover:text-destructive p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all" title="削除">
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ))
+                : frmLinks.map((link) => (
                     <LinkRow
                       key={link.href}
                       href={link.href}
@@ -2203,8 +2340,28 @@ function ToolsCard() {
                       isInMyLinks={myLinksData?.some((ml) => ml.url === link.href)}
                     />
                   ))
-                : <p className="text-xs text-muted-foreground text-center py-4">フォームリンクはまだありません</p>
               }
+              {quickLinks && quickLinks.filter((l) => l.category === "フォーム").length === 0 && !showQAAddForm && (
+                <p className="text-xs text-muted-foreground text-center py-4">フォームリンクはまだありません</p>
+              )}
+              {canManageTools && !showQAAddForm && (
+                <div className="flex justify-end">
+                  <Button variant="ghost" size="sm" className="h-6 text-xs text-primary px-2" onClick={() => { setQANewCategory("フォーム"); setShowQAAddForm(true); }}>+ 追加</Button>
+                </div>
+              )}
+              {canManageTools && showQAAddForm && qaNewCategory === "フォーム" && (
+                <div className="flex flex-col gap-1.5 p-2 bg-muted/30 rounded-md">
+                  <div className="flex gap-1">
+                    <input value={qaNewEmoji} onChange={e => setQANewEmoji(e.target.value)} className="w-10 text-center border rounded px-1 py-1 text-xs bg-background" placeholder="🔗" />
+                    <input value={qaNewLabel} onChange={e => setQANewLabel(e.target.value)} className="flex-1 border rounded px-2 py-1 text-xs bg-background" placeholder="ラベル" />
+                  </div>
+                  <input value={qaNewHref} onChange={e => setQANewHref(e.target.value)} className="w-full border rounded px-2 py-1 text-xs bg-background" placeholder="https://..." />
+                  <div className="flex gap-1 justify-end">
+                    <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setShowQAAddForm(false)}>キャンセル</Button>
+                    <Button size="sm" className="h-6 text-xs" onClick={addQATool} disabled={createQALink.isPending}>追加</Button>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -2213,17 +2370,75 @@ function ToolsCard() {
             <>
               {/* Hinata's Way 固定リンク */}
               <HinatasWayButton />
-              {othLinks.map((link) => (
-                <LinkRow
-                  key={link.href}
-                  href={link.href}
-                  label={link.label}
-                  colorStyle={{ color: "white" }}
-                  emoji={link.emoji}
-                  onAddToMyLinks={() => addToMyLinks(link.label, link.href, link.emoji || "🔗")}
-                  isInMyLinks={myLinksData?.some((ml) => ml.url === link.href)}
-                />
-              ))}
+              {quickLinks
+                ? quickLinks.filter((l) => l.category === "その他").map((link) => (
+                    <div key={link.id} className="flex items-center gap-1 group">
+                      {qaEditingId === link.id ? (
+                        <div className="flex-1 space-y-1 p-2 bg-muted/30 rounded-md">
+                          <div className="flex gap-1">
+                            <input value={qaEditEmoji} onChange={e => setQAEditEmoji(e.target.value)} className="w-10 text-center border rounded px-1 py-1 text-xs bg-background" placeholder="🔗" />
+                            <input value={qaEditLabel} onChange={e => setQAEditLabel(e.target.value)} className="flex-1 border rounded px-2 py-1 text-xs bg-background" placeholder="ラベル" />
+                          </div>
+                          <input value={qaEditHref} onChange={e => setQAEditHref(e.target.value)} className="w-full border rounded px-2 py-1 text-xs bg-background" placeholder="https://..." />
+                          <div className="flex gap-1 justify-end">
+                            <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setQAEditingId(null)}>キャンセル</Button>
+                            <Button size="sm" className="h-6 text-xs" onClick={saveQAEdit} disabled={updateQALink.isPending}>保存</Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <LinkRow
+                            href={link.href}
+                            label={link.label}
+                            colorStyle={{ color: "white" }}
+                            emoji={link.emoji || undefined}
+                            onAddToMyLinks={() => addToMyLinks(link.label, link.href, link.emoji || "🔗")}
+                            isInMyLinks={myLinksData?.some((ml) => ml.url === link.href)}
+                          />
+                          {canManageTools && (
+                            <>
+                              <button onClick={() => startQAEdit({ id: link.id, label: link.label, href: link.href, emoji: link.emoji })} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all" title="編集">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                              </button>
+                              <button onClick={() => deleteQALink.mutate({ id: link.id })} className="text-muted-foreground hover:text-destructive p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all" title="削除">
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ))
+                : othLinks.map((link) => (
+                    <LinkRow
+                      key={link.href}
+                      href={link.href}
+                      label={link.label}
+                      colorStyle={{ color: "white" }}
+                      emoji={link.emoji}
+                      onAddToMyLinks={() => addToMyLinks(link.label, link.href, link.emoji || "🔗")}
+                      isInMyLinks={myLinksData?.some((ml) => ml.url === link.href)}
+                    />
+                  ))
+              }
+              {canManageTools && !showQAAddForm && (
+                <div className="flex justify-end">
+                  <Button variant="ghost" size="sm" className="h-6 text-xs text-primary px-2" onClick={() => { setQANewCategory("その他"); setShowQAAddForm(true); }}>+ 追加</Button>
+                </div>
+              )}
+              {canManageTools && showQAAddForm && qaNewCategory === "その他" && (
+                <div className="flex flex-col gap-1.5 p-2 bg-muted/30 rounded-md">
+                  <div className="flex gap-1">
+                    <input value={qaNewEmoji} onChange={e => setQANewEmoji(e.target.value)} className="w-10 text-center border rounded px-1 py-1 text-xs bg-background" placeholder="🔗" />
+                    <input value={qaNewLabel} onChange={e => setQANewLabel(e.target.value)} className="flex-1 border rounded px-2 py-1 text-xs bg-background" placeholder="ラベル" />
+                  </div>
+                  <input value={qaNewHref} onChange={e => setQANewHref(e.target.value)} className="w-full border rounded px-2 py-1 text-xs bg-background" placeholder="https://..." />
+                  <div className="flex gap-1 justify-end">
+                    <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setShowQAAddForm(false)}>キャンセル</Button>
+                    <Button size="sm" className="h-6 text-xs" onClick={addQATool} disabled={createQALink.isPending}>追加</Button>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -2359,8 +2574,8 @@ function TeamToolsCard() {
     return monthlyLinks?.find((l) => l.linkKey === teamFeeKey) ?? null;
   }, [monthlyLinks, teamFeeKey]);
 
-  // 管理者用: ツール追加・編集・削除
-  const isAdmin = user?.role === "admin";
+  // 管理者または事務員: ツール追加・編集・削除
+  const isAdmin = user?.role === "admin" || (user as any)?.team === "事務員";
   const [showAddForm, setShowAddForm] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [newHref, setNewHref] = useState("");
