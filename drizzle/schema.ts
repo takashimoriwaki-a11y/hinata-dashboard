@@ -284,7 +284,7 @@ export type InsertVisitRecord = typeof visitRecords.$inferInsert;
 export const appNotifications = mysqlTable("app_notifications", {
   id: int("id").autoincrement().primaryKey(),
   /** 通知の種類 */
-  type: mysqlEnum("type", ["schedule_updated", "task_today", "new_message", "minutes_reminder"]).notNull(),
+  type: mysqlEnum("type", ["schedule_updated", "task_today", "new_message", "minutes_reminder", "minutes_posted"]).notNull(),
   /** 通知のタイトル */
   title: varchar("title", { length: 200 }).notNull(),
   /** 通知の本文 */

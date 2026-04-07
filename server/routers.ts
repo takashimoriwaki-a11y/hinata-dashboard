@@ -3038,6 +3038,24 @@ export const appRouter = router({
           createdBy: ctx.user.id,
           createdByName: ctx.user.name ?? "",
         });
+        // 全職員へアプリ内通知を送信（投稿者本人を除く）
+        try {
+          const allStaff = await getAllStaff();
+          const preview = input.title.length > 40 ? input.title.slice(0, 40) + "…" : input.title;
+          const notifyTargets = allStaff.filter((s) => s.id !== ctx.user.id);
+          await Promise.all(
+            notifyTargets.map((s) =>
+              createNotification({
+                type: "minutes_posted",
+                title: "新しい議事録が投稿されました",
+                body: `${ctx.user.name ?? "不明"}さん：「${preview}」`,
+                targetUserId: s.id,
+              })
+            )
+          );
+        } catch (e) {
+          console.warn("[minutes.create] 通知送信エラー:", e);
+        }
         broadcastEvent("minutes");
         return { success: true };
       }),
@@ -3052,14 +3070,17 @@ export const appRouter = router({
         deadline: z.date().optional().nullable(),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin") {
-          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ編集できます" });
-        }
         const { getDb } = await import("./db");
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続エラー" });
         const { minutes } = await import("../drizzle/schema");
         const { eq: eqOp } = await import("drizzle-orm");
+        // 投稿者本人または管理者のみ編集可能
+        const target = await db.select({ createdBy: minutes.createdBy }).from(minutes).where(eqOp(minutes.id, input.id)).limit(1);
+        if (!target.length) throw new TRPCError({ code: "NOT_FOUND", message: "議事録が見つかりません" });
+        if (ctx.user.role !== "admin" && ctx.user.id !== target[0].createdBy) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "投稿者本人または管理者のみ編集できます" });
+        }
         const updateData: Record<string, unknown> = {};
         if (input.title !== undefined) updateData.title = input.title;
         if (input.content !== undefined) updateData.content = input.content;
@@ -3167,17 +3188,21 @@ export const appRouter = router({
         const unread = allStaff.filter((s) => !checkedUserIds.has(s.id)).map((s) => ({ userId: s.id, userName: s.name ?? "" }));
         return { readers, unread };
       }),
-    /** 議事録を削除（adminのみ） */
+    /** 議事録を削除（投稿者本人または管理者のみ） */
     delete: protectedProcedure
       .input(z.object({ id: z.number().int() }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin") {
-          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ削除できます" });
-        }
         const { getDb } = await import("./db");
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続エラー" });
         const { minutes, minutesChecks } = await import("../drizzle/schema");
+        const { eq: eqDel } = await import("drizzle-orm");
+        // 投稿者本人または管理者のみ削除可能
+        const targetDel = await db.select({ createdBy: minutes.createdBy }).from(minutes).where(eqDel(minutes.id, input.id)).limit(1);
+        if (!targetDel.length) throw new TRPCError({ code: "NOT_FOUND", message: "議事録が見つかりません" });
+        if (ctx.user.role !== "admin" && ctx.user.id !== targetDel[0].createdBy) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "投稿者本人または管理者のみ削除できます" });
+        }
         await db.delete(minutesChecks).where(eq(minutesChecks.minutesId, input.id));
         await db.delete(minutes).where(eq(minutes.id, input.id));
         broadcastEvent("minutes");

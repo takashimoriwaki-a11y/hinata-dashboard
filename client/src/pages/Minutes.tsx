@@ -625,8 +625,8 @@ export default function Minutes() {
                       {/* 既読者確認パネル（管理者のみ） */}
                       {isAdmin && <ReadersPanel minutesId={m.id} />}
                     </div>
-                    {/* 削除ボタン（adminのみ） */}
-                    {isAdmin && (
+                    {/* 削除ボタン（投稿者本人または管理者のみ） */}
+                    {(isAdmin || m.createdBy === user?.id) && (
                       <button
                         onClick={() => setDeleteConfirmId(m.id)}
                         className="mt-0.5 flex-shrink-0 text-muted-foreground hover:text-destructive transition-colors"
