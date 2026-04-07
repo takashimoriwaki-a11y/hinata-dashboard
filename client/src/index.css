@@ -782,3 +782,118 @@ button:not(:disabled),
 .team-goals-ticker-track:hover {
   animation-play-state: paused;
 }
+
+/* ============================================================
+   交通事故マニュアル用 CSS変数マッピング
+   マニュアルHTMLの --color-* 変数をアプリのテーマ変数に対応させる
+   ============================================================ */
+:root {
+  /* テキスト */
+  --color-text-primary: var(--foreground);
+  --color-text-secondary: var(--muted-foreground);
+  /* 背景 */
+  --color-background-primary: var(--card);
+  --color-background-secondary: var(--muted);
+  /* ボーダー */
+  --color-border-primary: var(--border);
+  --color-border-secondary: var(--border);
+  --color-border-tertiary: var(--border);
+  /* ボーダー半径 */
+  --border-radius-sm: var(--radius-sm);
+  --border-radius-md: var(--radius-md);
+  --border-radius-lg: var(--radius-lg);
+  /* 危険（赤） */
+  --color-background-danger: oklch(0.97 0.02 25);
+  --color-border-danger: oklch(0.65 0.22 25);
+  --color-text-danger: oklch(0.45 0.22 25);
+  /* 警告（アンバー） */
+  --color-background-warning: oklch(0.97 0.04 80);
+  --color-border-warning: oklch(0.72 0.18 75);
+  --color-text-warning: oklch(0.50 0.18 60);
+  /* 情報（青） */
+  --color-background-info: oklch(0.96 0.03 240);
+  --color-border-info: oklch(0.60 0.18 240);
+  --color-text-info: oklch(0.42 0.18 240);
+  /* 成功（緑） */
+  --color-background-success: oklch(0.96 0.04 145);
+  --color-border-success: oklch(0.60 0.18 145);
+  --color-text-success: oklch(0.42 0.18 145);
+}
+
+.night {
+  /* テキスト */
+  --color-text-primary: var(--foreground);
+  --color-text-secondary: var(--muted-foreground);
+  /* 背景 */
+  --color-background-primary: var(--card);
+  --color-background-secondary: var(--muted);
+  /* ボーダー */
+  --color-border-primary: var(--border);
+  --color-border-secondary: var(--border);
+  --color-border-tertiary: var(--border);
+  /* 危険（赤） - 夜モード */
+  --color-background-danger: oklch(0.30 0.08 25);
+  --color-border-danger: oklch(0.55 0.20 25);
+  --color-text-danger: oklch(0.85 0.16 25);
+  /* 警告（アンバー） - 夜モード */
+  --color-background-warning: oklch(0.30 0.06 70);
+  --color-border-warning: oklch(0.60 0.16 70);
+  --color-text-warning: oklch(0.85 0.14 70);
+  /* 情報（青） - 夜モード */
+  --color-background-info: oklch(0.28 0.06 240);
+  --color-border-info: oklch(0.55 0.16 240);
+  --color-text-info: oklch(0.82 0.14 240);
+  /* 成功（緑） - 夜モード */
+  --color-background-success: oklch(0.28 0.06 145);
+  --color-border-success: oklch(0.55 0.16 145);
+  --color-text-success: oklch(0.82 0.14 145);
+}
+
+/* 交通事故マニュアル内のSVGスタイル */
+.traffic-accident-manual svg text.th {
+  fill: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+}
+.traffic-accident-manual svg text.ts {
+  fill: var(--color-text-secondary);
+  font-size: 12px;
+  font-family: var(--font-sans);
+}
+.traffic-accident-manual svg line.arr,
+.traffic-accident-manual svg line {
+  stroke: var(--color-border-secondary);
+}
+.traffic-accident-manual svg .c-gray rect {
+  fill: var(--color-background-secondary);
+  stroke: var(--color-border-secondary);
+}
+.traffic-accident-manual svg .c-red rect {
+  fill: oklch(0.95 0.04 25);
+  stroke: oklch(0.65 0.22 25);
+}
+.night .traffic-accident-manual svg .c-red rect {
+  fill: oklch(0.28 0.08 25);
+  stroke: oklch(0.55 0.20 25);
+}
+.traffic-accident-manual svg .c-amber rect {
+  fill: oklch(0.96 0.05 75);
+  stroke: oklch(0.72 0.18 75);
+}
+.night .traffic-accident-manual svg .c-amber rect {
+  fill: oklch(0.28 0.06 70);
+  stroke: oklch(0.60 0.16 70);
+}
+.traffic-accident-manual svg .c-blue rect {
+  fill: oklch(0.95 0.04 240);
+  stroke: oklch(0.60 0.18 240);
+}
+.night .traffic-accident-manual svg .c-blue rect {
+  fill: oklch(0.28 0.06 240);
+  stroke: oklch(0.55 0.16 240);
+}
+.traffic-accident-manual svg .c-teal rect {
+  fill: var(--color-background-primary);
+  stroke: var(--color-border-secondary);
+}
