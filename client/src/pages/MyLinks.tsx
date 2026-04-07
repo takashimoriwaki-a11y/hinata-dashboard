@@ -178,15 +178,22 @@ export default function MyLinks() {
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const google = (window as any).google;
+      // マイドライブビュー
+      const myDriveView = new google.picker.DocsView()
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(true);
+      // 共有ドライブビュー（Shared Drives）
+      const sharedDriveView = new google.picker.DocsView(google.picker.ViewId.DOCS)
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(true)
+        .setEnableDrives(true);
       const picker = new google.picker.PickerBuilder()
         .setOAuthToken(token)
         .setDeveloperKey(PICKER_API_KEY)
         .setLocale("ja")
-        .addView(
-          new google.picker.DocsView()
-            .setIncludeFolders(true)
-            .setSelectFolderEnabled(true)
-        )
+        .enableFeature(google.picker.Feature.SUPPORT_DRIVES)
+        .addView(myDriveView)
+        .addView(sharedDriveView)
         .setCallback((data: {
           action: string;
           docs?: Array<{ id: string; name: string; mimeType: string; url: string }>;
@@ -296,7 +303,7 @@ export default function MyLinks() {
       {/* 説明バナー */}
       <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-700 dark:text-blue-300 flex items-start gap-2">
         <FolderOpen className="w-4 h-4 flex-shrink-0 mt-0.5" />
-        <span>「Driveから追加」を押すとGoogleアカウントでサインインし、自分のDrive内のファイルやフォルダを選択してリンクに追加できます。</span>
+        <span>「Driveから追加」を押すとGoogleアカウントでサインインし、マイドライブまたは<strong>共有ドライブ</strong>内のファイルやフォルダを選択してリンクに追加できます。</span>
       </div>
 
       {/* リンク一覧 */}
