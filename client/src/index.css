@@ -178,6 +178,7 @@
     @apply bg-background text-foreground;
     font-family: 'Noto Sans JP', sans-serif;
     font-size: 1rem; /* = html font-size */
+    font-weight: 500; /* medium: 本文全体の読みやすさを向上 */
     line-height: 1.7;
   }
   button:not(:disabled),

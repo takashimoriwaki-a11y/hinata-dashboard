@@ -138,10 +138,10 @@ export default function Login() {
             {/* 区切り線 */}
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-gray-200 dark:border-zinc-600" />
+                <span className="w-full border-t border-gray-300 dark:border-zinc-500" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">または</span>
+                <span className="bg-card px-3 text-slate-600 dark:text-slate-300 font-medium">または</span>
               </div>
             </div>
 
@@ -203,7 +203,7 @@ export default function Login() {
           </CardContent>
         </Card>
 
-        <p className="text-center text-xs text-slate-400 mt-6">
+        <p className="text-center text-xs text-slate-500 mt-6">
           © {new Date().getFullYear()} こころの訪問看護ステーションひなた
         </p>
       </div>
