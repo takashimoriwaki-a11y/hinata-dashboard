@@ -776,7 +776,7 @@ export default function RecordInput() {
                         : "🎤 話してください..."}
                     </p>
                     {visitVoice.isRecording && !(visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5) && (
-                      <span className="text-[10px] font-mono font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">
+                      <span className="text-xs font-mono font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">
                         {formatElapsedTime(visitVoice.elapsedSeconds)}
                       </span>
                     )}
@@ -838,7 +838,7 @@ export default function RecordInput() {
               </button>
               {/* 録音中経過時間バッジ */}
               {visitVoice.isRecording && !(visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5) && (
-                <span className="text-[9px] font-mono font-semibold tabular-nums leading-none px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">
+                <span className="text-xs font-mono font-semibold tabular-nums leading-none px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">
                   {formatElapsedTime(visitVoice.elapsedSeconds)}
                 </span>
               )}
@@ -886,7 +886,7 @@ export default function RecordInput() {
                     <button
                       type="button"
                       onClick={() => openFeedbackDialog(visitVoiceText, "visitVoice")}
-                      className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
+                      className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                       誤変換を報告して次回から改善
@@ -900,7 +900,7 @@ export default function RecordInput() {
             {!team && !visitVoice.isRecording && !isParsingVisitVoice && (
               <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-600 dark:text-amber-400 flex-shrink-0"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                <p className="text-[10px] text-amber-700 dark:text-amber-300">チームを先に選ぶと利用者名の認識精度が上がります</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300">チームを先に選ぶと利用者名の認識精度が上がります</p>
               </div>
             )}
 
@@ -914,10 +914,10 @@ export default function RecordInput() {
 
             {/* 例文（常時表示） */}
             <div className="space-y-1">
-              <p className="text-[10px] font-medium text-muted-foreground">話しかけの例</p>
+              <p className="text-xs font-medium text-muted-foreground">話しかけの例</p>
               <div className="rounded-lg bg-background/70 border border-border px-3 py-2 space-y-1.5">
-                <p className="text-[11px] text-muted-foreground leading-snug">○○チームの○○さん、次回訪問は来週火曜の14時、本人に口頭で伝えた。</p>
-                <p className="text-[10px] text-muted-foreground/70 leading-snug border-t border-border pt-1.5">日時の言い方の例：「明日の14時」「来週火曜の午後3時」「再来週月曜の午前10時半」「今週金曜の午後」</p>
+                <p className="text-xs text-muted-foreground leading-snug">○○チームの○○さん、次回訪問は来週火曜の14時、本人に口頭で伝えた。</p>
+                <p className="text-xs text-muted-foreground/70 leading-snug border-t border-border pt-1.5">日時の言い方の例：「明日の14時」「来週火曜の午後3時」「再来週月曜の午前10時半」「今週金曜の午後」</p>
               </div>
             </div>
 
@@ -926,12 +926,12 @@ export default function RecordInput() {
               <div className="flex items-start gap-3 p-2 bg-destructive/10 border border-destructive/30 rounded-lg">
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-destructive">⚠️ AI解析に失敗しました</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{visitVoiceError}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{visitVoiceError}</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => { setVisitVoiceError(null); if (visitVoiceText) handleVisitVoiceResult(visitVoiceText); }}
-                  className="text-[10px] text-primary hover:underline whitespace-nowrap"
+                  className="text-xs text-primary hover:underline whitespace-nowrap"
                 >
                   再試行
                 </button>
@@ -970,12 +970,12 @@ export default function RecordInput() {
                   <button
                     type="button"
                     onClick={() => { setVoicePreview(null); setEditingPreview(null); setVisitVoiceText(""); }}
-                    className="text-[10px] text-muted-foreground hover:text-destructive"
+                    className="text-xs text-muted-foreground hover:text-destructive"
                   >
                     ✕ 閉じる
                   </button>
                 </div>
-                <p className="text-[10px] text-muted-foreground -mt-1">
+                <p className="text-xs text-muted-foreground -mt-1">
                   {hasMissing
                     ? <><span className="text-red-500 font-medium">赤字の項目</span>は未検出です。入力してから「確定」をタップしてください。</>
                     : "内容を確認して「確定」をタップしてください。修正したい場合は各項目を直接編集できます。"
@@ -985,15 +985,15 @@ export default function RecordInput() {
                 {/* 認識された音声テキスト表示 */}
                 {visitVoiceText && (
                   <div className="rounded-lg bg-background/60 border border-border/50 px-3 py-2">
-                    <p className="text-[9px] font-medium text-muted-foreground mb-0.5">🎤 認識された音声</p>
-                    <p className="text-[11px] text-foreground/80 leading-snug">{visitVoiceText}</p>
+                    <p className="text-xs font-medium text-muted-foreground mb-0.5">🎤 認識された音声</p>
+                    <p className="text-xs text-foreground/80 leading-snug">{visitVoiceText}</p>
                   </div>
                 )}
 
                 {/* チーム */}
                 {editingPreview.team && (
                   <div className="space-y-1">
-                    <label className="text-[10px] font-medium text-muted-foreground">チーム</label>
+                    <label className="text-xs font-medium text-muted-foreground">チーム</label>
                     <Select
                       value={editingPreview.team ?? ""}
                       onValueChange={(v) => setEditingPreview((p) => p ? { ...p, team: v } : p)}
@@ -1012,11 +1012,11 @@ export default function RecordInput() {
                 {/* 利用者名 */}
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5">
-                    <label className={cn("text-[10px] font-medium", missingPatient ? "text-red-500" : "text-muted-foreground")}>利用者名</label>
-                    {missingPatient && <span className="text-[9px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
+                    <label className={cn("text-xs font-medium", missingPatient ? "text-red-500" : "text-muted-foreground")}>利用者名</label>
+                    {missingPatient && <span className="text-xs font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
                     <span className="ml-auto">
                       {isParsingReInput && reInputField === "patientName" ? (
-                        <span className="text-[9px] text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />解析中...</span>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />解析中...</span>
                       ) : (
                         <VoiceMicButton
                           size="sm"
@@ -1039,7 +1039,7 @@ export default function RecordInput() {
                       )}>
                         <User className="w-3 h-3 flex-shrink-0" />
                         <span className="truncate">{editingPreview.patientName}</span>
-                        {!editingPreview.patientId && <span className="text-[10px] text-amber-500 ml-1">（未登録の可能性）</span>}
+                        {!editingPreview.patientId && <span className="text-xs text-amber-500 ml-1">（未登録の可能性）</span>}
                       </div>
                       <button
                         type="button"
@@ -1048,7 +1048,7 @@ export default function RecordInput() {
                           setPreviewPatientSearch("");
                           setShowPreviewPatientList(true);
                         }}
-                        className="text-[10px] text-red-500 hover:text-red-700 whitespace-nowrap border border-red-300 rounded px-1.5 py-1 hover:bg-red-50 dark:hover:bg-red-950/20"
+                        className="text-xs text-red-500 hover:text-red-700 whitespace-nowrap border border-red-300 rounded px-1.5 py-1 hover:bg-red-50 dark:hover:bg-red-950/20"
                       >
                         × 削除して再検索
                       </button>
@@ -1103,11 +1103,11 @@ export default function RecordInput() {
                 {/* 次回訪問日時 */}
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5">
-                    <label className={cn("text-[10px] font-medium", (missingDate || missingTime) ? "text-red-500" : "text-muted-foreground")}>次回訪問日時</label>
-                    {(missingDate || missingTime) && <span className="text-[9px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
+                    <label className={cn("text-xs font-medium", (missingDate || missingTime) ? "text-red-500" : "text-muted-foreground")}>次回訪問日時</label>
+                    {(missingDate || missingTime) && <span className="text-xs font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
                     <span className="ml-auto">
                       {isParsingReInput && reInputField === "visitDateTime" ? (
-                        <span className="text-[9px] text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />解析中...</span>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />解析中...</span>
                       ) : (
                         <VoiceMicButton
                           size="sm"
@@ -1122,13 +1122,13 @@ export default function RecordInput() {
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
                       <div className="flex items-center gap-1 flex-wrap">
-                        <label className={cn("text-[9px] text-muted-foreground", missingDate && "text-red-400")}>日付</label>
-                        {missingDate && <span className="text-[9px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
+                        <label className={cn("text-xs text-muted-foreground", missingDate && "text-red-400")}>日付</label>
+                        {missingDate && <span className="text-xs font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
                         {!missingDate && editingPreview.visitDateConfidence === 'medium' && (
-                          <span className="text-[9px] font-medium text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded px-1 py-0.5 leading-none">推測</span>
+                          <span className="text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded px-1 py-0.5 leading-none">推測</span>
                         )}
                         {!missingDate && editingPreview.visitDateConfidence === 'low' && (
-                          <span className="text-[9px] font-medium text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-950/40 border border-orange-300 dark:border-orange-700 rounded px-1 py-0.5 leading-none">要確認</span>
+                          <span className="text-xs font-medium text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-950/40 border border-orange-300 dark:border-orange-700 rounded px-1 py-0.5 leading-none">要確認</span>
                         )}
                       </div>
                       <Input
@@ -1144,7 +1144,7 @@ export default function RecordInput() {
                             <button
                               key={delta}
                               type="button"
-                              className="flex-1 text-[10px] h-6 rounded border border-border bg-background/70 hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                              className="flex-1 text-xs h-6 rounded border border-border bg-background/70 hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
                               onClick={() => {
                                 setEditingPreview((p) => {
                                   if (!p?.visitDate) return p;
@@ -1165,13 +1165,13 @@ export default function RecordInput() {
                     </div>
                     <div className="space-y-1">
                       <div className="flex items-center gap-1 flex-wrap">
-                        <label className={cn("text-[9px] text-muted-foreground", missingTime && "text-red-400")}>時刻</label>
-                        {missingTime && <span className="text-[9px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
+                        <label className={cn("text-xs text-muted-foreground", missingTime && "text-red-400")}>時刻</label>
+                        {missingTime && <span className="text-xs font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
                         {!missingTime && editingPreview.visitTimeConfidence === 'medium' && (
-                          <span className="text-[9px] font-medium text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded px-1 py-0.5 leading-none">推測</span>
+                          <span className="text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded px-1 py-0.5 leading-none">推測</span>
                         )}
                         {!missingTime && editingPreview.visitTimeConfidence === 'low' && (
-                          <span className="text-[9px] font-medium text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-950/40 border border-orange-300 dark:border-orange-700 rounded px-1 py-0.5 leading-none">要確認</span>
+                          <span className="text-xs font-medium text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-950/40 border border-orange-300 dark:border-orange-700 rounded px-1 py-0.5 leading-none">要確認</span>
                         )}
                       </div>
                       <Input
@@ -1187,7 +1187,7 @@ export default function RecordInput() {
                             <button
                               key={delta}
                               type="button"
-                              className="flex-1 text-[10px] h-6 rounded border border-border bg-background/70 hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                              className="flex-1 text-xs h-6 rounded border border-border bg-background/70 hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
                               onClick={() => {
                                 setEditingPreview((p) => {
                                   if (!p?.visitTime) return p;
@@ -1212,11 +1212,11 @@ export default function RecordInput() {
                 {/* 伝達先 */}
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5">
-                    <label className={cn("text-[10px] font-medium", missingNotifiedTo ? "text-red-500" : "text-muted-foreground")}>伝達先</label>
-                    {missingNotifiedTo && <span className="text-[9px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
+                    <label className={cn("text-xs font-medium", missingNotifiedTo ? "text-red-500" : "text-muted-foreground")}>伝達先</label>
+                    {missingNotifiedTo && <span className="text-xs font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
                     <span className="ml-auto">
                       {isParsingReInput && reInputField === "notifiedTo" ? (
-                        <span className="text-[9px] text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />解析中...</span>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />解析中...</span>
                       ) : (
                         <VoiceMicButton
                           size="sm"
@@ -1256,11 +1256,11 @@ export default function RecordInput() {
                 {/* 伝達方法 */}
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5">
-                    <label className={cn("text-[10px] font-medium", missingNotifyMethod ? "text-red-500" : "text-muted-foreground")}>伝達方法</label>
-                    {missingNotifyMethod && <span className="text-[9px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
+                    <label className={cn("text-xs font-medium", missingNotifyMethod ? "text-red-500" : "text-muted-foreground")}>伝達方法</label>
+                    {missingNotifyMethod && <span className="text-xs font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
                     <span className="ml-auto">
                       {isParsingReInput && reInputField === "notifyMethod" ? (
-                        <span className="text-[9px] text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />解析中...</span>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />解析中...</span>
                       ) : (
                         <VoiceMicButton
                           size="sm"
@@ -1764,7 +1764,7 @@ export default function RecordInput() {
                       onClick={() => setNotesLongTextMode(prev => !prev)}
                       disabled={notesVoice.isRecording}
                       className={cn(
-                        "text-[10px] px-2 py-0.5 rounded-full border font-medium transition-all",
+                        "text-xs px-2 py-0.5 rounded-full border font-medium transition-all",
                         notesLongTextMode
                           ? "bg-primary text-primary-foreground border-primary"
                           : "bg-muted text-muted-foreground border-border hover:border-primary/50",
@@ -1874,7 +1874,7 @@ export default function RecordInput() {
                   <button
                     type="button"
                     onClick={() => openFeedbackDialog(notesVoice.lastTranscribedText, "notesVoice")}
-                    className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
+                    className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     誤変換を報告して次回から改善
@@ -1886,10 +1886,10 @@ export default function RecordInput() {
           {/* コピー内容プレビュー */}
           {clinicalNotes.trim() && (
             <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
-              <p className="text-[10px] font-medium text-muted-foreground mb-1">コピーされる内容（病状の経過のみ）</p>
+              <p className="text-xs font-medium text-muted-foreground mb-1">コピーされる内容（病状の経過のみ）</p>
               <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap break-words line-clamp-4">{clinicalNotes.trim()}</p>
               {clinicalNotes.trim().split("\n").length > 4 && (
-                <p className="text-[10px] text-muted-foreground mt-1">…他{clinicalNotes.trim().split("\n").length - 4}行</p>
+                <p className="text-xs text-muted-foreground mt-1">…他{clinicalNotes.trim().split("\n").length - 4}行</p>
               )}
             </div>
           )}
@@ -1925,7 +1925,7 @@ export default function RecordInput() {
               autoFocus
             />
           </div>
-          <p className="text-[10px] text-muted-foreground">専門用語の誤認識を報告することで、次回からの音声認識精度が向上します。</p>
+          <p className="text-xs text-muted-foreground">専門用語の誤認識を報告することで、次回からの音声認識精度が向上します。</p>
         </div>
         <DialogFooter className="flex gap-2">
           <Button

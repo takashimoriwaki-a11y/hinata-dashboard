@@ -118,7 +118,7 @@ export default function TeamGoalsTicker() {
                 {/* チームバッジ */}
                 <span
                   className={cn(
-                    "text-[11px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0",
+                    "text-xs font-bold px-2 py-0.5 rounded-full border flex-shrink-0",
                     badgeColors[g.team] ?? (isNight
                       ? "bg-muted/60 text-foreground border-border"
                       : "bg-gray-100 text-gray-700 border-gray-300")
@@ -132,7 +132,7 @@ export default function TeamGoalsTicker() {
                 </span>
                 {/* 期間 */}
                 {(startStr || endStr) && (
-                  <span className={cn("text-[10px] whitespace-nowrap flex-shrink-0", dateColor)}>
+                  <span className={cn("text-xs whitespace-nowrap flex-shrink-0", dateColor)}>
                     {startStr ?? ""}
                     {startStr && endStr ? " 〜 " : ""}
                     {endStr ?? ""}
@@ -181,7 +181,7 @@ export default function TeamGoalsTicker() {
             {/* ラベルバッジ */}
             <span
               className={cn(
-                "text-[11px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0",
+                "text-xs font-bold px-2 py-0.5 rounded-full border flex-shrink-0",
                 labelColorClass
               )}
             >
@@ -192,7 +192,7 @@ export default function TeamGoalsTicker() {
               {item.text}
             </span>
             {/* 説明 */}
-            <span className={cn("text-[10px] whitespace-nowrap flex-shrink-0", subColor)}>
+            <span className={cn("text-xs whitespace-nowrap flex-shrink-0", subColor)}>
               {item.sub}
             </span>
             {/* 区切り */}

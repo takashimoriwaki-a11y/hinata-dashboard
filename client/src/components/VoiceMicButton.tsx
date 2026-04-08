@@ -77,9 +77,9 @@ const sizeConfig = {
     bars: "h-3",
     barWidth: "w-0.5",
     previewText: "text-xs",
-    countdown: "text-[9px]",
+    countdown: "text-xs",
     ringRadius: "rounded-lg",
-    elapsed: "text-[9px]",
+    elapsed: "text-xs",
   },
   md: {
     button: "h-10 w-10 rounded-xl",
@@ -87,9 +87,9 @@ const sizeConfig = {
     bars: "h-4",
     barWidth: "w-0.5",
     previewText: "text-sm",
-    countdown: "text-[10px]",
+    countdown: "text-xs",
     ringRadius: "rounded-xl",
-    elapsed: "text-[10px]",
+    elapsed: "text-xs",
   },
   lg: {
     button: "h-14 w-14 rounded-full",

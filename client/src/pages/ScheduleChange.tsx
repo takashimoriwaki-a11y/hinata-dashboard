@@ -710,9 +710,9 @@ function DateTimePicker({
   };
 
   const confidenceBadge = confidence === 'medium' ? (
-    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 font-medium border border-yellow-200 dark:border-yellow-700 flex-shrink-0">推測</span>
+    <span className="text-xs px-1.5 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 font-medium border border-yellow-200 dark:border-yellow-700 flex-shrink-0">推測</span>
   ) : confidence === 'low' ? (
-    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 font-medium border border-orange-200 dark:border-orange-700 flex-shrink-0">要確認</span>
+    <span className="text-xs px-1.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 font-medium border border-orange-200 dark:border-orange-700 flex-shrink-0">要確認</span>
   ) : null;
 
   return (
@@ -802,27 +802,27 @@ function DateTimePicker({
       {/* 音声入力後のクイック修正ボタン */}
       {value && (
         <div className="flex items-center gap-1.5 mt-1">
-          <span className="text-[10px] text-muted-foreground">日付:</span>
+          <span className="text-xs text-muted-foreground">日付:</span>
           <button
             type="button"
             onClick={() => adjustDay(-1)}
-            className="text-[11px] px-2 py-0.5 rounded border border-border bg-muted/50 hover:bg-muted text-foreground transition-colors"
+            className="text-xs px-2 py-0.5 rounded border border-border bg-muted/50 hover:bg-muted text-foreground transition-colors"
           >−1日</button>
           <button
             type="button"
             onClick={() => adjustDay(1)}
-            className="text-[11px] px-2 py-0.5 rounded border border-border bg-muted/50 hover:bg-muted text-foreground transition-colors"
+            className="text-xs px-2 py-0.5 rounded border border-border bg-muted/50 hover:bg-muted text-foreground transition-colors"
           >+1日</button>
-          <span className="text-[10px] text-muted-foreground ml-2">時刻:</span>
+          <span className="text-xs text-muted-foreground ml-2">時刻:</span>
           <button
             type="button"
             onClick={() => adjustMinutes(-30)}
-            className="text-[11px] px-2 py-0.5 rounded border border-border bg-muted/50 hover:bg-muted text-foreground transition-colors"
+            className="text-xs px-2 py-0.5 rounded border border-border bg-muted/50 hover:bg-muted text-foreground transition-colors"
           >−30分</button>
           <button
             type="button"
             onClick={() => adjustMinutes(30)}
-            className="text-[11px] px-2 py-0.5 rounded border border-border bg-muted/50 hover:bg-muted text-foreground transition-colors"
+            className="text-xs px-2 py-0.5 rounded border border-border bg-muted/50 hover:bg-muted text-foreground transition-colors"
           >+30分</button>
         </div>
       )}
@@ -1685,7 +1685,7 @@ export default function ScheduleChange() {
                   <p className="text-xs font-medium text-red-600 dark:text-red-400 animate-pulse">
                     🎩️ 話してください...
                   </p>
-                  <span className="text-[10px] font-mono font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">
+                  <span className="text-xs font-mono font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">
                     {formatElapsedTime(voiceElapsedSeconds)}
                   </span>
                 </div>
@@ -1745,10 +1745,10 @@ export default function ScheduleChange() {
           {/* 例文（常時表示） */}
           {true && (
             <div>
-              <p className="text-[10px] font-medium text-muted-foreground mb-1.5">話しかけの例</p>
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">話しかけの例</p>
               <div className="rounded-lg bg-background/70 border border-border px-3 py-2 space-y-1.5">
-                <p className="text-[11px] text-muted-foreground leading-snug">○○チームの○○さん、次回の訪問は明後日の14時から来週火曜の15時に変更。本人の受診のため。</p>
-                <p className="text-[10px] text-muted-foreground/70 leading-snug border-t border-border pt-1.5">日時の言い方の例：「明日の14時」「来週火曜の午後3時」「再来週月曜の午前10時半」「今週金曜の午後」「4月・十六日の15時」</p>
+                <p className="text-xs text-muted-foreground leading-snug">○○チームの○○さん、次回の訪問は明後日の14時から来週火曜の15時に変更。本人の受診のため。</p>
+                <p className="text-xs text-muted-foreground/70 leading-snug border-t border-border pt-1.5">日時の言い方の例：「明日の14時」「来週火曜の午後3時」「再来週月曜の午前10時半」「今週金曜の午後」「4月・十六日の15時」</p>
               </div>
             </div>
           )}
@@ -1765,7 +1765,7 @@ export default function ScheduleChange() {
             <div className="flex items-start gap-3 p-3 bg-destructive/10 border border-destructive/30 rounded-xl">
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-destructive">⚠️ AI解析に失敗しました</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{voiceError}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">{voiceError}</p>
               </div>
               <button
                 type="button"
@@ -1830,7 +1830,7 @@ export default function ScheduleChange() {
                           if (focusable) setTimeout(() => focusable.focus(), 300);
                         }
                       }}
-                      className={`text-[10px] px-2 py-0.5 rounded-full font-medium transition-all ${
+                      className={`text-xs px-2 py-0.5 rounded-full font-medium transition-all ${
                         targetId
                           ? "bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 cursor-pointer hover:bg-amber-300 dark:hover:bg-amber-700 active:scale-95"
                           : "bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 cursor-default"
@@ -1841,7 +1841,7 @@ export default function ScheduleChange() {
                   );
                 })}
               </div>
-              <p className="text-[10px] text-amber-700 dark:text-amber-400">項目をタップすると入力欄に移動します。またはマイクで話しかけて追加入力もできます。</p>
+              <p className="text-xs text-amber-700 dark:text-amber-400">項目をタップすると入力欄に移動します。またはマイクで話しかけて追加入力もできます。</p>
             </div>
           )}
 
@@ -1880,7 +1880,7 @@ export default function ScheduleChange() {
                     setFeedbackComment("");
                     setShowFeedbackDialog(true);
                   }}
-                  className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded-lg"
+                  className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded-lg"
                 >
                   <CheckCircle2 className="w-3 h-3" />
                   報告済み（再報告する場合はこちら）
@@ -1895,7 +1895,7 @@ export default function ScheduleChange() {
                     setFeedbackComment("");
                     setShowFeedbackDialog(true);
                   }}
-                  className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded-lg hover:bg-destructive/10"
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded-lg hover:bg-destructive/10"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l18 18"/><path d="M10.5 10.677a2 2 0 0 0 2.823 2.823"/><path d="M7.362 5.104C5.054 6.37 3.37 8.555 3.05 11.24A9 9 0 0 0 12 21a9 9 0 0 0 5.877-2.166"/><path d="M12 3c1.8 0 3.5.5 4.9 1.4"/></svg>
                   誤変換を報告する
@@ -2378,7 +2378,7 @@ export default function ScheduleChange() {
               {/* 元の音声テキスト */}
               {voiceText && (
                 <div className="rounded-lg bg-muted/40 border border-border px-3 py-2">
-                  <p className="text-[10px] font-medium text-muted-foreground mb-0.5">認識した音声</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-0.5">認識した音声</p>
                   <p className="text-xs text-foreground leading-relaxed">「{voiceText}」</p>
                 </div>
               )}

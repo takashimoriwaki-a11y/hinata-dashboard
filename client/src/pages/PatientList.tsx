@@ -56,13 +56,13 @@ export default function PatientList() {
                   <p className="font-semibold text-sm">{p.name}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{p.id}</p>
                 </div>
-                <Badge className={`text-[10px] ${teamColors[p.team] || "bg-muted text-muted-foreground"} border-0`}>
+                <Badge className={`text-xs ${teamColors[p.team] || "bg-muted text-muted-foreground"} border-0`}>
                   {p.team}
                 </Badge>
               </div>
               <div className="mt-2 flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">月{p.visits}回訪問</span>
-                <Badge variant={p.status === "active" ? "default" : "secondary"} className="text-[10px]">
+                <Badge variant={p.status === "active" ? "default" : "secondary"} className="text-xs">
                   {p.status === "active" ? "利用中" : "休止中"}
                 </Badge>
               </div>

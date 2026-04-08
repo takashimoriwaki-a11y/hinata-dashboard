@@ -248,11 +248,11 @@ export default function DailyMessageBar() {
             <div className="flex items-center gap-1.5">
               <CheckCircle className="w-4 h-4 text-orange-500" />
               <span className="text-xs font-bold text-orange-700">メッセージ編集中</span>
-              <span className="text-[10px] text-orange-500 bg-orange-100 px-1.5 py-0.5 rounded-full">{messages.length}件</span>
+              <span className="text-xs text-orange-500 bg-orange-100 px-1.5 py-0.5 rounded-full">{messages.length}件</span>
             </div>
             <button
               onClick={handleExitEditor}
-              className="text-[10px] text-orange-600 hover:text-orange-800 underline"
+              className="text-xs text-orange-600 hover:text-orange-800 underline"
             >
               編集を終了
             </button>
@@ -281,10 +281,10 @@ export default function DailyMessageBar() {
                     <ChevronDown className="w-3 h-3" />
                   </button>
                 </div>
-                <span className="text-[10px] text-orange-400 font-mono w-4 flex-shrink-0">{i + 1}</span>
+                <span className="text-xs text-orange-400 font-mono w-4 flex-shrink-0">{i + 1}</span>
                 <p className="flex-1 text-xs text-foreground truncate">{msg}</p>
                 {msg === dailyMessage && (
-                  <span className="text-[9px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full flex-shrink-0">今日</span>
+                  <span className="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full flex-shrink-0">今日</span>
                 )}
                 <button
                   onClick={() => handleDeleteMessage(i)}

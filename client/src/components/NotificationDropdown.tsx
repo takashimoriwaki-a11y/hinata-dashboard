@@ -73,7 +73,7 @@ export default function NotificationDropdown() {
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
+          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center leading-none">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
@@ -157,7 +157,7 @@ export default function NotificationDropdown() {
                           {n.body}
                         </p>
                       )}
-                      <p className="text-[10px] text-muted-foreground/60 mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         {formatRelativeTime(n.createdAt)}
                       </p>
                     </div>

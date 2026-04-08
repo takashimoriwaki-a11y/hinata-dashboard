@@ -422,13 +422,13 @@ function VisitCountCard() {
                 data.mainDailyTargetCumul > 0 ? getPctColor(mainPct) : "text-orange-400"
               )}>{data.mainDailyTargetCumul > 0 ? `${Math.round(mainPct)}%` : "—"}</p>
               {data.mainTarget > 0 && (
-                <p className="text-[10px] font-medium text-orange-500/80 dark:text-orange-400/80">月目標 {data.mainTarget}</p>
+                <p className="text-xs font-medium text-orange-500/80 dark:text-orange-400/80">月目標 {data.mainTarget}</p>
               )}
             </div>
             {(() => {
               const diff = getDiffLabel(data.mainActual, data.mainDailyTargetCumul);
               return diff ? (
-                <p className={cn("text-[10px] font-medium", diff.over ? "text-emerald-600" : "text-orange-500 dark:text-orange-400")}>
+                <p className={cn("text-xs font-medium", diff.over ? "text-emerald-600" : "text-orange-500 dark:text-orange-400")}>
                   {diff.over ? `目標を${diff.text}` : `目標まで${diff.text}`}
                 </p>
               ) : null;
@@ -452,13 +452,13 @@ function VisitCountCard() {
                 {data.subDailyTargetCumul > 0 ? `${Math.round(subPct)}%` : "—"}
               </p>
               {data.subTarget > 0 && (
-                <p className="text-[10px] font-medium text-sky-500/80 dark:text-sky-400/80">月目標 {data.subTarget}</p>
+                <p className="text-xs font-medium text-sky-500/80 dark:text-sky-400/80">月目標 {data.subTarget}</p>
               )}
             </div>
             {(() => {
               const diff = getDiffLabel(data.subActual, data.subDailyTargetCumul);
               return diff ? (
-                <p className={cn("text-[10px] font-medium", diff.over ? "text-emerald-600" : "text-sky-500 dark:text-sky-400")}>
+                <p className={cn("text-xs font-medium", diff.over ? "text-emerald-600" : "text-sky-500 dark:text-sky-400")}>
                   {diff.over ? `目標を${diff.text}` : `目標まで${diff.text}`}
                 </p>
               ) : null;
@@ -480,13 +480,13 @@ function VisitCountCard() {
                 getPctColor(totalPct)
               )}>{Math.round(totalPct)}%</p>
               {data.mainTarget > 0 && (
-                <p className="text-[10px] font-medium text-emerald-600/80 dark:text-emerald-400/80">月目標 {data.mainTarget}</p>
+                <p className="text-xs font-medium text-emerald-600/80 dark:text-emerald-400/80">月目標 {data.mainTarget}</p>
               )}
             </div>
             {(() => {
               const diff = getDiffLabel(data.totalActualEquiv, data.totalTargetEquiv);
               return diff ? (
-                <p className={cn("text-[10px] font-medium", diff.over ? "text-emerald-600 dark:text-emerald-400" : "text-emerald-600 dark:text-emerald-400")}>
+                <p className={cn("text-xs font-medium", diff.over ? "text-emerald-600 dark:text-emerald-400" : "text-emerald-600 dark:text-emerald-400")}>
                   {diff.over ? `目標を${diff.text}` : `目標まで${diff.text}`}
                 </p>
               ) : null;
@@ -540,7 +540,7 @@ function VisitCountCard() {
                   : 'linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)'
               }}
             />
-            <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow">
+            <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white drop-shadow">
               {animatedPrevActual.toLocaleString()} / {data.prevTotalTarget.toLocaleString()} 件
             </span>
           </div>
@@ -845,7 +845,7 @@ function PinchZoomImage({ src, alt, onClickLightbox, fullscreen }: { src: string
         </button>
       )}
       {!fullscreen && (
-        <div className="text-center text-[10px] text-muted-foreground/50 py-1">
+        <div className="text-center text-xs text-muted-foreground py-1">
           ピンチで拡大・ダブルタップでリセット
         </div>
       )}
@@ -941,7 +941,7 @@ function ScheduleCommentSection({ team, day }: { team: string; day: string }) {
           <MessageSquare className="w-3.5 h-3.5" />
           <span className="font-medium">申し送り・コメント</span>
           {commentCount > 0 && (
-            <span className="inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-primary text-primary-foreground">
+            <span className="inline-flex items-center justify-center w-4 h-4 text-xs font-bold rounded-full bg-primary text-primary-foreground">
               {commentCount > 9 ? "9+" : commentCount}
             </span>
           )}
@@ -995,8 +995,8 @@ function ScheduleCommentSection({ team, day }: { team: string; day: string }) {
                     <div className="flex items-start gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">
-                          <span className="text-[11px] font-semibold text-foreground">{c.userName}</span>
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="text-xs font-semibold text-foreground">{c.userName}</span>
+                          <span className="text-xs text-muted-foreground">
                             {new Date(c.createdAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                           </span>
                         </div>
@@ -1030,14 +1030,14 @@ function ScheduleCommentSection({ team, day }: { team: string; day: string }) {
                         <div className="flex gap-1 flex-shrink-0 mt-0.5">
                           <button
                             onClick={() => handleEditStart(c.id, c.content)}
-                            className="p-1.5 rounded text-muted-foreground/60 hover:text-primary hover:bg-primary/10 transition-colors"
+                            className="p-1.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                             title="編集"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => setDeletingCommentId(c.id)}
-                            className="p-1.5 rounded text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                             disabled={deleteMutation.isPending}
                             title="削除"
                           >
@@ -1068,7 +1068,7 @@ function ScheduleCommentSection({ team, day }: { team: string; day: string }) {
                               </button>
                             </PopoverTrigger>
                             <PopoverContent side="top" className="w-auto max-w-[200px] p-2">
-                              <div className="text-[11px] text-muted-foreground">
+                              <div className="text-xs text-muted-foreground">
                                 <p className="font-semibold text-foreground mb-1">{emoji} リアクションしたスタッフ</p>
                                 {names.map((name, i) => (
                                   <p key={i} className="leading-5">{name}</p>
@@ -1113,7 +1113,7 @@ function ScheduleCommentSection({ team, day }: { team: string; day: string }) {
               })}
             </div>
            ) : (
-            <div className="text-xs text-muted-foreground/50 py-2 text-center">コメントはまだありません</div>
+            <div className="text-xs text-muted-foreground py-2 text-center">コメントはまだありません</div>
           )}
         </div>
       )}
@@ -1522,12 +1522,12 @@ function ScheduleScreenshotCard() {
                           />
                           {/* チーム・日付ラベル（全チームモード時は常時表示） */}
                           {showAllTeams && (
-                            <div className="absolute top-2 left-2 bg-black/65 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full pointer-events-none">
+                            <div className="absolute top-2 left-2 bg-black/65 text-white text-xs font-semibold px-2.5 py-1 rounded-full pointer-events-none">
                               {team} / {day}
                             </div>
                           )}
                           {/* タップで拡大ヒント */}
-                          <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded-full flex items-center gap-1 pointer-events-none">
+                          <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1 pointer-events-none">
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" /></svg>
                             タップで拡大
                           </div>
@@ -1574,8 +1574,8 @@ function ScheduleScreenshotCard() {
                                   {isUploading ? "アップロード中..." : isDragging ? "ここにドロップ" : "クリックまたはドラッグ＆ドロップ"}
                                 </p>
                                 <p className="text-xs text-muted-foreground mt-0.5">ZESTのスクリーンショットを登録</p>
-                                <p className="text-[11px] text-primary font-medium mt-1.5">{team}チーム / {day}</p>
-                                <p className="text-[10px] text-muted-foreground mt-0.5">PNG・JPG・WEBP対応 / 最大10MB</p>
+                                <p className="text-xs text-primary font-medium mt-1.5">{team}チーム / {day}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">PNG・JPG・WEBP対応 / 最大10MB</p>
                               </div>
                             </div>
                           </div>
@@ -1623,7 +1623,7 @@ function ScheduleScreenshotCard() {
 
               {/* メタ情報行 */}
               <div className="flex items-center justify-between">
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   {selectedTeam}チーム / {selectedDay}
                   {currentScreenshot?.uploadedByName && ` ・ ${currentScreenshot.uploadedByName}`}
                   {currentScreenshot && ` ・ ${new Date(currentScreenshot.updatedAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} 登録`}
@@ -1717,7 +1717,7 @@ function ScheduleScreenshotCard() {
                   <button
                     key={team}
                     onClick={() => scrollToTeam(team, document.getElementById("modal-scroll-container"))}
-                    className="px-3 py-1 text-[11px] font-medium rounded-full bg-muted/60 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors border border-border/50"
+                    className="px-3 py-1 text-xs font-medium rounded-full bg-muted/60 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors border border-border/50"
                   >
                     {team}
                   </button>
@@ -1740,7 +1740,7 @@ function ScheduleScreenshotCard() {
                         <span className="text-xs text-muted-foreground">· {screenshot.uploadedByName}</span>
                       )}
                       {!screenshot && (
-                        <span className="text-xs text-muted-foreground/60 italic">未登録</span>
+                        <span className="text-xs text-muted-foreground italic">未登録</span>
                       )}
                     </div>
                     {screenshot && (
@@ -1759,7 +1759,7 @@ function ScheduleScreenshotCard() {
                       }}
                     />
                   ) : (
-                    <div className="flex flex-col items-center justify-center h-24 bg-muted/20 text-muted-foreground/50 gap-1">
+                    <div className="flex flex-col items-center justify-center h-24 bg-muted/20 text-muted-foreground gap-1">
                       <Calendar className="w-6 h-6 opacity-30" />
                       <span className="text-xs">まだ登録されていません</span>
                     </div>
@@ -1821,7 +1821,7 @@ function ScheduleScreenshotCard() {
             />
           </div>
           {/* キャプション */}
-          <div className="absolute bottom-4 left-0 right-0 text-center text-white/60 text-xs pointer-events-none z-10">
+          <div className="absolute bottom-4 left-0 right-0 text-center text-white/85 text-xs pointer-events-none z-10">
             {lightboxAlt} — ピンチで拡大・ダブルタップでリセット・四隅のクリックまたはESCで閉じる
           </div>
         </div>
@@ -2131,7 +2131,7 @@ function SheetSubTabs({ quickLinks, myLinksData, addToMyLinks }: { quickLinks: {
           {monthlyLinks && monthlyLinks.length > 0 && (
             <div className="flex items-center gap-1.5 px-1">
               <span className={cn(
-                "text-[10px] font-semibold px-2 py-0.5 rounded-full",
+                "text-xs font-semibold px-2 py-0.5 rounded-full",
                 isCurrentMonth
                   ? "bg-emerald-100 text-emerald-700"
                   : "bg-amber-100 text-amber-700"
@@ -2139,7 +2139,7 @@ function SheetSubTabs({ quickLinks, myLinksData, addToMyLinks }: { quickLinks: {
                 {isCurrentMonth ? `✔ ${monthlyLinks[0].yearMonth}分` : `⚠ 最新: ${monthlyLinks[0].yearMonth}分`}
               </span>
               {!isCurrentMonth && (
-                <span className="text-[10px] text-muted-foreground">当月分は未登録</span>
+                <span className="text-xs text-muted-foreground">当月分は未登録</span>
               )}
             </div>
           )}
@@ -2201,7 +2201,7 @@ function HinatasWayButton() {
     >
       <span className="flex-shrink-0">📖</span>
       <span className="truncate">Hinata's Way</span>
-      <span className="ml-auto text-[10px] text-amber-500 font-normal">経営理念</span>
+      <span className="ml-auto text-xs text-amber-500 font-normal">経営理念</span>
     </button>
   );
 }
@@ -2341,7 +2341,7 @@ function ToolsCard() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md text-[10px] font-medium transition-all",
+                "flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md text-xs font-medium transition-all",
                 activeTab === tab.id
                   ? "bg-card shadow-sm text-primary"
                   : "text-foreground/70 hover:text-foreground"
@@ -2786,7 +2786,7 @@ function TeamToolsCard() {
               onClick={() => setActiveTeam(tab.id)}
               onTouchStart={() => {}}
               className={cn(
-                "flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md text-[10px] font-bold transition-colors",
+                "flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md text-xs font-bold transition-colors",
                 getTeamButtonClass(tab.id, activeTeam === tab.id)
               )}
               style={{ ...getTeamButtonStyle(tab.id, activeTeam === tab.id), touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
@@ -2965,13 +2965,13 @@ function TasksCard() {
                     {task.text}
                   </span>
                   {(task as any).patientName && (
-                    <span className="flex items-center gap-0.5 text-[11px] mt-0.5 text-violet-600 dark:text-violet-400 font-medium">
+                    <span className="flex items-center gap-0.5 text-xs mt-0.5 text-violet-600 dark:text-violet-400 font-medium">
                       <UserRound className="w-3 h-3" />{(task as any).patientName}
                     </span>
                   )}
                   {task.dueDate && (
                     <span className={cn(
-                      "flex items-center gap-0.5 text-[11px] mt-0.5",
+                      "flex items-center gap-0.5 text-xs mt-0.5",
                       (() => {
                         const d = new Date(task.dueDate);
                         const now = new Date();
@@ -3467,14 +3467,14 @@ function MessageBoard({ title }: { title: string }) {
                             }
                             }
                           }}
-                          className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 font-medium hover:bg-amber-300 dark:hover:bg-amber-700 transition-colors cursor-pointer underline underline-offset-2"
+                          className="text-xs px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 font-medium hover:bg-amber-300 dark:hover:bg-amber-700 transition-colors cursor-pointer underline underline-offset-2"
                         >
                           {fieldName} →
                         </button>
                       );
                     })}
                   </div>
-                  <p className="text-[10px] text-amber-700 dark:text-amber-400">項目をタップすると入力欄に移動します。マイクで話すか手動入力で補完できます</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400">項目をタップすると入力欄に移動します。マイクで話すか手動入力で補完できます</p>
                 </div>
               )}
 
@@ -3484,7 +3484,7 @@ function MessageBoard({ title }: { title: string }) {
                   <button
                     type="button"
                     onClick={() => setShowMsgFeedbackDialog(true)}
-                    className="text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+                    className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
                   >
                     誤変換を報告する（投稿前に）
                   </button>
@@ -3506,7 +3506,7 @@ function MessageBoard({ title }: { title: string }) {
                     <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
                     <div>
                       <p className="text-xs font-semibold text-green-800 dark:text-green-300">ご報告ありがとうございます</p>
-                      <p className="text-[10px] text-green-700 dark:text-green-400 mt-0.5">いただいた情報はAIの音声認識精度の改善に活用します。引き続きご協力をお願いします。</p>
+                      <p className="text-xs text-green-700 dark:text-green-400 mt-0.5">いただいた情報はAIの音声認識精度の改善に活用します。引き続きご協力をお願いします。</p>
                     </div>
                   </div>
                 </div>
@@ -3639,7 +3639,7 @@ function MessageBoard({ title }: { title: string }) {
               return (
                 <div key={msg.id} className="p-2.5 bg-muted/30 rounded-xl group animate-list-item-in">
                   <div className="flex gap-2">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
                       {(msg.createdByName ?? "不明")[0]}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -3651,12 +3651,12 @@ function MessageBoard({ title }: { title: string }) {
                           {new Date(msg.createdAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                         </span>
                         {msg.displayUntil && (
-                          <span className={cn("text-[10px] px-1 rounded", isNight ? "text-amber-400 bg-amber-900/40" : "text-amber-600 bg-amber-50")}>
+                          <span className={cn("text-xs px-1 rounded", isNight ? "text-amber-400 bg-amber-900/40" : "text-amber-600 bg-amber-50")}>
                             → {new Date(msg.displayUntil).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}まで
                           </span>
                         )}
                         {msg.scheduledAt && new Date(msg.scheduledAt) > new Date() && (
-                          <span className={cn("text-[10px] px-1 rounded", isNight ? "text-blue-400 bg-blue-900/40" : "text-blue-600 bg-blue-50")}>予約</span>
+                          <span className={cn("text-xs px-1 rounded", isNight ? "text-blue-400 bg-blue-900/40" : "text-blue-600 bg-blue-50")}>予約</span>
                         )}
                       </div>
                       {editingMsgId === msg.id ? (
@@ -3726,7 +3726,7 @@ function MessageBoard({ title }: { title: string }) {
                         key={emoji}
                         onClick={() => toggleReaction.mutate({ messageId: msg.id, emoji })}
                         className={cn(
-                          "flex items-center gap-0.5 text-[11px] px-1.5 py-0.5 rounded-full border transition-colors",
+                          "flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-full border transition-colors",
                           hasMe
                             ? "bg-primary/10 border-primary/30 text-primary"
                             : "bg-card border-border text-muted-foreground hover:border-primary/30"
@@ -3737,7 +3737,7 @@ function MessageBoard({ title }: { title: string }) {
                     ))}
                     {/* リアクション追加パレット */}
                     <div className="relative group/react">
-                      <button className="text-[11px] px-1.5 py-0.5 rounded-full border border-dashed border-border text-muted-foreground hover:border-primary/30 hover:text-primary transition-colors">
+                      <button className="text-xs px-1.5 py-0.5 rounded-full border border-dashed border-border text-muted-foreground hover:border-primary/30 hover:text-primary transition-colors">
                         +
                       </button>
                       <div className="absolute bottom-full left-0 mb-1 hidden group-hover/react:flex gap-1 bg-card border border-border rounded-xl shadow-lg p-1.5 z-10">
@@ -3774,7 +3774,7 @@ function MessageBoard({ title }: { title: string }) {
                 <CalendarClock className="w-3.5 h-3.5" />
                 <span>予約送信待ち</span>
                 <span className={cn(
-                  "inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full",
+                  "inline-flex items-center justify-center w-4 h-4 text-xs font-bold rounded-full",
                   isNight ? "bg-blue-700 text-white" : "bg-blue-600 text-white"
                 )}>{pendingMessages.length}</span>
               </div>
@@ -3791,14 +3791,14 @@ function MessageBoard({ title }: { title: string }) {
                     isNight ? "border-blue-800/40 bg-blue-900/20" : "border-blue-100 bg-blue-50/30"
                   )}>
                     <div className="flex items-center gap-1.5 mb-1">
-                      <div className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center text-[9px] font-bold text-blue-600">
+                      <div className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-600">
                         {(msg.createdByName ?? "不明")[0]}
                       </div>
-                      <span className="text-[11px] font-semibold text-foreground">
+                      <span className="text-xs font-semibold text-foreground">
                         {msg.createdByName ?? "不明"}
                       </span>
                       <span className={cn(
-                        "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
+                        "text-xs px-1.5 py-0.5 rounded-full font-medium",
                         isNight ? "bg-blue-800/60 text-blue-300" : "bg-blue-100 text-blue-700"
                       )}>
                         送信予定: {new Date(msg.scheduledAt!).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
@@ -3809,7 +3809,7 @@ function MessageBoard({ title }: { title: string }) {
                           <button
                             type="button"
                             className={cn(
-                              "text-[10px] px-2 py-0.5 rounded-full font-medium border transition-colors",
+                              "text-xs px-2 py-0.5 rounded-full font-medium border transition-colors",
                               isNight
                                 ? "border-blue-700/50 text-blue-400 hover:bg-blue-900/40"
                                 : "border-blue-200 text-blue-500 hover:bg-blue-50"
@@ -3845,7 +3845,7 @@ function MessageBoard({ title }: { title: string }) {
                           <button
                             type="button"
                             className={cn(
-                              "text-[10px] px-2 py-0.5 rounded-full font-medium border transition-colors",
+                              "text-xs px-2 py-0.5 rounded-full font-medium border transition-colors",
                               isNight
                                 ? "border-red-700/50 text-red-400 hover:bg-red-900/40"
                                 : "border-red-200 text-red-500 hover:bg-red-50"
@@ -3864,12 +3864,12 @@ function MessageBoard({ title }: { title: string }) {
                     {(msg.displayFrom || msg.displayUntil) && (
                       <div className="flex flex-wrap gap-1 mt-1 pl-6.5">
                         {msg.displayFrom && (
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="text-xs text-muted-foreground">
                             表示開始: {new Date(msg.displayFrom).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                           </span>
                         )}
                         {msg.displayUntil && (
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="text-xs text-muted-foreground">
                             表示終了: {new Date(msg.displayUntil).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                           </span>
                         )}
@@ -4248,7 +4248,7 @@ function PhilosophyCard() {
           <div className="min-w-0 flex-1">
             <p
               className={cn(
-                "text-[10px] font-semibold tracking-widest",
+                "text-xs font-semibold tracking-widest",
                 isVisible ? "philosophy-text1-visible" : "philosophy-text1-hidden"
               )}
               style={{ color: "#c2410c" }}
@@ -4266,7 +4266,7 @@ function PhilosophyCard() {
             </p>
             <p
               className={cn(
-                "text-[11px] leading-relaxed mt-0.5",
+                "text-xs leading-relaxed mt-0.5",
                 isVisible ? "philosophy-text3-visible" : "philosophy-text3-hidden"
               )}
               style={{ color: "#9a3412" }}
@@ -4275,7 +4275,7 @@ function PhilosophyCard() {
             </p>
             <p
               className={cn(
-                "text-[11px] font-semibold mt-1.5 flex items-center gap-0.5",
+                "text-xs font-semibold mt-1.5 flex items-center gap-0.5",
                 isVisible ? "philosophy-text4-visible" : "philosophy-text4-hidden"
               )}
               style={{ color: "#ea580c" }}
@@ -4332,12 +4332,12 @@ function TeamGoalsTicker() {
               <span className="text-sm font-semibold text-white whitespace-nowrap">{g.title}</span>
               {/* 期間 */}
               {(startStr || endStr) && (
-                <span className="text-[10px] text-white/50 whitespace-nowrap flex-shrink-0">
+                <span className="text-xs text-white/85 whitespace-nowrap flex-shrink-0">
                   {startStr ?? ""}{startStr && endStr ? " 〜 " : ""}{endStr ?? ""}
                 </span>
               )}
               {/* 区切り */}
-              <span className="text-white/20 text-lg flex-shrink-0 ml-2">｜</span>
+              <span className="text-white/50 text-lg flex-shrink-0 ml-2">｜</span>
             </div>
           );
         })}

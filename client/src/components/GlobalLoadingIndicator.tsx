@@ -41,7 +41,7 @@ export default function GlobalLoadingIndicator() {
           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
         />
       </svg>
-      <span className="text-[10px] font-medium text-orange-500 whitespace-nowrap hidden sm:inline">
+      <span className="text-xs font-medium text-orange-500 whitespace-nowrap hidden sm:inline">
         {isMutating > 0 ? "更新中..." : "読込中..."}
       </span>
     </div>

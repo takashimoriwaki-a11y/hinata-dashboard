@@ -105,7 +105,7 @@ function BulkImportPanel({
             <div className="flex items-center gap-2">
               <ClipboardPaste className="w-4 h-4 text-primary" />
               <CardTitle className="text-base font-semibold text-primary">一括インポート</CardTitle>
-              <Badge className="text-[10px] bg-primary/10 text-primary border-0 px-1.5 py-0">月末の更新に便利</Badge>
+              <Badge className="text-xs bg-primary/10 text-primary border-0 px-1.5 py-0">月末の更新に便利</Badge>
             </div>
             {isOpen ? <ChevronUp className="w-4 h-4 text-primary" /> : <ChevronDown className="w-4 h-4 text-primary" />}
           </div>
@@ -120,33 +120,33 @@ function BulkImportPanel({
           <div className="space-y-2">
             <div className="flex items-center gap-1.5">
               <p className="text-xs font-semibold text-foreground">登録順番とファイル名の目安</p>
-              <Badge className="text-[9px] bg-amber-100 text-amber-700 border-0 px-1.5 py-0">上から順に貼り付け</Badge>
+              <Badge className="text-xs bg-amber-100 text-amber-700 border-0 px-1.5 py-0">上から順に貼り付け</Badge>
             </div>
             <div className="rounded-lg border border-border overflow-hidden">
               {LINK_DEFINITIONS.map((def, i) => (
                 <div key={def.key} className={cn(
-                  "flex items-start gap-2.5 px-3 py-2 text-[11px]",
+                  "flex items-start gap-2.5 px-3 py-2 text-xs",
                   i % 2 === 0 ? "bg-card" : "bg-muted/30",
                   i < LINK_DEFINITIONS.length - 1 && "border-b border-border/50"
                 )}>
-                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-[10px] mt-0.5">{i + 1}</span>
+                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs mt-0.5">{i + 1}</span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <p className={cn("font-semibold leading-tight", def.color)}>{def.label}</p>
                       {def.displayTarget === "team" ? (
-                        <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0 rounded-full font-medium border border-emerald-200">チームツール</span>
+                        <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0 rounded-full font-medium border border-emerald-200">チームツール</span>
                       ) : (
-                        <span className="text-[9px] bg-blue-100 text-blue-700 px-1.5 py-0 rounded-full font-medium border border-blue-200">全チーム共通</span>
+                        <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0 rounded-full font-medium border border-blue-200">全チーム共通</span>
                       )}
                     </div>
                     <p className="text-muted-foreground mt-0.5 leading-tight">
-                      <span className="font-mono bg-muted/60 px-1 py-0.5 rounded text-[10px]">{def.fileNameExample}</span>
+                      <span className="font-mono bg-muted/60 px-1 py-0.5 rounded text-xs">{def.fileNameExample}</span>
                     </p>
                   </div>
                 </div>
               ))}
             </div>
-            <p className="text-[10px] text-muted-foreground/70 flex items-center gap-1">
+            <p className="text-xs text-muted-foreground/70 flex items-center gap-1">
               <span>ℹ️</span>
               <span>YYYY年M月分の部分は実際の年月（例: 2026年4月分）に小文字で書かれています</span>
             </p>
@@ -177,7 +177,7 @@ function BulkImportPanel({
                       {link.url ? (
                         <p className="text-muted-foreground truncate font-mono">{link.url}</p>
                       ) : (
-                        <p className="text-muted-foreground/50 italic">（未入力）</p>
+                        <p className="text-muted-foreground italic">（未入力）</p>
                       )}
                     </div>
                   </div>
@@ -580,7 +580,7 @@ function PatientMasterPanel() {
           </div>
         ) : filteredPatients.length === 0 ? (
           <div className="text-center py-8 space-y-2">
-            <Users className="w-8 h-8 text-muted-foreground/40 mx-auto" />
+            <Users className="w-8 h-8 text-muted-foreground mx-auto" />
             <p className="text-sm text-muted-foreground">
               {allPatients?.length === 0 ? "利用者が登録されていません" : "該当する利用者がいません"}
             </p>
@@ -641,7 +641,7 @@ function PatientMasterPanel() {
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <Badge variant="outline" className={cn(
-                          "text-[10px] px-1.5 py-0",
+                          "text-xs px-1.5 py-0",
                           p.team === "身体" && "border-blue-300 text-blue-600",
                           p.team === "天理" && "border-purple-300 text-purple-600",
                           p.team === "郡山北部" && "border-emerald-300 text-emerald-600",
@@ -697,8 +697,8 @@ function PatientMasterPanel() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 opacity-50">{p.team}</Badge>
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-300 text-amber-600">退所</Badge>
+                        <Badge variant="outline" className="text-xs px-1.5 py-0 opacity-50">{p.team}</Badge>
+                        <Badge variant="outline" className="text-xs px-1.5 py-0 border-amber-300 text-amber-600">退所</Badge>
                         <button
                           onClick={() => {
                             if (confirm(`「${p.name}」を復帰させますか？`)) {
@@ -926,7 +926,7 @@ export default function Admin() {
                     )}
                   >
                     {opt.label}
-                    {opt.isCurrent && <span className="ml-1 text-[10px] opacity-70">（今月）</span>}
+                    {opt.isCurrent && <span className="ml-1 text-xs opacity-70">（今月）</span>}
                   </button>
                 ))}
               </div>
@@ -1073,8 +1073,8 @@ export default function Admin() {
                             : <div className="w-3.5 h-3.5 rounded-full border border-amber-400" />
                           }
                           <span className="text-sm font-medium">{formatYearMonth(ym)}</span>
-                          {isCurrent && <Badge variant="secondary" className="text-[10px] bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 px-1.5 py-0">今月</Badge>}
-                          {ym > currentYearMonth && <Badge variant="secondary" className="text-[10px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 px-1.5 py-0">来月以降</Badge>}
+                          {isCurrent && <Badge variant="secondary" className="text-xs bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 px-1.5 py-0">今月</Badge>}
+                          {ym > currentYearMonth && <Badge variant="secondary" className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 px-1.5 py-0">来月以降</Badge>}
                         </div>
                         <span className={cn("text-xs font-medium", isComplete ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")}>
                           {count} / {LINK_DEFINITIONS.length} 件
@@ -1390,7 +1390,7 @@ function StaffManagementPanel() {
           </div>
         ) : !staffList || staffList.length === 0 ? (
           <div className="py-8 text-center">
-            <Users className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+            <Users className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">スタッフがいません</p>
           </div>
         ) : (
@@ -1427,17 +1427,17 @@ function StaffManagementPanel() {
                       <Badge
                         variant="outline"
                         className={cn(
-                          "text-[10px] px-1.5 py-0",
+                          "text-xs px-1.5 py-0",
                           staff.role === "admin" ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-700" : "bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-700"
                         )}
                       >
                         {staff.role === "admin" ? "管理者" : "スタッフ"}
                       </Badge>
                       {staff.team && (
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-muted text-muted-foreground">{staff.team}</Badge>
+                        <Badge variant="outline" className="text-xs px-1.5 py-0 bg-muted text-muted-foreground">{staff.team}</Badge>
                       )}
                       {!staff.teamSetupDone && (
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-orange-50 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-700">
+                        <Badge variant="outline" className="text-xs px-1.5 py-0 bg-orange-50 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-700">
                           チーム未設定
                         </Badge>
                       )}
@@ -1504,7 +1504,7 @@ function StaffManagementPanel() {
                       placeholder="例：hanako@kokoronohinata.com"
                       className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
                     />
-                    <p className="text-[10px] text-blue-600 dark:text-blue-400">GoogleアカウントのメールアドレスをここにGoogleログインできるようになります</p>
+                    <p className="text-xs text-blue-600 dark:text-blue-400">GoogleアカウントのメールアドレスをここにGoogleログインできるようになります</p>
                     <div className="flex gap-2 justify-end">
                       <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setEditEmailUserId(null); setEditEmailValue(""); }}>キャンセル</Button>
                       <Button

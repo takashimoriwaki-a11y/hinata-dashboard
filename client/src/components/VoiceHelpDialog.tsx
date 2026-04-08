@@ -166,7 +166,7 @@ export function VoiceHelpDialog({ mode, className }: VoiceHelpDialogProps) {
                   key={i}
                   className="rounded-lg bg-muted/60 border border-border px-3 py-2.5"
                 >
-                  <span className="text-[10px] font-medium text-primary bg-primary/10 rounded px-1.5 py-0.5 mr-2">
+                  <span className="text-xs font-medium text-primary bg-primary/10 rounded px-1.5 py-0.5 mr-2">
                     {ex.label}
                   </span>
                   <p className="text-xs text-foreground leading-relaxed mt-1.5">
@@ -194,7 +194,7 @@ export function VoiceHelpDialog({ mode, className }: VoiceHelpDialogProps) {
 
           {/* 共通ヒント */}
           <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2.5">
-            <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
+            <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
               💡 iPhoneでは「Safari」または「Chrome」をご利用ください。マイクの使用許可が必要です。
             </p>
           </div>

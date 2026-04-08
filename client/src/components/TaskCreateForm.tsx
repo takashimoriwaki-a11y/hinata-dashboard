@@ -503,7 +503,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
                         : "🎤 話してください..."}
                     </p>
                     {taskVoice.isRecording && !(taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5) && (
-                      <span className="text-[10px] font-mono font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">
+                      <span className="text-xs font-mono font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">
                         {formatElapsedTime(taskVoice.elapsedSeconds)}
                       </span>
                     )}
@@ -567,7 +567,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
             </button>
             {/* 録音中経過時間バッジ */}
             {taskVoice.isRecording && !(taskVoice.silenceCountdown !== null && taskVoice.silenceCountdown <= 5) && (
-              <span className="text-[9px] font-mono font-semibold tabular-nums leading-none px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 animate-in fade-in-0 duration-200">
+              <span className="text-xs font-mono font-semibold tabular-nums leading-none px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 animate-in fade-in-0 duration-200">
                 {formatElapsedTime(taskVoice.elapsedSeconds)}
               </span>
             )}
@@ -661,21 +661,21 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
                           }
                         }
                       }}
-                      className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 font-medium hover:bg-amber-300 dark:hover:bg-amber-700 transition-colors cursor-pointer underline underline-offset-2"
+                      className="text-xs px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 font-medium hover:bg-amber-300 dark:hover:bg-amber-700 transition-colors cursor-pointer underline underline-offset-2"
                     >
                       {field} →
                     </button>
                   );
                 })}
               </div>
-              <p className="text-[10px] text-amber-700 dark:text-amber-400">項目をタップすると入力欄に移動します。マイクで話すか手動入力で補完できます</p>
+              <p className="text-xs text-amber-700 dark:text-amber-400">項目をタップすると入力欄に移動します。マイクで話すか手動入力で補完できます</p>
             </div>
           )}
 
           {/* 例文（常時表示） */}
           {true && (
             <div className="space-y-1">
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">例文</p>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">例文</p>
               <div className="flex flex-col gap-1">
                 {VOICE_EXAMPLES.map((ex, i) => (
                   <p
@@ -686,7 +686,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
                   </p>
                 ))}
               </div>
-              <p className="text-[10px] text-muted-foreground/70 leading-snug px-1">日付の言い方の例：「明日」「来週火曜」「再来週月曜」「今週金曜」「4月十六日」</p>
+              <p className="text-xs text-muted-foreground/70 leading-snug px-1">日付の言い方の例：「明日」「来週火曜」「再来週月曜」「今週金曜」「4月十六日」</p>
             </div>
           )}
 
@@ -696,7 +696,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
               <button
                 type="button"
                 onClick={() => setShowFeedbackDialog(true)}
-                className="text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+                className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
               >
                 誤変換を報告する（タスク追加前に）
               </button>
@@ -718,7 +718,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
                 <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-xs font-semibold text-green-800 dark:text-green-300">ご報告ありがとうございます</p>
-                  <p className="text-[10px] text-green-700 dark:text-green-400 mt-0.5">いただいた情報はAIの音声認識精度の改善に活用します。引き続きご協力をお願いします。</p>
+                  <p className="text-xs text-green-700 dark:text-green-400 mt-0.5">いただいた情報はAIの音声認識精度の改善に活用します。引き続きご協力をお願いします。</p>
                 </div>
               </div>
             </div>

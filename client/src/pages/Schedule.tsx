@@ -130,7 +130,7 @@ export default function Schedule() {
                     <p className="text-sm font-medium truncate">{item.patient}</p>
                     <p className="text-xs text-muted-foreground">{item.nurse}</p>
                   </div>
-                  <Badge variant="secondary" className="text-[10px]">訪問予定</Badge>
+                  <Badge variant="secondary" className="text-xs">訪問予定</Badge>
                 </div>
               ))}
             </div>

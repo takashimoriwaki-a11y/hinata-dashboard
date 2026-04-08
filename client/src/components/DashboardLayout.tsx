@@ -225,7 +225,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <img src={LOGO_MARK_URL} alt="ひなた" className="w-9 h-9 object-contain flex-shrink-0" />
         {(!collapsed || mobile) && (
           <div className="overflow-hidden flex flex-col gap-0.5">
-            <p className="text-[9px] text-sidebar-foreground/50 leading-tight">こころの訪問看護ステーション</p>
+            <p className="text-xs text-sidebar-foreground/50 leading-tight">こころの訪問看護ステーション</p>
             <span className="text-base font-bold text-sidebar-foreground leading-tight tracking-wide">ひなた</span>
           </div>
         )}
@@ -248,7 +248,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </Avatar>
             <div className="overflow-hidden">
               <p className="text-sm font-semibold text-sidebar-foreground truncate">{user?.name ?? "ゲスト"}</p>
-              <p className="text-[11px] text-sidebar-foreground/60 truncate">こころの訪問看護ステーションひなた</p>
+              <p className="text-xs text-sidebar-foreground/60 truncate">こころの訪問看護ステーションひなた</p>
             </div>
           </div>
         </div>
@@ -257,7 +257,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* ナビゲーション */}
       <nav className="flex-1 py-3 overflow-y-auto min-h-0">
         {(!collapsed || mobile) && (
-          <p className="px-4 text-[10px] font-semibold text-sidebar-foreground/40 uppercase tracking-wider mb-1">
+          <p className="px-4 text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider mb-1">
             メニュー
           </p>
         )}
@@ -284,7 +284,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         })}
 
         {(!collapsed || mobile) && (
-          <p className="px-4 text-[10px] font-semibold text-sidebar-foreground/40 uppercase tracking-wider mt-4 mb-1">
+          <p className="px-4 text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider mt-4 mb-1">
             外部ツール
           </p>
         )}
@@ -407,7 +407,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           {collapsed ? (
             <>
               <ChevronRight className="w-4 h-4" />
-              <span className="text-[9px] font-bold leading-tight [writing-mode:vertical-rl]">メニュー</span>
+              <span className="text-xs font-bold leading-tight [writing-mode:vertical-rl]">メニュー</span>
             </>
           ) : (
             <ChevronLeft className="w-3.5 h-3.5" />
@@ -461,11 +461,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <div className="flex items-center gap-2">
                 <span className={cn("text-xs md:text-sm font-semibold whitespace-nowrap", isNight ? "text-slate-200" : "text-foreground/80")}>{dateStr}</span>
                 {/* モバイル: HH:MM、PC: HH:MM:SS */}
-                <span className={cn("text-[10px] font-mono font-medium whitespace-nowrap tabular-nums md:hidden", isNight ? "text-[oklch(0.75_0.1_280)]" : "text-foreground/55")}>{timeStrShort}</span>
-                <span className={cn("hidden md:inline text-xs font-mono font-medium whitespace-nowrap tabular-nums", isNight ? "text-[oklch(0.75_0.1_280)]" : "text-foreground/55")}>{timeStr}</span>
+                <span className={cn("text-xs font-mono font-medium whitespace-nowrap tabular-nums md:hidden", isNight ? "text-[oklch(0.75_0.1_280)]" : "text-foreground/80")}>{timeStrShort}</span>
+                <span className={cn("hidden md:inline text-xs font-mono font-medium whitespace-nowrap tabular-nums", isNight ? "text-[oklch(0.75_0.1_280)]" : "text-foreground/80")}>{timeStr}</span>
               </div>
               <span className={cn("hidden md:block text-xs font-medium border-l border-border pl-3 whitespace-nowrap", isNight ? "text-slate-300" : "text-foreground/75")}>こころの訪問看護ステーションひなた</span>
-              <span className={cn("md:hidden text-[10px] font-semibold leading-tight whitespace-nowrap", isNight ? "text-slate-300" : "text-foreground/70")}>こころの訪問看護ステーションひなた</span>
+              <span className={cn("md:hidden text-xs font-semibold leading-tight whitespace-nowrap", isNight ? "text-slate-300" : "text-foreground")}>こころの訪問看護ステーションひなた</span>
             </div>
           </div>
           <div className="flex items-center gap-1.5 md:gap-2">
@@ -566,7 +566,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     )}
                   >
                     <item.icon className="w-5 h-5" />
-                    <span className="text-[9px] font-medium whitespace-nowrap">{item.label}</span>
+                    <span className="text-xs font-medium whitespace-nowrap">{item.label}</span>
                   </a>
                 );
               }
@@ -589,12 +589,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                       <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-primary" />
                     )}
                     {!isActive && badgeCount > 0 && (
-                      <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                      <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center">
                         {badgeCount > 99 ? "99+" : badgeCount}
                       </span>
                     )}
                   </div>
-                  <span className={cn("text-[9px] whitespace-nowrap", isActive ? "font-bold" : "font-medium")}>
+                  <span className={cn("text-xs whitespace-nowrap", isActive ? "font-bold" : "font-medium")}>
                     {item.label}
                   </span>
                   {isActive && (

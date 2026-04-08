@@ -182,7 +182,7 @@ function FolderBrowserDialog({
             </div>
           ) : files.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-10 text-center">
-              <FolderOpen className="w-8 h-8 text-muted-foreground/50" />
+              <FolderOpen className="w-8 h-8 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">このフォルダは空です</p>
             </div>
           ) : (
@@ -565,7 +565,7 @@ export default function MyLinks() {
                     {link.description && (
                       <p className="text-xs text-muted-foreground truncate mt-0.5">{link.description}</p>
                     )}
-                    <p className="text-xs text-muted-foreground/60 truncate">{link.url}</p>
+                    <p className="text-xs text-muted-foreground truncate">{link.url}</p>
                   </div>
                   {/* スマートフォン対応: タップでも表示されるようopacity-100を追加 */}
                   <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">

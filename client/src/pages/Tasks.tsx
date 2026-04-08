@@ -84,20 +84,20 @@ function getDueDateColor(date: Date | string | null | undefined): string {
 function AssignBadge({ task }: { task: { assignType: string; assignTeam?: string | null; assignUserName?: string | null } }) {
   if (task.assignType === "all") {
     return (
-      <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+      <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
         <Globe className="w-3 h-3" />全員
       </span>
     );
   }
   if (task.assignType === "team") {
     return (
-      <span className="flex items-center gap-0.5 text-[10px] text-primary">
+      <span className="flex items-center gap-0.5 text-xs text-primary">
         <Users className="w-3 h-3" />{task.assignTeam}チーム
       </span>
     );
   }
   return (
-    <span className="flex items-center gap-0.5 text-[10px] text-primary/80">
+    <span className="flex items-center gap-0.5 text-xs text-primary/80">
       <User className="w-3 h-3" />{task.assignUserName ?? "個人"}
     </span>
   );
@@ -493,7 +493,7 @@ export default function Tasks() {
           <Filter className="w-3.5 h-3.5" />
           絞り込み
           {activeFilterCount > 0 && (
-            <span className="ml-0.5 w-4 h-4 rounded-full bg-primary text-white text-[10px] flex items-center justify-center font-bold">
+            <span className="ml-0.5 w-4 h-4 rounded-full bg-primary text-white text-xs flex items-center justify-center font-bold">
               {activeFilterCount}
             </span>
           )}
@@ -526,7 +526,7 @@ export default function Tasks() {
                       key={value}
                       onClick={() => setDateFilter(value)}
                       className={cn(
-                        "text-[11px] px-2 py-0.5 rounded-full border transition-colors flex items-center gap-0.5",
+                        "text-xs px-2 py-0.5 rounded-full border transition-colors flex items-center gap-0.5",
                         isActive
                           ? value === "overdue"
                             ? "bg-red-500 text-white border-red-500"
@@ -541,7 +541,7 @@ export default function Tasks() {
                       {label}
                       {count > 0 && (
                         <span className={cn(
-                          "text-[10px] font-bold",
+                          "text-xs font-bold",
                           isActive ? "opacity-80" : ""
                         )}>
                           ({count})
@@ -579,7 +579,7 @@ export default function Tasks() {
                       key={String(value)}
                       onClick={() => setTeamFilter(value)}
                       className={cn(
-                        "text-[11px] px-2 py-0.5 rounded-full border transition-all flex items-center gap-0.5",
+                        "text-xs px-2 py-0.5 rounded-full border transition-all flex items-center gap-0.5",
                         teamKey
                           ? getTeamButtonClass(teamKey, isActive)
                           : isActive
@@ -590,7 +590,7 @@ export default function Tasks() {
                     >
                       {label}
                       {count > 0 && (
-                        <span className="text-[10px] font-bold">({count})</span>
+                        <span className="text-xs font-bold">({count})</span>
                       )}
                     </button>
                   );
@@ -605,7 +605,7 @@ export default function Tasks() {
                   setDateFilter("all");
                   setTeamFilter(null);
                 }}
-                className="text-[11px] text-muted-foreground hover:text-destructive flex items-center gap-0.5 transition-colors"
+                className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-0.5 transition-colors"
               >
                 <X className="w-3 h-3" />すべてのフィルターをリセット
               </button>
@@ -617,9 +617,9 @@ export default function Tasks() {
       {/* アクティブなフィルターのサマリーバッジ */}
       {!showFilters && activeFilterCount > 0 && (
         <div className="flex flex-wrap gap-1.5 items-center">
-          <span className="text-[11px] text-muted-foreground">絞り込み中:</span>
+          <span className="text-xs text-muted-foreground">絞り込み中:</span>
           {dateFilter !== "all" && (
-            <span className="flex items-center gap-0.5 text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+            <span className="flex items-center gap-0.5 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
               <Calendar className="w-2.5 h-2.5" />
               {dateFilter === "overdue" ? "期限切れ"
                 : dateFilter === "today" ? "今日"
@@ -632,7 +632,7 @@ export default function Tasks() {
             </span>
           )}
           {teamFilter !== null && (
-            <span className="flex items-center gap-0.5 text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+            <span className="flex items-center gap-0.5 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
               <Users className="w-2.5 h-2.5" />
               {teamFilter === "all_team" ? "全員向け"
                 : teamFilter === "personal" ? "個人指定"
@@ -648,7 +648,7 @@ export default function Tasks() {
 
       {/* 並び替えバー */}
       <div className="flex items-center gap-2">
-        <span className="text-[11px] text-muted-foreground flex-shrink-0">並び替え:</span>
+        <span className="text-xs text-muted-foreground flex-shrink-0">並び替え:</span>
         <div className="flex flex-wrap gap-1.5">
           {([
             { key: "dueDate" as SortKey, label: "期日" },
@@ -668,7 +668,7 @@ export default function Tasks() {
                   }
                 }}
                 className={cn(
-                  "flex items-center gap-0.5 text-[11px] px-2 py-0.5 rounded-full border transition-colors",
+                  "flex items-center gap-0.5 text-xs px-2 py-0.5 rounded-full border transition-colors",
                   isActive
                     ? "bg-primary/10 border-primary/40 text-primary font-medium"
                     : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary"
@@ -686,7 +686,7 @@ export default function Tasks() {
             );
           })}
         </div>
-        <span className="text-[10px] text-muted-foreground ml-auto">{filtered.length}件</span>
+        <span className="text-xs text-muted-foreground ml-auto">{filtered.length}件</span>
       </div>
 
       {/* タスク一覧 */}
@@ -941,7 +941,7 @@ export default function Tasks() {
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
                         {/* 期日 */}
                         {task.dueDate && (
-                          <span className={cn("flex items-center gap-0.5 text-[11px]", getDueDateColor(task.dueDate))}>
+                          <span className={cn("flex items-center gap-0.5 text-xs", getDueDateColor(task.dueDate))}>
                             <Calendar className="w-3 h-3" />
                             {formatDueDate(task.dueDate)}
                           </span>
@@ -950,7 +950,7 @@ export default function Tasks() {
                         <AssignBadge task={task} />
                         {/* 繰り返しアイコン */}
                         {task.repeatType && task.repeatType !== "none" && (
-                          <span className="text-[10px] text-primary/80 font-medium" title={
+                          <span className="text-xs text-primary/80 font-medium" title={
                             task.repeatType === "weekly"
                               ? `毎週${["日","月","火","水","木","金","土"][task.repeatDayOfWeek ?? 1]}曜日繰り返し`
                               : `毎月${task.repeatDayOfMonth ?? 1}日繰り返し`
@@ -962,12 +962,12 @@ export default function Tasks() {
                         )}
                         {/* 利用者名 */}
                         {task.patientName && (
-                          <span className="flex items-center gap-0.5 text-[11px] text-violet-600 dark:text-violet-400 font-medium">
+                          <span className="flex items-center gap-0.5 text-xs text-violet-600 dark:text-violet-400 font-medium">
                             <UserRound className="w-3 h-3" />{task.patientName}
                           </span>
                         )}
                         {/* 作成者 */}
-                        <span className="text-[10px] text-muted-foreground/70">
+                        <span className="text-xs text-muted-foreground/70">
                           作成: {task.createdByName}
                         </span>
                       </div>

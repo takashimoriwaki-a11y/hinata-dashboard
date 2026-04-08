@@ -69,7 +69,7 @@ function DeadlineBadge({ deadline }: { deadline: Date | null | undefined }) {
 
   if (overdue) {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-[11px] font-medium">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-medium">
         <AlertTriangle className="w-3 h-3" />
         期限切れ {format(d, "M/d", { locale: ja })}
       </span>
@@ -77,7 +77,7 @@ function DeadlineBadge({ deadline }: { deadline: Date | null | undefined }) {
   }
   if (dueToday) {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-[11px] font-medium">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-xs font-medium">
         <Calendar className="w-3 h-3" />
         今日が期限
       </span>
@@ -85,14 +85,14 @@ function DeadlineBadge({ deadline }: { deadline: Date | null | undefined }) {
   }
   if (dueSoon) {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-[11px] font-medium">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs font-medium">
         <Calendar className="w-3 h-3" />
         期限 {format(d, "M月d日", { locale: ja })}
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-[11px]">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs">
       <Calendar className="w-3 h-3" />
       期限 {format(d, "M月d日", { locale: ja })}
     </span>
@@ -141,7 +141,7 @@ function ReadersPanel({ minutesId }: { minutesId: number }) {
             <>
               {/* 確認済みスタッフ */}
               <div>
-                <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mb-1 flex items-center gap-1">
+                <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mb-1 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" />
                   確認済み（{data?.readers.length ?? 0}名）
                 </p>
@@ -150,7 +150,7 @@ function ReadersPanel({ minutesId }: { minutesId: number }) {
                     {data.readers.map((r) => (
                       <span
                         key={r.userId}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-[11px]"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs"
                         title={r.checkedAt ? format(new Date(r.checkedAt), "M月d日 HH:mm", { locale: ja }) : ""}
                       >
                         {r.userName}
@@ -158,12 +158,12 @@ function ReadersPanel({ minutesId }: { minutesId: number }) {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-[11px] text-muted-foreground">まだいません</p>
+                  <p className="text-xs text-muted-foreground">まだいません</p>
                 )}
               </div>
               {/* 未確認スタッフ */}
               <div>
-                <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 mb-1 flex items-center gap-1">
+                <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mb-1 flex items-center gap-1">
                   <Circle className="w-3 h-3" />
                   未確認（{data?.unread.length ?? 0}名）
                 </p>
@@ -172,14 +172,14 @@ function ReadersPanel({ minutesId }: { minutesId: number }) {
                     {data.unread.map((r) => (
                       <span
                         key={r.userId}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-[11px]"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs"
                       >
                         {r.userName}
                       </span>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-[11px] text-muted-foreground">全員確認済みです</p>
+                  <p className="text-xs text-muted-foreground">全員確認済みです</p>
                 )}
               </div>
               {/* リマインド送信ボタン（未確認者がいる場合のみ） */}
@@ -438,7 +438,7 @@ export default function Minutes() {
           <Circle className="w-3.5 h-3.5" />
           未確認
           {unreadList.length > 0 && (
-            <span className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold">
+            <span className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-500 text-white text-xs font-bold">
               {unreadList.length}
             </span>
           )}
@@ -454,7 +454,7 @@ export default function Minutes() {
           <CheckCircle2 className="w-3.5 h-3.5" />
           確認済み
           {readList.length > 0 && (
-            <span className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500 text-white text-[10px] font-bold">
+            <span className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500 text-white text-xs font-bold">
               {readList.length}
             </span>
           )}
@@ -491,7 +491,7 @@ export default function Minutes() {
               <li>添付のドキュメントリンクを開いて内容を確認する</li>
               <li>ドキュメントを開いた時点で「確認済み」タブに移動</li>
             </ol>
-            <p className="text-amber-600 dark:text-amber-500 text-[11px]">※ 確認済みボタンを再度押すと確認を解除できます</p>
+            <p className="text-amber-600 dark:text-amber-500 text-xs">※ 確認済みボタンを再度押すと確認を解除できます</p>
           </div>
         </div>
       )}
@@ -597,7 +597,7 @@ export default function Minutes() {
                       {m.documentUrl && (
                         <div className="space-y-1">
                           {!isChecked && (
-                            <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
+                            <p className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
                               <Info className="w-3 h-3" />
                               先に左の ○ を押してから開いてください
                             </p>

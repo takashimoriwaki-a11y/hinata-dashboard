@@ -19,7 +19,7 @@ export default function HinatasWay() {
         </Button>
         <div>
           <h1 className="text-base font-bold text-gray-800 leading-tight">📖 Hinata's Way</h1>
-          <p className="text-[10px] text-gray-500 leading-tight">株式会社光陽 企業理念</p>
+          <p className="text-xs text-gray-500 leading-tight">株式会社光陽 企業理念</p>
         </div>
       </div>
 
@@ -91,7 +91,7 @@ export default function HinatasWay() {
               </div>
               <div>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Core Purpose</span>
+                  <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Core Purpose</span>
                 </div>
                 <p className="text-sm font-bold text-gray-800 leading-snug mt-0.5">
                   私たちのコア・パーパス（存在）
@@ -114,7 +114,7 @@ export default function HinatasWay() {
               </div>
               <div>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Mission</span>
+                  <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Mission</span>
                 </div>
                 <p className="text-sm font-bold text-gray-800 leading-snug mt-0.5">
                   私たちのミッション（使命）
@@ -137,7 +137,7 @@ export default function HinatasWay() {
               </div>
               <div>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Vision</span>
+                  <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Vision</span>
                 </div>
                 <p className="text-sm font-bold text-gray-800 leading-snug mt-0.5">
                   私たちのビジョン（未来）
