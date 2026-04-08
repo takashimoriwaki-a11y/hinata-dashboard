@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { WifiOff, RefreshCw, Wifi } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 /**
  * オフライン時のUI コンポーネント群。
@@ -257,24 +258,27 @@ function OfflineOverlayFull({ onRetry, retrying }: { onRetry: () => void; retryi
  */
 export default function OfflineProvider({ children }: { children: React.ReactNode }) {
   const { isOffline, isOnline } = useNetworkStatus();
+  const queryClient = useQueryClient();
   const [retrying, setRetrying] = useState(false);
   const [showRestoredBanner, setShowRestoredBanner] = useState(false);
   const [wasOffline, setWasOffline] = useState(false);
 
-  // オフライン→オンライン復帰時に「回復しました」バナーを表示
+  // オフライン→オンライン復帰時に「回復しました」バナーを表示 + tRPCキャッシュを無効化して自動更新
   useEffect(() => {
     if (isOffline) {
       setWasOffline(true);
       setShowRestoredBanner(false);
     } else if (isOnline && wasOffline) {
       setShowRestoredBanner(true);
+      // 全tRPCクエリキャッシュを stale にして再フェッチ（自動更新）
+      queryClient.invalidateQueries();
       const timer = setTimeout(() => {
         setShowRestoredBanner(false);
         setWasOffline(false);
       }, 2500);
       return () => clearTimeout(timer);
     }
-  }, [isOffline, isOnline, wasOffline]);
+  }, [isOffline, isOnline, wasOffline, queryClient]);
 
   const handleRetry = useCallback(() => {
     if (retrying) return;
