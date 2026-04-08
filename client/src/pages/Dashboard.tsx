@@ -4350,13 +4350,13 @@ export default function Dashboard() {
         <div className="absolute inset-0" style={{background: bannerOverlay}} />
         <div className="relative px-4 py-4 md:px-5 md:py-5 flex flex-col gap-2.5">
           {/* 挨拶メッセージ（名前とメッセージを横並び） */}
-          <div className="flex flex-row items-baseline gap-2 flex-wrap justify-center md:justify-start">
+          <div className="flex flex-row items-baseline gap-2 flex-wrap justify-center">
             <p className="text-xl md:text-3xl font-extrabold text-white leading-tight tracking-wide whitespace-nowrap" style={{textShadow: '0 2px 8px rgba(0,0,0,0.2)'}}>{userName}<span className="text-lg md:text-2xl">さん</span></p>
             <p className="text-xl md:text-3xl font-extrabold text-white/90 whitespace-nowrap" style={{textShadow: '0 1px 4px rgba(0,0,0,0.2)'}}>{greeting}</p>
           </div>
           {/* 今日の一言（夜モード時は非表示） */}
           {!isNight && dailyWord && (
-            <p className="text-xs md:text-sm text-white text-center md:text-left italic leading-snug tracking-wide font-medium" style={{textShadow: '0 1px 4px rgba(0,0,0,0.3)'}}>
+            <p className="text-xs md:text-sm text-white text-center italic leading-snug tracking-wide font-medium" style={{textShadow: '0 1px 4px rgba(0,0,0,0.3)'}}>
               ✦ {dailyWord}
             </p>
           )}
