@@ -384,15 +384,35 @@ export default function RecordInput() {
       const sourceList = allPatientsRef.current.length > 0 ? allPatientsRef.current : patientsRef.current;
       const matched = f.patientName
         ? (() => {
-            const aiName = f.patientName;
-            // 完全一致を優先
-            const exact = sourceList.find((p) => p.name === aiName);
+            const aiName = f.patientName.trim();
+            // 名前の正規化（全角スペース・半角スペースを除去）
+            const normalize = (s: string) => s.replace(/[\s\u3000]+/g, '');
+            const normAi = normalize(aiName);
+            // 1. 完全一致（スペース正規化後）
+            const exact = sourceList.find((p) => normalize(p.name) === normAi);
             if (exact) return exact;
-            // 部分一致
+            // 2. 姓のみ一致（スペース区切り・全角スペース区切りの最初の部分）
+            const aiSurname = aiName.split(/[\s\u3000]/)[0];
+            const bySurname = sourceList.filter((p) => {
+              const pSurname = p.name.split(/[\s\u3000]/)[0];
+              return pSurname === aiSurname;
+            });
+            if (bySurname.length === 1) return bySurname[0];
+            // 3. 読み仮名での一致（kanaフィールドがある場合）
+            const bySurnameKana = sourceList.filter((p) => {
+              if (!p.nameKana) return false;
+              const kana = p.nameKana.trim();
+              const kanaSurname = kana.split(/[\s\u3000]/)[0];
+              return kana === normAi || kanaSurname === aiSurname || kanaSurname === normAi;
+            });
+            if (bySurnameKana.length === 1) return bySurnameKana[0];
+            // 4. 部分一致（AIの名前が利用者名に含まれる、または利用者の姓がAIの名前に含まれる）
             const partial = sourceList.filter(
-              (p) => p.name.includes(aiName) || aiName.includes(p.name.split('\u3000')[0].split(' ')[0])
+              (p) => normalize(p.name).includes(normAi) || normAi.includes(normalize(p.name.split(/[\s\u3000]/)[0]))
             );
-            return partial.length === 1 ? partial[0] : undefined;
+            if (partial.length === 1) return partial[0];
+            // 5. 姓が複数マッチする場合は候補として返さない（確認パネルで選択させる）
+            return undefined;
           })()
         : undefined;
       const preview: VoicePreview = {
@@ -613,7 +633,7 @@ export default function RecordInput() {
     exportToSheet.mutate({ id: savedRecordId });
   };
 
-  const GEMS_URL = "https://gemini.google.com/gem/8b92361479a4";
+  const GEMS_URL = "https://gemini.google.com/gem/ece0f11827bf";
 
   const handleCopyAndOpenGem = async () => {
     // 病状の経過テキストのみをコピー（①次回訪問日時の利用者名・チーム名等は除外）

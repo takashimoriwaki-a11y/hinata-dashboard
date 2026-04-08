@@ -363,6 +363,58 @@ export const appRouter = router({
         return null;
       }
     }),
+    // 曜日別件数（見込み件数タブ）を取得
+    getDailyByTeam: publicProcedure.query(async () => {
+      try {
+        const MIKOMIKEN_SHEET_ID = "1cJ8f3gFWu0Fqrl3TxthGVk0-9TF4Hg5YJZFO-mWIvjI";
+        const SHEET_TAB = "見込み件数";
+        const auth = getAuth();
+        const client = await auth.getClient();
+        const token = await client.getAccessToken();
+        if (!token.token) throw new Error("アクセストークンの取得に失敗しました");
+        // B46:G51 = チーム列と月火水木金の曜日別件数テーブル
+        const range = encodeURIComponent(`${SHEET_TAB}!B46:G51`);
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${MIKOMIKEN_SHEET_ID}/values/${range}`;
+        const response = await fetch(url, {
+          headers: { Authorization: `Bearer ${token.token}` },
+        });
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`Sheets API error: ${response.status} ${text}`);
+        }
+        const data = await response.json() as { values?: string[][] };
+        const rows = data.values ?? [];
+        // rows[0] = ヘッダー行（チーム、月、火、水、木、金）
+        // rows[1..4] = 各チーム行（郡山北部、郡山南部、身体、天理）
+        // rows[5] = 合計行
+        const teams: { name: string; mon: number; tue: number; wed: number; thu: number; fri: number }[] = [];
+        for (let i = 1; i <= 4; i++) {
+          const row = rows[i];
+          if (!row) continue;
+          teams.push({
+            name: row[0] ?? "",
+            mon: parseNum(row[1]),
+            tue: parseNum(row[2]),
+            wed: parseNum(row[3]),
+            thu: parseNum(row[4]),
+            fri: parseNum(row[5]),
+          });
+        }
+        const totalRow = rows[5];
+        const total = totalRow ? {
+          name: "合計",
+          mon: parseNum(totalRow[1]),
+          tue: parseNum(totalRow[2]),
+          wed: parseNum(totalRow[3]),
+          thu: parseNum(totalRow[4]),
+          fri: parseNum(totalRow[5]),
+        } : null;
+        return { teams, total };
+      } catch (error) {
+        console.error("[Visits] Failed to fetch daily by team:", error);
+        return null;
+      }
+    }),
   }),
 
   // ユーザー設定

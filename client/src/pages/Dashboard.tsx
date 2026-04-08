@@ -544,6 +544,135 @@ function VisitCountCard() {
   );
 }
 
+// ========== 曜日別件数カード ==========
+
+function DailyByTeamCard() {
+  const { isNight } = useTheme();
+  const { data, isLoading, refetch } = trpc.visits.getDailyByTeam.useQuery(undefined, {
+    refetchInterval: 10 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const teamColors: Record<string, { bg: string; text: string; bgNight: string }> = {
+    "郡山北部": { bg: "bg-orange-50", text: "text-orange-700", bgNight: "bg-orange-900/30" },
+    "郡山南部": { bg: "bg-yellow-50", text: "text-yellow-700", bgNight: "bg-yellow-900/30" },
+    "身体":    { bg: "bg-rose-50",   text: "text-rose-700",   bgNight: "bg-rose-900/30" },
+    "天理":    { bg: "bg-purple-50", text: "text-purple-700", bgNight: "bg-purple-900/30" },
+  };
+
+  const days = [
+    { key: "mon" as const, label: "月" },
+    { key: "tue" as const, label: "火" },
+    { key: "wed" as const, label: "水" },
+    { key: "thu" as const, label: "木" },
+    { key: "fri" as const, label: "金" },
+  ];
+
+  // 今日の曜日を取得（月=0, 火=1, 水=2, 木=3, 金=4）
+  const todayDayIndex = (() => {
+    const d = new Date().getDay(); // 0=日, 1=月, ..., 5=金, 6=土
+    return d >= 1 && d <= 5 ? d - 1 : -1;
+  })();
+
+  return (
+    <Card className="fade-in-up shadow-sm">
+      <CardHeader className="pb-2 pt-3 px-4">
+        <CardTitle className="text-base font-semibold flex items-center justify-between gap-2">
+          <span className="flex items-center gap-2">
+            <CalendarDays className="w-4 h-4 text-primary" />
+            曜日別件数
+          </span>
+          <button
+            onClick={() => refetch()}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            title="更新"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-4 pb-3">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-4">
+            <RefreshCw className="w-4 h-4 animate-spin text-muted-foreground" />
+            <span className="ml-2 text-sm text-muted-foreground">読み込み中...</span>
+          </div>
+        ) : !data ? (
+          <p className="text-sm text-muted-foreground py-2">データを取得できませんでした</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr>
+                  <th className="text-left py-1.5 pr-2 font-medium text-muted-foreground text-xs w-20">チーム</th>
+                  {days.map((d, i) => (
+                    <th
+                      key={d.key}
+                      className={`text-center py-1.5 px-1 font-medium text-xs w-10 ${
+                        i === todayDayIndex
+                          ? "text-primary font-bold"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {d.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data.teams.map((team) => {
+                  const colors = teamColors[team.name] ?? { bg: "bg-muted", text: "text-foreground", bgNight: "bg-muted" };
+                  return (
+                    <tr key={team.name} className="border-t border-border/40">
+                      <td className="py-1.5 pr-2">
+                        <span className={`inline-block text-xs font-medium px-1.5 py-0.5 rounded ${
+                          isNight ? colors.bgNight : colors.bg
+                        } ${colors.text}`}>
+                          {team.name}
+                        </span>
+                      </td>
+                      {days.map((d, i) => (
+                        <td
+                          key={d.key}
+                          className={`text-center py-1.5 px-1 tabular-nums font-medium ${
+                            i === todayDayIndex
+                              ? "text-primary font-bold"
+                              : "text-foreground"
+                          }`}
+                        >
+                          {team[d.key]}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+                {data.total && (
+                  <tr className="border-t-2 border-border">
+                    <td className="py-1.5 pr-2">
+                      <span className="text-xs font-bold text-foreground">合計</span>
+                    </td>
+                    {days.map((d, i) => (
+                      <td
+                        key={d.key}
+                        className={`text-center py-1.5 px-1 tabular-nums font-bold ${
+                          i === todayDayIndex ? "text-primary" : "text-foreground"
+                        }`}
+                      >
+                        {data.total![d.key]}
+                      </td>
+                    ))}
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            <p className="text-xs text-muted-foreground mt-2">見込み件数タブより取得</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ========== ピンチズーム対応画像コンポーネント ==========
 
 function PinchZoomImage({ src, alt, onClickLightbox, fullscreen }: { src: string; alt: string; onClickLightbox?: () => void; fullscreen?: boolean }) {
@@ -4304,7 +4433,9 @@ export default function Dashboard() {
           <MessageBoard title="メッセージ" />
           {/* 訪問件数（モバイル: 6番目、PC: 左カラム3番目） */}
           <VisitCountCard />
-          {/* 新規契約（モバイル: 7番目、PC: 左カラム4番目） */}
+          {/* 曜日別件数（モバイル: 7番目、PC: 左カラム4番目） */}
+          <DailyByTeamCard />
+          {/* 新規契約（モバイル: 8番目、PC: 左カラム5番目） */}
           <Card className="fade-in-up shadow-sm">
             <CardHeader className="pb-2 pt-3 px-4">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
