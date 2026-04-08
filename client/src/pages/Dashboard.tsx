@@ -4402,7 +4402,7 @@ export default function Dashboard() {
             </p>
           )}
           {/* ショートカットボタン（モバイル: 3列グリッド均等配置 / PC: 折り返し右寄せ） */}
-          <div className="grid grid-cols-3 gap-1.5 md:flex md:flex-row md:flex-wrap md:justify-end md:gap-2 items-stretch">
+          <div className="grid grid-cols-3 gap-1.5 md:flex md:flex-row md:flex-wrap md:justify-center md:gap-2 items-stretch">
             <button
               onClick={() => openLink("https://gemini.google.com/app")}
               onTouchStart={() => {}}
