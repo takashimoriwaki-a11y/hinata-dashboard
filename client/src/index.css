@@ -985,3 +985,75 @@ button:not(:disabled),
   fill: var(--color-background-primary);
   stroke: var(--color-border-secondary);
 }
+
+/* =====================================================
+   フォーカスリング統一（オレンジ系）
+   キーボード操作・アクセシビリティ向上
+   ===================================================== */
+
+/* ボタンのフォーカスリング（昼間モード） */
+:root button:focus-visible,
+:root [role="button"]:focus-visible,
+:root [data-slot="button"]:focus-visible {
+  outline: 2.5px solid oklch(0.65 0.22 45) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px oklch(0.65 0.22 45 / 0.18) !important;
+}
+/* ボタンのフォーカスリング（夜間モード） */
+.night button:focus-visible,
+.night [role="button"]:focus-visible,
+.night [data-slot="button"]:focus-visible {
+  outline: 2.5px solid oklch(0.78 0.18 50) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px oklch(0.78 0.18 50 / 0.25) !important;
+}
+
+/* チェックボックス・ラジオボタンのフォーカスリング（昼間） */
+:root input[type="checkbox"]:focus-visible,
+:root input[type="radio"]:focus-visible {
+  outline: 2.5px solid oklch(0.65 0.22 45) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 3px oklch(0.65 0.22 45 / 0.2) !important;
+}
+/* チェックボックス・ラジオボタンのフォーカスリング（夜間） */
+.night input[type="checkbox"]:focus-visible,
+.night input[type="radio"]:focus-visible {
+  outline: 2.5px solid oklch(0.78 0.18 50) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 3px oklch(0.78 0.18 50 / 0.28) !important;
+}
+
+/* リンク・セレクトのフォーカスリング（昼間） */
+:root a:focus-visible,
+:root select:focus-visible {
+  outline: 2.5px solid oklch(0.65 0.22 45) !important;
+  outline-offset: 2px !important;
+  border-radius: 4px;
+}
+/* リンク・セレクトのフォーカスリング（夜間） */
+.night a:focus-visible,
+.night select:focus-visible {
+  outline: 2.5px solid oklch(0.78 0.18 50) !important;
+  outline-offset: 2px !important;
+}
+
+/* shadcn/ui コンポーネントのフォーカスリング（昼間） */
+:root [data-slot="checkbox"]:focus-visible,
+:root [data-slot="radio-group-item"]:focus-visible,
+:root [data-slot="switch"]:focus-visible,
+:root [data-slot="select-trigger"]:focus-visible,
+:root [data-slot="tabs-trigger"]:focus-visible {
+  outline: 2.5px solid oklch(0.65 0.22 45) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 3px oklch(0.65 0.22 45 / 0.18) !important;
+}
+/* shadcn/ui コンポーネントのフォーカスリング（夜間） */
+.night [data-slot="checkbox"]:focus-visible,
+.night [data-slot="radio-group-item"]:focus-visible,
+.night [data-slot="switch"]:focus-visible,
+.night [data-slot="select-trigger"]:focus-visible,
+.night [data-slot="tabs-trigger"]:focus-visible {
+  outline: 2.5px solid oklch(0.78 0.18 50) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 3px oklch(0.78 0.18 50 / 0.25) !important;
+}
