@@ -85,7 +85,7 @@ export default function Login() {
             <Heart className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-slate-800">ひなた</h1>
-          <p className="text-sm text-slate-500 mt-1">こころの訪問看護ステーション</p>
+          <p className="text-sm text-slate-600 dark:text-slate-300 font-medium mt-1">こころの訪問看護ステーション</p>
         </div>
 
         <Card className="shadow-xl border-0">
@@ -203,7 +203,7 @@ export default function Login() {
           </CardContent>
         </Card>
 
-        <p className="text-center text-xs text-slate-500 mt-6">
+        <p className="text-center text-xs text-slate-600 dark:text-slate-400 font-medium mt-6">
           © {new Date().getFullYear()} こころの訪問看護ステーションひなた
         </p>
       </div>

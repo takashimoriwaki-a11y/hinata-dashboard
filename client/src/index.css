@@ -326,6 +326,28 @@
       min-height: 44px;
     }
   }
+
+  /* ===== 見出しのフォントウェイト強化 =====
+     本文はfont-weight:500（medium）、見出しは700（bold）で階層差を明確化
+  ===== */
+  h1, h2, h3, h4, h5, h6,
+  [data-slot="card-title"],
+  [data-slot="dialog-title"],
+  [data-slot="alert-title"] {
+    font-weight: 700;
+  }
+
+  /* ===== プレースホルダーテキストの視認性改善 =====
+     デフォルトより少し濃い色でフォーム入力欄を読みやすく
+  ===== */
+  ::placeholder {
+    color: oklch(0.55 0.01 60);
+    opacity: 1;
+  }
+  .night ::placeholder {
+    color: oklch(0.65 0.01 250);
+    opacity: 1;
+  }
 }
 
 @layer components {
