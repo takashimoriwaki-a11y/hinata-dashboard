@@ -60,6 +60,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import NotificationDropdown from "./NotificationDropdown";
 import GlobalLoadingIndicator from "./GlobalLoadingIndicator";
+import { useOfflineQueueContext } from "@/contexts/OfflineQueueContext";
 
 // ロゴCDN URL
 const LOGO_MARK_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/hinata_logo_mark_bf1d0229.png";
@@ -95,6 +96,7 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [location] = useLocation();
+  const { queueCount, isFlushing } = useOfflineQueueContext();
   const { data: minutesUnchecked } = trpc.minutes.uncheckedCount.useQuery(undefined, {
     refetchInterval: 60000,
   });
@@ -492,6 +494,25 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </svg>
             </a>
             <GlobalLoadingIndicator />
+            {/* オフラインキュー件数バッジ */}
+            {queueCount > 0 && (
+              <div
+                title={isFlushing ? "送信中...「" + queueCount + "件」" : "オフライン中に保存した操作: " + queueCount + "件"}
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 border border-amber-300 dark:border-amber-600 text-amber-700 dark:text-amber-300 text-xs font-semibold"
+              >
+                {isFlushing ? (
+                  <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : (
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                )}
+                <span>{queueCount}</span>
+              </div>
+            )}
             <NotificationDropdown />
             <Avatar className="w-8 h-8">
               <AvatarFallback className="bg-primary text-white text-xs font-bold">{userInitial}</AvatarFallback>

@@ -23,6 +23,8 @@ import { trpc } from "@/lib/trpc";
 import { VoiceHelpDialog } from "@/components/VoiceHelpDialog";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useVoiceInput, formatElapsedTime } from "@/hooks/useVoiceInput";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { useOfflineQueueContext } from "@/contexts/OfflineQueueContext";
 
 type AssignType = "all" | "team" | "personal";
 type RepeatType = "none" | "weekly" | "monthly";
@@ -422,6 +424,9 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     onError: (e) => toast.error(e.message),
   });
 
+  const { isOffline } = useNetworkStatus();
+  const { enqueueOffline } = useOfflineQueueContext();
+
   const handleAdd = () => {
     if (!newText.trim()) {
       toast.error("タスクの内容を入力してください");
@@ -432,7 +437,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
       const dateTimeStr = newDueTime ? `${newDueDate}T${newDueTime}` : `${newDueDate}T00:00`;
       dueDate = new Date(dateTimeStr);
     }
-    createTask.mutate({
+    const payload = {
       text: newText.trim(),
       dueDate,
       assignType: newAssignType,
@@ -443,7 +448,17 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
       repeatType,
       repeatDayOfWeek: repeatType === "weekly" ? repeatDayOfWeek : undefined,
       repeatDayOfMonth: repeatType === "monthly" ? repeatDayOfMonth : undefined,
-    });
+    };
+    // オフライン中はキューに保存して後で送信
+    if (isOffline) {
+      enqueueOffline("tasks.create", payload);
+      setVoiceTranscribed(false);
+      setFeedbackSent(false);
+      onSuccess?.();
+      onClose();
+      return;
+    }
+    createTask.mutate(payload);
   };
 
   return (

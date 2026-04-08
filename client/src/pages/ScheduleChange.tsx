@@ -3,6 +3,8 @@ import { formatElapsedTime } from "@/hooks/useVoiceInput";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { useOfflineQueueContext } from "@/contexts/OfflineQueueContext";
 import { VoiceMicButton } from "@/components/VoiceMicButton";
 import { VoiceHelpDialog } from "@/components/VoiceHelpDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -989,6 +991,8 @@ function formatSavedAt(ts: number): string {
 
 export default function ScheduleChange() {
   const { user } = useAuth();
+  const { isOffline } = useNetworkStatus();
+  const { enqueueOffline } = useOfflineQueueContext();
   const [, setLocation] = useLocation();
 
   // 初期値：下書きがあれば後で復元バナーを表示する
@@ -1229,6 +1233,27 @@ export default function ScheduleChange() {
       reason: reason || undefined,
     });
 
+    // オフライン中はキューに保存して後で送信
+    if (isOffline) {
+      enqueueOffline("scheduleChanges.createAndExport", payload);
+      clearDraft();
+      setDraftSavedAt(null);
+      setDraftRestored(false);
+      setChangeType("");
+      const validTeamsOnReset: Team[] = ["身体", "天理", "郡山北部", "郡山南部"];
+      setTeam(user?.team && validTeamsOnReset.includes(user.team as Team) ? user.team as Team : "");
+      setPatientName("");
+      setFromDatetime("");
+      setToDatetime("");
+      setStaffBefore("");
+      setStaffAfter("");
+      setMeetingName("");
+      setMeetingStaff([]);
+      setReason("");
+      setVoiceTranscribed(false);
+      setFeedbackSent(false);
+      return;
+    }
     createAndExport.mutate(payload);
   };
 

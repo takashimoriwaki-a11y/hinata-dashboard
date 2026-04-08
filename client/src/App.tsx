@@ -26,6 +26,7 @@ import SplashScreen from "./components/SplashScreen";
 import OfflineProvider from "./components/OfflineOverlay";
 import PageLoadingBar from "./components/PageLoadingBar";
 import RouteTransitionWrapper from "./components/RouteTransitionWrapper";
+import { OfflineQueueProvider } from "./contexts/OfflineQueueContext";
 
 function Router() {
   return (
@@ -89,7 +90,9 @@ function App() {
           <PageLoadingBar />
           {showSplash && <SplashScreen onFinish={handleFinish} duration={2000} />}
           <OfflineProvider>
-            <Router />
+            <OfflineQueueProvider>
+              <Router />
+            </OfflineQueueProvider>
           </OfflineProvider>
         </TooltipProvider>
       </ThemeProvider>

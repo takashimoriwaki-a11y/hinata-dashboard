@@ -96,6 +96,8 @@ import TaskCreateForm from "@/components/TaskCreateForm";
 import { VoiceMicButton } from "@/components/VoiceMicButton";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { VoiceHelpDialog } from "@/components/VoiceHelpDialog";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { useOfflineQueueContext } from "@/contexts/OfflineQueueContext";
 
 // ========== データ定義 ==========
 
@@ -3243,17 +3245,31 @@ function MessageBoard({ title }: { title: string }) {
     return new Date(`${date}T${t}:00`);
   };
 
+  const { isOffline } = useNetworkStatus();
+  const { enqueueOffline } = useOfflineQueueContext();
+
   const handlePost = () => {
     if (!newMsg.trim()) {
       toast.error("メッセージを入力してください");
       return;
     }
-    createMsg.mutate({
+    const payload = {
       text: newMsg.trim(),
       displayFrom: buildDateTime(displayFrom, displayFromTime),
       displayUntil: buildDateTime(displayUntil, displayUntilTime),
       scheduledAt: buildDateTime(scheduledAt, scheduledAtTime),
-    });
+    };
+    // オフライン中はキューに保存して後で送信
+    if (isOffline) {
+      enqueueOffline("messages.create", payload);
+      setNewMsg("");
+      setDisplayFrom(""); setDisplayFromTime("");
+      setDisplayUntil(""); setDisplayUntilTime("");
+      setScheduledAt(""); setScheduledAtTime("");
+      setShowForm(false);
+      return;
+    }
+    createMsg.mutate(payload);
   };
 
   // リアクション集計ヘルパー
