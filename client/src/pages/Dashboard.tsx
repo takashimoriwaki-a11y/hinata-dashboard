@@ -647,14 +647,14 @@ function DailyByTeamCard() {
                   );
                 })}
                 {data.total && (
-                  <tr className="border-t-2 border-border">
-                    <td className="py-1.5 pr-2">
-                      <span className="text-xs font-bold text-foreground">合計</span>
+                  <tr className="border-t-2 border-primary/40 bg-primary/10 dark:bg-primary/20">
+                    <td className="py-2 pr-2 pl-1 rounded-l-md">
+                      <span className="text-sm font-extrabold text-primary">合計</span>
                     </td>
                     {days.map((d, i) => (
                       <td
                         key={d.key}
-                        className={`text-center py-1.5 px-1 tabular-nums font-bold ${
+                        className={`text-center py-2 px-1 tabular-nums font-extrabold text-sm ${
                           i === todayDayIndex ? "text-primary" : "text-foreground"
                         }`}
                       >
