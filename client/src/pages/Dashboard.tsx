@@ -553,11 +553,11 @@ function DailyByTeamCard() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const teamColors: Record<string, { bg: string; text: string; bgNight: string }> = {
-    "郡山北部": { bg: "bg-orange-50", text: "text-orange-700", bgNight: "bg-orange-900/30" },
-    "郡山南部": { bg: "bg-yellow-50", text: "text-yellow-700", bgNight: "bg-yellow-900/30" },
-    "身体":    { bg: "bg-rose-50",   text: "text-rose-700",   bgNight: "bg-rose-900/30" },
-    "天理":    { bg: "bg-purple-50", text: "text-purple-700", bgNight: "bg-purple-900/30" },
+  const teamColors: Record<string, { bg: string; text: string; bgNight: string; textNight: string }> = {
+    "郡山北部": { bg: "bg-orange-50", text: "text-orange-700", bgNight: "bg-orange-900/30", textNight: "text-orange-300" },
+    "郡山南部": { bg: "bg-yellow-50", text: "text-yellow-700", bgNight: "bg-yellow-900/30", textNight: "text-yellow-300" },
+    "身体":    { bg: "bg-rose-50",   text: "text-rose-700",   bgNight: "bg-rose-900/30",   textNight: "text-rose-300" },
+    "天理":    { bg: "bg-purple-50", text: "text-purple-700", bgNight: "bg-purple-900/30", textNight: "text-purple-300" },
   };
 
   const days = [
@@ -621,13 +621,13 @@ function DailyByTeamCard() {
               </thead>
               <tbody>
                 {data.teams.map((team) => {
-                  const colors = teamColors[team.name] ?? { bg: "bg-muted", text: "text-foreground", bgNight: "bg-muted" };
+                  const colors = teamColors[team.name] ?? { bg: "bg-muted", text: "text-foreground", bgNight: "bg-muted", textNight: "text-foreground" };
                   return (
                     <tr key={team.name} className="border-t border-border/40">
                       <td className="py-1.5 pr-2">
                         <span className={`inline-block text-xs font-medium px-1.5 py-0.5 rounded ${
                           isNight ? colors.bgNight : colors.bg
-                        } ${colors.text}`}>
+                        } ${isNight ? colors.textNight : colors.text}`}>
                           {team.name}
                         </span>
                       </td>
@@ -4402,6 +4402,14 @@ export default function Dashboard() {
             >
               <ListTodo className="w-3.5 h-3.5 md:w-4 md:h-4" />
               タスク
+            </Link>
+            <Link
+              href="/record#record-condition"
+              onTouchStart={() => {}}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#b06a1a', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#9a5c14')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#b06a1a')}
+            >
+              <ClipboardEdit className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              記録Ⅱ
             </Link>
           </div>
         </div>

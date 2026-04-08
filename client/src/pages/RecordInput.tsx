@@ -552,6 +552,22 @@ export default function RecordInput() {
     }
   }, [voicePreview]);
 
+  // URLハッシュ（#record-condition）でページロード後に②病状の経過へスクロール
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hash === "#record-condition") {
+      const scrollToCondition = () => {
+        const el = document.getElementById("record-condition");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else {
+          // 要素がまだレンダリングされていない場合は少し待ってリトライ
+          setTimeout(scrollToCondition, 300);
+        }
+      };
+      setTimeout(scrollToCondition, 400);
+    }
+  }, []);
+
   // 音声確定からの自動転送フラグ（createRecord.onSuccessで参照）
   const autoExportRef = useRef(false);
 
@@ -1728,7 +1744,7 @@ export default function RecordInput() {
       )}
 
       {/* ② 病状の経過 */}
-      <Card className="shadow-sm">
+      <Card id="record-condition" className="shadow-sm">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-semibold">② 病状の経過</CardTitle>
