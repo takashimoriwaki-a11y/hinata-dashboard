@@ -59,6 +59,7 @@ import { WelcomeModal } from "./WelcomeModal";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import NotificationDropdown from "./NotificationDropdown";
+import GlobalLoadingIndicator from "./GlobalLoadingIndicator";
 
 // ロゴCDN URL
 const LOGO_MARK_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/hinata_logo_mark_bf1d0229.png";
@@ -490,6 +491,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <circle cx="17.5" cy="6.5" r="0.8" fill="currentColor" stroke="none" />
               </svg>
             </a>
+            <GlobalLoadingIndicator />
             <NotificationDropdown />
             <Avatar className="w-8 h-8">
               <AvatarFallback className="bg-primary text-white text-xs font-bold">{userInitial}</AvatarFallback>

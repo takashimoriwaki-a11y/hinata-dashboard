@@ -573,7 +573,11 @@ function PatientMasterPanel() {
 
         {/* 利用者リスト */}
         {isLoading ? (
-          <p className="text-sm text-muted-foreground text-center py-4">読み込み中...</p>
+          <div className="space-y-2 py-2">
+            {[1,2,3,4].map(i => (
+              <div key={i} className="h-10 bg-muted/60 animate-pulse rounded-lg" />
+            ))}
+          </div>
         ) : filteredPatients.length === 0 ? (
           <div className="text-center py-8 space-y-2">
             <Users className="w-8 h-8 text-muted-foreground/40 mx-auto" />
@@ -960,7 +964,11 @@ export default function Admin() {
             </CardHeader>
             <CardContent className="space-y-2">
               {isLoading ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">読み込み中...</p>
+                <div className="space-y-3 py-2">
+                  {[1,2,3].map(i => (
+                    <div key={i} className="h-12 bg-muted/60 animate-pulse rounded-lg" />
+                  ))}
+                </div>
               ) : (
                 LINK_DEFINITIONS.map((def, idx) => {
                   const registered = selectedLinks[def.key];
@@ -1375,7 +1383,11 @@ function StaffManagementPanel() {
 
         {/* スタッフ一覧 */}
         {isLoading ? (
-          <p className="text-sm text-muted-foreground py-4 text-center">読み込み中...</p>
+          <div className="space-y-2 py-2">
+            {[1,2,3,4,5].map(i => (
+              <div key={i} className="h-14 bg-muted/60 animate-pulse rounded-xl" />
+            ))}
+          </div>
         ) : !staffList || staffList.length === 0 ? (
           <div className="py-8 text-center">
             <Users className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
@@ -2076,7 +2088,11 @@ function TeamGoalsPanel() {
       <Card className="shadow-sm">
         <CardContent className="pt-4">
           {isLoading ? (
-            <p className="text-sm text-muted-foreground text-center py-8">読み込み中...</p>
+            <div className="space-y-3 py-2">
+              {[1,2,3].map(i => (
+                <div key={i} className="h-20 bg-muted/60 animate-pulse rounded-lg" />
+              ))}
+            </div>
           ) : goals.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">チーム目標が登録されていません</p>
           ) : (

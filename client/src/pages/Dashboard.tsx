@@ -210,7 +210,24 @@ const TEAM_BADGE_COLORS: Record<string, string> = {
 function TeamGoalsCard() {
   const { data: goals = [], isLoading } = trpc.teamGoals.getActive.useQuery();
 
-  if (isLoading) return null;
+  if (isLoading) return (
+    <Card className="fade-in-up shadow-sm border-l-4 border-l-primary/60">
+      <CardHeader className="pb-2 pt-3 px-4">
+        <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <Target className="w-4 h-4 text-primary" />
+          チーム目標
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-4 pb-3 space-y-3">
+        {[1,2].map(i => (
+          <div key={i} className="rounded-lg bg-muted/40 p-3 space-y-2 animate-pulse">
+            <div className="h-4 bg-muted rounded w-24" />
+            <div className="h-4 bg-muted rounded w-3/4" />
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
   if (goals.length === 0) return null;
 
   return (
@@ -2126,7 +2143,11 @@ function SheetSubTabs({ quickLinks, myLinksData, addToMyLinks }: { quickLinks: {
           )}
 
           {monthlyLoading ? (
-            <p className="text-xs text-muted-foreground text-center py-3">読み込み中...</p>
+            <div className="space-y-2 py-1">
+              {[1,2,3].map(i => (
+                <div key={i} className="h-9 bg-muted/60 animate-pulse rounded-lg" />
+              ))}
+            </div>
           ) : !monthlyLinks || monthlyLinks.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-3">リンクはまだ登録されていません</p>
           ) : (
@@ -2596,7 +2617,11 @@ function ToolsCard() {
                 </div>
               )}
               {linksLoading ? (
-                <p className="text-xs text-muted-foreground text-center py-2">読み込み中...</p>
+                <div className="space-y-1.5 py-1">
+                  {[1,2,3].map(i => (
+                    <div key={i} className="h-9 bg-muted/60 animate-pulse rounded-lg" />
+                  ))}
+                </div>
               ) : !myLinksData || myLinksData.length === 0 ? (
                 <p className="text-xs text-muted-foreground text-center py-4">『追加』ボタンからリンクを登録できます</p>
               ) : (
