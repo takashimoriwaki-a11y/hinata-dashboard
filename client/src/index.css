@@ -351,6 +351,46 @@
 }
 
 @layer components {
+  /* ===== カードの影・ボーダー統一 =====
+     全カードに一貫した柔らかい影を適用してデザインの統一感を向上
+  ===== */
+  [data-slot="card"] {
+    box-shadow: 0 1px 3px 0 oklch(0 0 0 / 0.08), 0 1px 2px -1px oklch(0 0 0 / 0.06);
+    border-color: oklch(0.91 0.008 80);
+    transition: box-shadow 0.2s ease;
+  }
+  [data-slot="card"]:hover {
+    box-shadow: 0 4px 6px -1px oklch(0 0 0 / 0.08), 0 2px 4px -2px oklch(0 0 0 / 0.05);
+  }
+  .dark [data-slot="card"] {
+    box-shadow: 0 1px 3px 0 oklch(0 0 0 / 0.3), 0 1px 2px -1px oklch(0 0 0 / 0.2);
+    border-color: oklch(0.35 0.01 250);
+  }
+  .dark [data-slot="card"]:hover {
+    box-shadow: 0 4px 6px -1px oklch(0 0 0 / 0.35), 0 2px 4px -2px oklch(0 0 0 / 0.25);
+  }
+
+  /* ===== ボタンの角丸統一 =====
+     全ボタンを rounded-lg（8px）に統一してデザインの一貫性を向上
+  ===== */
+  [data-slot="button"] {
+    border-radius: 0.5rem !important; /* 8px = rounded-lg */
+  }
+
+  /* ===== 長文テキストの行間最適化 =====
+     段落・リスト・テキストエリアに leading-relaxed（1.625）を設定
+     日本語テキストの読みやすさをさらに向上
+  ===== */
+  p {
+    line-height: 1.75;
+  }
+  li {
+    line-height: 1.75;
+  }
+  textarea {
+    line-height: 1.75;
+  }
+
   .container {
     width: 100%;
     margin-left: auto;
