@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   ClipboardEdit, Send, Search, Calendar,
   User, ChevronDown, Loader2, FileSpreadsheet, CheckCircle2, ExternalLink,
@@ -399,13 +400,28 @@ export default function RecordInput() {
             });
             if (bySurname.length === 1) return bySurname[0];
             // 3. 読み仮名での一致（kanaフィールドがある場合）
+            // ひらがな正規化（カタカナ→ひらがな変換）
+            const toHiragana = (s: string) => s.replace(/[\u30A1-\u30F6]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
+            const normAiKana = toHiragana(normAi.toLowerCase());
             const bySurnameKana = sourceList.filter((p) => {
               if (!p.nameKana) return false;
-              const kana = p.nameKana.trim();
-              const kanaSurname = kana.split(/[\s\u3000]/)[0];
-              return kana === normAi || kanaSurname === aiSurname || kanaSurname === normAi;
+              const kana = toHiragana(p.nameKana.trim().replace(/[\s\u3000]+/g, ''));
+              const kanaFull = toHiragana(p.nameKana.trim());
+              const kanaSurname = kanaFull.split(/[\s\u3000]/)[0];
+              // 完全一致・姓読み仮名一致・前方一致（「ゆあさ」→「ゆあさまさと」）
+              return kana === normAiKana
+                || toHiragana(kanaSurname) === normAiKana
+                || kana.startsWith(normAiKana)
+                || normAiKana.startsWith(toHiragana(kanaSurname));
             });
             if (bySurnameKana.length === 1) return bySurnameKana[0];
+            // 3.5. 読み仮名の部分一致（「かせい」→「かせいとおる」など特殊漢字対応）
+            const byKanaPartial = sourceList.filter((p) => {
+              if (!p.nameKana) return false;
+              const kana = toHiragana(p.nameKana.trim().replace(/[\s\u3000]+/g, ''));
+              return kana.includes(normAiKana) || normAiKana.includes(kana.substring(0, Math.min(3, kana.length)));
+            });
+            if (byKanaPartial.length === 1) return byKanaPartial[0];
             // 4. 部分一致（AIの名前が利用者名に含まれる、または利用者の姓がAIの名前に含まれる）
             const partial = sourceList.filter(
               (p) => normalize(p.name).includes(normAi) || normAi.includes(normalize(p.name.split(/[\s\u3000]/)[0]))
@@ -1724,21 +1740,31 @@ export default function RecordInput() {
                 </span>
               )}
               {/* 長文モード切り替えボタン */}
-              <button
-                type="button"
-                onClick={() => setNotesLongTextMode(prev => !prev)}
-                disabled={notesVoice.isRecording}
-                className={cn(
-                  "text-[10px] px-2 py-0.5 rounded-full border font-medium transition-all",
-                  notesLongTextMode
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-muted text-muted-foreground border-border hover:border-primary/50",
-                  notesVoice.isRecording && "opacity-50 cursor-not-allowed"
-                )}
-                title={notesLongTextMode ? "長文モード: ON（無音自動停止 60秒・最大3分）" : "通常モード（無音自動停止 30秒）"}
-              >
-                {notesLongTextMode ? "📝 長文 ON" : "📝 長文"}
-              </button>
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => setNotesLongTextMode(prev => !prev)}
+                      disabled={notesVoice.isRecording}
+                      className={cn(
+                        "text-[10px] px-2 py-0.5 rounded-full border font-medium transition-all",
+                        notesLongTextMode
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-muted text-muted-foreground border-border hover:border-primary/50",
+                        notesVoice.isRecording && "opacity-50 cursor-not-allowed"
+                      )}
+                    >
+                      {notesLongTextMode ? "📝 長文 ON" : "📝 長文"}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[220px] text-xs">
+                    {notesLongTextMode
+                      ? "長文モード ON：無音自動停止 60秒・最大3分まで録音できます"
+                      : "長文モード：ONにすると無音自動停止が60秒・最大3分まで録音できます（通常は30秒）"}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
         </CardHeader>

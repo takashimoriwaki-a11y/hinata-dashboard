@@ -1866,7 +1866,7 @@ export const appRouter = router({
           const entries = input.patientNamesWithKana
             .map(p => p.kana ? `${p.name}（${p.kana}）` : p.name)
             .join('、');
-          patientListStr = `\n\n登録済利用者リスト（この中から最も近い名前を選んでpatientNameに正式名を返すこと。姓のみ・読み仮名・略称で言及されても正式名を返すこと）:\n${entries}`;
+          patientListStr = `\n\n登録済利用者リスト（正式名（読み仮名）の形式）:\n${entries}\n\n【利用者名マッチングの重要ルール】\n- 音声で聞こえた読み方（ひらがな・カタカナ）を上記リストの読み仮名と照合し、最も近い利用者の正式名を返すこと\n- 特殊な漢字（難読字・旧字体など）でも、読み仮名が一致すれば必ずその正式名を返すこと\n- 例：「かせいとおる」「かせい」→「絈井達」、「ゆあさ」「ゆあさまさと」→「湯浅全人」\n- 姓のみ言及された場合でも読み仮名から特定できれば正式名を返すこと\n- 同姓が複数いる場合のみ姓のみを返すこと`;
         } else if (input.patientNames && input.patientNames.length > 0) {
           patientListStr = `\n\n登録済利用者リスト（この中から最も近い名前を選んでpatientNameに返すこと。姓のみで言及されても正式名を返すこと）:\n${input.patientNames.join('、')}`;
         }
