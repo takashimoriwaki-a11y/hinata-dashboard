@@ -225,14 +225,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <img src={LOGO_MARK_URL} alt="ひなた" className="w-9 h-9 object-contain flex-shrink-0" />
         {(!collapsed || mobile) && (
           <div className="overflow-hidden flex flex-col gap-0.5">
-            <p className="text-xs text-sidebar-foreground/50 leading-tight">こころの訪問看護ステーション</p>
+            <p className="text-xs text-sidebar-foreground/75 leading-tight">こころの訪問看護ステーション</p>
             <span className="text-base font-bold text-sidebar-foreground leading-tight tracking-wide">ひなた</span>
           </div>
         )}
         {mobile && (
           <button
             onClick={() => setMobileOpen(false)}
-            className="ml-auto text-sidebar-foreground/60 hover:text-sidebar-foreground p-1"
+            className="ml-auto text-sidebar-foreground/80 hover:text-sidebar-foreground p-1"
           >
             <X className="w-5 h-5" />
           </button>
@@ -248,7 +248,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </Avatar>
             <div className="overflow-hidden">
               <p className="text-sm font-semibold text-sidebar-foreground truncate">{user?.name ?? "ゲスト"}</p>
-              <p className="text-xs text-sidebar-foreground/60 truncate">こころの訪問看護ステーションひなた</p>
+              <p className="text-xs text-sidebar-foreground/80 truncate">こころの訪問看護ステーションひなた</p>
             </div>
           </div>
         </div>
@@ -257,7 +257,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* ナビゲーション */}
       <nav className="flex-1 py-3 overflow-y-auto min-h-0">
         {(!collapsed || mobile) && (
-          <p className="px-4 text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider mb-1">
+          <p className="px-4 text-xs font-semibold text-sidebar-foreground/65 uppercase tracking-wider mb-1">
             メニュー
           </p>
         )}
@@ -273,7 +273,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   (collapsed && !mobile) ? "justify-center px-0" : "px-3",
                   isActive
                     ? "bg-primary text-white shadow-md -translate-y-0.5"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                    : "text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                 )}
               >
                 <item.icon className="w-5 h-5 flex-shrink-0" />
@@ -284,7 +284,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         })}
 
         {(!collapsed || mobile) && (
-          <p className="px-4 text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider mt-4 mb-1">
+          <p className="px-4 text-xs font-semibold text-sidebar-foreground/65 uppercase tracking-wider mt-4 mb-1">
             外部ツール
           </p>
         )}
@@ -297,7 +297,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             title={(collapsed && !mobile) ? tool.label : undefined}
             className={cn(
               "flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
-              "text-sm font-medium text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+              "text-sm font-medium text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
               (collapsed && !mobile) ? "justify-center px-0" : "px-3"
             )}
           >
@@ -338,7 +338,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             (collapsed && !mobile) ? "justify-center px-0" : "px-3",
             isSubscribed
               ? "text-emerald-600 hover:text-emerald-700"
-              : "text-sidebar-foreground/60 hover:text-sidebar-foreground"
+              : "text-sidebar-foreground/80 hover:text-sidebar-foreground"
           )}
         >
           <Bell className={cn("w-4 h-4 flex-shrink-0", isSubscribed && "fill-emerald-500")} />
@@ -351,7 +351,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             title={(collapsed && !mobile) ? "管理画面" : undefined}
             className={cn(
               "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150",
-              "text-sm text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+              "text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
               (collapsed && !mobile) ? "justify-center px-0" : "px-3",
               location === "/admin" && "bg-primary text-white"
             )}
@@ -365,7 +365,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           title={(collapsed && !mobile) ? "ログアウト" : undefined}
           className={cn(
             "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150 select-none active:scale-95 active:opacity-80",
-            "text-sm text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+            "text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
             (collapsed && !mobile) ? "justify-center px-0" : "px-3"
           )}
         >
@@ -459,13 +459,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             {/* 日付・ステーション名: スマホでは縦並び、PCでは横並び */}
             <div className="flex flex-col md:flex-row md:items-center md:gap-3 min-w-0">
               <div className="flex items-center gap-2">
-                <span className={cn("text-xs md:text-sm font-semibold whitespace-nowrap", isNight ? "text-slate-200" : "text-foreground/80")}>{dateStr}</span>
+                <span className={cn("text-xs md:text-sm font-semibold whitespace-nowrap", isNight ? "text-slate-100" : "text-foreground/80")}>{dateStr}</span>
                 {/* モバイル: HH:MM、PC: HH:MM:SS */}
                 <span className={cn("text-xs font-mono font-medium whitespace-nowrap tabular-nums md:hidden", isNight ? "text-[oklch(0.75_0.1_280)]" : "text-foreground/80")}>{timeStrShort}</span>
                 <span className={cn("hidden md:inline text-xs font-mono font-medium whitespace-nowrap tabular-nums", isNight ? "text-[oklch(0.75_0.1_280)]" : "text-foreground/80")}>{timeStr}</span>
               </div>
-              <span className={cn("hidden md:block text-xs font-medium border-l border-border pl-3 whitespace-nowrap", isNight ? "text-slate-300" : "text-foreground/75")}>こころの訪問看護ステーションひなた</span>
-              <span className={cn("md:hidden text-xs font-semibold leading-tight whitespace-nowrap", isNight ? "text-slate-300" : "text-foreground")}>こころの訪問看護ステーションひなた</span>
+              <span className={cn("hidden md:block text-xs font-medium border-l border-border pl-3 whitespace-nowrap", isNight ? "text-slate-200" : "text-foreground/75")}>こころの訪問看護ステーションひなた</span>
+              <span className={cn("md:hidden text-xs font-semibold leading-tight whitespace-nowrap", isNight ? "text-slate-200" : "text-foreground")}>こころの訪問看護ステーションひなた</span>
             </div>
           </div>
           <div className="flex items-center gap-1.5 md:gap-2">
@@ -562,7 +562,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     onTouchStart={() => {}}
                     className={cn(
                       "flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors select-none",
-                      isNight ? "text-slate-300 active:text-primary active:scale-95" : "text-muted-foreground active:text-primary active:scale-95"
+                      isNight ? "text-slate-200 active:text-primary active:scale-95" : "text-muted-foreground active:text-primary active:scale-95"
                     )}
                   >
                     <item.icon className="w-5 h-5" />
@@ -580,7 +580,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   onTouchStart={() => {}}
                   className={cn(
                     "flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors relative select-none active:scale-95",
-                    isActive ? "text-primary" : isNight ? "text-slate-300 active:text-primary" : "text-muted-foreground active:text-primary"
+                    isActive ? "text-primary" : isNight ? "text-slate-200 active:text-primary" : "text-muted-foreground active:text-primary"
                   )}
                 >
                   <div className="relative">

@@ -202,10 +202,10 @@ type DayType = typeof DAYS[number];
 // チーム目標カード
 // ============================
 const TEAM_BADGE_COLORS: Record<string, string> = {
-  "身体": "bg-blue-500/20 text-blue-300 border-blue-400/40 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-400/40",
-  "天理": "bg-purple-500/20 text-purple-300 border-purple-400/40 dark:bg-purple-500/20 dark:text-purple-300 dark:border-purple-400/40",
-  "郡山北部": "bg-green-500/20 text-green-300 border-green-400/40 dark:bg-green-500/20 dark:text-green-300 dark:border-green-400/40",
-  "郡山南部": "bg-orange-500/20 text-orange-300 border-orange-400/40 dark:bg-orange-500/20 dark:text-orange-300 dark:border-orange-400/40",
+  "身体": "bg-blue-500/20 text-blue-200 border-blue-400/40 dark:bg-blue-500/20 dark:text-blue-200 dark:border-blue-400/40",
+  "天理": "bg-purple-500/20 text-purple-200 border-purple-400/40 dark:bg-purple-500/20 dark:text-purple-200 dark:border-purple-400/40",
+  "郡山北部": "bg-green-500/20 text-green-200 border-green-400/40 dark:bg-green-500/20 dark:text-green-200 dark:border-green-400/40",
+  "郡山南部": "bg-orange-500/20 text-orange-200 border-orange-400/40 dark:bg-orange-500/20 dark:text-orange-200 dark:border-orange-400/40",
   "全チーム": "bg-muted/60 text-foreground border-border",
 };
 
@@ -573,10 +573,10 @@ function DailyByTeamCard() {
   });
 
   const teamColors: Record<string, { bg: string; text: string; bgNight: string; textNight: string }> = {
-    "郡山北部": { bg: "bg-orange-50", text: "text-orange-700", bgNight: "bg-orange-900/30", textNight: "text-orange-300" },
-    "郡山南部": { bg: "bg-yellow-50", text: "text-yellow-700", bgNight: "bg-yellow-900/30", textNight: "text-yellow-300" },
-    "身体":    { bg: "bg-rose-50",   text: "text-rose-700",   bgNight: "bg-rose-900/30",   textNight: "text-rose-300" },
-    "天理":    { bg: "bg-purple-50", text: "text-purple-700", bgNight: "bg-purple-900/30", textNight: "text-purple-300" },
+    "郡山北部": { bg: "bg-orange-50", text: "text-orange-700", bgNight: "bg-orange-900/30", textNight: "text-orange-200" },
+    "郡山南部": { bg: "bg-yellow-50", text: "text-yellow-700", bgNight: "bg-yellow-900/30", textNight: "text-yellow-200" },
+    "身体":    { bg: "bg-rose-50",   text: "text-rose-700",   bgNight: "bg-rose-900/30",   textNight: "text-rose-200" },
+    "天理":    { bg: "bg-purple-50", text: "text-purple-700", bgNight: "bg-purple-900/30", textNight: "text-purple-200" },
   };
 
   const days = [
