@@ -4189,7 +4189,7 @@ function PhilosophyCard() {
         "relative rounded-2xl overflow-hidden shadow-sm cursor-pointer select-none transition-[box-shadow,transform] duration-300 hover:shadow-md hover:scale-[1.01] active:scale-[0.99]",
         isVisible ? "philosophy-card-visible" : "philosophy-card-hidden"
       )}
-      style={{ background: "#F0F8FF", border: "1px solid #bfdbfe" }}
+      style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fed7aa 100%)", border: "1px solid #fdba74" }}
       onClick={() => { window.location.href = "/hinatas-way"; }}
     >
       {shimmerActive && <div className="philosophy-shimmer" />}
