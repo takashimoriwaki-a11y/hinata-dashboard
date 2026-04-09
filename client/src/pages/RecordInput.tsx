@@ -119,6 +119,10 @@ export default function RecordInput() {
 
   // ② 病状の経過
   const [clinicalNotes, setClinicalNotes] = useState("");
+  // 最終保存タイムスタンプ
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  // 最終保存から経過時間の表示用（1分ごとに更新）
+  const [savedAgoText, setSavedAgoText] = useState<string>("");
 
   // 保存済み記録ID（スプレッドシート転送用）
   const [savedRecordId, setSavedRecordId] = useState<number | null>(null);
@@ -517,10 +521,32 @@ export default function RecordInput() {
         notifiedTo, notifiedToOther, notifyMethod, notifyMethodOther,
         clinicalNotes,
       }));
+      // 病状の経過に内容がある場合のみ保存時刻を更新
+      if (clinicalNotes.trim()) {
+        setLastSavedAt(new Date());
+      }
     }, 1000);
     return () => clearTimeout(timer);
   }, [team, patientId, patientName, searchQuery, nextVisitDate, nextVisitTime,
       notifiedTo, notifiedToOther, notifyMethod, notifyMethodOther, clinicalNotes]);
+
+  // lastSavedAtが変わったら経過時間テキストを更新（1分ごとに再計算）
+  useEffect(() => {
+    if (!lastSavedAt) return;
+    const calcAgo = () => {
+      const diffMs = Date.now() - lastSavedAt.getTime();
+      const diffMin = Math.floor(diffMs / 60000);
+      if (diffMin < 1) setSavedAgoText("たった今");
+      else if (diffMin < 60) setSavedAgoText(`${diffMin}分前`);
+      else {
+        const diffH = Math.floor(diffMin / 60);
+        setSavedAgoText(`${diffH}時間前`);
+      }
+    };
+    calcAgo();
+    const interval = setInterval(calcAgo, 60000);
+    return () => clearInterval(interval);
+  }, [lastSavedAt]);
 
   // tRPC
   const utils = trpc.useUtils();
@@ -1875,6 +1901,21 @@ export default function RecordInput() {
               onChange={(e) => setClinicalNotes(e.target.value)}
               className="min-h-[120px] text-sm resize-y"
             />
+            {/* 最終保存タイムスタンプ + 文字数カウンター */}
+            <div className="flex items-center justify-between mt-1">
+              <div>
+                {lastSavedAt && clinicalNotes.trim() && (
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                    ✓ 自動保存済み · {savedAgoText}
+                  </p>
+                )}
+              </div>
+              {clinicalNotes.length > 0 && (
+                <p className="text-xs text-muted-foreground tabular-nums">
+                  {clinicalNotes.length.toLocaleString()}文字
+                </p>
+              )}
+            </div>
             {/* テキストエリア下: 録音中のinterimTextリアルタイム表示 */}
             {notesVoice.isRecording && (
               <div className={cn(
