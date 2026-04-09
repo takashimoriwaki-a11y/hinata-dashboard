@@ -98,6 +98,7 @@ import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { VoiceHelpDialog } from "@/components/VoiceHelpDialog";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useOfflineQueueContext } from "@/contexts/OfflineQueueContext";
+import { useScrollReveal } from "@/hooks/useScrollReveal";
 
 // ========== データ定義 ==========
 
@@ -4357,8 +4358,9 @@ export default function Dashboard() {
         : dashboardUser.name)
     : "スタッフ";
   const { isNight } = useTheme();
-
-  // 月別背景画像マップ（1〜12月）
+  // スクロール連動アニメーション
+  const scrollContainerRef = useScrollReveal();
+  // 月別背景画像マップ（1〜12月））
   const MONTHLY_BANNER_IMAGES: Record<number, string> = {
     1: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/banner_jan-Fu5TZMeS6CZ4gmRUtFPEeA.webp',
     2: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/banner_feb-Xa5NDqzMhPoAejtph4JKfS.webp',
@@ -4382,7 +4384,7 @@ export default function Dashboard() {
     : "linear-gradient(135deg, rgba(249,115,22,0.55) 0%, rgba(251,146,60,0.45) 50%, rgba(251,191,36,0.50) 100%)";
 
   return (
-    <div className="p-3 md:p-4 pb-6 md:pb-4 space-y-3 md:space-y-4 max-w-screen-xl mx-auto">
+    <div ref={scrollContainerRef as React.RefObject<HTMLDivElement>} className="p-3 md:p-4 pb-6 md:pb-4 space-y-3 md:space-y-4 max-w-screen-xl mx-auto">
       {/* ウェルカムバナー */}
       <div className="relative rounded-2xl overflow-hidden shadow-md fade-in-up">
         {/* 月別背景画像 */}
@@ -4479,13 +4481,13 @@ export default function Dashboard() {
             <TasksCard />
           </div>
           {/* メッセージ（モバイル: 5番目、PC: 左カラム2番目） */}
-          <MessageBoard title="メッセージ" />
+          <div data-scroll-reveal data-delay="100"><MessageBoard title="メッセージ" /></div>
           {/* 訪問件数（モバイル: 6番目、PC: 左カラム3番目） */}
-          <VisitCountCard />
+          <div data-scroll-reveal data-delay="200"><VisitCountCard /></div>
           {/* 曜日別件数（モバイル: 7番目、PC: 左カラム4番目） */}
-          <DailyByTeamCard />
+          <div data-scroll-reveal data-delay="300"><DailyByTeamCard /></div>
           {/* 新規契約（モバイル: 8番目、PC: 左カラム5番目） */}
-          <Card className="fade-in-up shadow-sm">
+          <Card data-scroll-reveal data-delay="400" className="shadow-sm">
             <CardHeader className="pb-2 pt-3 px-4">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <FileText className="w-4 h-4 text-primary" />

@@ -32,6 +32,8 @@ import {
   BookOpen,
   ShieldAlert,
   Star,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
@@ -127,7 +129,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [collapsed, setCollapsed] = useState(true);
   // モバイル用ドロワー開閉
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { isNight } = useTheme();
+  const { isNight, toggleTheme, switchable, theme } = useTheme();
   // SSEリアルタイム同期：他職員の更新を自動反映する
   useRealtimeSync();
   const { logout, user } = useAuth({ redirectOnUnauthenticated: true });
@@ -360,6 +362,28 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             {(!collapsed || mobile) && <span>管理画面</span>}
           </div>
         </Link>
+        {/* ダークモード手動切替ボタン（switchable=trueのとき表示） */}
+        {switchable && toggleTheme && (
+          <button
+            onClick={toggleTheme}
+            title={(collapsed && !mobile) ? (theme === "dark" ? "ライトモードに切替" : "ダークモードに切替") : undefined}
+            className={cn(
+              "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150 select-none active:scale-95 active:opacity-80",
+              "text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+              (collapsed && !mobile) ? "justify-center px-0" : "px-3"
+            )}
+          >
+            <span className={cn(
+              "w-4 h-4 flex-shrink-0 transition-transform duration-500",
+              theme === "dark" ? "rotate-0" : "rotate-180"
+            )}>
+              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </span>
+            {(!collapsed || mobile) && (
+              <span>{theme === "dark" ? "ライトモード" : "ダークモード"}</span>
+            )}
+          </button>
+        )}
         <button
           onClick={handleLogout}
           title={(collapsed && !mobile) ? "ログアウト" : undefined}
