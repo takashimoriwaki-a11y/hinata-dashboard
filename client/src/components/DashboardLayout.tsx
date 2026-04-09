@@ -489,7 +489,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <span className={cn("hidden md:inline text-xs font-mono font-medium whitespace-nowrap tabular-nums", isNight ? "text-[oklch(0.75_0.1_280)]" : "text-foreground/80")}>{timeStr}</span>
               </div>
               <span className={cn("hidden md:block text-xs font-medium border-l border-border pl-3 whitespace-nowrap", isNight ? "text-slate-200" : "text-foreground/75")}>こころの訪問看護ステーションひなた</span>
-              <span className={cn("md:hidden text-xs font-semibold leading-tight truncate", isNight ? "text-slate-200" : "text-foreground")}>こころの訪問看護ステーションひなた</span>
+              <span className={cn("md:hidden font-semibold leading-tight", isNight ? "text-slate-200" : "text-foreground")} style={{fontSize: "0.6rem"}}>こころの訪問看護ステーションひなた</span>
             </div>
           </div>
           <div className="flex items-center gap-1.5 md:gap-2">
