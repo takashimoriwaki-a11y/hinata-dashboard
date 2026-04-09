@@ -594,6 +594,16 @@ function DailyByTeamCard() {
     return d >= 1 && d <= 5 ? d - 1 : -1;
   })();
 
+  // 差引がマイナスの曜日インデックスセット
+  const negDayIndices = new Set<number>(
+    data?.diff
+      ? days
+          .map((d, i) => ({ i, val: data.diff![d.key] }))
+          .filter(({ val }) => typeof val === "number" && val < 0)
+          .map(({ i }) => i)
+      : []
+  );
+
   return (
     <Card className="fade-in-up shadow-sm">
       <CardHeader className="pb-2 pt-3 px-4">
@@ -655,6 +665,12 @@ function DailyByTeamCard() {
                         <td
                           key={d.key}
                           className={`text-center py-1.5 px-1 tabular-nums font-medium ${
+                            negDayIndices.has(i)
+                              ? isNight
+                                ? "bg-red-900/20"
+                                : "bg-red-50"
+                              : ""
+                          } ${
                             i === todayDayIndex
                               ? "text-primary font-bold"
                               : "text-foreground"
@@ -675,6 +691,12 @@ function DailyByTeamCard() {
                       <td
                         key={d.key}
                         className={`text-center py-2 px-1 tabular-nums font-extrabold text-sm ${
+                          negDayIndices.has(i)
+                            ? isNight
+                              ? "bg-red-900/20"
+                              : "bg-red-50"
+                            : ""
+                        } ${
                           i === todayDayIndex ? "text-primary" : "text-foreground"
                         }`}
                       >
@@ -692,6 +714,12 @@ function DailyByTeamCard() {
                       <td
                         key={d.key}
                         className={`text-center py-1.5 px-1 tabular-nums text-xs font-medium ${
+                          negDayIndices.has(i)
+                            ? isNight
+                              ? "bg-red-900/20"
+                              : "bg-red-50"
+                            : ""
+                        } ${
                           i === todayDayIndex ? "text-primary" : "text-muted-foreground"
                         }`}
                       >
@@ -713,6 +741,12 @@ function DailyByTeamCard() {
                         <td
                           key={d.key}
                           className={`text-center py-1.5 px-1 tabular-nums text-xs font-bold ${
+                            negDayIndices.has(i)
+                              ? isNight
+                                ? "bg-red-900/20"
+                                : "bg-red-50"
+                              : ""
+                          } ${
                             isPositive
                               ? "text-emerald-600 dark:text-emerald-400"
                               : isNegative
@@ -721,6 +755,40 @@ function DailyByTeamCard() {
                           }`}
                         >
                           {isPositive ? `+${val}` : val}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                )}
+                {data.target && data.total && (
+                  <tr className="border-t border-border/40 bg-muted/20">
+                    <td className="py-1.5 pr-2 pl-1">
+                      <span className="text-xs font-semibold text-muted-foreground">達成率</span>
+                    </td>
+                    {days.map((d, i) => {
+                      const total = data.total![d.key];
+                      const target = data.target![d.key];
+                      const rate = target > 0 ? Math.round((total / target) * 100) : null;
+                      const isOver = rate !== null && rate >= 100;
+                      const isLow = rate !== null && rate < 80;
+                      return (
+                        <td
+                          key={d.key}
+                          className={`text-center py-1.5 px-1 tabular-nums text-xs font-bold ${
+                            negDayIndices.has(i)
+                              ? isNight
+                                ? "bg-red-900/20"
+                                : "bg-red-50"
+                              : ""
+                          } ${
+                            isOver
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : isLow
+                              ? "text-red-500 dark:text-red-400"
+                              : "text-amber-600 dark:text-amber-400"
+                          }`}
+                        >
+                          {rate !== null ? `${rate}%` : "-"}
                         </td>
                       );
                     })}
