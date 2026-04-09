@@ -711,6 +711,9 @@ export default function RecordInput() {
     window.open(GEMS_URL, "_blank", "noopener,noreferrer");
     // Gem送信後は病状の経過のみリセット（利用者名・次回訪問日時は保持）
     setClinicalNotes("");
+    // タイムスタンプ表示もリセット
+    setLastSavedAt(null);
+    setSavedAgoText("");
     // 誤変換報告表示もリセット
     notesVoice.clearLastTranscribedText();
     // localStorageのclinicalNotesも削除（再度アプリを開いたときに復元されないように）
