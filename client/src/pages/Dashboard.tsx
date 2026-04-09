@@ -683,6 +683,49 @@ function DailyByTeamCard() {
                     ))}
                   </tr>
                 )}
+                {data.target && (
+                  <tr className="border-t border-border/40 bg-muted/30">
+                    <td className="py-1.5 pr-2 pl-1">
+                      <span className="text-xs font-semibold text-muted-foreground">目標</span>
+                    </td>
+                    {days.map((d, i) => (
+                      <td
+                        key={d.key}
+                        className={`text-center py-1.5 px-1 tabular-nums text-xs font-medium ${
+                          i === todayDayIndex ? "text-primary" : "text-muted-foreground"
+                        }`}
+                      >
+                        {data.target![d.key]}
+                      </td>
+                    ))}
+                  </tr>
+                )}
+                {data.diff && (
+                  <tr className="border-t border-border/40">
+                    <td className="py-1.5 pr-2 pl-1">
+                      <span className="text-xs font-semibold text-muted-foreground">差引</span>
+                    </td>
+                    {days.map((d, i) => {
+                      const val = data.diff![d.key];
+                      const isPositive = val > 0;
+                      const isNegative = val < 0;
+                      return (
+                        <td
+                          key={d.key}
+                          className={`text-center py-1.5 px-1 tabular-nums text-xs font-bold ${
+                            isPositive
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : isNegative
+                              ? "text-red-500 dark:text-red-400"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {isPositive ? `+${val}` : val}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                )}
               </tbody>
             </table>
             <p className="text-xs text-muted-foreground mt-2">見込み件数タブより取得</p>

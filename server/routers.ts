@@ -372,8 +372,8 @@ export const appRouter = router({
         const client = await auth.getClient();
         const token = await client.getAccessToken();
         if (!token.token) throw new Error("アクセストークンの取得に失敗しました");
-        // B46:G51 = チーム列と月火水木金の曜日別件数テーブル
-        const range = encodeURIComponent(`${SHEET_TAB}!B46:G51`);
+        // B46:G53 = チーム列と月火水木金の曜日別件数テーブル（52行目=目標、53行目=合計ー目標）
+        const range = encodeURIComponent(`${SHEET_TAB}!B46:G53`);
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${MIKOMIKEN_SHEET_ID}/values/${range}`;
         const response = await fetch(url, {
           headers: { Authorization: `Bearer ${token.token}` },
@@ -409,7 +409,27 @@ export const appRouter = router({
           thu: parseNum(totalRow[4]),
           fri: parseNum(totalRow[5]),
         } : null;
-        return { teams, total };
+        // rows[6] = 目標行（52行目）
+        const targetRow = rows[6];
+        const target = targetRow ? {
+          name: "目標",
+          mon: parseNum(targetRow[1]),
+          tue: parseNum(targetRow[2]),
+          wed: parseNum(targetRow[3]),
+          thu: parseNum(targetRow[4]),
+          fri: parseNum(targetRow[5]),
+        } : null;
+        // rows[7] = 合計ー目標行（53行目）
+        const diffRow = rows[7];
+        const diff = diffRow ? {
+          name: "合計−目標",
+          mon: parseNum(diffRow[1]),
+          tue: parseNum(diffRow[2]),
+          wed: parseNum(diffRow[3]),
+          thu: parseNum(diffRow[4]),
+          fri: parseNum(diffRow[5]),
+        } : null;
+        return { teams, total, target, diff };
       } catch (error) {
         console.error("[Visits] Failed to fetch daily by team:", error);
         return null;
