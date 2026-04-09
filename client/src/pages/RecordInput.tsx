@@ -7,7 +7,7 @@
  * - ①カードの下にスプレッドシート転送ボタン
  * - ②病状の経過
  */
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -119,6 +119,13 @@ export default function RecordInput() {
 
   // ② 病状の経過
   const [clinicalNotes, setClinicalNotes] = useState("");
+  // テキストエリアの自動高さ調整用ref
+  const clinicalNotesTextareaRef = useRef<HTMLTextAreaElement>(null);
+  // テキストエリアの高さを内容に合わせて自動調整する関数
+  const adjustTextareaHeight = useCallback((el: HTMLTextAreaElement) => {
+    el.style.height = "auto";
+    el.style.height = Math.max(200, el.scrollHeight) + "px";
+  }, []);
   // 最終保存タイムスタンプ
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   // 最終保存から経過時間の表示用（1分ごとに更新）
@@ -508,6 +515,13 @@ export default function RecordInput() {
     } catch { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // clinicalNotes変更時（音声入力・下書き復元など）にテキストエリアの高さを自動調整
+  useEffect(() => {
+    if (clinicalNotesTextareaRef.current) {
+      adjustTextareaHeight(clinicalNotesTextareaRef.current);
+    }
+  }, [clinicalNotes, adjustTextareaHeight]);
 
   // 入力内容が変わるたびにdebounce 1秒でlocalStorageに保存
   useEffect(() => {
@@ -1902,10 +1916,14 @@ export default function RecordInput() {
             </div>
             {/* テキストエリア（オーバーレイなし） */}
             <Textarea
+              ref={clinicalNotesTextareaRef}
               placeholder="本日訪問で観察した症状・状態・利用者の言葉・環境の変化などをメモしてください..."
               value={clinicalNotes}
-              onChange={(e) => setClinicalNotes(e.target.value)}
-              className="min-h-[200px] text-sm resize-y"
+              onChange={(e) => {
+                setClinicalNotes(e.target.value);
+                adjustTextareaHeight(e.target);
+              }}
+              className="min-h-[200px] text-sm resize-none overflow-hidden"
             />
             {/* 最終保存タイムスタンプ + 文字数カウンター */}
             <div className="flex items-center justify-between mt-1">
