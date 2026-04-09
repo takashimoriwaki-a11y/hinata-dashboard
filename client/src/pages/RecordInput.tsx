@@ -687,6 +687,15 @@ export default function RecordInput() {
     setClinicalNotes("");
     // 誤変換報告表示もリセット
     notesVoice.clearLastTranscribedText();
+    // localStorageのclinicalNotesも削除（再度アプリを開いたときに復元されないように）
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const draft = JSON.parse(raw);
+        draft.clinicalNotes = "";
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      }
+    } catch { /* ignore */ }
   };
 
   const handleReset = () => {
@@ -1755,6 +1764,40 @@ export default function RecordInput() {
                   {formatElapsedTime(notesVoice.elapsedSeconds)} / 3:00
                 </span>
               )}
+              {/* 病状の経過リセットボタン */}
+              {clinicalNotes.trim() && !notesVoice.isRecording && (
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm("入力内容を全て削除します。よろしいですか？")) {
+                            setClinicalNotes("");
+                            notesVoice.clearLastTranscribedText();
+                            // localStorageからも削除
+                            try {
+                              const raw = localStorage.getItem(DRAFT_KEY);
+                              if (raw) {
+                                const draft = JSON.parse(raw);
+                                draft.clinicalNotes = "";
+                                localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+                              }
+                            } catch { /* ignore */ }
+                            toast.success("病状の経過をリセットしました");
+                          }
+                        }}
+                        className="text-xs px-2 py-0.5 rounded-full border font-medium transition-all bg-muted text-muted-foreground border-border hover:bg-red-50 hover:text-red-600 hover:border-red-300 dark:hover:bg-red-950/30 dark:hover:text-red-400 dark:hover:border-red-700"
+                      >
+                        リセット
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="text-xs">
+                      入力内容を全て削除します
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
               {/* 長文モード切り替えボタン */}
               <TooltipProvider delayDuration={300}>
                 <Tooltip>
@@ -1776,8 +1819,8 @@ export default function RecordInput() {
                   </TooltipTrigger>
                   <TooltipContent side="bottom" className="max-w-[220px] text-xs">
                     {notesLongTextMode
-                      ? "長文モード ON：無音自動停止 60秒・最大3分まで録音できます"
-                      : "長文モード：ONにすると無音自動停止が60秒・最大3分まで録音できます（通常は30秒）"}
+                      ? "長文モード ON：無音自動停止 60秒・最大３分まで録音できます"
+                      : "長文モード：ONにすると無音自動停止が60秒・最大３分まで録音できます（通常は30秒）"}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
