@@ -644,7 +644,13 @@ function DailyByTeamCard() {
                           : "text-muted-foreground"
                       }`}
                     >
-                      {d.label}
+                      {i === todayDayIndex ? (
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-primary text-primary">
+                          {d.label}
+                        </span>
+                      ) : (
+                        d.label
+                      )}
                     </th>
                   ))}
                 </tr>
@@ -670,11 +676,7 @@ function DailyByTeamCard() {
                                 ? "bg-red-900/20"
                                 : "bg-red-50"
                               : ""
-                          } ${
-                            i === todayDayIndex
-                              ? "text-primary font-bold"
-                              : "text-foreground"
-                          }`}
+                          } text-foreground`}
                         >
                           {team[d.key]}
                         </td>
@@ -696,9 +698,7 @@ function DailyByTeamCard() {
                               ? "bg-red-900/20"
                               : "bg-red-50"
                             : ""
-                        } ${
-                          i === todayDayIndex ? "text-primary" : "text-foreground"
-                        }`}
+                        } text-foreground`}
                       >
                         {data.total![d.key]}
                       </td>
@@ -719,9 +719,7 @@ function DailyByTeamCard() {
                               ? "bg-red-900/20"
                               : "bg-red-50"
                             : ""
-                        } ${
-                          i === todayDayIndex ? "text-primary" : "text-muted-foreground"
-                        }`}
+                        } text-muted-foreground`}
                       >
                         {data.target![d.key]}
                       </td>
@@ -748,7 +746,7 @@ function DailyByTeamCard() {
                               : ""
                           } ${
                             isPositive
-                              ? "text-emerald-600 dark:text-emerald-400"
+                              ? "text-blue-600 dark:text-blue-400"
                               : isNegative
                               ? "text-red-500 dark:text-red-400"
                               : "text-muted-foreground"
@@ -782,7 +780,7 @@ function DailyByTeamCard() {
                               : ""
                           } ${
                             isOver
-                              ? "text-emerald-600 dark:text-emerald-400"
+                              ? "text-blue-600 dark:text-blue-400"
                               : isLow
                               ? "text-red-500 dark:text-red-400"
                               : "text-amber-600 dark:text-amber-400"
