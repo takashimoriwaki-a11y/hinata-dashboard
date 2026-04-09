@@ -13,6 +13,9 @@ function isNightTime(): boolean {
   return false;
 }
 
+// 手動上書きの状態（null = 手動上書きなし → 時刻に従う）
+type ManualOverride = "light" | "dark" | null;
+
 interface ThemeContextType {
   theme: Theme;
   isNight: boolean;
@@ -35,18 +38,30 @@ export function ThemeProvider({
 }: ThemeProviderProps) {
   const [isNight, setIsNight] = useState<boolean>(() => isNightTime());
 
-  // 時間帯に基づいたテーマ（switchable=falseのとき自動）
-  const autoTheme: Theme = isNight ? "dark" : "light";
-
-  const [manualTheme, setManualTheme] = useState<Theme>(() => {
+  // 手動上書き状態（null = 自動、"light"/"dark" = 手動固定）
+  const [manualOverride, setManualOverride] = useState<ManualOverride>(() => {
     if (switchable) {
-      const stored = localStorage.getItem("theme");
-      return (stored as Theme) || defaultTheme;
+      const stored = localStorage.getItem("themeOverride");
+      return (stored as ManualOverride) || null;
     }
-    return defaultTheme;
+    return null;
   });
 
-  const theme: Theme = switchable ? manualTheme : autoTheme;
+  // 時間帯に基づいたテーマ
+  const autoTheme: Theme = isNight ? "dark" : "light";
+
+  // 実際のテーマを決定：
+  // - switchable=false → 時刻に従う
+  // - switchable=true かつ手動上書きあり → 手動上書きに従う
+  // - switchable=true かつ手動上書きなし → 時刻に従う（自動）
+  const theme: Theme = switchable
+    ? (manualOverride !== null ? manualOverride : autoTheme)
+    : autoTheme;
+
+  // isNight は手動上書きも考慮した実効値
+  const effectiveIsNight = switchable
+    ? (manualOverride === "light" ? false : (manualOverride === "dark" ? true : isNight))
+    : isNight;
 
   // 毎分チェックして時刻をまたいだ際に自動切替
   useEffect(() => {
@@ -69,10 +84,7 @@ export function ThemeProvider({
   // また dark クラスも同期（shadcn/ui の dark: ユーティリティ用）
   useEffect(() => {
     const root = document.documentElement;
-    if (isNight && !switchable) {
-      root.classList.add("night", "dark");
-      root.classList.remove("light");
-    } else if (switchable && manualTheme === "dark") {
+    if (theme === "dark") {
       root.classList.add("night", "dark");
       root.classList.remove("light");
     } else {
@@ -81,18 +93,26 @@ export function ThemeProvider({
     }
 
     if (switchable) {
-      localStorage.setItem("theme", manualTheme);
+      if (manualOverride !== null) {
+        localStorage.setItem("themeOverride", manualOverride);
+      } else {
+        localStorage.removeItem("themeOverride");
+      }
     }
-  }, [isNight, switchable, manualTheme]);
+  }, [theme, switchable, manualOverride]);
 
   const toggleTheme = switchable
     ? () => {
-        setManualTheme(prev => (prev === "light" ? "dark" : "light"));
+        setManualOverride(prev => {
+          // 現在の実効テーマの逆を手動固定する
+          const currentTheme = prev !== null ? prev : autoTheme;
+          return currentTheme === "light" ? "dark" : "light";
+        });
       }
     : undefined;
 
   return (
-    <ThemeContext.Provider value={{ theme, isNight, toggleTheme, switchable }}>
+    <ThemeContext.Provider value={{ theme, isNight: effectiveIsNight, toggleTheme, switchable }}>
       {children}
     </ThemeContext.Provider>
   );
