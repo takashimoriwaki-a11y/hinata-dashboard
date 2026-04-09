@@ -3045,7 +3045,7 @@ function TasksCard() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <ClipboardList className="w-4 h-4 text-primary" />
-              未完了タスク
+              タスク
             </CardTitle>
             <Link href="/tasks">
               <span className="text-xs text-primary hover:underline cursor-pointer">すべて見る</span>
@@ -4573,7 +4573,7 @@ export default function Dashboard() {
       {/* メインコンテンツ: PC版2カラム、モバイル1カラム */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4 items-start">
         {/* 左カラム（PC）: スケジュール・メッセージ・訪問件数・新規契約 */}
-        {/* モバイル: 訪問スケジュール→チームツール→全チーム共通ツール→未完了タスク→メッセージ→訪問件数→新規契約 */}
+        {/* モバイル: 訪問スケジュール→チームツール→全チーム共通ツール→タスク→メッセージ→訪問件数→新規契約 */}
         <div className="space-y-3 md:space-y-4">
           {/* 訪問スケジュール（モバイル・PC共通で最初） */}
           <ScheduleScreenshotCard />
@@ -4585,7 +4585,7 @@ export default function Dashboard() {
           <div className="lg:hidden">
             <ToolsCard />
           </div>
-          {/* 未完了タスク（モバイル: 4番目、PC: 右カラム） */}
+          {/* タスク（モバイル: 4番目、PC: 右カラム） */}
           <div className="lg:hidden">
             <TasksCard />
           </div>
