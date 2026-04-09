@@ -1801,6 +1801,9 @@ export default function RecordInput() {
                           if (confirm("入力内容を全て削除します。よろしいですか？")) {
                             setClinicalNotes("");
                             notesVoice.clearLastTranscribedText();
+                            // タイムスタンプ表示もリセット
+                            setLastSavedAt(null);
+                            setSavedAgoText("");
                             // localStorageからも削除
                             try {
                               const raw = localStorage.getItem(DRAFT_KEY);
