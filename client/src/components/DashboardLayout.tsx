@@ -470,7 +470,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <header className={cn(
           "flex items-center justify-between px-3 md:px-4 py-2.5 border-b border-border shadow-sm flex-shrink-0 bg-sidebar"
         )}>
-          <div className="flex items-center gap-2 md:gap-3 min-w-0">
+          <div className="flex items-center gap-2 md:gap-3 min-w-0 overflow-hidden">
             {/* モバイル: ハンバーガーメニュー */}
             <button
               className="md:hidden text-muted-foreground hover:text-primary p-1 -ml-1 flex-shrink-0"
@@ -489,7 +489,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <span className={cn("hidden md:inline text-xs font-mono font-medium whitespace-nowrap tabular-nums", isNight ? "text-[oklch(0.75_0.1_280)]" : "text-foreground/80")}>{timeStr}</span>
               </div>
               <span className={cn("hidden md:block text-xs font-medium border-l border-border pl-3 whitespace-nowrap", isNight ? "text-slate-200" : "text-foreground/75")}>こころの訪問看護ステーションひなた</span>
-              <span className={cn("md:hidden text-xs font-semibold leading-tight whitespace-nowrap", isNight ? "text-slate-200" : "text-foreground")}>こころの訪問看護ステーションひなた</span>
+              <span className={cn("md:hidden text-xs font-semibold leading-tight truncate", isNight ? "text-slate-200" : "text-foreground")}>こころの訪問看護ステーションひなた</span>
             </div>
           </div>
           <div className="flex items-center gap-1.5 md:gap-2">
