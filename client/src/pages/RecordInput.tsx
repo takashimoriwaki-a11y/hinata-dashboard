@@ -1905,7 +1905,7 @@ export default function RecordInput() {
               placeholder="本日訪問で観察した症状・状態・利用者の言葉・環境の変化などをメモしてください..."
               value={clinicalNotes}
               onChange={(e) => setClinicalNotes(e.target.value)}
-              className="min-h-[120px] text-sm resize-y"
+              className="min-h-[200px] text-sm resize-y"
             />
             {/* 最終保存タイムスタンプ + 文字数カウンター */}
             <div className="flex items-center justify-between mt-1">

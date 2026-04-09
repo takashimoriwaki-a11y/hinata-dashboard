@@ -1533,7 +1533,7 @@ function ScheduleScreenshotCard() {
 
           {/* チーム・日付セレクター */}
           <div className="flex flex-wrap gap-2 mt-2">
-            <div className="flex gap-1 flex-wrap">
+            <div className="grid grid-cols-5 gap-1 w-full">
               {/* 全チームボタン */}
               <button
                 onClick={() => {
@@ -1541,7 +1541,7 @@ function ScheduleScreenshotCard() {
                   setSwipeIndex(0);
                 }}
                 className={cn(
-                  "text-xs px-2.5 py-1 rounded-md border transition-all font-medium",
+                  "text-xs px-1 py-1.5 rounded-md border transition-all font-medium text-center",
                   getTeamButtonClass("全チーム", showAllTeams)
                 )}
                 style={getAllTeamButtonStyle(showAllTeams)}
@@ -1557,7 +1557,7 @@ function ScheduleScreenshotCard() {
                     handleTeamChange(t);
                   }}
                   className={cn(
-                    "text-xs px-2.5 py-1 rounded-md transition-all font-medium",
+                    "text-xs px-1 py-1.5 rounded-md transition-all font-medium text-center",
                     getTeamButtonClass(t, !showAllTeams && selectedTeam === t)
                   )}
                   style={getTeamButtonStyle(t, !showAllTeams && selectedTeam === t)}
