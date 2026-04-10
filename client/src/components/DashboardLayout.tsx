@@ -399,16 +399,38 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
 
-      {/* ========== PC用サイドバー（md以上で常時固定表示） ========== */}
+      {/* ========== PC用サイドバー（md以上で表示・開閉可能） ========== */}
       <div className="relative hidden md:flex flex-shrink-0 h-full">
         <aside
           className={cn(
             "flex flex-col h-full z-30 overflow-hidden",
             "bg-sidebar text-sidebar-foreground border-r border-sidebar-border",
-            "w-56"
+            "transition-all duration-300 ease-in-out",
+            collapsed ? "w-14" : "w-56"
           )}
         >
           <SidebarContent />
+          {/* 開閉ボタン（サイドバー下部） */}
+          <div className="border-t border-sidebar-border flex-shrink-0">
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className={cn(
+                "w-full flex items-center gap-2 py-3 px-3 transition-all duration-150",
+                "text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                collapsed ? "justify-center" : "justify-start"
+              )}
+              title={collapsed ? "サイドパネルを開く" : "サイドパネルを閉じる"}
+            >
+              {collapsed ? (
+                <ChevronRight className="w-5 h-5 flex-shrink-0" />
+              ) : (
+                <>
+                  <ChevronLeft className="w-5 h-5 flex-shrink-0" />
+                  <span className="text-xs font-medium">閉じる</span>
+                </>
+              )}
+            </button>
+          </div>
         </aside>
       </div>
 
