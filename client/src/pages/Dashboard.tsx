@@ -360,9 +360,9 @@ function VisitCountCard() {
       <Card className="fade-in-up stagger-1 shadow-sm">
         <CardHeader className="pb-1 pt-3 px-4">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <Activity className="w-4 h-4 text-primary" />
-              訪問件数
+            <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+              <Activity className="w-5 h-5 text-primary" />
+              <span className="tracking-wide">訪問件数</span>
             </CardTitle>
           </div>
           <p className="text-xs text-muted-foreground">読み込み中...</p>
@@ -388,9 +388,9 @@ function VisitCountCard() {
     <Card className="fade-in-up stagger-1 shadow-sm flex flex-col">
       <CardHeader className="pb-1 pt-3 px-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <Activity className="w-4 h-4 text-primary" />
-            訪問件数
+          <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+            <Activity className="w-5 h-5 text-primary" />
+            <span className="tracking-wide">訪問件数</span>
           </CardTitle>
           <Button
             variant="ghost"
@@ -609,8 +609,8 @@ function DailyByTeamCard() {
     <Card className="fade-in-up shadow-sm">
       <CardHeader className="pb-2 pt-3 px-4">
         <CardTitle className="text-base font-semibold flex items-center justify-between gap-2">
-          <span className="flex items-center gap-2">
-            <CalendarDays className="w-4 h-4 text-primary" />
+          <span className="flex items-center gap-2 text-lg font-bold text-foreground tracking-wide">
+            <CalendarDays className="w-5 h-5 text-primary" />
             曜日別件数
           </span>
           <button
@@ -1681,9 +1681,9 @@ function ScheduleScreenshotCard() {
       <Card className="fade-in-up stagger-2 shadow-sm">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-primary" />
-              訪問スケジュール
+            <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+              <Calendar className="w-5 h-5 text-primary" />
+              <span className="tracking-wide">訪問スケジュール</span>
             </CardTitle>
             <button
               onClick={() => openLink("https://homecare.zest.jp/login")}
@@ -2469,9 +2469,9 @@ function ToolsCard() {
   return (
     <Card className="fade-in-up stagger-2 shadow-sm">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base font-semibold flex items-center gap-2">
-          <LinkIcon className="w-4 h-4 text-primary" />
-          全チーム共通ツール
+        <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+          <LinkIcon className="w-5 h-5 text-primary" />
+          <span className="tracking-wide">全チーム共通ツール</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -2913,9 +2913,9 @@ function TeamToolsCard() {
   return (
     <Card className="fade-in-up stagger-1 shadow-sm">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base font-semibold flex items-center gap-2">
-          <Users className="w-4 h-4 text-primary" />
-          チームツール
+        <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+          <Users className="w-5 h-5 text-primary" />
+          <span className="tracking-wide">チームツール</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -3145,9 +3145,9 @@ function TasksCard() {
       <Card className="shadow-sm">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <ClipboardList className="w-4 h-4 text-primary" />
-              今日のタスク
+            <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+              <ClipboardList className="w-5 h-5 text-primary" />
+              <span className="tracking-wide">今日のタスク</span>
             </CardTitle>
             <Link href="/tasks">
               <span className="text-xs text-primary hover:underline cursor-pointer">すべて見る</span>
@@ -3513,9 +3513,9 @@ function MessageBoard({ title }: { title: string }) {
     <Card className="fade-in-up stagger-4 shadow-sm flex flex-col">
       <CardHeader className="pb-2">
         <div className="flex items-center">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <MessageSquare className="w-4 h-4 text-primary" />
-            {title}
+          <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+            <MessageSquare className="w-5 h-5 text-primary" />
+            <span className="tracking-wide">{title}</span>
           </CardTitle>
         </div>
       </CardHeader>
@@ -3868,7 +3868,7 @@ function MessageBoard({ title }: { title: string }) {
                     <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
                       {(msg.createdByName ?? "不明")[0]}
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 w-full">
                       <div className="flex items-center gap-1.5 mb-0.5">
                         <span className="text-xs font-semibold text-foreground">
                           {msg.createdByName ?? "不明"}
@@ -3911,38 +3911,38 @@ function MessageBoard({ title }: { title: string }) {
                           </div>
                         </div>
                       ) : (
-                        <p className="text-base font-semibold text-sky-700 dark:text-sky-300 leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                        <p className="text-base font-semibold text-sky-700 dark:text-sky-300 leading-relaxed whitespace-pre-wrap w-full">{msg.text}</p>
+                      )}
+                      {/* 編集・削除ボタン（作成者のみ・本文の下に表示） */}
+                      {msg.createdBy === user?.id && editingMsgId !== msg.id && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <button
+                            onTouchStart={() => {}}
+                            onClick={() => {
+                              setEditingMsgId(msg.id);
+                              setEditingText(msg.text);
+                            }}
+                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors px-2 py-1 rounded-md hover:bg-primary/10 min-h-[32px] touch-manipulation"
+                            style={{ touchAction: 'manipulation' }}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            編集
+                          </button>
+                          <button
+                            onTouchStart={() => {}}
+                            onClick={() => {
+                              setDeleteMsgId(msg.id);
+                              setDeleteMsgText(msg.text);
+                            }}
+                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded-md hover:bg-destructive/10 min-h-[32px] touch-manipulation"
+                            style={{ touchAction: 'manipulation' }}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            削除
+                          </button>
+                        </div>
                       )}
                     </div>
-                    {/* 編集・削除ボタン（作成者のみ） */}
-                    {msg.createdBy === user?.id && (
-                      <div className="md:opacity-0 md:group-hover:opacity-100 flex items-center gap-1 flex-shrink-0 transition-all">
-                        <button
-                          onTouchStart={() => {}}
-                          onClick={() => {
-                            setEditingMsgId(msg.id);
-                            setEditingText(msg.text);
-                          }}
-                          className="text-muted-foreground hover:text-primary transition-colors p-1 min-w-[32px] min-h-[32px] flex items-center justify-center"
-                          style={{ touchAction: 'manipulation' }}
-                          title="修正"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onTouchStart={() => {}}
-                          onClick={() => {
-                            setDeleteMsgId(msg.id);
-                            setDeleteMsgText(msg.text);
-                          }}
-                          className="text-muted-foreground hover:text-destructive transition-colors p-1 min-w-[32px] min-h-[32px] flex items-center justify-center"
-                          style={{ touchAction: 'manipulation' }}
-                          title="削除"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    )}
                   </div>
                   {/* リアクション */}
                   <div className="flex flex-wrap gap-1 mt-1.5 ml-8">
@@ -4714,9 +4714,9 @@ export default function Dashboard() {
           {/* 新規契約（モバイル: 8番目、PC: 左カラム5番目） */}
           <Card data-scroll-reveal data-delay="400" className="shadow-sm">
             <CardHeader className="pb-2 pt-3 px-4">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <FileText className="w-4 h-4 text-primary" />
-                新規契約
+              <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+                <FileText className="w-5 h-5 text-primary" />
+                <span className="tracking-wide">新規契約</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-3">
