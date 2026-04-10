@@ -2004,7 +2004,7 @@ export default function RecordInput() {
                   onChange={(e) => setCheckItems(prev => ({ ...prev, 食事: e.target.value }))}
                 />
                 <div className="flex flex-wrap gap-1 mt-1">
-                  {["全量", "半量", "摂取不山"].map((preset) => (
+                  {["全量", "半量", "摂取不十分", "拒否"].map((preset) => (
                     <button
                       key={preset}
                       type="button"
