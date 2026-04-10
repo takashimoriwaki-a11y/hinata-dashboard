@@ -1256,6 +1256,167 @@ function ScheduleCommentSection({ team, day }: { team: string; day: string }) {
     </div>
   );
 }
+// ========== 全チームスケジュールモーダル（スクロール位置保持対応） ==========
+
+type ScheduleAllTeamsModalProps = {
+  viewMeta: { team: string; day: string; uploadedByName: string | null; updatedAt: Date };
+  screenshots: Array<{ id: number; team: string; day: string; imageUrl: string | null | undefined; uploadedByName: string | null | undefined; updatedAt: Date }>;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+  onClose: () => void;
+  onDayChange: (d: DayType) => void;
+  onLightbox: (src: string, alt: string) => void;
+};
+
+function ScheduleAllTeamsModal({ viewMeta, screenshots, scrollRef, onClose, onDayChange, onLightbox }: ScheduleAllTeamsModalProps) {
+  const allTeamSlides = TEAMS.map((team) => ({
+    team,
+    screenshot: screenshots.find((s) => s.team === team && s.day === viewMeta.day) ?? null,
+  }));
+  const registeredCount = allTeamSlides.filter((s) => s.screenshot !== null).length;
+
+  const teamSectionId = (team: string) => `modal-team-${team.replace(/\s/g, "-")}`;
+
+  const scrollToTeam = (team: string) => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const el = container.querySelector(`#${teamSectionId(team)}`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  // ESCキーで閉じる
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return (
+    <div
+      ref={scrollRef}
+      className="fixed inset-0 z-[80] bg-black/85 overflow-y-auto animate-fade-in-overlay"
+      onClick={onClose}
+    >
+      <div
+        className="relative max-w-2xl w-full mx-auto bg-card text-card-foreground rounded-xl shadow-2xl mt-4 mb-10 animate-slide-up-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* モーダルヘッダー（sticky） */}
+        <div className="flex flex-col gap-2 px-4 pt-3 pb-2 border-b border-border sticky top-0 bg-card z-10 rounded-t-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold">訪問スケジュール（全チーム）</span>
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                {registeredCount}/{TEAMS.length}チーム登録済み
+              </span>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          {/* 今日/明日/3日後/4日後タブ */}
+          <div className="flex gap-1">
+            {DAYS.map((d) => (
+              <button
+                key={d}
+                onClick={() => onDayChange(d)}
+                className={cn(
+                  "px-4 py-1.5 text-xs font-semibold rounded-full transition-colors",
+                  viewMeta.day === d
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                )}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
+          {/* チームジャンプボタン行 */}
+          <div className="flex gap-1 flex-wrap">
+            {TEAMS.map((team) => (
+              <button
+                key={team}
+                onClick={() => scrollToTeam(team)}
+                className="px-3 py-1 text-xs font-medium rounded-full bg-muted/60 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors border border-border/50"
+              >
+                {team}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 全チームの画像を縦スクロールで表示（未登録チームも含む） */}
+        <div className="divide-y divide-border">
+          {allTeamSlides.map(({ team, screenshot }, idx) => {
+            const nextTeam = allTeamSlides[idx + 1]?.team ?? null;
+            const isLast = idx === allTeamSlides.length - 1;
+            return (
+              <div key={team} id={teamSectionId(team)}>
+                {/* チーム名ラベル */}
+                <div className="flex items-center justify-between px-4 py-2 bg-muted/40">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-foreground">{team}チーム</span>
+                    {screenshot?.uploadedByName && (
+                      <span className="text-xs text-muted-foreground">· {screenshot.uploadedByName}</span>
+                    )}
+                    {!screenshot && (
+                      <span className="text-xs text-muted-foreground italic">未登録</span>
+                    )}
+                  </div>
+                  {screenshot && (
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(screenshot.updatedAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} 登録
+                    </span>
+                  )}
+                </div>
+                {screenshot?.imageUrl ? (
+                  <PinchZoomImage
+                    src={screenshot.imageUrl}
+                    alt={`${team}チーム ${viewMeta.day}のスケジュール`}
+                    onClickLightbox={() => {
+                      if (screenshot.imageUrl) onLightbox(screenshot.imageUrl, `${team}チーム ${viewMeta.day}のスケジュール`);
+                    }}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-24 bg-muted/20 text-muted-foreground gap-1">
+                    <Calendar className="w-6 h-6 opacity-30" />
+                    <span className="text-xs">まだ登録されていません</span>
+                  </div>
+                )}
+                {/* 申し送り・コメントセクション */}
+                <ScheduleCommentSection team={team} day={viewMeta.day} />
+                {/* 次のチームへボタン */}
+                <div className="flex justify-end px-3 py-2 bg-muted/20">
+                  {!isLast && nextTeam ? (
+                    <button
+                      onClick={() => scrollToTeam(nextTeam)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                    >
+                      <ChevronDown className="w-3.5 h-3.5" />
+                      {nextTeam}チームへ
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => scrollToTeam(TEAMS[0])}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+                    >
+                      <ChevronUp className="w-3.5 h-3.5" />
+                      先頭に戻る
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ========== ZESTスクリーンショットカード（tRPC+S3+DB版）==========
 
 function ScheduleScreenshotCard() {
@@ -1289,6 +1450,7 @@ function ScheduleScreenshotCard() {
   const [lightboxAlt, setLightboxAlt] = useState<string>("");
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const modalScrollRef = useRef<HTMLDivElement>(null);
   const utils = trpc.useUtils();
   // 全チームモード（localStorage永続化）
   const [showAllTeams, setShowAllTeamsRaw] = useState(() => {
@@ -1761,150 +1923,18 @@ function ScheduleScreenshotCard() {
       </Card>
 
       {/* 拡大モーダル（縦スクロールで全チームの今日分を一覧表示） */}
-      {viewMeta && createPortal((() => {/* portal-start */
-        // 全チームのスクショ（登録済み・未登録問わず）を取得
-        const allTeamSlides = TEAMS.map((team) => ({
-          team,
-          screenshot: screenshots?.find((s) => s.team === team && s.day === viewMeta.day) ?? null,
-        }));
-        const registeredCount = allTeamSlides.filter((s) => s.screenshot !== null).length;
+      {viewMeta && createPortal((
+        <ScheduleAllTeamsModal
+          viewMeta={viewMeta}
+          screenshots={screenshots ?? []}
+          scrollRef={modalScrollRef}
+          onClose={() => { setViewUrl(null); setViewMeta(null); }}
+          onDayChange={(d) => setViewMeta({ ...viewMeta, day: d })}
+          onLightbox={(src, alt) => { setLightboxSrc(src); setLightboxAlt(alt); }}
+        />
+      ), document.body)}
 
-        // 各チームセクションのスクロール先IDを生成
-        const teamSectionId = (team: string) => `modal-team-${team.replace(/\s/g, "-")}`;
 
-        const scrollToTeam = (team: string, container: HTMLElement | null) => {
-          if (!container) return;
-          const el = container.querySelector(`#${teamSectionId(team)}`);
-          if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-        };
-
-        return (
-        <div
-          className="fixed inset-0 z-[80] bg-black/85 overflow-y-auto animate-fade-in-overlay"
-          id="modal-scroll-container"
-          onClick={() => { setViewUrl(null); setViewMeta(null); }}
-        >
-          <div
-            className="relative max-w-2xl w-full mx-auto bg-card text-card-foreground rounded-xl shadow-2xl mt-4 mb-10 animate-slide-up-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* モーダルヘッダー（sticky） */}
-            <div className="flex flex-col gap-2 px-4 pt-3 pb-2 border-b border-border sticky top-0 bg-card z-10 rounded-t-xl">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-semibold">訪問スケジュール（全チーム）</span>
-                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                    {registeredCount}/{TEAMS.length}チーム登録済み
-                  </span>
-                </div>
-                <button
-                  onClick={() => { setViewUrl(null); setViewMeta(null); }}
-                  className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              {/* 今日/明日/3日後/4日後タブ */}
-              <div className="flex gap-1">
-                {DAYS.map((d) => (
-                  <button
-                    key={d}
-                    onClick={() => setViewMeta({ ...viewMeta, day: d })}
-                    className={cn(
-                      "px-4 py-1.5 text-xs font-semibold rounded-full transition-colors",
-                      viewMeta.day === d
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80"
-                    )}
-                  >
-                    {d}
-                  </button>
-                ))}
-              </div>
-              {/* チームジャンプボタン行 */}
-              <div className="flex gap-1 flex-wrap">
-                {TEAMS.map((team) => (
-                  <button
-                    key={team}
-                    onClick={() => scrollToTeam(team, document.getElementById("modal-scroll-container"))}
-                    className="px-3 py-1 text-xs font-medium rounded-full bg-muted/60 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors border border-border/50"
-                  >
-                    {team}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* 全チームの画像を縦スクロールで表示（未登録チームも含む） */}
-            <div className="divide-y divide-border">
-              {allTeamSlides.map(({ team, screenshot }, idx) => {
-                const nextTeam = allTeamSlides[idx + 1]?.team ?? null;
-                const isLast = idx === allTeamSlides.length - 1;
-                return (
-                <div key={team} id={teamSectionId(team)}>
-                  {/* チーム名ラベル */}
-                  <div className="flex items-center justify-between px-4 py-2 bg-muted/40">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-foreground">{team}チーム</span>
-                      {screenshot?.uploadedByName && (
-                        <span className="text-xs text-muted-foreground">· {screenshot.uploadedByName}</span>
-                      )}
-                      {!screenshot && (
-                        <span className="text-xs text-muted-foreground italic">未登録</span>
-                      )}
-                    </div>
-                    {screenshot && (
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(screenshot.updatedAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} 登録
-                      </span>
-                    )}
-                  </div>
-                  {screenshot ? (
-                    <PinchZoomImage
-                      src={screenshot.imageUrl}
-                      alt={`${team}\u30c1\u30fc\u30e0 ${viewMeta.day}\u306e\u30b9\u30b1\u30b8\u30e5\u30fc\u30eb`}
-                      onClickLightbox={() => {
-                        setLightboxSrc(screenshot.imageUrl);
-                        setLightboxAlt(`${team}\u30c1\u30fc\u30e0 ${viewMeta.day}\u306e\u30b9\u30b1\u30b8\u30e5\u30fc\u30eb`);
-                      }}
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-24 bg-muted/20 text-muted-foreground gap-1">
-                      <Calendar className="w-6 h-6 opacity-30" />
-                      <span className="text-xs">まだ登録されていません</span>
-                    </div>
-                  )}
-                  {/* 申し送り・コメントセクション */}
-                  <ScheduleCommentSection team={team} day={viewMeta.day} />
-                  {/* 次のチームへボタン */}
-                  <div className="flex justify-end px-3 py-2 bg-muted/20">
-                    {!isLast && nextTeam ? (
-                      <button
-                        onClick={() => scrollToTeam(nextTeam, document.getElementById("modal-scroll-container"))}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                      >
-                        <ChevronDown className="w-3.5 h-3.5" />
-                        {nextTeam}チームへ
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => scrollToTeam(TEAMS[0], document.getElementById("modal-scroll-container"))}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
-                      >
-                        <ChevronUp className="w-3.5 h-3.5" />
-                        先頭に戻る
-                      </button>
-                    )}
-                  </div>
-                </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-        );
-      })(), document.body)}
 
       {/* 個別ライトボックス（1枚フルスクリーン表示） */}
       {lightboxSrc && createPortal((
