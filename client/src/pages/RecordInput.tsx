@@ -885,6 +885,17 @@ export default function RecordInput() {
       <Card className="shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-semibold">① 次回訪問日時</CardTitle>
+          {/* ZESTボタン */}
+          <a
+            href="https://zest.kokoronohinata.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 w-full h-11 rounded-full text-sm font-bold text-white transition-opacity hover:opacity-90 active:opacity-80 mt-2"
+            style={{ backgroundColor: "#2ab5a5" }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            ZEST
+          </a>
         </CardHeader>
         <CardContent className="space-y-4">
 
@@ -1970,7 +1981,7 @@ export default function RecordInput() {
             <div className="grid grid-cols-2 gap-2">
               {/* 睡眠 */}
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">睡眠</label>
+                <label className="text-xs font-bold text-foreground mb-1 block">睡眠</label>
                 <Input
                   className="text-sm h-9"
                   placeholder="睡眠の状態を入力..."
@@ -1996,7 +2007,7 @@ export default function RecordInput() {
               </div>
               {/* 食事 */}
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">食事</label>
+                <label className="text-xs font-bold text-foreground mb-1 block">食事</label>
                 <Input
                   className="text-sm h-9"
                   placeholder="食事の状態を入力..."
@@ -2022,7 +2033,7 @@ export default function RecordInput() {
               </div>
               {/* 排泄 */}
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">排泄</label>
+                <label className="text-xs font-bold text-foreground mb-1 block">排泄</label>
                 <Input
                   className="text-sm h-9"
                   placeholder="排泄の状態を入力..."
@@ -2048,7 +2059,7 @@ export default function RecordInput() {
               </div>
               {/* 服薬 */}
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">服薬</label>
+                <label className="text-xs font-bold text-foreground mb-1 block">服薬</label>
                 <Input
                   className="text-sm h-9"
                   placeholder="服薬の状態を入力..."
@@ -2056,7 +2067,7 @@ export default function RecordInput() {
                   onChange={(e) => setCheckItems(prev => ({ ...prev, 服薬: e.target.value }))}
                 />
                 <div className="flex flex-wrap gap-1 mt-1">
-                  {["確認済", "拒薬", "不明"].map((preset) => (
+                  {["良好", "拒薬", "不明"].map((preset) => (
                     <button
                       key={preset}
                       type="button"
@@ -2303,17 +2314,6 @@ export default function RecordInput() {
               </div>
             );
           })()}
-          {/* ZESTへ飛ぶボタン */}
-          <a
-            href="https://zest.kokoronohinata.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full h-11 rounded-full text-sm font-bold text-white transition-opacity hover:opacity-90 active:opacity-80"
-            style={{ backgroundColor: "#2ab5a5" }}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            ZEST
-          </a>
           <Button
             className="w-full"
             onClick={handleCopyAndOpenGem}
