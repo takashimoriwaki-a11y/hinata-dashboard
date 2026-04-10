@@ -123,7 +123,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location]);
-  const [collapsed, setCollapsed] = useState(false);
+  const SIDEBAR_KEY = "hinata-sidebar-collapsed";
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_KEY) === "true";
+    } catch {
+      return false;
+    }
+  });
+  const toggleCollapsed = () => {
+    setCollapsed(prev => {
+      const next = !prev;
+      try { localStorage.setItem(SIDEBAR_KEY, String(next)); } catch {}
+      return next;
+    });
+  };
   // モバイル用ドロワー開閉
   const [mobileOpen, setMobileOpen] = useState(false);
   const { isNight, toggleTheme, switchable, theme } = useTheme();
@@ -413,7 +427,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           {/* 開閉ボタン（サイドバー下部） */}
           <div className="border-t border-sidebar-border flex-shrink-0">
             <button
-              onClick={() => setCollapsed(!collapsed)}
+              onClick={toggleCollapsed}
               className={cn(
                 "w-full flex items-center gap-2 py-3 px-3 transition-all duration-150",
                 "text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
