@@ -3795,7 +3795,7 @@ function MessageBoard({ title }: { title: string }) {
                           </div>
                         </div>
                       ) : (
-                        <p className="text-sm font-medium text-foreground leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                        <p className="text-base font-medium text-foreground leading-relaxed whitespace-pre-wrap">{msg.text}</p>
                       )}
                     </div>
                     {/* 編集・削除ボタン（作成者のみ） */}
