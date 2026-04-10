@@ -3017,13 +3017,23 @@ function TasksCard() {
   const VALID_TEAMS_DASH = ["身体", "天理", "郡山北部", "郡山南部"] as const;
   const VALID_TEAM_FILTERS_DASH = [...VALID_TEAMS_DASH, "all_team", "personal"] as const;
   type TeamFilterDash = typeof VALID_TEAMS_DASH[number] | "all_team" | "personal" | null;
-  const [dashTeamFilter] = useState<TeamFilterDash>(() => {
+  const [dashTeamFilter, setDashTeamFilter] = useState<TeamFilterDash>(() => {
     try {
       const saved = localStorage.getItem("tasks_teamFilter");
       if (saved && (VALID_TEAM_FILTERS_DASH as readonly string[]).includes(saved)) return saved as TeamFilterDash;
     } catch {}
     return null;
   });
+
+  // タスク管理画面でフィルターが変更されたとき、カスタムイベントを受け取ってリアルタイム同期
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const value = (e as CustomEvent).detail as TeamFilterDash;
+      setDashTeamFilter(value);
+    };
+    window.addEventListener("tasks_teamFilter_changed", handler);
+    return () => window.removeEventListener("tasks_teamFilter_changed", handler);
+  }, []);
 
   // チームフィルターを適用するヘルパー
   const matchesDashTeamFilter = (task: { assignType: string; assignTeam?: string | null; assignUserId?: number | null }): boolean => {

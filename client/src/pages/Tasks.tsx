@@ -166,6 +166,8 @@ export default function Tasks() {
     try {
       if (value === null) localStorage.removeItem("tasks_teamFilter");
       else localStorage.setItem("tasks_teamFilter", value);
+      // ホーム画面のフィルター状態をリアルタイム同期するためカスタムイベントを発火
+      window.dispatchEvent(new CustomEvent("tasks_teamFilter_changed", { detail: value }));
     } catch {}
   };
 
