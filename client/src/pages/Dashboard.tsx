@@ -392,15 +392,14 @@ function VisitCountCard() {
             <Activity className="w-5 h-5 text-primary" />
             <span className="tracking-wide">訪問件数</span>
           </CardTitle>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-7 h-7 text-muted-foreground"
+          <button
             onClick={() => { refetch(); setRefetchCount(c => c + 1); }}
             title="更新"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/40 active:scale-95 transition-all"
           >
             <RefreshCw className="w-3.5 h-3.5" />
-          </Button>
+            <span>更新</span>
+          </button>
         </div>
         <p className="text-xs text-muted-foreground">
           {data.currentMonth}（{data.lastUpdatedDate}時点の累計）
@@ -615,10 +614,11 @@ function DailyByTeamCard() {
           </span>
           <button
             onClick={() => refetch()}
-            className="text-muted-foreground hover:text-foreground transition-colors"
             title="更新"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/40 active:scale-95 transition-all"
           >
             <RefreshCw className="w-3.5 h-3.5" />
+            <span>更新</span>
           </button>
         </CardTitle>
       </CardHeader>
@@ -1904,9 +1904,22 @@ function ScheduleScreenshotCard() {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}
-                  className="text-xs text-primary hover:underline"
+                  className={cn(
+                    "flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95",
+                    isUploading
+                      ? "bg-muted text-muted-foreground cursor-not-allowed"
+                      : currentScreenshot
+                        ? "bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20"
+                        : "bg-primary text-primary-foreground shadow-sm hover:opacity-90"
+                  )}
                 >
-                  {isUploading ? "更新中..." : currentScreenshot ? "更新" : "登録"}
+                  {isUploading ? (
+                    <><RefreshCw className="w-3 h-3 animate-spin" /> 更新中...</>
+                  ) : currentScreenshot ? (
+                    <><RefreshCw className="w-3 h-3" /> 更新</>
+                  ) : (
+                    <><Upload className="w-3 h-3" /> 登録</>
+                  )}
                 </button>
               </div>
             </div>
@@ -3011,12 +3024,7 @@ function TeamToolsCard() {
           )}
         </div>
 
-        {/* 管理者用追加ボタン */}
-        {isAdmin && !showAddForm && tools.length > 0 && (
-          <div className="flex justify-end">
-            <Button variant="ghost" size="sm" className="h-6 text-xs text-primary px-2" onClick={() => setShowAddForm(true)} onTouchStart={() => {}} style={{ touchAction: 'manipulation' }}>+ 追加</Button>
-          </div>
-        )}
+
 
 
       </CardContent>
@@ -3134,7 +3142,7 @@ function TasksCard() {
           </div>
         </Link>
       )}
-      <Card className="shadow-sm">
+      <Card id="today-tasks" className="shadow-sm">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
@@ -4655,14 +4663,20 @@ export default function Dashboard() {
               <CalendarDays className="w-3.5 h-3.5 md:w-4 md:h-4" />
               <span className="leading-tight">スケジュール<br className="md:hidden" />管理</span>
             </Link>
-            <Link
-              href="/tasks"
+            <button
+              type="button"
               onTouchStart={() => {}}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#d95f5f', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#c45050')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#d95f5f')}
+              onClick={() => {
+                const el = document.getElementById('today-tasks');
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+              }}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#d95f5f', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}}
             >
               <ListTodo className="w-3.5 h-3.5 md:w-4 md:h-4" />
               今日のタスク
-            </Link>
+            </button>
             <Link
               href="/record#record-condition"
               onTouchStart={() => {}}

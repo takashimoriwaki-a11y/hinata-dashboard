@@ -553,7 +553,9 @@ export default function RecordInput() {
       if (draft.notifyMethod) setNotifyMethod(draft.notifyMethod as typeof notifyMethod);
       if (draft.notifyMethodOther) setNotifyMethodOther(draft.notifyMethodOther);
       if (draft.clinicalNotes) setClinicalNotes(draft.clinicalNotes);
-      setHasDraft(true);
+      // 実際に意味のある入力内容がある場合のみ復元バナーを表示する
+      const hasMeaningfulContent = !!(draft.patientName || draft.patientId || draft.nextVisitDate || draft.nextVisitTime || draft.clinicalNotes || draft.notifiedTo || draft.notifyMethod);
+      setHasDraft(hasMeaningfulContent);
     } catch { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1803,9 +1805,18 @@ export default function RecordInput() {
           </div>
           {/* リセットボタン（①カード内の末尾） */}
           <div className="flex justify-end pt-1">
-            <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs text-muted-foreground hover:text-foreground">
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm("入力内容をリセットしますか？")) {
+                  handleReset();
+                }
+              }}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
               リセット
-            </Button>
+            </button>
           </div>
         </CardContent>
       </Card>
@@ -1959,32 +1970,7 @@ export default function RecordInput() {
                   </Tooltip>
                 </TooltipProvider>
               )}
-              {/* 長文モード切り替えボタン */}
-              <TooltipProvider delayDuration={300}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={() => setNotesLongTextMode(prev => !prev)}
-                      disabled={notesVoice.isRecording}
-                      className={cn(
-                        "text-xs px-2 py-0.5 rounded-full border font-medium transition-all",
-                        notesLongTextMode
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-muted text-muted-foreground border-border hover:border-primary/50",
-                        notesVoice.isRecording && "opacity-50 cursor-not-allowed"
-                      )}
-                    >
-                      {notesLongTextMode ? "📝 長文 ON" : "📝 長文"}
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-[220px] text-xs">
-                    {notesLongTextMode
-                      ? "長文モード ON：無音自動停止 60秒・最大３分まで録音できます"
-                      : "長文モード：ONにすると無音自動停止が60秒・最大３分まで録音できます（通常は30秒）"}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+
             </div>
           </div>
         </CardHeader>
