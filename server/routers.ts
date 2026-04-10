@@ -783,7 +783,7 @@ export const appRouter = router({
       .input(
         z.object({
           team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]),
-          day: z.enum(["今日", "明日"]),
+          day: z.enum(["今日", "明日", "3日後", "4日後"]),
           // base64エンコードされた画像データ（data:image/xxx;base64,... 形式）
           imageDataUrl: z.string().max(20 * 1024 * 1024), // 最大20MB（base64）
           mimeType: z.string().default("image/png"),
@@ -877,7 +877,7 @@ export const appRouter = router({
       .input(
         z.object({
           team: z.enum(["\u8eab\u4f53", "\u5929\u7406", "\u90e1\u5c71\u5317\u90e8", "\u90e1\u5c71\u5357\u90e8"]),
-          day: z.enum(["\u4eca\u65e5", "\u660e\u65e5"]),
+              day: z.enum(["今日", "明日", "3日後", "4日後"]),
         })
       )
       .mutation(async ({ input }) => {
@@ -912,7 +912,7 @@ export const appRouter = router({
     getComments: publicProcedure
       .input(z.object({
         team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]),
-        day: z.enum(["今日", "明日"]),
+        day: z.enum(["今日", "明日", "3日後", "4日後"]),
       }))
       .query(async ({ input }) => {
         const comments = await getScheduleComments(input.team, input.day);
@@ -928,7 +928,7 @@ export const appRouter = router({
     addComment: protectedProcedure
       .input(z.object({
         team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]),
-        day: z.enum(["今日", "明日"]),
+        day: z.enum(["今日", "明日", "3日後", "4日後"]),
         content: z.string().min(1).max(500),
       }))
       .mutation(async ({ ctx, input }) => {
@@ -993,7 +993,7 @@ export const appRouter = router({
 
     getCommentCounts: publicProcedure
       .input(z.object({
-        day: z.enum(["今日", "明日"]),
+        day: z.enum(["今日", "明日", "3日後", "4日後"]),
       }))
       .query(async ({ input }) => {
         return getScheduleCommentCounts(input.day);

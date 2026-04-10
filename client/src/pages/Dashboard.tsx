@@ -191,7 +191,7 @@ const initialMessages: MessageItem[] = [
 ];
 
 const TEAMS = ["身体", "天理", "郡山北部", "郡山南部"] as const;
-const DAYS = ["今日", "明日"] as const;
+const DAYS = ["今日", "明日", "3日後", "4日後"] as const;
 type TeamType = typeof TEAMS[number];
 type DayType = typeof DAYS[number];
 
@@ -1805,7 +1805,7 @@ function ScheduleScreenshotCard() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              {/* 今日/明日タブ */}
+              {/* 今日/明日/3日後/4日後タブ */}
               <div className="flex gap-1">
                 {DAYS.map((d) => (
                   <button

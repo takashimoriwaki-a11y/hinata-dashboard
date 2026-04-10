@@ -281,6 +281,13 @@
       "when": 1775824457399,
       "tag": "0039_abnormal_reaper",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "5",
+      "when": 1775833032577,
+      "tag": "0040_safe_millenium_guard",
+      "breakpoints": true
     }
   ]
 }
