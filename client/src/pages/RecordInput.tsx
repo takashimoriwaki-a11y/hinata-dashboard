@@ -1968,17 +1968,110 @@ export default function RecordInput() {
           <div>
             <p className="text-xs font-medium text-muted-foreground mb-2">確認項目</p>
             <div className="grid grid-cols-2 gap-2">
-              {(["睡眠", "食事", "排泄", "服薬"] as const).map((key) => (
-                <div key={key}>
-                  <label className="text-xs text-muted-foreground mb-1 block">{key}</label>
-                  <Input
-                    className="text-sm h-9"
-                    placeholder={`${key}の状態を入力...`}
-                    value={checkItems[key]}
-                    onChange={(e) => setCheckItems(prev => ({ ...prev, [key]: e.target.value }))}
-                  />
+              {/* 睡眠 */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">睡眠</label>
+                <Input
+                  className="text-sm h-9"
+                  placeholder="睡眠の状態を入力..."
+                  value={checkItems.睡眠}
+                  onChange={(e) => setCheckItems(prev => ({ ...prev, 睡眠: e.target.value }))}
+                />
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {["良眠", "中途覚醒", "不眠"].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setCheckItems(prev => ({ ...prev, 睡眠: preset }))}
+                      className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                        checkItems.睡眠 === preset
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-muted-foreground border-border hover:border-primary hover:text-primary"
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
                 </div>
-              ))}
+              </div>
+              {/* 食事 */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">食事</label>
+                <Input
+                  className="text-sm h-9"
+                  placeholder="食事の状態を入力..."
+                  value={checkItems.食事}
+                  onChange={(e) => setCheckItems(prev => ({ ...prev, 食事: e.target.value }))}
+                />
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {["全量", "半量", "摂取不山"].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setCheckItems(prev => ({ ...prev, 食事: preset }))}
+                      className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                        checkItems.食事 === preset
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-muted-foreground border-border hover:border-primary hover:text-primary"
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* 排泄 */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">排泄</label>
+                <Input
+                  className="text-sm h-9"
+                  placeholder="排泄の状態を入力..."
+                  value={checkItems.排泄}
+                  onChange={(e) => setCheckItems(prev => ({ ...prev, 排泄: e.target.value }))}
+                />
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {["自然", "便秘", "下痢"].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setCheckItems(prev => ({ ...prev, 排泄: preset }))}
+                      className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                        checkItems.排泄 === preset
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-muted-foreground border-border hover:border-primary hover:text-primary"
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* 服薬 */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">服薬</label>
+                <Input
+                  className="text-sm h-9"
+                  placeholder="服薬の状態を入力..."
+                  value={checkItems.服薬}
+                  onChange={(e) => setCheckItems(prev => ({ ...prev, 服薬: e.target.value }))}
+                />
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {["確認済", "拒薬", "不明"].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setCheckItems(prev => ({ ...prev, 服薬: preset }))}
+                      className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                        checkItems.服薬 === preset
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-muted-foreground border-border hover:border-primary hover:text-primary"
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
