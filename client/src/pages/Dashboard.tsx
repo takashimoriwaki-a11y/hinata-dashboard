@@ -3008,7 +3008,10 @@ function TasksCard() {
   const [showForm, setShowForm] = useState(false);
 
   // DBから未完了タスクを取得
-  const { data: tasks = [] } = trpc.tasks.getMine.useQuery();
+  const { data: tasks = [] } = trpc.tasks.getMine.useQuery(undefined, {
+    refetchInterval: 30 * 1000, // 30秒ごとに自動更新（他職員のタスクをリアルタイム反映）
+    staleTime: 0,
+  });
   // useMemoでフィルタリング・ソートをメモ化（tasksが変わらない限り再計算しない）
   const incomplete = useMemo(() =>
     tasks

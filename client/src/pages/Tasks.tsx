@@ -136,7 +136,10 @@ export default function Tasks() {
   const utils = trpc.useUtils();
 
   // タスク一覧取得
-  const { data: tasks = [], isLoading } = trpc.tasks.getMine.useQuery();
+  const { data: tasks = [], isLoading } = trpc.tasks.getMine.useQuery(undefined, {
+    refetchInterval: 30 * 1000, // 30秒ごとに自動更新（他職員のタスクをリアルタイム反映）
+    staleTime: 0,
+  });
 
   // スタッフ一覧（個人指定用）
   const { data: staff = [] } = trpc.tasks.getStaff.useQuery();
