@@ -71,11 +71,8 @@ const LOGO_TEXT_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/
 // ========== ナビゲーション定義 ==========
 const navItems = [
   { href: "/", icon: LayoutDashboard, label: "ホーム" },
-  { href: "/record", icon: ClipboardEdit, label: "記録" },
-  { href: "/tasks", icon: CheckSquare, label: "タスク" },
-  { href: "/schedule-change", icon: CalendarClock, label: "変更連絡" },
   { href: "/schedule-change-history", icon: History, label: "変更履歴" },
-  { href: "/my-links", icon: Star, label: "マイリンク" },
+  { href: "/my-links", icon: Star, label: "マイリンク追加" },
 ];
 
 const externalTools = [
@@ -126,7 +123,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location]);
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
   // モバイル用ドロワー開閉
   const [mobileOpen, setMobileOpen] = useState(false);
   const { isNight, toggleTheme, switchable, theme } = useTheme();
@@ -227,7 +224,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <img src={LOGO_MARK_URL} alt="ひなた" className="w-9 h-9 object-contain flex-shrink-0" />
         {(!collapsed || mobile) && (
           <div className="overflow-hidden flex flex-col gap-0.5">
-            <p className="text-xs text-sidebar-foreground/75 leading-tight">こころの訪問看護ステーション</p>
+            <p className="text-xs text-sidebar-foreground/75 leading-tight whitespace-nowrap">こころの訪問看護ステーション</p>
             <span className="text-base font-bold text-sidebar-foreground leading-tight tracking-wide">ひなた</span>
           </div>
         )}
@@ -403,40 +400,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
 
-      {/* ========== PC用サイドバー（md以上で表示） ========== */}
+      {/* ========== PC用サイドバー（md以上で常時固定表示） ========== */}
       <div className="relative hidden md:flex flex-shrink-0 h-full">
         <aside
           className={cn(
-            "flex flex-col h-full transition-all duration-300 ease-in-out z-30 overflow-hidden",
+            "flex flex-col h-full z-30 overflow-hidden",
             "bg-sidebar text-sidebar-foreground border-r border-sidebar-border",
-            collapsed ? "w-0" : "w-56"
+            "w-56"
           )}
         >
           <SidebarContent />
         </aside>
-
-        {/* 折りたたみトグルボタン（サイドバー外に浮かせて常に表示） */}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className={cn(
-            "absolute top-1/2 -translate-y-1/2 z-40 right-0 translate-x-full",
-            "flex flex-col items-center justify-center gap-1",
-            collapsed
-              ? "w-7 h-20 rounded-r-xl bg-primary text-primary-foreground shadow-lg hover:w-9 hover:h-24"
-              : "w-5 h-14 rounded-r-lg bg-muted text-muted-foreground shadow-md hover:bg-primary hover:text-primary-foreground",
-            "transition-all duration-200"
-          )}
-          title={collapsed ? "サイドバーを開く" : "サイドバーを閉じる"}
-        >
-          {collapsed ? (
-            <>
-              <ChevronRight className="w-4 h-4" />
-              <span className="text-xs font-bold leading-tight [writing-mode:vertical-rl]">メニュー</span>
-            </>
-          ) : (
-            <ChevronLeft className="w-3.5 h-3.5" />
-          )}
-        </button>
       </div>
 
       {/* ========== モバイル用ドロワーオーバーレイ ========== */}
@@ -471,7 +445,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           "flex items-center justify-between px-3 md:px-4 py-2.5 border-b border-border shadow-sm flex-shrink-0 bg-sidebar"
         )}>
           <div className="flex items-center gap-2 md:gap-3 min-w-0 overflow-hidden">
-            {/* モバイル: ハンバーガーメニュー */}
+            {/* モバイル: ハンバーガーメニュー（PC版は常時固定表示のため非表示） */}
             <button
               className="md:hidden text-muted-foreground hover:text-primary p-1 -ml-1 flex-shrink-0"
               onClick={() => setMobileOpen(true)}
@@ -489,7 +463,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <span className={cn("hidden md:inline text-xs font-mono font-medium whitespace-nowrap tabular-nums", isNight ? "text-[oklch(0.75_0.1_280)]" : "text-foreground/80")}>{timeStr}</span>
               </div>
               <span className={cn("hidden md:block text-xs font-medium border-l border-border pl-3 whitespace-nowrap", isNight ? "text-slate-200" : "text-foreground/75")}>こころの訪問看護ステーションひなた</span>
-              <span className={cn("md:hidden font-semibold leading-tight", isNight ? "text-slate-200" : "text-foreground")} style={{fontSize: "0.6rem"}}>こころの訪問看護ステーションひなた</span>
+              <span className={cn("md:hidden font-semibold leading-tight whitespace-nowrap", isNight ? "text-slate-200" : "text-foreground")} style={{fontSize: "0.6rem"}}>こころの訪問看護ステーションひなた</span>
             </div>
           </div>
           <div className="flex items-center gap-1.5 md:gap-2">
