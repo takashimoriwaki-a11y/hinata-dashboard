@@ -1878,7 +1878,7 @@ export default function RecordInput() {
       <Card id="record-condition" className="shadow-sm">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold">② 確認項目・バイタル・病状の経過</CardTitle>
+            <CardTitle className="text-sm font-semibold">② 観察・記録</CardTitle>
             <div className="flex items-center gap-2">
               {/* 録音経過時間表示 */}
               {notesVoice.isRecording && (
