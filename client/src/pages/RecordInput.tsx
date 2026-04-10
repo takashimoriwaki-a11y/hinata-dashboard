@@ -1874,96 +1874,11 @@ export default function RecordInput() {
         </Button>
       )}
 
-      {/* ②-a 確認項目・バイタルサイン */}
-      <Card className="shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">② 確認項目・バイタル</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* 確認項目 */}
-          <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2">確認項目</p>
-            <div className="grid grid-cols-2 gap-2">
-              {(["睡眠", "食事", "排泄", "服薬"] as const).map((key) => (
-                <div key={key}>
-                  <label className="text-xs text-muted-foreground mb-1 block">{key}</label>
-                  <Input
-                    className="text-sm h-9"
-                    placeholder={`${key}の状態を入力...`}
-                    value={checkItems[key]}
-                    onChange={(e) => setCheckItems(prev => ({ ...prev, [key]: e.target.value }))}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* バイタルサイン */}
-          <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2">バイタルサイン</p>
-            <div className="grid grid-cols-2 gap-2">
-              {/* 体温 */}
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">体温 (℃)</label>
-                <div className="flex gap-1">
-                  <Input
-                    className="text-sm h-9"
-                    type="number"
-                    step="0.1"
-                    min="30"
-                    max="45"
-                    placeholder="36.5"
-                    value={vitals.体温}
-                    onChange={(e) => setVitals(prev => ({ ...prev, 体温: e.target.value }))}
-                  />
-                </div>
-              </div>
-              {/* 脈拍 */}
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">脈拍 (回/分)</label>
-                <Input
-                  className="text-sm h-9"
-                  type="number"
-                  min="0"
-                  max="300"
-                  placeholder="72"
-                  value={vitals.脈拍}
-                  onChange={(e) => setVitals(prev => ({ ...prev, 脈拍: e.target.value }))}
-                />
-              </div>
-              {/* SpO2 */}
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">SpO2 (%)</label>
-                <Input
-                  className="text-sm h-9"
-                  type="number"
-                  min="50"
-                  max="100"
-                  placeholder="98"
-                  value={vitals.SpO2}
-                  onChange={(e) => setVitals(prev => ({ ...prev, SpO2: e.target.value }))}
-                />
-              </div>
-              {/* 血圧 */}
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">血圧 (mmHg)</label>
-                <Input
-                  className="text-sm h-9"
-                  placeholder="120/80"
-                  value={vitals.血圧}
-                  onChange={(e) => setVitals(prev => ({ ...prev, 血圧: e.target.value }))}
-                />
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ② 病状の経過 */}
+      {/* ② 確認項目・バイタル＋病状の経過（統合カード） */}
       <Card id="record-condition" className="shadow-sm">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold">② 病状の経過</CardTitle>
+            <CardTitle className="text-sm font-semibold">② 確認項目・バイタル・病状の経過</CardTitle>
             <div className="flex items-center gap-2">
               {/* 録音経過時間表示 */}
               {notesVoice.isRecording && (
@@ -2037,11 +1952,90 @@ export default function RecordInput() {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
+          {/* 確認項目 */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-2">確認項目</p>
+            <div className="grid grid-cols-2 gap-2">
+              {(["睡眠", "食事", "排泄", "服薬"] as const).map((key) => (
+                <div key={key}>
+                  <label className="text-xs text-muted-foreground mb-1 block">{key}</label>
+                  <Input
+                    className="text-sm h-9"
+                    placeholder={`${key}の状態を入力...`}
+                    value={checkItems[key]}
+                    onChange={(e) => setCheckItems(prev => ({ ...prev, [key]: e.target.value }))}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* バイタルサイン */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-2">バイタルサイン</p>
+            <div className="grid grid-cols-2 gap-2">
+              {/* 体温 */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">体温 (℃)</label>
+                <Input
+                  className="text-sm h-9"
+                  type="number"
+                  step="0.1"
+                  min="30"
+                  max="45"
+                  placeholder="36.5"
+                  value={vitals.体温}
+                  onChange={(e) => setVitals(prev => ({ ...prev, 体温: e.target.value }))}
+                />
+              </div>
+              {/* 脈拍 */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">脈拍 (回/分)</label>
+                <Input
+                  className="text-sm h-9"
+                  type="number"
+                  min="0"
+                  max="300"
+                  placeholder="72"
+                  value={vitals.脈拍}
+                  onChange={(e) => setVitals(prev => ({ ...prev, 脈拍: e.target.value }))}
+                />
+              </div>
+              {/* SpO2 */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">SpO2 (%)</label>
+                <Input
+                  className="text-sm h-9"
+                  type="number"
+                  min="50"
+                  max="100"
+                  placeholder="98"
+                  value={vitals.SpO2}
+                  onChange={(e) => setVitals(prev => ({ ...prev, SpO2: e.target.value }))}
+                />
+              </div>
+              {/* 血圧 */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">血圧 (mmHg)</label>
+                <Input
+                  className="text-sm h-9"
+                  placeholder="120/80"
+                  value={vitals.血圧}
+                  onChange={(e) => setVitals(prev => ({ ...prev, 血圧: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 区切り線 */}
+          <div className="border-t border-border" />
+
+          {/* 病状の経過 */}
           <div>
             <div className="flex items-center justify-between mb-1">
               <div className="flex-1 min-w-0">
-                <label className="text-xs font-medium text-muted-foreground">本日観察・収集した情報</label>
+                <label className="text-xs font-medium text-muted-foreground">病状の経過（本日観察・収集した情報）</label>
                 {/* リアルタイムステータス表示 */}
                 {notesVoice.transcriptionStatus === "recording" || notesVoice.isRecording ? (
                   <p className={cn(
@@ -2155,6 +2149,8 @@ export default function RecordInput() {
               </div>
             )}
           </div>
+          {/* /病状の経過 */}
+
           {/* コピー内容プレビュー */}
           {(() => {
             const previewParts: string[] = [];
