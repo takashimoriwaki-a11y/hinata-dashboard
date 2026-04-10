@@ -3012,10 +3012,32 @@ function TasksCard() {
     refetchInterval: 15 * 1000, // 15秒ごとに自動更新（他職員のタスクをリアルタイム反映）
     staleTime: 0,
   });
+
+  // タスク管理画面のチームフィルター設定をlocalStorageから読み込む
+  const VALID_TEAMS_DASH = ["身体", "天理", "郡山北部", "郡山南部"] as const;
+  const VALID_TEAM_FILTERS_DASH = [...VALID_TEAMS_DASH, "all_team", "personal"] as const;
+  type TeamFilterDash = typeof VALID_TEAMS_DASH[number] | "all_team" | "personal" | null;
+  const [dashTeamFilter] = useState<TeamFilterDash>(() => {
+    try {
+      const saved = localStorage.getItem("tasks_teamFilter");
+      if (saved && (VALID_TEAM_FILTERS_DASH as readonly string[]).includes(saved)) return saved as TeamFilterDash;
+    } catch {}
+    return null;
+  });
+
+  // チームフィルターを適用するヘルパー
+  const matchesDashTeamFilter = (task: { assignType: string; assignTeam?: string | null; assignUserId?: number | null }): boolean => {
+    if (dashTeamFilter === null) return true; // フィルターなし = 全件表示
+    if (dashTeamFilter === "all_team") return task.assignType === "all";
+    if (dashTeamFilter === "personal") return task.assignType === "personal";
+    // チーム指定の場合: そのチーム向け + 全員向け(all) も表示
+    return (task.assignType === "team" && task.assignTeam === dashTeamFilter) || task.assignType === "all";
+  };
+
   // useMemoでフィルタリング・ソートをメモ化（tasksが変わらない限り再計算しない）
   const incomplete = useMemo(() =>
     tasks
-      .filter((t) => t.done === 0)
+      .filter((t) => t.done === 0 && matchesDashTeamFilter(t))
       .sort((a, b) => {
         // 期日なしは常に末尾、期日ありは昇順
         if (!a.dueDate && !b.dueDate) return 0;
@@ -3023,7 +3045,7 @@ function TasksCard() {
         if (!b.dueDate) return -1;
         return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
       }),
-    [tasks]
+    [tasks, dashTeamFilter]
   );
 
   const toggleTask = trpc.tasks.toggle.useMutation({

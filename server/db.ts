@@ -384,39 +384,16 @@ export async function deleteSpreadsheetLink(id: number) {
 // ========== タスク ==========
 
 /**
- * 自分に関係するタスクを取得する
- * 条件: 以下のいずれかを満たすもの
- *   1. assignType = "all"（全員対象）
- *   2. assignType = "team" かつ assignTeam = ユーザーのチーム
- *   3. assignType = "personal" かつ assignUserId = ユーザーのID
- *   4. createdBy = ユーザーのID（自分が作成したタスク）
+ * 全タスクを取得する（フロントエンドでフィルタリング）
+ * 全職員が全チームのタスクを閲覧できるようにするため、
+ * サーバー側では全件取得し、フロントエンドでチームフィルターを適用する
  */
 export async function getMyTasks(userId: number, userTeam: string | null) {
   const db = await getDb();
   if (!db) return [];
 
-  // 全チーム・事務員は全タスクを取得（他チームのタスクも表示）
-  if (userTeam === "全チーム" || userTeam === "事務員") {
-    return db.select().from(tasks).orderBy(desc(tasks.createdAt));
-  }
-
-  const conditions = [
-    eq(tasks.assignType, "all"),
-    eq(tasks.createdBy, userId),
-    and(eq(tasks.assignType, "personal"), eq(tasks.assignUserId, userId)),
-  ];
-
-  if (userTeam) {
-    conditions.push(
-      and(eq(tasks.assignType, "team"), eq(tasks.assignTeam, userTeam as any)) as any
-    );
-  }
-
-  return db
-    .select()
-    .from(tasks)
-    .where(or(...conditions))
-    .orderBy(desc(tasks.createdAt));
+  // 全タスクを取得（フロントエンドでチームフィルタリング）
+  return db.select().from(tasks).orderBy(desc(tasks.createdAt));
 }
 
 /** 全タスクを取得（管理者用） */
