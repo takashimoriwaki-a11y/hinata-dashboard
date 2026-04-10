@@ -3078,6 +3078,18 @@ function TasksCard() {
           </div>
         </CardHeader>
         <CardContent className="space-y-2">
+          {/* 現在のフィルター状態を表示 */}
+          {dashTeamFilter !== null && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-xs">
+              <Users className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+              <span className="font-medium text-primary">
+                表示中：
+                {dashTeamFilter === "all_team" ? "全員向け"
+                  : dashTeamFilter === "personal" ? "個人指定"
+                  : `${dashTeamFilter}チーム`}
+              </span>
+            </div>
+          )}
           {incomplete.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-3">
               未完了のタスクはありません ✓
@@ -3820,7 +3832,7 @@ function MessageBoard({ title }: { title: string }) {
                           </div>
                         </div>
                       ) : (
-                        <p className="text-base font-medium text-foreground leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                        <p className="text-base font-semibold text-sky-700 dark:text-sky-300 leading-relaxed whitespace-pre-wrap">{msg.text}</p>
                       )}
                     </div>
                     {/* 編集・削除ボタン（作成者のみ） */}
