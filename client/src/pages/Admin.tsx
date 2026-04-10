@@ -813,11 +813,11 @@ export default function Admin() {
       </div>
 
       {/* セクションタブ */}
-      <div className="flex gap-2 border-b border-border">
+      <div className="flex gap-2 border-b border-border overflow-x-auto scrollbar-none" style={{ WebkitOverflowScrolling: 'touch' }}>
         <button
           onClick={() => setActiveSection("sheets")}
           className={cn(
-            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
+            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
             activeSection === "sheets"
               ? "border-primary text-primary"
               : "border-transparent text-muted-foreground hover:text-foreground"
@@ -828,7 +828,7 @@ export default function Admin() {
         <button
           onClick={() => setActiveSection("patients")}
           className={cn(
-            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
+            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
             activeSection === "patients"
               ? "border-primary text-primary"
               : "border-transparent text-muted-foreground hover:text-foreground"
@@ -840,8 +840,8 @@ export default function Admin() {
           <button
             onClick={() => setActiveSection("staff")}
             className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
-              activeSection === "staff"
+            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
+            activeSection === "staff"
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             )}
@@ -853,8 +853,8 @@ export default function Admin() {
           <button
             onClick={() => setActiveSection("import")}
             className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
-              activeSection === "import"
+            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
+            activeSection === "import"
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             )}
@@ -867,8 +867,8 @@ export default function Admin() {
           <button
             onClick={() => setActiveSection("teamGoals")}
             className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
-              activeSection === "teamGoals"
+            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
+            activeSection === "teamGoals"
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             )}
@@ -880,8 +880,8 @@ export default function Admin() {
           <button
             onClick={() => setActiveSection("settings")}
             className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
-              activeSection === "settings"
+            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
+            activeSection === "settings"
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             )}
@@ -893,8 +893,8 @@ export default function Admin() {
           <button
             onClick={() => setActiveSection("toolLogs")}
             className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
-              activeSection === "toolLogs"
+            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
+            activeSection === "toolLogs"
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             )}

@@ -2227,7 +2227,7 @@ function LinkRow({ href, label, color, colorStyle, emoji, onAddToMyLinks, isInMy
  * 「日々使用」: 月次DB登録分（5種類）を自動表示
  * 「その他」: quickAccessLinksから取得
  */
-function SheetSubTabs({ quickLinks, myLinksData, addToMyLinks }: { quickLinks: { id: number; label: string; href: string; color: string; emoji: string | null; category: string }[] | undefined; myLinksData?: { url: string }[]; addToMyLinks?: (label: string, url: string, emoji: string) => void }) {
+function SheetSubTabs({ quickLinks }: { quickLinks: { id: number; label: string; href: string; color: string; emoji: string | null; category: string }[] | undefined }) {
   const [subTab, setSubTab] = useState<"daily" | "other">("daily");
   // 月次リンク（当月分、なければ直近登録）
   const { data: monthlyLinks, isLoading: monthlyLoading } = trpc.spreadsheetLinks.getCurrent.useQuery();
@@ -2304,8 +2304,7 @@ function SheetSubTabs({ quickLinks, myLinksData, addToMyLinks }: { quickLinks: {
                     label={link.label}
                     colorStyle={{ color: "white" }}
                     emoji="📊"
-                    onAddToMyLinks={addToMyLinks ? () => addToMyLinks(link.label, link.url, "📊") : undefined}
-                    isInMyLinks={myLinksData?.some((ml) => ml.url === link.url)}
+
                   />
                 ))}
             </>
@@ -2323,8 +2322,7 @@ function SheetSubTabs({ quickLinks, myLinksData, addToMyLinks }: { quickLinks: {
                 label={link.label}
                 colorStyle={{ color: "white" }}
                 emoji={link.emoji || undefined}
-                onAddToMyLinks={addToMyLinks ? () => addToMyLinks(link.label, link.href, link.emoji || "🔗") : undefined}
-                isInMyLinks={myLinksData?.some((ml) => ml.url === link.href)}
+
               />
             ))
           : <p className="text-xs text-muted-foreground text-center py-3">その他のリンクはまだありません</p>
@@ -2499,7 +2497,7 @@ function ToolsCard() {
 
           {/* スプレッドシート */}
           {activeTab === "sheet" && (
-            <SheetSubTabs quickLinks={quickLinks} myLinksData={myLinksData} addToMyLinks={addToMyLinks} />
+            <SheetSubTabs quickLinks={quickLinks} />
           )}
 
           {/* ドキュメント */}
@@ -2527,8 +2525,7 @@ function ToolsCard() {
                             label={link.label}
                             colorStyle={{ color: "white" }}
                             emoji={link.emoji || undefined}
-                            onAddToMyLinks={() => addToMyLinks(link.label, link.href, link.emoji || "📄")}
-                            isInMyLinks={myLinksData?.some((ml) => ml.url === link.href)}
+
                           />
                           {canManageTools && (
                             <>
@@ -2551,8 +2548,7 @@ function ToolsCard() {
                       label={link.label}
                       colorStyle={{ color: "white" }}
                       emoji={link.emoji}
-                      onAddToMyLinks={() => addToMyLinks(link.label, link.href, link.emoji || "📄")}
-                      isInMyLinks={myLinksData?.some((ml) => ml.url === link.href)}
+
                     />
                   ))
               }
@@ -2605,8 +2601,7 @@ function ToolsCard() {
                             label={link.label}
                             colorStyle={{ color: "white" }}
                             emoji={link.emoji || undefined}
-                            onAddToMyLinks={() => addToMyLinks(link.label, link.href, link.emoji || "📝")}
-                            isInMyLinks={myLinksData?.some((ml) => ml.url === link.href)}
+
                           />
                           {canManageTools && (
                             <>
@@ -2629,8 +2624,7 @@ function ToolsCard() {
                       label={link.label}
                       colorStyle={{ color: "white" }}
                       emoji={link.emoji}
-                      onAddToMyLinks={() => addToMyLinks(link.label, link.href, link.emoji || "📝")}
-                      isInMyLinks={myLinksData?.some((ml) => ml.url === link.href)}
+
                     />
                   ))
               }
@@ -2685,8 +2679,7 @@ function ToolsCard() {
                             label={link.label}
                             colorStyle={{ color: "white" }}
                             emoji={link.emoji || undefined}
-                            onAddToMyLinks={() => addToMyLinks(link.label, link.href, link.emoji || "🔗")}
-                            isInMyLinks={myLinksData?.some((ml) => ml.url === link.href)}
+
                           />
                           {canManageTools && (
                             <>
@@ -2709,8 +2702,7 @@ function ToolsCard() {
                       label={link.label}
                       colorStyle={{ color: "white" }}
                       emoji={link.emoji}
-                      onAddToMyLinks={() => addToMyLinks(link.label, link.href, link.emoji || "🔗")}
-                      isInMyLinks={myLinksData?.some((ml) => ml.url === link.href)}
+
                     />
                   ))
               }
