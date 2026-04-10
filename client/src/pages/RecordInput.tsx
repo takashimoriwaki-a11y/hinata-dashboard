@@ -117,6 +117,26 @@ export default function RecordInput() {
     if (el) el.scrollIntoView({ block: "center" });
   }, [timeDropdownOpen]);
 
+  // ② 確認項目（睡眠・食事・排泄・服薬）
+  const DRAFT_CHECK_ITEMS_KEY = "hinata_record_check_items";
+  const [checkItems, setCheckItems] = useState<{ 睡眠: string; 食事: string; 排泄: string; 服薬: string }>(() => {
+    try {
+      const raw = localStorage.getItem("hinata_record_check_items");
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return { 睡眠: "", 食事: "", 排泄: "", 服薬: "" };
+  });
+
+  // ② バイタルサイン（体温・脈拍・SpO2・血圧）
+  const DRAFT_VITALS_KEY = "hinata_record_vitals";
+  const [vitals, setVitals] = useState<{ 体温: string; 脈拍: string; SpO2: string; 血圧: string }>(() => {
+    try {
+      const raw = localStorage.getItem("hinata_record_vitals");
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return { 体温: "", 脈拍: "", SpO2: "", 血圧: "" };
+  });
+
   // ② 病状の経過
   const [clinicalNotes, setClinicalNotes] = useState("");
   // テキストエリアの自動高さ調整用ref
@@ -523,6 +543,34 @@ export default function RecordInput() {
     }
   }, [clinicalNotes, adjustTextareaHeight]);
 
+  // 確認項目の自動保存（1秒デバウンス）
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const hasContent = Object.values(checkItems).some(v => v.trim());
+      if (hasContent) {
+        localStorage.setItem(DRAFT_CHECK_ITEMS_KEY, JSON.stringify(checkItems));
+      } else {
+        localStorage.removeItem(DRAFT_CHECK_ITEMS_KEY);
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkItems]);
+
+  // バイタルサインの自動保存（1秒デバウンス）
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const hasContent = Object.values(vitals).some(v => v.trim());
+      if (hasContent) {
+        localStorage.setItem(DRAFT_VITALS_KEY, JSON.stringify(vitals));
+      } else {
+        localStorage.removeItem(DRAFT_VITALS_KEY);
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vitals]);
+
   // 入力内容が変わるたびにdebounce 1秒でlocalStorageに保存
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -708,11 +756,32 @@ export default function RecordInput() {
   const GEMS_URL = "https://gemini.google.com/gem/ece0f11827bf";
 
   const handleCopyAndOpenGem = async () => {
-    // 病状の経過テキストのみをコピー（①次回訪問日時の利用者名・チーム名等は除外）
-    const textToCopy = clinicalNotes.trim();
+    // 確認項目・バイタル・病状の経過を結合してコピー
+    const parts: string[] = [];
+
+    // 確認項目（入力ありのみ）
+    const checkParts: string[] = [];
+    if (checkItems.睡眠.trim()) checkParts.push(`睡眠：${checkItems.睡眠.trim()}`);
+    if (checkItems.食事.trim()) checkParts.push(`食事：${checkItems.食事.trim()}`);
+    if (checkItems.排泄.trim()) checkParts.push(`排泄：${checkItems.排泄.trim()}`);
+    if (checkItems.服薬.trim()) checkParts.push(`服薬：${checkItems.服薬.trim()}`);
+    if (checkParts.length > 0) parts.push(checkParts.join("、"));
+
+    // バイタルサイン（入力ありのみ）
+    const vitalParts: string[] = [];
+    if (vitals.体温.trim()) vitalParts.push(`体温：${vitals.体温.trim()}℃`);
+    if (vitals.脈拍.trim()) vitalParts.push(`脈拍：${vitals.脈拍.trim()}回/分`);
+    if (vitals.SpO2.trim()) vitalParts.push(`SpO2：${vitals.SpO2.trim()}%`);
+    if (vitals.血圧.trim()) vitalParts.push(`血圧：${vitals.血圧.trim()}mmHg`);
+    if (vitalParts.length > 0) parts.push(vitalParts.join("、"));
+
+    // 病状の経過
+    if (clinicalNotes.trim()) parts.push(clinicalNotes.trim());
+
+    const textToCopy = parts.join("\n");
 
     if (!textToCopy.trim()) {
-      toast.error("コピーする内容がありません。病状の経過を入力してください");
+      toast.error("コピーする内容がありません。入力してください");
       return;
     }
 
@@ -723,14 +792,16 @@ export default function RecordInput() {
       toast.error("クリップボードへのコピーに失敗しました");
     }
     window.open(GEMS_URL, "_blank", "noopener,noreferrer");
-    // Gem送信後は病状の経過のみリセット（利用者名・次回訪問日時は保持）
+    // Gem送信後は病状の経過・確認項目・バイタルをリセット
     setClinicalNotes("");
+    setCheckItems({ 睡眠: "", 食事: "", 排泄: "", 服薬: "" });
+    setVitals({ 体温: "", 脈拍: "", SpO2: "", 血圧: "" });
     // タイムスタンプ表示もリセット
     setLastSavedAt(null);
     setSavedAgoText("");
     // 誤変換報告表示もリセット
     notesVoice.clearLastTranscribedText();
-    // localStorageのclinicalNotesも削除（再度アプリを開いたときに復元されないように）
+    // localStorageのclinicalNotes・確認項目・バイタルも削除
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
       if (raw) {
@@ -739,6 +810,8 @@ export default function RecordInput() {
         localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
       }
     } catch { /* ignore */ }
+    localStorage.removeItem(DRAFT_CHECK_ITEMS_KEY);
+    localStorage.removeItem(DRAFT_VITALS_KEY);
   };
 
   const handleReset = () => {
@@ -752,6 +825,10 @@ export default function RecordInput() {
     setNotifyMethod("");
     setNotifyMethodOther("");
     setClinicalNotes("");
+    setCheckItems({ 睡眠: "", 食事: "", 排泄: "", 服薬: "" });
+    setVitals({ 体温: "", 脈拍: "", SpO2: "", 血圧: "" });
+    setLastSavedAt(null);
+    setSavedAgoText("");
     setSavedRecordId(null);
     setExported(false);
     // 音声入力関連状態をクリア
@@ -761,6 +838,8 @@ export default function RecordInput() {
     setVisitVoiceError(null);
     // 下書きを削除
     localStorage.removeItem(DRAFT_KEY);
+    localStorage.removeItem(DRAFT_CHECK_ITEMS_KEY);
+    localStorage.removeItem(DRAFT_VITALS_KEY);
     setHasDraft(false);
   };
 
@@ -1795,6 +1874,91 @@ export default function RecordInput() {
         </Button>
       )}
 
+      {/* ②-a 確認項目・バイタルサイン */}
+      <Card className="shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold">② 確認項目・バイタル</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* 確認項目 */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-2">確認項目</p>
+            <div className="grid grid-cols-2 gap-2">
+              {(["睡眠", "食事", "排泄", "服薬"] as const).map((key) => (
+                <div key={key}>
+                  <label className="text-xs text-muted-foreground mb-1 block">{key}</label>
+                  <Input
+                    className="text-sm h-9"
+                    placeholder={`${key}の状態を入力...`}
+                    value={checkItems[key]}
+                    onChange={(e) => setCheckItems(prev => ({ ...prev, [key]: e.target.value }))}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* バイタルサイン */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-2">バイタルサイン</p>
+            <div className="grid grid-cols-2 gap-2">
+              {/* 体温 */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">体温 (℃)</label>
+                <div className="flex gap-1">
+                  <Input
+                    className="text-sm h-9"
+                    type="number"
+                    step="0.1"
+                    min="30"
+                    max="45"
+                    placeholder="36.5"
+                    value={vitals.体温}
+                    onChange={(e) => setVitals(prev => ({ ...prev, 体温: e.target.value }))}
+                  />
+                </div>
+              </div>
+              {/* 脈拍 */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">脈拍 (回/分)</label>
+                <Input
+                  className="text-sm h-9"
+                  type="number"
+                  min="0"
+                  max="300"
+                  placeholder="72"
+                  value={vitals.脈拍}
+                  onChange={(e) => setVitals(prev => ({ ...prev, 脈拍: e.target.value }))}
+                />
+              </div>
+              {/* SpO2 */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">SpO2 (%)</label>
+                <Input
+                  className="text-sm h-9"
+                  type="number"
+                  min="50"
+                  max="100"
+                  placeholder="98"
+                  value={vitals.SpO2}
+                  onChange={(e) => setVitals(prev => ({ ...prev, SpO2: e.target.value }))}
+                />
+              </div>
+              {/* 血圧 */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">血圧 (mmHg)</label>
+                <Input
+                  className="text-sm h-9"
+                  placeholder="120/80"
+                  value={vitals.血圧}
+                  onChange={(e) => setVitals(prev => ({ ...prev, 血圧: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* ② 病状の経過 */}
       <Card id="record-condition" className="shadow-sm">
         <CardHeader className="pb-2">
@@ -1992,19 +2156,44 @@ export default function RecordInput() {
             )}
           </div>
           {/* コピー内容プレビュー */}
-          {clinicalNotes.trim() && (
-            <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
-              <p className="text-xs font-medium text-muted-foreground mb-1">コピーされる内容（病状の経過のみ）</p>
-              <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap break-words line-clamp-4">{clinicalNotes.trim()}</p>
-              {clinicalNotes.trim().split("\n").length > 4 && (
-                <p className="text-xs text-muted-foreground mt-1">…他{clinicalNotes.trim().split("\n").length - 4}行</p>
-              )}
-            </div>
-          )}
+          {(() => {
+            const previewParts: string[] = [];
+            const checkParts: string[] = [];
+            if (checkItems.睡眠.trim()) checkParts.push(`睡眠：${checkItems.睡眠.trim()}`);
+            if (checkItems.食事.trim()) checkParts.push(`食事：${checkItems.食事.trim()}`);
+            if (checkItems.排泄.trim()) checkParts.push(`排泄：${checkItems.排泄.trim()}`);
+            if (checkItems.服薬.trim()) checkParts.push(`服薬：${checkItems.服薬.trim()}`);
+            if (checkParts.length > 0) previewParts.push(checkParts.join("、"));
+            const vitalParts: string[] = [];
+            if (vitals.体温.trim()) vitalParts.push(`体温：${vitals.体温.trim()}℃`);
+            if (vitals.脈拍.trim()) vitalParts.push(`脈拍：${vitals.脈拍.trim()}回/分`);
+            if (vitals.SpO2.trim()) vitalParts.push(`SpO2：${vitals.SpO2.trim()}%`);
+            if (vitals.血圧.trim()) vitalParts.push(`血圧：${vitals.血圧.trim()}mmHg`);
+            if (vitalParts.length > 0) previewParts.push(vitalParts.join("、"));
+            if (clinicalNotes.trim()) previewParts.push(clinicalNotes.trim());
+            const previewText = previewParts.join("\n");
+            if (!previewText) return null;
+            return (
+              <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
+                <p className="text-xs font-medium text-muted-foreground mb-1">コピーされる内容</p>
+                <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap break-words line-clamp-6">{previewText}</p>
+              </div>
+            );
+          })()}
+          {/* ZESTへ飛ぶボタン */}
+          <a
+            href="https://zest.kokoronohinata.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 w-full h-10 rounded-md border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
+          >
+            <ExternalLink className="w-4 h-4" />
+            ZESTへ
+          </a>
           <Button
             className="w-full"
             onClick={handleCopyAndOpenGem}
-            disabled={!clinicalNotes.trim()}
+            disabled={!clinicalNotes.trim() && !Object.values(checkItems).some(v => v.trim()) && !Object.values(vitals).some(v => v.trim())}
           >
             <><Send className="w-4 h-4 mr-2" />記録をコピーしてGemへ</>
           </Button>
