@@ -134,12 +134,26 @@ export default function RecordInput() {
       const raw = localStorage.getItem("hinata_record_vitals");
       if (raw) {
         const parsed = JSON.parse(raw);
-        // 旧形式（血圧として保存されていた場合）の互换性対応
+        // 旧形式（血圧として保存されていた場合）の互換性対応
         if (parsed.血圧 !== undefined && parsed.収縮期 === undefined) {
           const parts = parsed.血圧.split("/");
-          return { 体温: parsed.体温 || "", 脈拍: parsed.脈拍 || "", SpO2: parsed.SpO2 || "", 収縮期: parts[0] || "", 拡張期: parts[1] || "" };
+          parsed.収縮期 = parts[0] || "";
+          parsed.拡張期 = parts[1] || "";
+          delete parsed.血圧;
         }
-        return parsed;
+        // プルダウン選択肢の有効値検証：範囲外の値はクリア
+        const validTemp = Array.from({ length: Math.round((42.0 - 35.0) / 0.1) + 1 }, (_, i) => (35.0 + i * 0.1).toFixed(1));
+        const validPulse = Array.from({ length: 81 }, (_, i) => String(50 + i));
+        const validSpO2 = Array.from({ length: 10 }, (_, i) => String(99 - i));
+        const validSystolic = Array.from({ length: 48 }, (_, i) => String(96 + i * 2));
+        const validDiastolic = Array.from({ length: 51 }, (_, i) => String(50 + i));
+        return {
+          体温: validTemp.includes(parsed.体温) ? parsed.体温 : "",
+          脈拍: validPulse.includes(parsed.脈拍) ? parsed.脈拍 : "",
+          SpO2: validSpO2.includes(parsed.SpO2) ? parsed.SpO2 : "",
+          収縮期: validSystolic.includes(parsed.収縮期) ? parsed.収縮期 : "",
+          拡張期: validDiastolic.includes(parsed.拡張期) ? parsed.拡張期 : "",
+        };
       }
     } catch {}
     return { 体温: "", 脈拍: "", SpO2: "", 収縮期: "", 拡張期: "" };
