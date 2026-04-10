@@ -16,6 +16,8 @@ vi.mock("./db", () => ({
       assignUserName: null,
       completedBy: null,
       completedAt: null,
+      deletedAt: null,
+      deletedBy: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -32,6 +34,8 @@ vi.mock("./db", () => ({
       assignUserName: "森脇崇",
       completedBy: null,
       completedAt: null,
+      deletedAt: null,
+      deletedBy: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -48,6 +52,8 @@ vi.mock("./db", () => ({
       assignUserName: null,
       completedBy: null,
       completedAt: null,
+      deletedAt: null,
+      deletedBy: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -56,11 +62,36 @@ vi.mock("./db", () => ({
   createTask: vi.fn().mockResolvedValue(10),
   toggleTask: vi.fn().mockResolvedValue(undefined),
   deleteTask: vi.fn().mockResolvedValue(undefined),
+  softDeleteTask: vi.fn().mockResolvedValue(undefined),
+  restoreTask: vi.fn().mockResolvedValue(undefined),
+  permanentDeleteTask: vi.fn().mockResolvedValue(undefined),
+  getDeletedTasks: vi.fn().mockResolvedValue([
+    {
+      id: 99,
+      text: "削除済みタスク",
+      done: 0,
+      dueDate: new Date("2026-03-01"),
+      createdBy: 1,
+      createdByName: "森脇崇",
+      assignType: "all",
+      assignTeam: null,
+      assignUserId: null,
+      assignUserName: null,
+      completedBy: null,
+      completedAt: null,
+      deletedAt: new Date("2026-04-01"),
+      deletedBy: 1,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ]),
   getTaskById: vi.fn().mockResolvedValue({
     id: 1,
     createdBy: 1,
     text: "テストタスク",
     done: 0,
+    deletedAt: null,
+    deletedBy: null,
   }),
   updateTask: vi.fn().mockResolvedValue(undefined),
 }));
@@ -216,5 +247,46 @@ describe("期日フォーマット", () => {
   it("nullの場合は空文字を返すこと", () => {
     expect(formatDueDate(null)).toBe("");
     expect(formatDueDate(undefined)).toBe("");
+  });
+});
+
+describe("ソフトデリート・復元・削除済み一覧", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("softDeleteTaskが作成者IDとともに呼び出されること", async () => {
+    const { softDeleteTask } = await import("./db");
+    await softDeleteTask(1, 1);
+    expect(softDeleteTask).toHaveBeenCalledWith(1, 1);
+  });
+
+  it("restoreTaskが正しく呼び出されること", async () => {
+    const { restoreTask } = await import("./db");
+    await restoreTask(99, 1);
+    expect(restoreTask).toHaveBeenCalledWith(99, 1);
+  });
+
+  it("getDeletedTasksが削除済みタスク一覧を返すこと", async () => {
+    const { getDeletedTasks } = await import("./db");
+    const result = await getDeletedTasks(1);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(99);
+    expect(result[0].deletedAt).toBeDefined();
+    expect(result[0].deletedAt).not.toBeNull();
+  });
+
+  it("getDeletedTasksがdeletedAtを持つタスクのみ返すこと", async () => {
+    const { getDeletedTasks } = await import("./db");
+    const result = await getDeletedTasks(1);
+    result.forEach((task) => {
+      expect(task.deletedAt).not.toBeNull();
+    });
+  });
+
+  it("permanentDeleteTaskが正しく呼び出されること", async () => {
+    const { permanentDeleteTask } = await import("./db");
+    await permanentDeleteTask(99, 1);
+    expect(permanentDeleteTask).toHaveBeenCalledWith(99, 1);
   });
 });

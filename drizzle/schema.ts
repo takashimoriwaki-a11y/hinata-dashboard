@@ -159,6 +159,10 @@ export const tasks = mysqlTable("tasks", {
   repeatParentId: int("repeatParentId"),
   /** 関連する利用者名（任意） */
   patientName: varchar("patientName", { length: 100 }),
+  /** ソフトデリート日時（nullの場合は削除されていない） */
+  deletedAt: timestamp("deletedAt"),
+  /** ソフトデリートしたユーザーID */
+  deletedBy: int("deletedBy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

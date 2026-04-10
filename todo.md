@@ -1815,3 +1815,10 @@
 ## タスクフィルターリアルタイム同期（2026-04-10）
 - [x] タスク管理画面でフィルター変更時にカスタムイベント（tasks_teamFilter_changed）を発火する
 - [x] ホーム画面でカスタムイベントをリッスンし、フィルター状態をリアルタイム同期する（ページリロード不要）
+
+## ソフトデリート・復元機能（2026-04-10）
+- [x] tasksDBスキーマにdeletedAt・deletedByカラムを追加し直接SQLでマイグレーション実行
+- [x] db.tsにsoftDeleteTask・restoreTask・getDeletedTasks関数を追加
+- [x] routers.tsのtasks.deleteをソフトデリート化・tasks.restore・tasks.getDeleted・tasks.permanentDeleteプロシージャを追加
+- [x] Tasks.tsxに「ゴミ箱」タブ・復元ボタン・完全削除ボタンのUIを実装
+- [x] tasks.test.tsにソフトデリート・復元・完全削除のテストを追加（22テストファイル・223テスト全パス）

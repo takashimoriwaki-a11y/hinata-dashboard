@@ -27,6 +27,9 @@ import {
   createTask,
   toggleTask,
   deleteTask as deleteTaskDb,
+  softDeleteTask,
+  restoreTask,
+  getDeletedTasks,
   getTaskById,
   updateTask,
   getActiveMessages,
@@ -1065,7 +1068,7 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    // タスクを削除する（作成者のみ）
+    // タスクをソフトデリートする（作成者のみ）
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
@@ -1073,6 +1076,42 @@ export const appRouter = router({
         if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "タスクが見つかりません" });
         if (task.createdBy !== ctx.user.id) {
           throw new TRPCError({ code: "FORBIDDEN", message: "作成者のみ削除できます" });
+        }
+        await softDeleteTask(input.id, ctx.user.id);
+        broadcastEvent("tasks");
+        return { success: true };
+      }),
+
+    // 削除済みタスクを復元する（作成者のみ）
+    restore: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const task = await getTaskById(input.id);
+        if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "タスクが見つかりません" });
+        if (task.createdBy !== ctx.user.id) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "作成者のみ復元できます" });
+        }
+        await restoreTask(input.id, ctx.user.id);
+        broadcastEvent("tasks");
+        return { success: true };
+      }),
+
+    // 削除済みタスク一覧を取得する（自分が作成したもの）
+    getDeleted: protectedProcedure.query(async ({ ctx }) => {
+      return getDeletedTasks(ctx.user.id);
+    }),
+
+    // タスクを完全削除する（作成者のみ、削除済みタスクのみ）
+    permanentDelete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const task = await getTaskById(input.id);
+        if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "タスクが見つかりません" });
+        if (task.createdBy !== ctx.user.id) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "作成者のみ完全削除できます" });
+        }
+        if (!task.deletedAt) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "削除済みタスクのみ完全削除できます" });
         }
         await deleteTaskDb(input.id, ctx.user.id);
         broadcastEvent("tasks");

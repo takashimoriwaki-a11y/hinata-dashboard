@@ -392,15 +392,17 @@ export async function getMyTasks(userId: number, userTeam: string | null) {
   const db = await getDb();
   if (!db) return [];
 
-  // 全タスクを取得（フロントエンドでチームフィルタリング）
-  return db.select().from(tasks).orderBy(desc(tasks.createdAt));
+  // 全タスクを取得（フロントエンドでチームフィルタリング）、ソフトデリート済みを除外
+  const { isNull } = await import("drizzle-orm");
+  return db.select().from(tasks).where(isNull(tasks.deletedAt)).orderBy(desc(tasks.createdAt));
 }
 
-/** 全タスクを取得（管理者用） */
+/** 全タスクを取得（管理者用）、ソフトデリート済みを除外 */
 export async function getAllTasks() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(tasks).orderBy(desc(tasks.createdAt));
+  const { isNull } = await import("drizzle-orm");
+  return db.select().from(tasks).where(isNull(tasks.deletedAt)).orderBy(desc(tasks.createdAt));
 }
 
 /** タスクを作成する */
@@ -478,13 +480,45 @@ export async function toggleTask(id: number, done: boolean, completedBy?: number
   }
 }
 
-/** タスクを削除する（作成者のみ） */
+/** タスクをソフトデリートする（作成者のみ） */
+export async function softDeleteTask(id: number, deletedBy: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(tasks)
+    .set({ deletedAt: new Date(), deletedBy, updatedAt: new Date() })
+    .where(and(eq(tasks.id, id), eq(tasks.createdBy, deletedBy)));
+}
+
+/** タスクを完全削除する（作成者のみ） */
 export async function deleteTask(id: number, createdBy: number) {
   const db = await getDb();
   if (!db) return;
   await db
     .delete(tasks)
     .where(and(eq(tasks.id, id), eq(tasks.createdBy, createdBy)));
+}
+
+/** 削除済みタスクを復元する（作成者のみ） */
+export async function restoreTask(id: number, restoredBy: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(tasks)
+    .set({ deletedAt: null, deletedBy: null, updatedAt: new Date() })
+    .where(and(eq(tasks.id, id), eq(tasks.createdBy, restoredBy)));
+}
+
+/** 削除済みタスク一覧を取得する（自分が作成したもの） */
+export async function getDeletedTasks(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const { isNotNull } = await import("drizzle-orm");
+  return db
+    .select()
+    .from(tasks)
+    .where(and(isNotNull(tasks.deletedAt), eq(tasks.createdBy, userId)))
+    .orderBy(desc(tasks.deletedAt));
 }
 
 /** タスクを更新する（作成者のみ） */

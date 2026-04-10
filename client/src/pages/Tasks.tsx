@@ -33,6 +33,9 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  RotateCcw,
+  History,
+  AlertTriangle,
 } from "lucide-react";
 import TaskCreateForm from "@/components/TaskCreateForm";
 import { toast } from "sonner";
@@ -266,11 +269,40 @@ export default function Tasks() {
     onSettled: () => utils.tasks.getMine.invalidate(),
   });
 
-  // タスク削除
+  // 削除済みタスクタブの表示状態
+  const [showDeletedTab, setShowDeletedTab] = useState(false);
+
+  // 削除済みタスク一覧取得
+  const { data: deletedTasks = [], refetch: refetchDeleted } = trpc.tasks.getDeleted.useQuery(
+    undefined,
+    { enabled: showDeletedTab }
+  );
+
+  // タスク削除（ソフトデリート）
   const deleteTask = trpc.tasks.delete.useMutation({
     onSuccess: () => {
       utils.tasks.getMine.invalidate();
-      toast.success("タスクを削除しました");
+      if (showDeletedTab) refetchDeleted();
+      toast.success("タスクをゴミ箱に移動しました");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  // 削除済みタスクを復元する
+  const restoreTask = trpc.tasks.restore.useMutation({
+    onSuccess: () => {
+      utils.tasks.getMine.invalidate();
+      refetchDeleted();
+      toast.success("タスクを復元しました");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  // 削除済みタスクを完全削除する
+  const permanentDeleteTask = trpc.tasks.permanentDelete.useMutation({
+    onSuccess: () => {
+      refetchDeleted();
+      toast.success("タスクを完全に削除しました");
     },
     onError: (e) => toast.error(e.message),
   });
@@ -494,9 +526,9 @@ export default function Tasks() {
           <Button
             key={f}
             size="sm"
-            variant={filter === f ? "default" : "outline"}
+            variant={!showDeletedTab && filter === f ? "default" : "outline"}
             className="h-7 text-xs px-3"
-            onClick={() => setFilter(f)}
+            onClick={() => { setShowDeletedTab(false); setFilter(f); }}
           >
             {f === "all"
               ? `すべて (${tasks.length})`
@@ -505,6 +537,21 @@ export default function Tasks() {
               : `完了 (${doneCount})`}
           </Button>
         ))}
+        {/* 削除済みタスクタブ */}
+        <Button
+          size="sm"
+          variant={showDeletedTab ? "destructive" : "outline"}
+          className="h-7 text-xs px-3 flex items-center gap-1"
+          onClick={() => { setShowDeletedTab((v) => !v); }}
+        >
+          <Trash2 className="w-3 h-3" />
+          ゴミ箱
+          {deletedTasks.length > 0 && (
+            <span className="ml-0.5 w-4 h-4 rounded-full bg-destructive/20 text-destructive text-xs flex items-center justify-center font-bold">
+              {deletedTasks.length}
+            </span>
+          )}
+        </Button>
         {/* フィルターパネル開閉ボタン */}
         <button
           onClick={() => setShowFilters((v) => !v)}
@@ -714,7 +761,80 @@ export default function Tasks() {
         <span className="text-xs text-muted-foreground ml-auto">{filtered.length}件</span>
       </div>
 
-      {/* タスク一覧 */}
+      {/* 削除済みタスクパネル */}
+      {showDeletedTab && (
+        <Card className="shadow-sm border-destructive/30">
+          <CardContent className="p-3 space-y-1.5">
+            <div className="flex items-center gap-2 pb-1 border-b border-destructive/20">
+              <History className="w-4 h-4 text-destructive" />
+              <span className="text-sm font-medium text-destructive">ゴミ箱（削除済みタスク）</span>
+              <span className="text-xs text-muted-foreground ml-auto">{deletedTasks.length}件</span>
+            </div>
+            {deletedTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">ゴミ箱は空です</p>
+            ) : (
+              deletedTasks.map((task) => (
+                <div
+                  key={task.id}
+                  className="flex items-start gap-2 py-2 px-2 rounded-lg bg-destructive/5 border border-destructive/10"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm line-through text-muted-foreground">{task.text}</p>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {task.patientName && (
+                        <span className="flex items-center gap-0.5 text-xs text-muted-foreground/70">
+                          <UserRound className="w-3 h-3" />{task.patientName}
+                        </span>
+                      )}
+                      {task.dueDate && (
+                        <span className="flex items-center gap-0.5 text-xs text-muted-foreground/70">
+                          <Calendar className="w-3 h-3" />{formatDueDate(task.dueDate)}
+                        </span>
+                      )}
+                      <span className="text-xs text-muted-foreground/60">
+                        削除: {task.deletedAt ? new Date(task.deletedAt).toLocaleDateString("ja-JP") : ""}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => restoreTask.mutate({ id: task.id })}
+                      disabled={restoreTask.isPending}
+                      className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
+                      title="復元"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      復元
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm("このタスクを完全に削除しますか？この操作は元に戻せません。")) {
+                          permanentDeleteTask.mutate({ id: task.id });
+                        }
+                      }}
+                      disabled={permanentDeleteTask.isPending}
+                      className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors disabled:opacity-50"
+                      title="完全削除"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      完全削除
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+            <div className="pt-1 border-t border-destructive/20">
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3 text-amber-500" />
+                「復元」でタスク一覧に戻します。「完全削除」は元に戻せません。
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* タスク一覧（ゴミ箱表示中は非表示） */}
+      {!showDeletedTab && (
       <Card className="shadow-sm">
         <CardContent className="p-3 space-y-1.5">
           {isLoading ? (
@@ -1024,6 +1144,7 @@ export default function Tasks() {
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* 新規追加ボタン */}
       <button
