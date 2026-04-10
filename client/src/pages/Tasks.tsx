@@ -124,8 +124,10 @@ function toTimeInputValue(date: Date | string | null | undefined): string {
 // 日付フィルターの種類
 type DateFilter = "all" | "overdue" | "today" | "tomorrow" | "this_week" | "no_date";
 
-// チームフィルターの種類（null = 全員）
-type TeamFilter = Team | "all_team" | "personal" | null;
+// チームフィルターの種類（複数選択対応）
+type TeamFilterItem = Team | "all_team" | "personal";
+// 空のSetはフィルターなし（全件表示）
+type TeamFilterSet = Set<TeamFilterItem>;
 
 // 並び替えキー
 type SortKey = "dueDate" | "createdAt" | "assignType";
@@ -153,44 +155,42 @@ export default function Tasks() {
   // 日付フィルター
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
 
-  // チームフィルター（localStorage永続化）
-  const VALID_TEAMS: Team[] = ["身体", "天理", "郡山北部", "郡山南部"];
-  const VALID_TEAM_FILTERS = [...VALID_TEAMS, "all_team", "personal"] as const;
-  const [teamFilter, setTeamFilterRaw] = useState<TeamFilter>(() => {
+  // チームフィルター（複数選択・localStorage永続化）
+  const VALID_TEAM_FILTER_ITEMS: TeamFilterItem[] = ["身体", "天理", "郡山北部", "郡山南部", "all_team", "personal"];
+  const [teamFilter, setTeamFilterRaw] = useState<TeamFilterSet>(() => {
     try {
-      const saved = localStorage.getItem("tasks_teamFilter");
-      if (saved && (VALID_TEAM_FILTERS as readonly string[]).includes(saved)) return saved as TeamFilter;
+      const saved = localStorage.getItem("tasks_teamFilter_v2");
+      if (saved) {
+        const parsed: string[] = JSON.parse(saved);
+        const valid = parsed.filter((v) => VALID_TEAM_FILTER_ITEMS.includes(v as TeamFilterItem)) as TeamFilterItem[];
+        return new Set(valid);
+      }
     } catch {}
-    return null;
+    return new Set();
   });
 
-  const setTeamFilter = (value: TeamFilter) => {
-    setTeamFilterRaw(value);
-    try {
-      if (value === null) localStorage.removeItem("tasks_teamFilter");
-      else localStorage.setItem("tasks_teamFilter", value);
-      // ホーム画面のフィルター状態をリアルタイム同期するためカスタムイベントを発火
-      window.dispatchEvent(new CustomEvent("tasks_teamFilter_changed", { detail: value }));
-    } catch {}
+  const toggleTeamFilter = (item: TeamFilterItem) => {
+    setTeamFilterRaw(prev => {
+      const next = new Set(prev);
+      if (next.has(item)) next.delete(item);
+      else next.add(item);
+      try {
+        if (next.size === 0) localStorage.removeItem("tasks_teamFilter_v2");
+        else localStorage.setItem("tasks_teamFilter_v2", JSON.stringify(Array.from(next)));
+        // ホーム画面のフィルター状態をリアルタイム同期するためカスタムイベントを発火
+        window.dispatchEvent(new CustomEvent("tasks_teamFilter_changed", { detail: Array.from(next) }));
+      } catch {}
+      return next;
+    });
   };
 
-  // localStorageに保存済みの場合はその値を維持する（デフォルトは常にフィルターなし=全件表示）
-  // ユーザーのチームによる自動フィルターは行わない
-  useEffect(() => {
-    if (!user?.team) return;
-    // 全チーム・事務員の場合のみ、localStorageのフィルターをクリアする
-    if (user.team === "全チーム" || user.team === "事務員") {
-      setTeamFilterRaw(prev => {
-        if (prev !== null) {
-          try { localStorage.removeItem("tasks_teamFilter"); } catch {}
-          return null;
-        }
-        return prev;
-      });
-    }
-    // チーム所属ユーザーも、localStorageに保存がない場合はフィルターなし（null）のまま維持
-    // （ユーザーが手動でフィルターを選択した場合のみ、その設定を次回以降も維持する）
-  }, [user?.team]);
+  const clearTeamFilter = () => {
+    setTeamFilterRaw(new Set());
+    try {
+      localStorage.removeItem("tasks_teamFilter_v2");
+      window.dispatchEvent(new CustomEvent("tasks_teamFilter_changed", { detail: [] }));
+    } catch {}
+  };
 
 
   // 並び替え（localStorageで永続化）
@@ -377,13 +377,16 @@ export default function Tasks() {
     return true;
   };
 
-  // チームフィルターのロジック
+  // チームフィルターのロジック（複数選択対応）
   const matchesTeamFilter = (task: Task): boolean => {
-    if (teamFilter === null) return true;
-    if (teamFilter === "all_team") return task.assignType === "all";
-    if (teamFilter === "personal") return task.assignType === "personal";
-    // チーム名指定
-    return task.assignType === "team" && task.assignTeam === teamFilter;
+    if (teamFilter.size === 0) return true; // フィルターなし = 全件表示
+    // 選択されたフィルターのいずれかにマッチすればOK（OR条件）
+    for (const item of Array.from(teamFilter)) {
+      if (item === "all_team" && task.assignType === "all") return true;
+      if (item === "personal" && task.assignType === "personal") return true;
+      if (task.assignType === "team" && task.assignTeam === item) return true;
+    }
+    return false;
   };
 
   const filtered = useMemo(() => {
@@ -486,7 +489,7 @@ export default function Tasks() {
   // アクティブなフィルター数（バッジ表示用）
   const activeFilterCount = [
     dateFilter !== "all",
-    teamFilter !== null,
+    teamFilter.size > 0,
   ].filter(Boolean).length;
 
   return (
@@ -499,18 +502,17 @@ export default function Tasks() {
       </div>
 
       {/* 現在のフィルター状態を常時表示 */}
-      {teamFilter !== null && (
+      {teamFilter.size > 0 && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
           <Users className="w-4 h-4 text-primary flex-shrink-0" />
-          <span className="text-sm font-medium text-primary">
-            表示中：
-            {teamFilter === "all_team" ? "全員向けタスク"
-              : teamFilter === "personal" ? "個人指定タスク"
-              : `${teamFilter}チームのタスク`}
+          <span className="text-sm font-medium text-primary flex-1 min-w-0">
+            表示中：{Array.from(teamFilter).map((f) =>
+              f === "all_team" ? "全員向け" : f === "personal" ? "個人指定" : `${f}チーム`
+            ).join("・")}
           </span>
           <button
-            onClick={() => setTeamFilter(null)}
-            className="ml-auto flex items-center gap-1 text-xs text-primary/70 hover:text-destructive transition-colors"
+            onClick={clearTeamFilter}
+            className="ml-auto flex items-center gap-1 text-xs text-primary/70 hover:text-destructive transition-colors flex-shrink-0"
           >
             <X className="w-3.5 h-3.5" />
             解除
@@ -630,38 +632,55 @@ export default function Tasks() {
                 <span className="text-xs font-medium text-muted-foreground">指定先フィルター</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {([
-                  { value: null, label: "すべて" },
-                  { value: "all_team", label: "全員向け" },
-                  { value: "身体", label: "身体チーム" },
-                  { value: "天理", label: "天理チーム" },
-                  { value: "郡山北部", label: "郡山北部チーム" },
-                  { value: "郡山南部", label: "郡山南部チーム" },
-                  { value: "personal", label: "個人指定" },
-                ] as const).map(({ value, label }) => {
-                  const countKey = value === null ? "all" : value;
-                  const count = teamFilterCounts[countKey as keyof typeof teamFilterCounts];
-                  const isActive = teamFilter === value;
-                  // チーム名を抽出（「身体チーム」→「身体」、それ以外はそのまま）
-                  const teamKey = typeof value === "string" && ["身体","天理","郡山北部","郡山南部"].includes(value) ? value : null;
+                {/* 全解除ボタン */}
+                <button
+                  onClick={clearTeamFilter}
+                  className={cn(
+                    "text-xs px-2 py-0.5 rounded-full border transition-all flex items-center gap-0.5",
+                    teamFilter.size === 0
+                      ? "bg-primary text-white border-transparent shadow-md scale-105"
+                      : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary"
+                  )}
+                >
+                  すべて
+                  <span className="text-xs font-bold">({teamFilterCounts.all})</span>
+                </button>
+                {/* 全員向け・個人指定ボタン */}
+                {(["all_team", "personal"] as const).map((item) => {
+                  const isActive = teamFilter.has(item);
+                  const count = teamFilterCounts[item];
                   return (
                     <button
-                      key={String(value)}
-                      onClick={() => setTeamFilter(value)}
+                      key={item}
+                      onClick={() => toggleTeamFilter(item)}
                       className={cn(
                         "text-xs px-2 py-0.5 rounded-full border transition-all flex items-center gap-0.5",
-                        teamKey
-                          ? getTeamButtonClass(teamKey, isActive)
-                          : isActive
-                            ? "bg-primary text-white border-transparent shadow-md scale-105"
-                            : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary"
+                        isActive
+                          ? "bg-primary text-white border-transparent shadow-md scale-105"
+                          : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary"
                       )}
-                      style={teamKey ? getTeamButtonStyle(teamKey, isActive) : undefined}
                     >
-                      {label}
-                      {count > 0 && (
-                        <span className="text-xs font-bold">({count})</span>
+                      {item === "all_team" ? "全員向け" : "個人指定"}
+                      {count > 0 && <span className="text-xs font-bold">({count})</span>}
+                    </button>
+                  );
+                })}
+                {/* チームボタン（複数選択トグル） */}
+                {(["身体", "天理", "郡山北部", "郡山南部"] as const).map((team) => {
+                  const isActive = teamFilter.has(team);
+                  const count = teamFilterCounts[team];
+                  return (
+                    <button
+                      key={team}
+                      onClick={() => toggleTeamFilter(team)}
+                      className={cn(
+                        "text-xs px-2 py-0.5 rounded-full border transition-all flex items-center gap-0.5",
+                        getTeamButtonClass(team, isActive)
                       )}
+                      style={getTeamButtonStyle(team, isActive)}
+                    >
+                      {team}チーム
+                      {count > 0 && <span className="text-xs font-bold">({count})</span>}
                     </button>
                   );
                 })}
@@ -673,7 +692,7 @@ export default function Tasks() {
               <button
                 onClick={() => {
                   setDateFilter("all");
-                  setTeamFilter(null);
+                  clearTeamFilter();
                 }}
                 className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-0.5 transition-colors"
               >
@@ -701,17 +720,15 @@ export default function Tasks() {
               </button>
             </span>
           )}
-          {teamFilter !== null && (
-            <span className="flex items-center gap-0.5 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+          {teamFilter.size > 0 && Array.from(teamFilter).map((item) => (
+            <span key={item} className="flex items-center gap-0.5 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
               <Users className="w-2.5 h-2.5" />
-              {teamFilter === "all_team" ? "全員向け"
-                : teamFilter === "personal" ? "個人指定"
-                : `${teamFilter}チーム`}
-              <button onClick={() => setTeamFilter(null)} className="ml-0.5 hover:text-destructive">
+              {item === "all_team" ? "全員向け" : item === "personal" ? "個人指定" : `${item}チーム`}
+              <button onClick={() => toggleTeamFilter(item)} className="ml-0.5 hover:text-destructive">
                 <X className="w-2.5 h-2.5" />
               </button>
             </span>
-          )}
+          ))}
 
         </div>
       )}

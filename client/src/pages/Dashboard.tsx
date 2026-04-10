@@ -3013,35 +3013,39 @@ function TasksCard() {
     staleTime: 0,
   });
 
-  // タスク管理画面のチームフィルター設定をlocalStorageから読み込む
-  const VALID_TEAMS_DASH = ["身体", "天理", "郡山北部", "郡山南部"] as const;
-  const VALID_TEAM_FILTERS_DASH = [...VALID_TEAMS_DASH, "all_team", "personal"] as const;
-  type TeamFilterDash = typeof VALID_TEAMS_DASH[number] | "all_team" | "personal" | null;
-  const [dashTeamFilter, setDashTeamFilter] = useState<TeamFilterDash>(() => {
+  // タスク管理画面のチームフィルター設定をlocalStorageから読み込む（複数選択対応）
+  type DashTeamFilterItem = "身体" | "天理" | "郡山北部" | "郡山南部" | "all_team" | "personal";
+  const VALID_DASH_FILTER_ITEMS: DashTeamFilterItem[] = ["身体", "天理", "郡山北部", "郡山南部", "all_team", "personal"];
+  const [dashTeamFilter, setDashTeamFilter] = useState<Set<DashTeamFilterItem>>(() => {
     try {
-      const saved = localStorage.getItem("tasks_teamFilter");
-      if (saved && (VALID_TEAM_FILTERS_DASH as readonly string[]).includes(saved)) return saved as TeamFilterDash;
+      const saved = localStorage.getItem("tasks_teamFilter_v2");
+      if (saved) {
+        const parsed: string[] = JSON.parse(saved);
+        const valid = parsed.filter((v) => VALID_DASH_FILTER_ITEMS.includes(v as DashTeamFilterItem)) as DashTeamFilterItem[];
+        return new Set(valid);
+      }
     } catch {}
-    return null;
+    return new Set();
   });
-
   // タスク管理画面でフィルターが変更されたとき、カスタムイベントを受け取ってリアルタイム同期
   useEffect(() => {
     const handler = (e: Event) => {
-      const value = (e as CustomEvent).detail as TeamFilterDash;
-      setDashTeamFilter(value);
+      const items = (e as CustomEvent).detail as string[];
+      const valid = items.filter((v) => VALID_DASH_FILTER_ITEMS.includes(v as DashTeamFilterItem)) as DashTeamFilterItem[];
+      setDashTeamFilter(new Set(valid));
     };
     window.addEventListener("tasks_teamFilter_changed", handler);
     return () => window.removeEventListener("tasks_teamFilter_changed", handler);
   }, []);
-
-  // チームフィルターを適用するヘルパー
+  // チームフィルターを適用するヘルパー（複数選択対応）
   const matchesDashTeamFilter = (task: { assignType: string; assignTeam?: string | null; assignUserId?: number | null }): boolean => {
-    if (dashTeamFilter === null) return true; // フィルターなし = 全件表示
-    if (dashTeamFilter === "all_team") return task.assignType === "all";
-    if (dashTeamFilter === "personal") return task.assignType === "personal";
-    // チーム指定の場合: そのチーム向け + 全員向け(all) も表示
-    return (task.assignType === "team" && task.assignTeam === dashTeamFilter) || task.assignType === "all";
+    if (dashTeamFilter.size === 0) return true; // フィルターなし = 全件表示
+    for (const item of Array.from(dashTeamFilter)) {
+      if (item === "all_team" && task.assignType === "all") return true;
+      if (item === "personal" && task.assignType === "personal") return true;
+      if (task.assignType === "team" && task.assignTeam === item) return true;
+    }
+    return false;
   };
 
   // useMemoでフィルタリング・ソートをメモ化（tasksが変わらない限り再計算しない）
@@ -3089,23 +3093,24 @@ function TasksCard() {
         </CardHeader>
         <CardContent className="space-y-2">
           {/* 現在のフィルター状態を表示 */}
-          {dashTeamFilter !== null && (
+          {dashTeamFilter.size > 0 && (
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-xs">
               <Users className="w-3.5 h-3.5 text-primary flex-shrink-0" />
               <span className="font-medium text-primary">
-                表示中：
-                {dashTeamFilter === "all_team" ? "全員向け"
-                  : dashTeamFilter === "personal" ? "個人指定"
-                  : `${dashTeamFilter}チーム`}
+                表示中：{Array.from(dashTeamFilter).map((f) =>
+                  f === "all_team" ? "全員向け" : f === "personal" ? "個人指定" : `${f}チーム`
+                ).join("・")}
               </span>
             </div>
           )}
+          {/* タスクリスト（スクロール可能） */}
+          <div className="max-h-64 overflow-y-auto space-y-2 pr-0.5">
           {incomplete.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-3">
               未完了のタスクはありません ✓
             </p>
           ) : (
-              incomplete.slice(0, 5).map((task) => (
+              incomplete.map((task) => (
               <div key={task.id} className="flex items-start gap-2 group animate-list-item-in">
                 <button
                   onClick={() => toggleTask.mutate({ id: task.id, done: task.done === 0 })}
@@ -3164,6 +3169,7 @@ function TasksCard() {
               </div>
             ))
           )}
+          </div>
 
           {/* カード内の新規追加ボタン */}
           <button
