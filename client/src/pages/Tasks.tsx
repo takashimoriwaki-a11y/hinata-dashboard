@@ -137,7 +137,7 @@ export default function Tasks() {
 
   // タスク一覧取得
   const { data: tasks = [], isLoading } = trpc.tasks.getMine.useQuery(undefined, {
-    refetchInterval: 30 * 1000, // 30秒ごとに自動更新（他職員のタスクをリアルタイム反映）
+    refetchInterval: 15 * 1000, // 15秒ごとに自動更新（他職員のタスクをリアルタイム反映）
     staleTime: 0,
   });
 
