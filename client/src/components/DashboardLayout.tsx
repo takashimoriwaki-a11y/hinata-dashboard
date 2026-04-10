@@ -223,9 +223,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       )}>
         <img src={LOGO_MARK_URL} alt="ひなた" className="w-9 h-9 object-contain flex-shrink-0" />
         {(!collapsed || mobile) && (
-          <div className="overflow-hidden flex flex-col gap-0.5">
-            <p className="text-xs text-sidebar-foreground/75 leading-tight whitespace-nowrap">こころの訪問看護ステーション</p>
-            <span className="text-base font-bold text-sidebar-foreground leading-tight tracking-wide">ひなた</span>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <p className="text-[10px] text-sidebar-foreground/75 leading-tight whitespace-nowrap">こころの訪問看護ステーション</p>
+            <span className="text-sm font-bold text-sidebar-foreground leading-tight tracking-wide">ひなた</span>
           </div>
         )}
         {mobile && (
