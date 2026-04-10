@@ -129,12 +129,20 @@ export default function RecordInput() {
 
   // ② バイタルサイン（体温・脈拍・SpO2・血圧）
   const DRAFT_VITALS_KEY = "hinata_record_vitals";
-  const [vitals, setVitals] = useState<{ 体温: string; 脈拍: string; SpO2: string; 血圧: string }>(() => {
+  const [vitals, setVitals] = useState<{ 体温: string; 脈拍: string; SpO2: string; 収縮期: string; 拡張期: string }>(() => {
     try {
       const raw = localStorage.getItem("hinata_record_vitals");
-      if (raw) return JSON.parse(raw);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        // 旧形式（血圧として保存されていた場合）の互换性対応
+        if (parsed.血圧 !== undefined && parsed.収縮期 === undefined) {
+          const parts = parsed.血圧.split("/");
+          return { 体温: parsed.体温 || "", 脈拍: parsed.脈拍 || "", SpO2: parsed.SpO2 || "", 収縮期: parts[0] || "", 拡張期: parts[1] || "" };
+        }
+        return parsed;
+      }
     } catch {}
-    return { 体温: "", 脈拍: "", SpO2: "", 血圧: "" };
+    return { 体温: "", 脈拍: "", SpO2: "", 収縮期: "", 拡張期: "" };
   });
 
   // ② 病状の経過
@@ -772,7 +780,10 @@ export default function RecordInput() {
     if (vitals.体温.trim()) vitalParts.push(`体温：${vitals.体温.trim()}℃`);
     if (vitals.脈拍.trim()) vitalParts.push(`脈拍：${vitals.脈拍.trim()}回/分`);
     if (vitals.SpO2.trim()) vitalParts.push(`SpO2：${vitals.SpO2.trim()}%`);
-    if (vitals.血圧.trim()) vitalParts.push(`血圧：${vitals.血圧.trim()}mmHg`);
+    if (vitals.収縮期.trim() || vitals.拡張期.trim()) {
+      const bp = [vitals.収縮期.trim(), vitals.拡張期.trim()].filter(Boolean).join("/");
+      vitalParts.push(`血圧：${bp}mmHg`);
+    }
     if (vitalParts.length > 0) parts.push(vitalParts.join("、"));
 
     // 病状の経過
@@ -795,7 +806,7 @@ export default function RecordInput() {
     // Gem送信後は病状の経過・確認項目・バイタルをリセット
     setClinicalNotes("");
     setCheckItems({ 睡眠: "", 食事: "", 排泄: "", 服薬: "" });
-    setVitals({ 体温: "", 脈拍: "", SpO2: "", 血圧: "" });
+    setVitals({ 体温: "", 脈拍: "", SpO2: "", 収縮期: "", 拡張期: "" });
     // タイムスタンプ表示もリセット
     setLastSavedAt(null);
     setSavedAgoText("");
@@ -826,7 +837,7 @@ export default function RecordInput() {
     setNotifyMethodOther("");
     setClinicalNotes("");
     setCheckItems({ 睡眠: "", 食事: "", 排泄: "", 服薬: "" });
-    setVitals({ 体温: "", 脈拍: "", SpO2: "", 血圧: "" });
+    setVitals({ 体温: "", 脈拍: "", SpO2: "", 収縮期: "", 拡張期: "" });
     setLastSavedAt(null);
     setSavedAgoText("");
     setSavedRecordId(null);
@@ -1978,52 +1989,72 @@ export default function RecordInput() {
               {/* 体温 */}
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">体温 (℃)</label>
-                <Input
-                  className="text-sm h-9"
-                  type="number"
-                  step="0.1"
-                  min="30"
-                  max="45"
-                  placeholder="36.5"
-                  value={vitals.体温}
-                  onChange={(e) => setVitals(prev => ({ ...prev, 体温: e.target.value }))}
-                />
+                <Select value={vitals.体温} onValueChange={(v) => setVitals(prev => ({ ...prev, 体温: v }))}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: Math.round((42.0 - 35.0) / 0.1) + 1 }, (_, i) => +(35.0 + i * 0.1).toFixed(1)).map(v => (
+                      <SelectItem key={v} value={String(v)}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               {/* 脈拍 */}
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">脈拍 (回/分)</label>
-                <Input
-                  className="text-sm h-9"
-                  type="number"
-                  min="0"
-                  max="300"
-                  placeholder="72"
-                  value={vitals.脈拍}
-                  onChange={(e) => setVitals(prev => ({ ...prev, 脈拍: e.target.value }))}
-                />
+                <Select value={vitals.脈拍} onValueChange={(v) => setVitals(prev => ({ ...prev, 脈拍: v }))}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 130 - 50 + 1 }, (_, i) => 50 + i).map(v => (
+                      <SelectItem key={v} value={String(v)}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               {/* SpO2 */}
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">SpO2 (%)</label>
-                <Input
-                  className="text-sm h-9"
-                  type="number"
-                  min="50"
-                  max="100"
-                  placeholder="98"
-                  value={vitals.SpO2}
-                  onChange={(e) => setVitals(prev => ({ ...prev, SpO2: e.target.value }))}
-                />
+                <Select value={vitals.SpO2} onValueChange={(v) => setVitals(prev => ({ ...prev, SpO2: v }))}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 99 - 90 + 1 }, (_, i) => 99 - i).map(v => (
+                      <SelectItem key={v} value={String(v)}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              {/* 血圧 */}
+              {/* 血圧（収縮期） */}
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">血圧 (mmHg)</label>
-                <Input
-                  className="text-sm h-9"
-                  placeholder="120/80"
-                  value={vitals.血圧}
-                  onChange={(e) => setVitals(prev => ({ ...prev, 血圧: e.target.value }))}
-                />
+                <label className="text-xs text-muted-foreground mb-1 block">血圧・収縮期 (mmHg)</label>
+                <Select value={vitals.収縮期} onValueChange={(v) => setVitals(prev => ({ ...prev, 収縮期: v }))}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: (190 - 96) / 2 + 1 }, (_, i) => 96 + i * 2).map(v => (
+                      <SelectItem key={v} value={String(v)}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* 血圧（拡張期） */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">血圧・拡張期 (mmHg)</label>
+                <Select value={vitals.拡張期} onValueChange={(v) => setVitals(prev => ({ ...prev, 拡張期: v }))}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: (100 - 50) + 1 }, (_, i) => 50 + i).map(v => (
+                      <SelectItem key={v} value={String(v)}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
@@ -2164,7 +2195,10 @@ export default function RecordInput() {
             if (vitals.体温.trim()) vitalParts.push(`体温：${vitals.体温.trim()}℃`);
             if (vitals.脈拍.trim()) vitalParts.push(`脈拍：${vitals.脈拍.trim()}回/分`);
             if (vitals.SpO2.trim()) vitalParts.push(`SpO2：${vitals.SpO2.trim()}%`);
-            if (vitals.血圧.trim()) vitalParts.push(`血圧：${vitals.血圧.trim()}mmHg`);
+            if (vitals.収縮期.trim() || vitals.拡張期.trim()) {
+              const bp = [vitals.収縮期.trim(), vitals.拡張期.trim()].filter(Boolean).join("/");
+              vitalParts.push(`血圧：${bp}mmHg`);
+            }
             if (vitalParts.length > 0) previewParts.push(vitalParts.join("、"));
             if (clinicalNotes.trim()) previewParts.push(clinicalNotes.trim());
             const previewText = previewParts.join("\n");
