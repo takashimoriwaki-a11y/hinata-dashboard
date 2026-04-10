@@ -466,6 +466,26 @@ export default function Tasks() {
         <Badge variant="secondary" className="ml-auto">{activeCount}件未完了</Badge>
       </div>
 
+      {/* 現在のフィルター状態を常時表示 */}
+      {teamFilter !== null && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
+          <Users className="w-4 h-4 text-primary flex-shrink-0" />
+          <span className="text-sm font-medium text-primary">
+            表示中：
+            {teamFilter === "all_team" ? "全員向けタスク"
+              : teamFilter === "personal" ? "個人指定タスク"
+              : `${teamFilter}チームのタスク`}
+          </span>
+          <button
+            onClick={() => setTeamFilter(null)}
+            className="ml-auto flex items-center gap-1 text-xs text-primary/70 hover:text-destructive transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+            解除
+          </button>
+        </div>
+      )}
+
       {/* 完了フィルター */}
       <div className="flex flex-wrap gap-2 items-center">
         {(["active", "all", "done"] as const).map((f) => (
