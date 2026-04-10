@@ -223,7 +223,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       )}>
         <img src={LOGO_MARK_URL} alt="ひなた" className="w-9 h-9 object-contain flex-shrink-0" />
         {(!collapsed || mobile) && (
-          <div className="flex flex-col gap-0.5 min-w-0">
+          <div className="flex flex-col gap-0.5 flex-1">
             <p className="text-[10px] text-sidebar-foreground/75 leading-tight whitespace-nowrap">こころの訪問看護ステーション</p>
             <span className="text-sm font-bold text-sidebar-foreground leading-tight tracking-wide">ひなた</span>
           </div>
@@ -231,7 +231,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         {mobile && (
           <button
             onClick={() => setMobileOpen(false)}
-            className="ml-auto text-sidebar-foreground/80 hover:text-sidebar-foreground p-1"
+            className="ml-auto flex-shrink-0 text-sidebar-foreground/80 hover:text-sidebar-foreground p-1"
           >
             <X className="w-5 h-5" />
           </button>
@@ -247,7 +247,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </Avatar>
             <div className="overflow-hidden">
               <p className="text-sm font-semibold text-sidebar-foreground truncate">{user?.name ?? "ゲスト"}</p>
-              <p className="text-xs text-sidebar-foreground/80 truncate">こころの訪問看護ステーションひなた</p>
             </div>
           </div>
         </div>
