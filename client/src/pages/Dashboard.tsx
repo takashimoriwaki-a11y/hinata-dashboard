@@ -3049,18 +3049,21 @@ function TasksCard() {
   };
 
   // useMemoでフィルタリング・ソートをメモ化（tasksが変わらない限り再計算しない）
-  const incomplete = useMemo(() =>
-    tasks
-      .filter((t) => t.done === 0 && matchesDashTeamFilter(t))
-      .sort((a, b) => {
-        // 期日なしは常に末尾、期日ありは昇順
-        if (!a.dueDate && !b.dueDate) return 0;
-        if (!a.dueDate) return 1;
-        if (!b.dueDate) return -1;
-        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-      }),
-    [tasks, dashTeamFilter]
-  );
+  const incomplete = useMemo(() => {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const todayEnd = todayStart + 24 * 60 * 60 * 1000 - 1;
+    return tasks
+      .filter((t) => {
+        if (t.done !== 0) return false;
+        if (!matchesDashTeamFilter(t)) return false;
+        // 期日が今日のタスクのみ表示
+        if (!t.dueDate) return false;
+        const due = new Date(t.dueDate).getTime();
+        return due >= todayStart && due <= todayEnd;
+      })
+      .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
+  }, [tasks, dashTeamFilter]);
 
   const toggleTask = trpc.tasks.toggle.useMutation({
     onMutate: async ({ id, done }) => {
@@ -3084,7 +3087,7 @@ function TasksCard() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <ClipboardList className="w-4 h-4 text-primary" />
-              タスク
+              今日のタスク
             </CardTitle>
             <Link href="/tasks">
               <span className="text-xs text-primary hover:underline cursor-pointer">すべて見る</span>
@@ -3107,7 +3110,7 @@ function TasksCard() {
           <div className="max-h-64 overflow-y-auto space-y-2 pr-0.5">
           {incomplete.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-3">
-              未完了のタスクはありません ✓
+              今日期日のタスクはありません ✓
             </p>
           ) : (
               incomplete.map((task) => (
