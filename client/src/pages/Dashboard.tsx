@@ -86,6 +86,7 @@ import {
   Target,
   BookmarkPlus,
   Check,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, openLink } from "@/lib/utils";
@@ -3065,6 +3066,19 @@ function TasksCard() {
       .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
   }, [tasks, dashTeamFilter]);
 
+  // 期限切れタスク（今日より前の期日で未完了）のカウント
+  const overdueCount = useMemo(() => {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    return tasks.filter((t) => {
+      if (t.done !== 0) return false;
+      if (!matchesDashTeamFilter(t)) return false;
+      if (!t.dueDate) return false;
+      const due = new Date(t.dueDate).getTime();
+      return due < todayStart;
+    }).length;
+  }, [tasks, dashTeamFilter]);
+
   const toggleTask = trpc.tasks.toggle.useMutation({
     onMutate: async ({ id, done }) => {
       await utils.tasks.getMine.cancel();
@@ -3082,6 +3096,16 @@ function TasksCard() {
 
   return (
     <div className="fade-in-up stagger-3 space-y-2">
+      {/* 期限切れタスク警告バッジ */}
+      {overdueCount > 0 && (
+        <Link href="/tasks">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/15 border border-red-500/40 text-red-400 cursor-pointer hover:bg-red-500/25 transition-colors">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <span className="text-xs font-semibold">期限切れ {overdueCount}件の未完了タスクがあります</span>
+            <span className="ml-auto text-xs opacity-70">確認 &rsaquo;</span>
+          </div>
+        </Link>
+      )}
       <Card className="shadow-sm">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
