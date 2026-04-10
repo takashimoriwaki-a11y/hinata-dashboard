@@ -521,6 +521,24 @@ export async function getDeletedTasks(userId: number) {
     .orderBy(desc(tasks.deletedAt));
 }
 
+/** ゴミ箱内の30日以上経過したタスクを一括完全削除する */
+export async function cleanupExpiredDeletedTasks(): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  // 30日前のタイムスタンプ
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  // 削除対象のタスクIDを先に取得してカウント
+  const targets = await db
+    .select({ id: tasks.id })
+    .from(tasks)
+    .where(and(isNotNull(tasks.deletedAt), lte(tasks.deletedAt, thirtyDaysAgo)));
+  if (targets.length === 0) return 0;
+  await db
+    .delete(tasks)
+    .where(and(isNotNull(tasks.deletedAt), lte(tasks.deletedAt, thirtyDaysAgo)));
+  return targets.length;
+}
+
 /** タスクを更新する（作成者のみ） */
 export async function updateTask(
   id: number,

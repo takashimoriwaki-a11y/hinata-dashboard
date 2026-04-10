@@ -1822,3 +1822,8 @@
 - [x] routers.tsのtasks.deleteをソフトデリート化・tasks.restore・tasks.getDeleted・tasks.permanentDeleteプロシージャを追加
 - [x] Tasks.tsxに「ゴミ箱」タブ・復元ボタン・完全削除ボタンのUIを実装
 - [x] tasks.test.tsにソフトデリート・復元・完全削除のテストを追加（22テストファイル・223テスト全パス）
+
+## ゴミ箱自動クリーンアップ（2026-04-10）
+- [x] db.tsに30日超過の削除済みタスクを一括完全削除する関数を追加する（cleanupExpiredDeletedTasks）
+- [x] スケジューラーに毎朝5:05 JSTの自動クリーンアップジョブを追加する（scheduleTrashCleanup）
+- [x] tasks.test.tsにcleanupExpiredDeletedTasksのテストケース3件追加（22ファイル・226テスト全パス）

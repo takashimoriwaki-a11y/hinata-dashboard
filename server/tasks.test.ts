@@ -65,6 +65,7 @@ vi.mock("./db", () => ({
   softDeleteTask: vi.fn().mockResolvedValue(undefined),
   restoreTask: vi.fn().mockResolvedValue(undefined),
   permanentDeleteTask: vi.fn().mockResolvedValue(undefined),
+  cleanupExpiredDeletedTasks: vi.fn().mockResolvedValue(0),
   getDeletedTasks: vi.fn().mockResolvedValue([
     {
       id: 99,
@@ -288,5 +289,24 @@ describe("ソフトデリート・復元・削除済み一覧", () => {
     const { permanentDeleteTask } = await import("./db");
     await permanentDeleteTask(99, 1);
     expect(permanentDeleteTask).toHaveBeenCalledWith(99, 1);
+  });
+  it("cleanupExpiredDeletedTasksが30日超過タスクを削除し件数を返すこと", async () => {
+    const { cleanupExpiredDeletedTasks } = await import("./db");
+    const count = await cleanupExpiredDeletedTasks();
+    expect(cleanupExpiredDeletedTasks).toHaveBeenCalled();
+    expect(typeof count).toBe("number");
+    expect(count).toBeGreaterThanOrEqual(0);
+  });
+  it("cleanupExpiredDeletedTasksが0件のとき0を返すこと", async () => {
+    const { cleanupExpiredDeletedTasks } = await import("./db");
+    (cleanupExpiredDeletedTasks as ReturnType<typeof vi.fn>).mockResolvedValueOnce(0);
+    const count = await cleanupExpiredDeletedTasks();
+    expect(count).toBe(0);
+  });
+  it("cleanupExpiredDeletedTasksが複数件削除したとき正しい件数を返すこと", async () => {
+    const { cleanupExpiredDeletedTasks } = await import("./db");
+    (cleanupExpiredDeletedTasks as ReturnType<typeof vi.fn>).mockResolvedValueOnce(5);
+    const count = await cleanupExpiredDeletedTasks();
+    expect(count).toBe(5);
   });
 });

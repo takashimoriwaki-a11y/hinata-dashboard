@@ -8,7 +8,7 @@ import { registerGoogleAuthRoutes } from "./googleAuth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
-import { deleteAllTodayScreenshots, moveTomorrowToToday, getTodayDueTasks, getPatients, getAllUsers, getCommentsByDate, deleteCommentsByDate } from "../db";
+import { deleteAllTodayScreenshots, moveTomorrowToToday, getTodayDueTasks, getPatients, getAllUsers, getCommentsByDate, deleteCommentsByDate, cleanupExpiredDeletedTasks } from "../db";
 import { notifyOwner } from "./notification";
 import multer from "multer";
 import { ENV } from "./env";
@@ -1041,3 +1041,37 @@ async function deleteExpiredSheetRows() {
 }
 
 scheduleSheetCleanup();
+
+// ========== 毎朝5:05（JST）にゴミ箱の30日超過タスクを自動完全削除 ==========
+function scheduleTrashCleanup() {
+  const checkInterval = 60 * 1000; // 1分ごとにチェック
+  let lastCleanupDate = "";
+  setInterval(async () => {
+    const now = new Date();
+    const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000); // UTC+9（JST）
+    const h = jstNow.getUTCHours();
+    const m = jstNow.getUTCMinutes();
+    const dateStr = jstNow.toISOString().slice(0, 10);
+    // 毎朝5:05（JST）に1回だけ実行（タスクリマインダーの5分後）
+    if (h === 5 && m === 5 && lastCleanupDate !== dateStr) {
+      lastCleanupDate = dateStr;
+      try {
+        console.log(`[TrashCleanup] ${dateStr} 05:05 - ゴミ箱の30日超過タスクを削除します`);
+        const deletedCount = await cleanupExpiredDeletedTasks();
+        if (deletedCount > 0) {
+          console.log(`[TrashCleanup] ${deletedCount}件の期限切れタスクを完全削除しました`);
+          await notifyOwner({
+            title: `🗑️ ゴミ箱自動クリーンアップ完了`,
+            content: `${dateStr} に削除から30日以上経過したタスクを ${deletedCount}件 完全削除しました。`,
+          });
+        } else {
+          console.log(`[TrashCleanup] 削除対象のタスクはありませんでした`);
+        }
+      } catch (e) {
+        console.error(`[TrashCleanup] エラー:`, e);
+      }
+    }
+  }, checkInterval);
+  console.log("[TrashCleanup] 毎朝5:05のゴミ箱自動クリーンアップスケジューラーを開始しました");
+}
+scheduleTrashCleanup();
