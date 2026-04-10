@@ -242,12 +242,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <span className="text-sm font-bold text-sidebar-foreground leading-tight tracking-wide">ひなた</span>
           </div>
         )}
-        {mobile && (
+        {mobile ? (
           <button
             onClick={() => setMobileOpen(false)}
             className="ml-auto flex-shrink-0 text-sidebar-foreground/80 hover:text-sidebar-foreground p-1"
           >
             <X className="w-5 h-5" />
+          </button>
+        ) : (
+          /* PC版: 開閉ボタンをロゴエリア右端に配置 */
+          <button
+            onClick={toggleCollapsed}
+            className="ml-auto flex-shrink-0 p-1.5 rounded-md text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+            title={collapsed ? "サイドパネルを開く" : "サイドパネルを閉じる"}
+          >
+            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </button>
         )}
       </div>
@@ -424,27 +433,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           )}
         >
           <SidebarContent />
-          {/* 開閉ボタン（サイドバー下部） */}
-          <div className="border-t border-sidebar-border flex-shrink-0">
-            <button
-              onClick={toggleCollapsed}
-              className={cn(
-                "w-full flex items-center gap-2 py-3 px-3 transition-all duration-150",
-                "text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                collapsed ? "justify-center" : "justify-start"
-              )}
-              title={collapsed ? "サイドパネルを開く" : "サイドパネルを閉じる"}
-            >
-              {collapsed ? (
-                <ChevronRight className="w-5 h-5 flex-shrink-0" />
-              ) : (
-                <>
-                  <ChevronLeft className="w-5 h-5 flex-shrink-0" />
-                  <span className="text-xs font-medium">閉じる</span>
-                </>
-              )}
-            </button>
-          </div>
+
         </aside>
       </div>
 
