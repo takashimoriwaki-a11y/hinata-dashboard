@@ -3630,9 +3630,9 @@ function MessageBoard({ title }: { title: string }) {
               className="text-sm min-h-[80px] resize-none w-full" />
             {/* 表示期間・予約 */}
             {(() => {
-              const timeOptions = Array.from({ length: 24 * 6 }, (_, i) => {
-                const h = Math.floor(i / 6);
-                const m = (i % 6) * 10;
+              const timeOptions = Array.from({ length: 24 * 12 }, (_, i) => {
+                const h = Math.floor(i / 12);
+                const m = (i % 12) * 5;
                 return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
               });
               return (

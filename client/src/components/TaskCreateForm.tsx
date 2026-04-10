@@ -946,9 +946,9 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
                 className="flex-1 text-sm border border-border rounded-lg px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40"
               >
                 <option value="">時刻を選択...</option>
-                {Array.from({ length: 24 * 6 }, (_, i) => {
-                  const h = Math.floor(i / 6);
-                  const m = (i % 6) * 10;
+                {Array.from({ length: 24 * 12 }, (_, i) => {
+                  const h = Math.floor(i / 12);
+                  const m = (i % 12) * 5;
                   const hh = String(h).padStart(2, "0");
                   const mm = String(m).padStart(2, "0");
                   return (

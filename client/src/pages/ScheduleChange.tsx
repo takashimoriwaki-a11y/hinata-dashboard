@@ -681,7 +681,7 @@ function DateTimePicker({
     : "";
 
   const hours = Array.from({ length: 24 }, (_, i) => pad(i));
-  const minutes = ["00", "10", "20", "30", "40", "50"];
+  const minutes = ["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"];
 
   // 日付を±1日する
   const adjustDay = (delta: number) => {

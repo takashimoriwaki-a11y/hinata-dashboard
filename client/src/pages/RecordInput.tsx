@@ -99,9 +99,9 @@ export default function RecordInput() {
   // 時間セレクト用
   const [timeDropdownOpen, setTimeDropdownOpen] = useState(false);
   const timeListRef = useRef<HTMLDivElement>(null);
-  const timeSlots = useMemo(() => Array.from({ length: 24 * 6 }, (_, i) => {
-    const h = Math.floor(i / 6);
-    const m = (i % 6) * 10;
+  const timeSlots = useMemo(() => Array.from({ length: 24 * 12 }, (_, i) => {
+    const h = Math.floor(i / 12);
+    const m = (i % 12) * 5;
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
   }), []);
 
@@ -109,7 +109,7 @@ export default function RecordInput() {
   useEffect(() => {
     if (!timeDropdownOpen || !timeListRef.current) return;
     const now = new Date();
-    const roundedMin = Math.round(now.getMinutes() / 10) * 10;
+    const roundedMin = Math.round(now.getMinutes() / 5) * 5;
     const h = roundedMin === 60 ? (now.getHours() + 1) % 24 : now.getHours();
     const m = roundedMin === 60 ? 0 : roundedMin;
     const target = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
