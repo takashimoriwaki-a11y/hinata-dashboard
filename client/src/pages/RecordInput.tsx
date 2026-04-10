@@ -887,7 +887,7 @@ export default function RecordInput() {
           <CardTitle className="text-sm font-semibold">① 次回訪問日時</CardTitle>
           {/* ZESTボタン */}
           <a
-            href="https://zest.kokoronohinata.com"
+            href="https://homecare.zest.jp/login"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-center gap-2 w-full h-11 rounded-full text-sm font-bold text-white transition-opacity hover:opacity-90 active:opacity-80 mt-2"
