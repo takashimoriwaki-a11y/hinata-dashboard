@@ -3156,12 +3156,12 @@ function MessageBoard({ title }: { title: string }) {
 
   // DBからメッセージ取得
   const { data: messages = [], isLoading } = trpc.messages.getActive.useQuery(undefined, {
-    refetchInterval: 30000, // 30秒ごとに自動更新
+    refetchInterval: 15000, // 15秒ごとに自動更新
   });
 
   // 予約送信待ちメッセージ
   const { data: pendingMessages = [] } = trpc.messages.getPending.useQuery(undefined, {
-    refetchInterval: 30000,
+    refetchInterval: 15000,
   });
   const [showPending, setShowPending] = useState(false);
 
