@@ -3058,12 +3058,18 @@ function TasksCard() {
       .filter((t) => {
         if (t.done !== 0) return false;
         if (!matchesDashTeamFilter(t)) return false;
-        // 期日が今日のタスクのみ表示
-        if (!t.dueDate) return false;
+        // 期日が今日 OR 期日なしのタスクを表示
+        if (!t.dueDate) return true;
         const due = new Date(t.dueDate).getTime();
         return due >= todayStart && due <= todayEnd;
       })
-      .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
+      .sort((a, b) => {
+        // 期日なしは末尾に
+        if (!a.dueDate && !b.dueDate) return 0;
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      });
   }, [tasks, dashTeamFilter]);
 
   // 期限切れタスク（今日より前の期日で未完了）のカウント
@@ -3134,7 +3140,7 @@ function TasksCard() {
           <div className="max-h-64 overflow-y-auto space-y-2 pr-0.5">
           {incomplete.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-3">
-              今日期日のタスクはありません ✓
+              今日のタスクはありません ✓
             </p>
           ) : (
               incomplete.map((task) => (
