@@ -174,24 +174,22 @@ export default function Tasks() {
     } catch {}
   };
 
-  // localStorageに保存済みの場合はユーザーチームで上書きしない、未保存の場合はユーザーチームをデフォルトに設定
+  // localStorageに保存済みの場合はその値を維持する（デフォルトは常にフィルターなし=全件表示）
+  // ユーザーのチームによる自動フィルターは行わない
   useEffect(() => {
     if (!user?.team) return;
-    if (VALID_TEAMS.includes(user.team as Team)) {
+    // 全チーム・事務員の場合のみ、localStorageのフィルターをクリアする
+    if (user.team === "全チーム" || user.team === "事務員") {
       setTeamFilterRaw(prev => {
-        if (prev !== null) return prev; // 既に保存済みの場合は維持
-        // localStorageに保存されていない場合はユーザーの所属チームを設定
-        const newVal = user.team as Team;
-        try { localStorage.setItem("tasks_teamFilter", newVal); } catch {}
-        return newVal;
-      });
-    } else if (user.team === "全チーム" || user.team === "事務員") {
-      // 全チーム所属・事務員は常に「全チーム」（null）をデフォルトに設定（チーム絞り込みなし）
-      setTeamFilterRaw(() => {
-        try { localStorage.removeItem("tasks_teamFilter"); } catch {}
-        return null;
+        if (prev !== null) {
+          try { localStorage.removeItem("tasks_teamFilter"); } catch {}
+          return null;
+        }
+        return prev;
       });
     }
+    // チーム所属ユーザーも、localStorageに保存がない場合はフィルターなし（null）のまま維持
+    // （ユーザーが手動でフィルターを選択した場合のみ、その設定を次回以降も維持する）
   }, [user?.team]);
 
 
