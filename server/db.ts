@@ -1618,6 +1618,7 @@ export async function createSharedPrompt(data: {
   body: string;
   aiTool: string;
   category?: string;
+  usageNotes?: string;
   createdBy: number;
   createdByName: string;
 }): Promise<SharedPrompt> {
@@ -1628,6 +1629,7 @@ export async function createSharedPrompt(data: {
     body: data.body,
     aiTool: data.aiTool,
     category: data.category ?? null,
+    usageNotes: data.usageNotes ?? null,
     createdBy: data.createdBy,
     createdByName: data.createdByName,
     isDeleted: 0,
@@ -1648,6 +1650,7 @@ export async function updateSharedPrompt(
     body: string;
     aiTool: string;
     category?: string;
+    usageNotes?: string;
     updatedByName: string;
   }
 ): Promise<void> {
@@ -1660,6 +1663,7 @@ export async function updateSharedPrompt(
       body: data.body,
       aiTool: data.aiTool,
       category: data.category ?? null,
+      usageNotes: data.usageNotes ?? null,
       updatedByName: data.updatedByName,
     })
     .where(eq(sharedPrompts.id, id));

@@ -1,0 +1,1 @@
+ALTER TABLE `shared_prompts` ADD `usageNotes` text;

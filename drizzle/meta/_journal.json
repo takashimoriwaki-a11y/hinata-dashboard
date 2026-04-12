@@ -309,6 +309,13 @@
       "when": 1775985474634,
       "tag": "0043_jittery_killmonger",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "5",
+      "when": 1775987153153,
+      "tag": "0044_early_genesis",
+      "breakpoints": true
     }
   ]
 }

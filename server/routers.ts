@@ -3662,6 +3662,7 @@ export const appRouter = router({
         body: z.string().min(1),
         aiTool: z.string().min(1).max(100),
         category: z.string().max(100).optional(),
+        usageNotes: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const prompt = await createSharedPrompt({
@@ -3669,6 +3670,7 @@ export const appRouter = router({
           body: input.body,
           aiTool: input.aiTool,
           category: input.category,
+          usageNotes: input.usageNotes,
           createdBy: ctx.user.id,
           createdByName: ctx.user.name ?? "不明",
         });
@@ -3682,6 +3684,7 @@ export const appRouter = router({
         body: z.string().min(1),
         aiTool: z.string().min(1).max(100),
         category: z.string().max(100).optional(),
+        usageNotes: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         await updateSharedPrompt(input.id, {
@@ -3689,6 +3692,7 @@ export const appRouter = router({
           body: input.body,
           aiTool: input.aiTool,
           category: input.category,
+          usageNotes: input.usageNotes,
           updatedByName: ctx.user.name ?? "不明",
         });
         return { success: true };

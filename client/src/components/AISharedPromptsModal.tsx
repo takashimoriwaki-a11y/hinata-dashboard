@@ -2,6 +2,7 @@
  * AISharedPromptsModal
  * 全職員が共有できるAIプロンプト集（Gemini / Gem / NotebookLM 等）
  * - 一覧表示・コピー・新規追加・修正・削除
+ * - プロンプト本文に加えて「使い方」も保存・表示できる
  */
 
 import { useState } from "react";
@@ -34,6 +35,7 @@ import {
   Sparkles,
   ChevronDown,
   ChevronUp,
+  BookOpen,
 } from "lucide-react";
 
 const AI_TOOLS = ["Gemini", "Gem", "NotebookLM", "その他"] as const;
@@ -56,6 +58,7 @@ interface PromptItem {
   body: string;
   aiTool: string;
   category: string | null;
+  usageNotes: string | null;
   createdByName: string;
   updatedByName: string | null;
   createdAt: Date;
@@ -107,6 +110,7 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
   const [formBody, setFormBody] = useState("");
   const [formAiTool, setFormAiTool] = useState<string>("Gemini");
   const [formCategory, setFormCategory] = useState("");
+  const [formUsageNotes, setFormUsageNotes] = useState("");
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [filterTool, setFilterTool] = useState<string>("すべて");
@@ -116,6 +120,7 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
     setFormBody("");
     setFormAiTool("Gemini");
     setFormCategory("");
+    setFormUsageNotes("");
   }
 
   function startEdit(p: PromptItem) {
@@ -124,6 +129,7 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
     setFormBody(p.body);
     setFormAiTool(p.aiTool);
     setFormCategory(p.category ?? "");
+    setFormUsageNotes(p.usageNotes ?? "");
     setShowForm(false);
   }
 
@@ -155,6 +161,7 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
         body: formBody.trim(),
         aiTool: formAiTool,
         category: formCategory.trim() || undefined,
+        usageNotes: formUsageNotes.trim() || undefined,
       });
     } else {
       createMutation.mutate({
@@ -162,6 +169,7 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
         body: formBody.trim(),
         aiTool: formAiTool,
         category: formCategory.trim() || undefined,
+        usageNotes: formUsageNotes.trim() || undefined,
       });
     }
   }
@@ -225,10 +233,12 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
               body={formBody}
               aiTool={formAiTool}
               category={formCategory}
+              usageNotes={formUsageNotes}
               onTitleChange={setFormTitle}
               onBodyChange={setFormBody}
               onAiToolChange={setFormAiTool}
               onCategoryChange={setFormCategory}
+              onUsageNotesChange={setFormUsageNotes}
               onSubmit={handleSubmit}
               onCancel={() => { setShowForm(false); resetForm(); }}
               isLoading={createMutation.isPending}
@@ -258,10 +268,12 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
                     body={formBody}
                     aiTool={formAiTool}
                     category={formCategory}
+                    usageNotes={formUsageNotes}
                     onTitleChange={setFormTitle}
                     onBodyChange={setFormBody}
                     onAiToolChange={setFormAiTool}
                     onCategoryChange={setFormCategory}
+                    onUsageNotesChange={setFormUsageNotes}
                     onSubmit={handleSubmit}
                     onCancel={cancelEdit}
                     isLoading={updateMutation.isPending}
@@ -285,6 +297,12 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
                         {p.category && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                             {p.category}
+                          </span>
+                        )}
+                        {p.usageNotes && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 flex items-center gap-1">
+                            <BookOpen className="w-3 h-3" />
+                            使い方あり
                           </span>
                         )}
                       </div>
@@ -326,7 +344,7 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
                       </button>
                       <button
                         onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
-                        title={expandedId === p.id ? "折りたたむ" : "本文を表示"}
+                        title={expandedId === p.id ? "折りたたむ" : "本文・使い方を表示"}
                         className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
                       >
                         {expandedId === p.id
@@ -335,10 +353,26 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
                       </button>
                     </div>
                   </div>
-                  {/* 本文（展開時） */}
+                  {/* 本文・使い方（展開時） */}
                   {expandedId === p.id && (
-                    <div className="mt-2 p-3 rounded-md bg-muted/50 text-sm text-foreground whitespace-pre-wrap leading-relaxed border border-border/50">
-                      {p.body}
+                    <div className="mt-2 space-y-2">
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground mb-1">📋 プロンプト本文</p>
+                        <div className="p-3 rounded-md bg-muted/50 text-sm text-foreground whitespace-pre-wrap leading-relaxed border border-border/50">
+                          {p.body}
+                        </div>
+                      </div>
+                      {p.usageNotes && (
+                        <div>
+                          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1 flex items-center gap-1">
+                            <BookOpen className="w-3.5 h-3.5" />
+                            使い方・説明
+                          </p>
+                          <div className="p-3 rounded-md bg-amber-50/70 dark:bg-amber-950/30 text-sm text-foreground whitespace-pre-wrap leading-relaxed border border-amber-200/50 dark:border-amber-800/50">
+                            {p.usageNotes}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -362,10 +396,12 @@ interface PromptFormProps {
   body: string;
   aiTool: string;
   category: string;
+  usageNotes: string;
   onTitleChange: (v: string) => void;
   onBodyChange: (v: string) => void;
   onAiToolChange: (v: string) => void;
   onCategoryChange: (v: string) => void;
+  onUsageNotesChange: (v: string) => void;
   onSubmit: () => void;
   onCancel: () => void;
   isLoading: boolean;
@@ -373,8 +409,8 @@ interface PromptFormProps {
 }
 
 function PromptForm({
-  title, body, aiTool, category,
-  onTitleChange, onBodyChange, onAiToolChange, onCategoryChange,
+  title, body, aiTool, category, usageNotes,
+  onTitleChange, onBodyChange, onAiToolChange, onCategoryChange, onUsageNotesChange,
   onSubmit, onCancel, isLoading, submitLabel,
 }: PromptFormProps) {
   return (
@@ -419,6 +455,19 @@ function PromptForm({
           onChange={(e) => onBodyChange(e.target.value)}
           placeholder="AIへの指示内容を入力してください..."
           rows={5}
+          className="text-sm resize-none"
+        />
+      </div>
+      <div>
+        <label className="text-xs font-medium text-foreground mb-1 flex items-center gap-1">
+          <BookOpen className="w-3.5 h-3.5 text-amber-600" />
+          使い方・説明（任意）
+        </label>
+        <Textarea
+          value={usageNotes}
+          onChange={(e) => onUsageNotesChange(e.target.value)}
+          placeholder="このプロンプトの使い方や注意点を入力してください（例：記録を貼り付けてから送信する、など）"
+          rows={3}
           className="text-sm resize-none"
         />
       </div>

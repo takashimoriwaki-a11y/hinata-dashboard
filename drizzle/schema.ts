@@ -692,6 +692,8 @@ export const sharedPrompts = mysqlTable("shared_prompts", {
   createdByName: varchar("createdByName", { length: 100 }).notNull(),
   /** 最終更新者名 */
   updatedByName: varchar("updatedByName", { length: 100 }),
+  /** 使い方・説明（任意） */
+  usageNotes: text("usageNotes"),
   /** 削除フラグ */
   isDeleted: tinyint("isDeleted").notNull().default(0),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
