@@ -3291,6 +3291,19 @@ function MessageBoard({ title }: { title: string }) {
   const [msgVoiceError, setMsgVoiceError] = useState<string | null>(null);
   const [lastMsgVoiceText, setLastMsgVoiceText] = useState<string | null>(null);
   const [missingMsgFields, setMissingMsgFields] = useState<string[]>([]);
+  // バッジ点滅アニメーション用
+  const [badgePulse, setBadgePulse] = useState(false);
+  const prevMsgCountRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (isLoading) return;
+    const prev = prevMsgCountRef.current;
+    if (prev !== null && messages.length > prev) {
+      setBadgePulse(true);
+      const t = setTimeout(() => setBadgePulse(false), 2000);
+      return () => clearTimeout(t);
+    }
+    prevMsgCountRef.current = messages.length;
+  }, [messages.length, isLoading]);
   // 誤変換報告機能
   const [msgVoiceTranscribed, setMsgVoiceTranscribed] = useState(false);
   const [showMsgFeedbackDialog, setShowMsgFeedbackDialog] = useState(false);
@@ -3518,8 +3531,9 @@ function MessageBoard({ title }: { title: string }) {
             <span className="tracking-wide">{title}</span>
             {!isLoading && messages.length > 0 && (
               <span className={cn(
-                "ml-1 inline-flex items-center justify-center min-w-[1.4rem] h-5 px-1.5 rounded-full text-xs font-bold",
-                isNight ? "bg-red-800/60 text-red-200" : "bg-red-100 text-red-700"
+                "ml-1 inline-flex items-center justify-center min-w-[1.4rem] h-5 px-1.5 rounded-full text-xs font-bold transition-all",
+                isNight ? "bg-red-800/60 text-red-200" : "bg-red-100 text-red-700",
+                badgePulse && "animate-badge-pulse"
               )}>
                 {messages.length}
               </span>

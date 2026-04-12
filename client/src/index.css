@@ -1142,3 +1142,15 @@ button:not(:disabled),
 .theme-toggle-icon-leave {
   animation: icon-leave 0.3s ease forwards;
 }
+
+/* ===== メッセージバッジ点滅アニメーション ===== */
+@keyframes badge-pulse {
+  0%   { transform: scale(1);    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); }
+  30%  { transform: scale(1.35); box-shadow: 0 0 0 6px rgba(220, 38, 38, 0.3); }
+  60%  { transform: scale(1.15); box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
+  80%  { transform: scale(1.25); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+  100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+.animate-badge-pulse {
+  animation: badge-pulse 0.6s ease-out 3;
+}
