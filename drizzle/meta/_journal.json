@@ -302,6 +302,41 @@
       "when": 1776014621743,
       "tag": "0042_moaning_dazzler",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "5",
+      "when": 1776017929903,
+      "tag": "0043_sudden_sleepwalker",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "5",
+      "when": 1776017968564,
+      "tag": "0044_early_genesis",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "5",
+      "when": 1776017968565,
+      "tag": "0045_fluffy_george_stacy",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "5",
+      "when": 1776017968566,
+      "tag": "0046_noisy_manta",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "5",
+      "when": 1776017968567,
+      "tag": "0047_spicy_squirrel_girl",
+      "breakpoints": true
     }
   ]
 }

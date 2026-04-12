@@ -22,6 +22,13 @@ async function appendAlcoholCheckToSheet(record: {
   latitude?: number | null;
   longitude?: number | null;
   locationAddress?: string | null;
+  alcoholMeasuredValue?: string | null;
+  detectorType?: string | null;
+  drivingPurpose?: string | null;
+  hasPassenger?: boolean | null;
+  passengerCount?: number | null;
+  physicalCondition?: string | null;
+  physicalConditionNote?: string | null;
 }, spreadsheetId: string): Promise<void> {
   try {
     const auth = new google.auth.GoogleAuth({
@@ -65,18 +72,37 @@ async function appendAlcoholCheckToSheet(record: {
       // ヘッダー行を設定
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `${tabName}!A1:S1`,
+        range: `${tabName}!A1:X1`,
         valueInputOption: "USER_ENTERED",
         requestBody: {
-          values: [["実施日時", "区分", "氏名", "ナンバープレート", "出勤打刻", "退勤打刻", "確認方法", "検知器使用", "酒気帯有無", "確認者", "残業時間", "残業理由", "連絡先", "人数", "備考", "位置情報", "緯度", "経度", "登録日時"]],
+          values: [["実施日時", "区分", "氏名", "ナンバープレート", "出勤打刻", "退勤打刻", "確認方法", "検知器使用", "測定値(mg/L)", "検知器種類・型番", "酒気帯有無", "確認者", "運転目的", "同乗者", "同乗者人数", "体調確認", "体調詳細", "残業時間", "残業理由", "連絡先", "人数", "備考", "位置情報", "登録日時"]],
         },
       });
     }
 
     // データ行を追加
+    // 運転目的ラベル変換
+    const drivingPurposeLabel = (() => {
+      switch (record.drivingPurpose) {
+        case "visit": return "業務訪問";
+        case "transport": return "送迎";
+        case "errand": return "物品購入";
+        case "other": return "その他";
+        default: return record.drivingPurpose ?? "";
+      }
+    })();
+    const hasPassengerLabel = record.hasPassenger == null ? "" : record.hasPassenger ? "有" : "無";
+    const physicalConditionLabel = (() => {
+      switch (record.physicalCondition) {
+        case "good": return "良好";
+        case "poor": return "不調";
+        default: return record.physicalCondition ?? "";
+      }
+    })();
+
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: `${tabName}!A:S`,
+      range: `${tabName}!A:X`,
       valueInputOption: "USER_ENTERED",
       requestBody: {
         values: [[
@@ -88,16 +114,21 @@ async function appendAlcoholCheckToSheet(record: {
           clockOutStr,
           confirmMethodLabel,
           detectorLabel,
+          record.alcoholMeasuredValue ?? "",
+          record.detectorType ?? "",
           alcoholLabel,
           record.confirmerName,
+          drivingPurposeLabel,
+          hasPassengerLabel,
+          record.passengerCount != null ? String(record.passengerCount) : "",
+          physicalConditionLabel,
+          record.physicalConditionNote ?? "",
           overtimeStr,
           record.overtimeReason ?? "",
           record.overtimeContact ?? "",
           record.overtimeCount != null ? String(record.overtimeCount) : "",
           record.notes ?? "",
           record.locationAddress ?? "",
-          record.latitude != null ? String(record.latitude) : "",
-          record.longitude != null ? String(record.longitude) : "",
           timestampStr,
         ]],
       },
@@ -3804,6 +3835,14 @@ export const appRouter = router({
         latitude: z.number().optional(),
         longitude: z.number().optional(),
         locationAddress: z.string().optional(),
+        // 追加項目
+        alcoholMeasuredValue: z.string().max(10).optional(),
+        detectorType: z.string().max(100).optional(),
+        drivingPurpose: z.enum(["visit", "transport", "errand", "other"]).optional(),
+        hasPassenger: z.boolean().optional(),
+        passengerCount: z.number().int().min(1).optional(),
+        physicalCondition: z.enum(["good", "poor"]).optional(),
+        physicalConditionNote: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const now = Date.now();
@@ -3831,6 +3870,13 @@ export const appRouter = router({
           latitude: input.latitude ?? null,
           longitude: input.longitude ?? null,
           locationAddress: input.locationAddress ?? null,
+          alcoholMeasuredValue: input.alcoholMeasuredValue ?? null,
+          detectorType: input.detectorType ?? null,
+          drivingPurpose: input.drivingPurpose ?? null,
+          hasPassenger: input.hasPassenger != null ? (input.hasPassenger ? 1 : 0) : null,
+          passengerCount: input.passengerCount ?? null,
+          physicalCondition: input.physicalCondition ?? null,
+          physicalConditionNote: input.physicalConditionNote ?? null,
         } as any);
         // 月別スプレッドシートを取得して転記（非同期・失敗しても記録は成功扱い）
         const checkedDate = new Date(now);
@@ -3855,6 +3901,13 @@ export const appRouter = router({
             latitude: input.latitude ?? null,
             longitude: input.longitude ?? null,
             locationAddress: input.locationAddress ?? null,
+            alcoholMeasuredValue: input.alcoholMeasuredValue ?? null,
+            detectorType: input.detectorType ?? null,
+            drivingPurpose: input.drivingPurpose ?? null,
+            hasPassenger: input.hasPassenger ?? null,
+            passengerCount: input.passengerCount ?? null,
+            physicalCondition: input.physicalCondition ?? null,
+            physicalConditionNote: input.physicalConditionNote ?? null,
           }, sheetReg.spreadsheetId);
           await markAlcoholCheckSynced(alcoholCheck.id);
           // 酒気帯「有」の場合は管理者（森脇崇）にプッシュ通知を送信する

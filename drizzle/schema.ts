@@ -746,6 +746,20 @@ export const alcoholChecks = mysqlTable("alcohol_checks", {
   longitude: double("longitude"),
   /** 出退勤時の住所文字列（リバースジオコーディング結果、任意） */
   locationAddress: text("locationAddress"),
+  /** アルコール測定値（mg/L、検知器使用時に入力） */
+  alcoholMeasuredValue: varchar("alcoholMeasuredValue", { length: 10 }),
+  /** 検知器の種類・型番（自由入力） */
+  detectorType: varchar("detectorType", { length: 100 }),
+  /** 運転目的: visit=業務訪問, transport=送迎, errand=物品購入, other=その他 */
+  drivingPurpose: mysqlEnum("drivingPurpose", ["visit", "transport", "errand", "other"]).default("visit"),
+  /** 同乗者有無 */
+  hasPassenger: tinyint("hasPassenger").default(0),
+  /** 同乗者人数（hasPassenger=1 の場合） */
+  passengerCount: int("passengerCount"),
+  /** 体調確認: good=良好, poor=不調 */
+  physicalCondition: mysqlEnum("physicalCondition", ["good", "poor"]).default("good"),
+  /** 体調不調の内容（physicalCondition=poor の場合） */
+  physicalConditionNote: text("physicalConditionNote"),
   /** スプレッドシート転記済みフラグ */
   sheetSynced: tinyint("sheetSynced").notNull().default(0),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

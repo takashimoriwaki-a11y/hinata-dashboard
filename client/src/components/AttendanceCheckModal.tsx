@@ -166,6 +166,14 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   const [alcoholDetected, setAlcoholDetected] = useState(false);
   const [confirmerName, setConfirmerName] = useState("森脇崇");
   const [notes, setNotes] = useState("");
+  // 追加項目（測定値・検知器種類・運転目的・同乗者・体調）
+  const [alcoholMeasuredValue, setAlcoholMeasuredValue] = useState("");
+  const [detectorType, setDetectorType] = useState("");
+  const [drivingPurpose, setDrivingPurpose] = useState<"visit" | "transport" | "errand" | "other">("visit");
+  const [hasPassenger, setHasPassenger] = useState(false);
+  const [passengerCount, setPassengerCount] = useState(1);
+  const [physicalCondition, setPhysicalCondition] = useState<"good" | "poor">("good");
+  const [physicalConditionNote, setPhysicalConditionNote] = useState("");
 
   // 残業入力（退勤時のみ）
   const openedAt = useMemo(() => new Date(), []);
@@ -440,6 +448,14 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       latitude: latitude ?? undefined,
       longitude: longitude ?? undefined,
       locationAddress: locationAddress ?? undefined,
+      // 追加項目
+      alcoholMeasuredValue: (detectorUsed && alcoholMeasuredValue.trim()) ? alcoholMeasuredValue.trim() : undefined,
+      detectorType: (detectorUsed && detectorType.trim()) ? detectorType.trim() : undefined,
+      drivingPurpose,
+      hasPassenger,
+      passengerCount: hasPassenger ? passengerCount : undefined,
+      physicalCondition,
+      physicalConditionNote: (physicalCondition === "poor" && physicalConditionNote.trim()) ? physicalConditionNote.trim() : undefined,
     });
   };
 
@@ -615,6 +631,38 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           </div>
         </div>
 
+        {/* 測定値（検知器使用時のみ） */}
+        {detectorUsed && (
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+              測定値（mg/L）
+            </label>
+            <input
+              type="text"
+              value={alcoholMeasuredValue}
+              onChange={(e) => setAlcoholMeasuredValue(e.target.value)}
+              placeholder="例: 0.00"
+              className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-400"
+            />
+          </div>
+        )}
+
+        {/* 検知器の種類・型番（検知器使用時のみ） */}
+        {detectorUsed && (
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+              検知器の種類・型番（任意）
+            </label>
+            <input
+              type="text"
+              value={detectorType}
+              onChange={(e) => setDetectorType(e.target.value)}
+              placeholder="例: ライオン社製 SD-400"
+              className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-400"
+            />
+          </div>
+        )}
+
         {/* 酒気帯び有無 */}
         <div>
           <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
@@ -663,6 +711,115 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           </div>
+        </div>
+
+        {/* 運転目的 */}
+        <div>
+          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+            運転目的
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { value: "visit", label: "業務訪問" },
+              { value: "transport", label: "送迎" },
+              { value: "errand", label: "物品購入" },
+              { value: "other", label: "その他" },
+            ] as const).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setDrivingPurpose(opt.value)}
+                className={`py-2 text-sm font-medium rounded-xl border-2 transition-all ${
+                  drivingPurpose === opt.value
+                    ? isClockIn
+                      ? "bg-orange-500 border-orange-500 text-white shadow-sm"
+                      : "bg-cyan-500 border-cyan-500 text-white shadow-sm"
+                    : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-300"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 同乗者の有無 */}
+        <div>
+          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+            同乗者
+          </label>
+          <div className="flex gap-2">
+            {([false, true] as const).map((val) => (
+              <button
+                key={String(val)}
+                type="button"
+                onClick={() => setHasPassenger(val)}
+                className={`flex-1 py-2.5 text-sm font-medium rounded-xl border-2 transition-all ${
+                  hasPassenger === val
+                    ? isClockIn
+                      ? "bg-orange-500 border-orange-500 text-white shadow-sm"
+                      : "bg-cyan-500 border-cyan-500 text-white shadow-sm"
+                    : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-300"
+                }`}
+              >
+                {val ? "有" : "無"}
+              </button>
+            ))}
+          </div>
+          {hasPassenger && (
+            <div className="mt-2">
+              <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">人数</label>
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={passengerCount}
+                onChange={(e) => setPassengerCount(Math.max(1, parseInt(e.target.value) || 1))}
+                className="w-24 px-3 py-2 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-400"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* 体調確認 */}
+        <div>
+          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+            体調確認
+          </label>
+          <div className="flex gap-2">
+            {(["good", "poor"] as const).map((val) => (
+              <button
+                key={val}
+                type="button"
+                onClick={() => setPhysicalCondition(val)}
+                className={`flex-1 py-2.5 text-sm font-medium rounded-xl border-2 transition-all ${
+                  physicalCondition === val
+                    ? val === "poor"
+                      ? "bg-amber-500 border-amber-500 text-white shadow-sm"
+                      : isClockIn
+                        ? "bg-orange-500 border-orange-500 text-white shadow-sm"
+                        : "bg-cyan-500 border-cyan-500 text-white shadow-sm"
+                    : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-300"
+                }`}
+              >
+                {val === "good" ? "良好" : "不調"}
+              </button>
+            ))}
+          </div>
+          {physicalCondition === "poor" && (
+            <div className="mt-2">
+              <p className="text-xs text-amber-600 dark:text-amber-400 mb-1 font-medium">
+                ⚠️ 不調の場合は内容を入力してください。安全運転管理者に報告してください。
+              </p>
+              <textarea
+                value={physicalConditionNote}
+                onChange={(e) => setPhysicalConditionNote(e.target.value)}
+                placeholder="不調の内容（症状・服薬影響等）"
+                rows={2}
+                className="w-full px-3 py-2.5 text-sm rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-amber-400 resize-none"
+              />
+            </div>
+          )}
         </div>
 
         {/* 備考 */}
