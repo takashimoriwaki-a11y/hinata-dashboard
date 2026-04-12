@@ -4854,7 +4854,6 @@ export default function Dashboard() {
       {attendanceModalType && (
         <AttendanceCheckModal
           type={attendanceModalType}
-          onConfirm={handleClockConfirm}
           onClose={() => setAttendanceModalType(null)}
         />
       )}

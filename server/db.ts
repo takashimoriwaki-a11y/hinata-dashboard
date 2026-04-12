@@ -1707,3 +1707,33 @@ export async function rotateScheduleDays(): Promise<{ deleted: number; shifted: 
 
   return { deleted, shifted };
 }
+
+// ─── アルコールチェック ───────────────────────────────────────────────────────
+import { alcoholChecks, AlcoholCheck, InsertAlcoholCheck } from "../drizzle/schema";
+
+/** アルコールチェック記録を保存する */
+export async function saveAlcoholCheck(data: Omit<InsertAlcoholCheck, "id" | "createdAt" | "sheetSynced">): Promise<AlcoholCheck> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(alcoholChecks).values({ ...data, sheetSynced: 0 });
+  const insertId = (result as any).insertId;
+  const { eq: eqOp } = await import("drizzle-orm");
+  const [row] = await db.select().from(alcoholChecks).where(eqOp(alcoholChecks.id, insertId));
+  return row;
+}
+
+/** アルコールチェック記録をスプレッドシート転記済みにマークする */
+export async function markAlcoholCheckSynced(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const { eq: eqOp } = await import("drizzle-orm");
+  await db.update(alcoholChecks).set({ sheetSynced: 1 }).where(eqOp(alcoholChecks.id, id));
+}
+
+/** ユーザーのナンバープレートを更新する */
+export async function updateUserNumberPlate(userId: number, numberPlate: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const { eq: eqOp } = await import("drizzle-orm");
+  await db.update(users).set({ numberPlate } as any).where(eqOp(users.id, userId));
+}

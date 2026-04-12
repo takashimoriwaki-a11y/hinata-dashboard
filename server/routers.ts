@@ -1,4 +1,60 @@
 import { getSessionCookieOptions } from "./_core/cookies";
+import { google } from "googleapis";
+
+const ALCOHOL_SHEET_ID = "1s9j_V1H1yoMOZhjK3-skd14RDiFy_3sLKonE977UmNc";
+
+/** アルコールチェック記録をGoogleスプレッドシートに転記する */
+async function appendAlcoholCheckToSheet(record: {
+  checkedAt: number;
+  type: string;
+  userName: string;
+  numberPlate: string;
+  confirmMethod: string;
+  detectorUsed: number;
+  alcoholDetected: number;
+  confirmerName: string;
+  notes: string | null;
+}): Promise<void> {
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        private_key: (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ?? "").replace(/\\n/g, "\n"),
+      },
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+    const sheets = google.sheets({ version: "v4", auth });
+    const checkedDate = new Date(record.checkedAt);
+    const dateStr = checkedDate.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+    const typeLabel = record.type === "clock_in" ? "出勤" : "退勤";
+    const confirmMethodLabel = record.confirmMethod === "online" ? "オンライン画面" : "対面";
+    const detectorLabel = record.detectorUsed ? "使用" : "未使用";
+    const alcoholLabel = record.alcoholDetected ? "有" : "無";
+    const timestampStr = new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" });
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: ALCOHOL_SHEET_ID,
+      range: "記録!A:J",
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [[
+          dateStr,
+          typeLabel,
+          record.userName,
+          record.numberPlate,
+          confirmMethodLabel,
+          detectorLabel,
+          alcoholLabel,
+          record.confirmerName,
+          record.notes ?? "",
+          timestampStr,
+        ]],
+      },
+    });
+  } catch (err) {
+    console.error("[AlcoholCheck] Failed to append to sheet:", err);
+    throw err;
+  }
+}
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { GoogleAuth } from "google-auth-library";
@@ -95,6 +151,9 @@ import {
   deleteTeamGoal,
   clockAttendance,
   getTodayAttendance,
+  saveAlcoholCheck,
+  markAlcoholCheckSynced,
+  updateUserNumberPlate,
   getSharedPrompts,
   createSharedPrompt,
   updateSharedPrompt,
@@ -3626,24 +3685,63 @@ export const appRouter = router({
   // 出退勤打刻
   // ============================================================
   attendance: router({
-    /** 出勤または退勤を打刻する */
+    /** 出勤または退勤を打刻する（アルコールチェック情報も同時に記録） */
     clock: protectedProcedure
       .input(z.object({
         type: z.enum(["clock_in", "clock_out"]),
+        // アルコールチェック情報
+        numberPlate: z.string().max(20).default(""),
+        confirmMethod: z.enum(["online", "face"]).default("online"),
+        detectorUsed: z.boolean().default(true),
+        alcoholDetected: z.boolean().default(false),
+        confirmerName: z.string().max(100).default("森脇崇"),
+        notes: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        const now = Date.now();
+        // 打刻記録
         const log = await clockAttendance({
           type: input.type,
           userId: ctx.user.id,
           userName: ctx.user.name ?? "不明",
-          clockedAt: Date.now(),
+          clockedAt: now,
         });
-        return { success: true, log };
+        // ナンバープレートをユーザー情報に保存
+        if (input.numberPlate) {
+          await updateUserNumberPlate(ctx.user.id, input.numberPlate);
+        }
+        // アルコールチェック記録
+        const alcoholCheck = await saveAlcoholCheck({
+          type: input.type,
+          userId: ctx.user.id,
+          userName: ctx.user.name ?? "不明",
+          numberPlate: input.numberPlate,
+          confirmMethod: input.confirmMethod,
+          detectorUsed: input.detectorUsed ? 1 : 0,
+          alcoholDetected: input.alcoholDetected ? 1 : 0,
+          confirmerName: input.confirmerName,
+          notes: input.notes ?? null,
+          checkedAt: now,
+        });
+        // スプレッドシートへの転記（非同期・失敗しても打刻は成功扱い）
+        appendAlcoholCheckToSheet(alcoholCheck).then(() => {
+          markAlcoholCheckSynced(alcoholCheck.id).catch(console.error);
+        }).catch((err) => {
+          console.error("[AlcoholCheck] Sheet sync failed:", err);
+        });
+        return { success: true, log, alcoholCheckId: alcoholCheck.id };
       }),
     /** 今日の自分の打刻履歴を取得する */
     today: protectedProcedure
       .query(async ({ ctx }) => {
         return getTodayAttendance(ctx.user.id);
+      }),
+    /** ユーザーのナンバープレートを更新する */
+    updateNumberPlate: protectedProcedure
+      .input(z.object({ numberPlate: z.string().max(20) }))
+      .mutation(async ({ input, ctx }) => {
+        await updateUserNumberPlate(ctx.user.id, input.numberPlate);
+        return { success: true };
       }),
   }),
   // ============================================================

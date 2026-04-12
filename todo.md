@@ -1898,3 +1898,23 @@
 
 ## サイドバー閉じるボタン位置改善（2026-04-11）
 - [x] 閉じるボタンをサイドバー下部からロゴエリア右端（常に見える位置）に移動する（ChevronLeft/Rightアイコン、ツールチップ付き）
+
+## アルコールチェック記録機能（2026-04-12）
+
+- [x] Googleスプレッドシート「アルコールチェック記録」を新規作成（シートID: 1s9j_V1H1yoMOZhjK3-skd14RDiFy_3sLKonE977UmNc）
+- [x] 「記録」シートにヘッダー行を設定（実施日時・区分・氏名・ナンバープレート・確認方法・検知器使用・酒気帯び有無・確認者・備考・登録タイムスタンプ）
+- [x] DBスキーマ：alcohol_checksテーブル追加（type/userId/userName/numberPlate/confirmMethod/detectorUsed/alcoholDetected/confirmerName/notes/checkedAt/sheetSynced）
+- [x] DBスキーマ：usersテーブルにnumberPlate列追加
+- [x] server/db.ts：saveAlcoholCheck・markAlcoholCheckSynced・updateUserNumberPlate関数追加
+- [x] server/routers.ts：attendance.clockプロシージャをアルコールチェック情報付きに拡張
+- [x] server/routers.ts：appendAlcoholCheckToSheet関数（googleapis使用）でスプレッドシート自動転記
+- [x] AttendanceCheckModal：出勤・退勤モーダルにアルコールチェック入力フォームを追加
+  - [x] ナンバープレート入力（ログインユーザーのプロフィールから自動取得）
+  - [x] 確認方法選択（オンライン画面/対面）：デフォルトはオンライン画面
+  - [x] 検知器使用有無選択（使用/未使用）：デフォルトは使用
+  - [x] 酒気帯び有無選択（無/有）：デフォルトは無
+  - [x] 確認者選択（森脇崇/森脇英樹）：デフォルトは森脇崇
+  - [x] 備考入力（任意）
+  - [x] 打刻ボタン押下で打刻＋アルコールチェック記録＋スプレッドシート転記を同時実行
+- [x] Dashboard.tsxのAttendanceCheckModal呼び出しをonConfirmなしに変更（モーダル内で打刻）
+- [x] テスト作成（5件合格）

@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { CheckCircle2, ExternalLink, LogIn, LogOut, X, Loader2 } from "lucide-react";
+import { CheckCircle2, ExternalLink, LogIn, LogOut, X, Loader2, Car, Shield } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 const DAILY_REPORT_SPREADSHEET_ID = "10Leb7UR6ARVlCGbf5pBa5yxsgm5WAV9m-ETyYrzfBCs";
 
@@ -45,7 +46,7 @@ const CLOCK_IN_STEPS: ClockInStep[] = [
   {
     id: "clock_action",
     label: "出勤打刻",
-    description: "ボタンを押すと出勤打刻が完了します",
+    description: "アルコールチェックを入力して出勤打刻する",
     isClockAction: true,
   },
 ];
@@ -70,16 +71,6 @@ const CLOCK_OUT_STEPS: ClockInStep[] = [
     },
   },
   {
-    id: "daily_report_out",
-    label: "業務日報のアルコールチェック記入",
-    description: "業務日報に退勤時のアルコールチェック結果を記入する",
-    link: {
-      url: `https://docs.google.com/spreadsheets/d/${DAILY_REPORT_SPREADSHEET_ID}/edit`,
-      label: "業務日報を開く",
-      isDailyReport: true,
-    },
-  },
-  {
     id: "mimamodrive_out",
     label: "自宅到着時にみまもドライブを停止",
     description: "自宅に到着したらみまもドライブを停止する",
@@ -91,26 +82,53 @@ const CLOCK_OUT_STEPS: ClockInStep[] = [
   {
     id: "clock_action",
     label: "退勤打刻",
-    description: "ボタンを押すと退勤打刻が完了します",
+    description: "アルコールチェックを入力して退勤打刻する",
     isClockAction: true,
   },
 ];
 
+// アルコールチェックフォームの型
+interface AlcoholCheckForm {
+  numberPlate: string;
+  confirmMethod: "online" | "face";
+  detectorUsed: boolean;
+  alcoholDetected: boolean;
+  confirmerName: string;
+  notes: string;
+}
+
 interface AttendanceCheckModalProps {
   type: "clock_in" | "clock_out";
-  onConfirm: () => void;
   onClose: () => void;
 }
 
-export function AttendanceCheckModal({ type, onConfirm, onClose }: AttendanceCheckModalProps) {
+export function AttendanceCheckModal({ type, onClose }: AttendanceCheckModalProps) {
   const isClockIn = type === "clock_in";
   const steps = isClockIn ? CLOCK_IN_STEPS : CLOCK_OUT_STEPS;
-
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [openingStepId, setOpeningStepId] = useState<string | null>(null);
-  const [clockingNow, setClockingNow] = useState(false);
-
+  const { user } = useAuth();
   const utils = trpc.useUtils();
+
+  // アルコールチェックフォームの状態
+  const [alcoholForm, setAlcoholForm] = useState<AlcoholCheckForm>({
+    numberPlate: (user as any)?.numberPlate ?? "",
+    confirmMethod: "online",
+    detectorUsed: true,
+    alcoholDetected: false,
+    confirmerName: "森脇崇",
+    notes: "",
+  });
+
+  const clockMutation = trpc.attendance.clock.useMutation({
+    onSuccess: () => {
+      void utils.attendance.today.invalidate();
+      onClose();
+    },
+    onError: (e) => {
+      alert(`打刻に失敗しました: ${e.message}`);
+    },
+  });
 
   // 非打刻ステップが全て完了しているか
   const nonClockSteps = steps.filter((s) => !s.isClockAction);
@@ -151,23 +169,28 @@ export function AttendanceCheckModal({ type, onConfirm, onClose }: AttendanceChe
     setDone((prev) => ({ ...prev, [step.id]: true }));
   };
 
-  // ステップのボタンを押す
+  // ステップのボタンを押す（打刻以外）
   const handleStepButton = async (step: ClockInStep) => {
-    if (step.isClockAction) {
-      setClockingNow(true);
-      onConfirm();
-      setTimeout(() => {
-        setClockingNow(false);
-        onClose();
-      }, 800);
-      return;
-    }
     if (!step.link) return;
     if (step.link.isDailyReport) {
       await openDailyReport(step);
     } else {
       openLink(step);
     }
+  };
+
+  // 打刻実行
+  const handleClock = () => {
+    if (clockMutation.isPending) return;
+    clockMutation.mutate({
+      type,
+      numberPlate: alcoholForm.numberPlate,
+      confirmMethod: alcoholForm.confirmMethod,
+      detectorUsed: alcoholForm.detectorUsed,
+      alcoholDetected: alcoholForm.alcoholDetected,
+      confirmerName: alcoholForm.confirmerName,
+      notes: alcoholForm.notes || undefined,
+    });
   };
 
   return (
@@ -177,11 +200,10 @@ export function AttendanceCheckModal({ type, onConfirm, onClose }: AttendanceChe
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
-
       {/* モーダル本体 */}
       <div
         className="relative w-full sm:max-w-md mx-0 sm:mx-4 bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col"
-        style={{ maxHeight: "min(90dvh, 90vh)" }}
+        style={{ maxHeight: "min(92dvh, 92vh)" }}
       >
         {/* ヘッダー */}
         <div
@@ -198,70 +220,268 @@ export function AttendanceCheckModal({ type, onConfirm, onClose }: AttendanceChe
               <LogOut className="w-5 h-5" />
             )}
             <span className="text-lg font-bold">
-              {isClockIn ? "出勤前の確認手順" : "退勤前の確認手順"}
+              {isClockIn ? "出勤前の確認" : "退勤前の確認"}
             </span>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="text-white/80 hover:text-white transition-colors p-1"
+            className="text-white/80 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/20"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* 手順リスト（スクロール可能） */}
+        {/* スクロール可能なコンテンツ */}
         <div
-          className="flex-1 overflow-y-auto overscroll-contain px-5 py-4 space-y-3"
+          className="overflow-y-auto flex-1 py-2"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-            各ボタンを押して手順を実行してください。
-          </p>
-
-          {steps.map((step, index) => {
-            const isDone = done[step.id] || (step.isClockAction && clockingNow);
-            const isLocked = step.isClockAction && !allNonClockDone;
+          {/* 手順ステップ */}
+          {steps.map((step) => {
+            const isDone = done[step.id];
             const isOpening = openingStepId === step.id;
 
+            if (step.isClockAction) {
+              // 打刻ステップ（アルコールチェックフォーム付き）
+              return (
+                <div
+                  key={step.id}
+                  className={`mx-3 my-2 rounded-xl border-2 transition-all duration-200 ${
+                    allNonClockDone
+                      ? isClockIn
+                        ? "border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30"
+                        : "border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/30"
+                      : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 opacity-60"
+                  }`}
+                >
+                  {/* ステップヘッダー */}
+                  <div className="flex items-start gap-3 px-4 pt-3 pb-2">
+                    <div
+                      className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                        isClockIn
+                          ? "bg-red-100 dark:bg-red-900/40"
+                          : "bg-blue-100 dark:bg-blue-900/40"
+                      }`}
+                    >
+                      <Shield className={`w-4 h-4 ${isClockIn ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-semibold leading-snug ${isClockIn ? "text-red-700 dark:text-red-300" : "text-blue-700 dark:text-blue-300"}`}>
+                        {step.label}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        アルコールチェック記録を入力してください
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* アルコールチェックフォーム */}
+                  <div className="px-4 pb-3 space-y-3">
+                    {/* ナンバープレート */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <Car className="w-3 h-3 inline mr-1" />
+                        ナンバープレート
+                      </label>
+                      <input
+                        type="text"
+                        value={alcoholForm.numberPlate}
+                        onChange={(e) => setAlcoholForm(f => ({ ...f, numberPlate: e.target.value }))}
+                        placeholder="例: 奈良 300 あ 1234"
+                        disabled={!allNonClockDone}
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 disabled:opacity-50"
+                        style={{ fontSize: "16px" }}
+                      />
+                    </div>
+
+                    {/* 確認方法 */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        確認方法
+                      </label>
+                      <div className="flex gap-2">
+                        {(["online", "face"] as const).map((method) => (
+                          <button
+                            key={method}
+                            type="button"
+                            disabled={!allNonClockDone}
+                            onClick={() => setAlcoholForm(f => ({ ...f, confirmMethod: method }))}
+                            className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-colors disabled:opacity-50 ${
+                              alcoholForm.confirmMethod === method
+                                ? isClockIn
+                                  ? "bg-red-500 border-red-500 text-white"
+                                  : "bg-blue-500 border-blue-500 text-white"
+                                : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                            }`}
+                          >
+                            {method === "online" ? "オンライン画面" : "対面"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 検知器使用有無 */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        検知器使用
+                      </label>
+                      <div className="flex gap-2">
+                        {([true, false] as const).map((val) => (
+                          <button
+                            key={String(val)}
+                            type="button"
+                            disabled={!allNonClockDone}
+                            onClick={() => setAlcoholForm(f => ({ ...f, detectorUsed: val }))}
+                            className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-colors disabled:opacity-50 ${
+                              alcoholForm.detectorUsed === val
+                                ? isClockIn
+                                  ? "bg-red-500 border-red-500 text-white"
+                                  : "bg-blue-500 border-blue-500 text-white"
+                                : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                            }`}
+                          >
+                            {val ? "使用" : "未使用"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 酒気帯び有無 */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        酒気帯び
+                      </label>
+                      <div className="flex gap-2">
+                        {([false, true] as const).map((val) => (
+                          <button
+                            key={String(val)}
+                            type="button"
+                            disabled={!allNonClockDone}
+                            onClick={() => setAlcoholForm(f => ({ ...f, alcoholDetected: val }))}
+                            className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-colors disabled:opacity-50 ${
+                              alcoholForm.alcoholDetected === val
+                                ? val
+                                  ? "bg-orange-500 border-orange-500 text-white"
+                                  : isClockIn
+                                    ? "bg-red-500 border-red-500 text-white"
+                                    : "bg-blue-500 border-blue-500 text-white"
+                                : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                            }`}
+                          >
+                            {val ? "有" : "無"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 確認者 */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        確認者（安全運転管理者）
+                      </label>
+                      <div className="flex gap-2">
+                        {["森脇崇", "森脇英樹"].map((name) => (
+                          <button
+                            key={name}
+                            type="button"
+                            disabled={!allNonClockDone}
+                            onClick={() => setAlcoholForm(f => ({ ...f, confirmerName: name }))}
+                            className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-colors disabled:opacity-50 ${
+                              alcoholForm.confirmerName === name
+                                ? isClockIn
+                                  ? "bg-red-500 border-red-500 text-white"
+                                  : "bg-blue-500 border-blue-500 text-white"
+                                : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                            }`}
+                          >
+                            {name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 備考（任意） */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        備考（任意）
+                      </label>
+                      <textarea
+                        value={alcoholForm.notes}
+                        onChange={(e) => setAlcoholForm(f => ({ ...f, notes: e.target.value }))}
+                        placeholder="特記事項があれば入力"
+                        disabled={!allNonClockDone}
+                        rows={2}
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 resize-none disabled:opacity-50"
+                        style={{ fontSize: "16px" }}
+                      />
+                    </div>
+
+                    {/* 打刻ボタン */}
+                    <button
+                      type="button"
+                      disabled={!allNonClockDone || clockMutation.isPending}
+                      onClick={handleClock}
+                      className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white text-sm font-bold transition-all duration-200 ${
+                        !allNonClockDone || clockMutation.isPending
+                          ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed"
+                          : isClockIn
+                          ? "bg-red-500 hover:bg-red-600 shadow-md active:scale-95"
+                          : "bg-blue-500 hover:bg-blue-600 shadow-md active:scale-95"
+                      }`}
+                    >
+                      {clockMutation.isPending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          打刻中...
+                        </>
+                      ) : (
+                        <>
+                          {isClockIn ? (
+                            <LogIn className="w-4 h-4" />
+                          ) : (
+                            <LogOut className="w-4 h-4" />
+                          )}
+                          {isClockIn ? "出勤打刻する" : "退勤打刻する"}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+
+            // 通常ステップ
             return (
               <div
                 key={step.id}
-                className={`rounded-xl border transition-all duration-300 ${
+                className={`mx-3 my-2 rounded-xl border transition-all duration-200 ${
                   isDone
-                    ? "border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-950/30"
-                    : isLocked
-                    ? "border-gray-200 bg-gray-50/50 dark:border-gray-700 dark:bg-gray-800/30 opacity-50"
-                    : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50"
+                    ? "border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30"
+                    : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
                 }`}
               >
-                <div className="px-4 py-3 flex items-start gap-3">
-                  {/* 完了アイコン or ステップ番号 */}
-                  <div className="mt-0.5 flex-shrink-0 w-6 h-6 flex items-center justify-center">
+                <div className="flex items-start gap-3 px-4 py-3">
+                  {/* アイコン */}
+                  <div className="flex-shrink-0 mt-0.5">
                     {isDone ? (
                       <CheckCircle2 className="w-6 h-6 text-green-500" />
                     ) : (
-                      <span
-                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                          isLocked
-                            ? "bg-gray-200 text-gray-400 dark:bg-gray-700 dark:text-gray-500"
-                            : isClockIn
-                            ? "bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400"
-                            : "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400"
+                      <div
+                        className={`w-6 h-6 rounded-full ${
+                          isClockIn
+                            ? "bg-red-100 dark:bg-red-900/40"
+                            : "bg-blue-100 dark:bg-blue-900/40"
                         }`}
-                      >
-                        {index + 1}
-                      </span>
+                      />
                     )}
                   </div>
-
                   {/* テキスト */}
                   <div className="flex-1 min-w-0">
                     <p
                       className={`text-sm font-semibold leading-snug ${
                         isDone
                           ? "text-green-700 dark:text-green-400 line-through"
-                          : isLocked
-                          ? "text-gray-400 dark:text-gray-600"
                           : "text-gray-800 dark:text-gray-200"
                       }`}
                     >
@@ -274,67 +494,32 @@ export function AttendanceCheckModal({ type, onConfirm, onClose }: AttendanceChe
                     )}
                   </div>
                 </div>
-
                 {/* アクションボタン */}
-                {!isDone && (
+                {!isDone && step.link && (
                   <div className="px-4 pb-3 pt-0">
-                    {step.isClockAction ? (
-                      // 打刻ボタン
-                      <button
-                        type="button"
-                        disabled={isLocked || clockingNow}
-                        onClick={() => void handleStepButton(step)}
-                        className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white text-sm font-bold transition-all duration-200 ${
-                          isLocked || clockingNow
-                            ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed"
-                            : isClockIn
-                            ? "bg-red-500 hover:bg-red-600 shadow-md active:scale-95"
-                            : "bg-blue-500 hover:bg-blue-600 shadow-md active:scale-95"
-                        }`}
-                      >
-                        {clockingNow ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            打刻中...
-                          </>
-                        ) : (
-                          <>
-                            {isClockIn ? (
-                              <LogIn className="w-4 h-4" />
-                            ) : (
-                              <LogOut className="w-4 h-4" />
-                            )}
-                            {isClockIn ? "出勤打刻する" : "退勤打刻する"}
-                          </>
-                        )}
-                      </button>
-                    ) : (
-                      // 外部リンクボタン
-                      <button
-                        type="button"
-                        disabled={isOpening}
-                        onClick={() => void handleStepButton(step)}
-                        className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg transition-colors ${
-                          isOpening ? "opacity-60 cursor-wait" : ""
-                        } ${
-                          isClockIn
-                            ? "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60"
-                            : "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:hover:bg-blue-900/60"
-                        }`}
-                      >
-                        {isOpening ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <ExternalLink className="w-3 h-3" />
-                        )}
-                        {step.link?.label}
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      disabled={isOpening}
+                      onClick={() => void handleStepButton(step)}
+                      className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg transition-colors ${
+                        isOpening ? "opacity-60 cursor-wait" : ""
+                      } ${
+                        isClockIn
+                          ? "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60"
+                          : "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:hover:bg-blue-900/60"
+                      }`}
+                    >
+                      {isOpening ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <ExternalLink className="w-3 h-3" />
+                      )}
+                      {step.link.label}
+                    </button>
                   </div>
                 )}
-
-                {/* 完了済みメッセージ（打刻以外） */}
-                {isDone && !step.isClockAction && (
+                {/* 完了済みメッセージ */}
+                {isDone && (
                   <div className="px-4 pb-3 pt-0">
                     <span className="text-xs text-green-600 dark:text-green-400 font-medium">
                       ✓ 完了
@@ -344,7 +529,6 @@ export function AttendanceCheckModal({ type, onConfirm, onClose }: AttendanceChe
               </div>
             );
           })}
-
           <div className="h-2" />
         </div>
 
@@ -352,7 +536,7 @@ export function AttendanceCheckModal({ type, onConfirm, onClose }: AttendanceChe
         <div className="px-5 py-3 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
           {!allNonClockDone && (
             <p className="text-center text-xs text-gray-400 dark:text-gray-500 mb-2">
-              上の手順を全て実行すると打刻ボタンが押せます
+              上の手順を全て実行するとアルコールチェック入力欄が有効になります
             </p>
           )}
           <button

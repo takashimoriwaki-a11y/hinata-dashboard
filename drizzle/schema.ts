@@ -26,6 +26,8 @@ export const users = mysqlTable("users", {
   passwordHash: text("passwordHash"),
   /** 初回ログイン時のチーム設定完了フラグ (0=未設定, 1=設定済) */
   teamSetupDone: tinyint("teamSetupDone").default(0).notNull(),
+  /** 車両ナンバープレート（アルコールチェック記録に使用） */
+  numberPlate: varchar("numberPlate", { length: 20 }).default(""),
   /** Google Calendar用アクセストークン */
   googleAccessToken: text("googleAccessToken"),
   /** Google Calendar用リフレッシュトークン */
@@ -701,3 +703,36 @@ export const sharedPrompts = mysqlTable("shared_prompts", {
 });
 export type SharedPrompt = typeof sharedPrompts.$inferSelect;
 export type InsertSharedPrompt = typeof sharedPrompts.$inferInsert;
+
+/**
+ * アルコールチェック記録テーブル
+ * 出勤・退勤時のアルコールチェック結果を記録し、スプレッドシートに転記する
+ */
+export const alcoholChecks = mysqlTable("alcohol_checks", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 打刻種別: clock_in=出勤, clock_out=退勤 */
+  type: mysqlEnum("type", ["clock_in", "clock_out"]).notNull(),
+  /** 実施ユーザーID */
+  userId: int("userId").notNull(),
+  /** 氏名 */
+  userName: varchar("userName", { length: 100 }).notNull(),
+  /** ナンバープレート（ユーザーのプロフィールから取得） */
+  numberPlate: varchar("numberPlate", { length: 20 }).notNull().default(""),
+  /** 確認方法: online=オンライン画面, face=対面 */
+  confirmMethod: mysqlEnum("confirmMethod", ["online", "face"]).notNull().default("online"),
+  /** 検知器使用有無 */
+  detectorUsed: tinyint("detectorUsed").notNull().default(1),
+  /** 酒気帯び有無 */
+  alcoholDetected: tinyint("alcoholDetected").notNull().default(0),
+  /** 確認者名 */
+  confirmerName: varchar("confirmerName", { length: 100 }).notNull().default("森脇崇"),
+  /** 備考（任意） */
+  notes: text("notes"),
+  /** 実施日時（UTC ms） */
+  checkedAt: bigint("checkedAt", { mode: "number" }).notNull(),
+  /** スプレッドシート転記済みフラグ */
+  sheetSynced: tinyint("sheetSynced").notNull().default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type AlcoholCheck = typeof alcoholChecks.$inferSelect;
+export type InsertAlcoholCheck = typeof alcoholChecks.$inferInsert;
