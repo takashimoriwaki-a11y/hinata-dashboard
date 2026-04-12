@@ -1735,6 +1735,19 @@ export async function markAlcoholCheckSynced(id: number): Promise<void> {
   await db.update(alcoholChecks).set({ sheetSynced: 1 }).where(eqOp(alcoholChecks.id, id));
 }
 
+/** 期間指定でアルコールチェック記録を取得する（管理者用） */
+export async function getAlcoholChecksByRange(
+  startMs: number,
+  endMs: number
+): Promise<AlcoholCheck[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(alcoholChecks)
+    .where(and(gte(alcoholChecks.checkedAt, startMs), lte(alcoholChecks.checkedAt, endMs)))
+    .orderBy(alcoholChecks.checkedAt);
+}
 /** ユーザーのナンバープレートを更新する */
 export async function updateUserNumberPlate(userId: number, numberPlate: string): Promise<void> {
   const db = await getDb();

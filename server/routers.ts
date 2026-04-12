@@ -200,6 +200,7 @@ import {
   saveAlcoholCheck,
   markAlcoholCheckSynced,
   updateUserNumberPlate,
+  getAlcoholChecksByRange,
   getAlcoholCheckSpreadsheet,
   getAllAlcoholCheckSpreadsheets,
   upsertAlcoholCheckSpreadsheet,
@@ -3859,6 +3860,48 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         await deleteAlcoholCheckSpreadsheet(input.id);
         return { success: true };
+      }),
+    /** アルコールチェック記録を期間指定でCSV形式にエクスポートする（管理者用） */
+    exportCsv: protectedProcedure
+      .input(z.object({
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      }))
+      .query(async ({ input }) => {
+        // 開始日の0:00 JST → UTC ms
+        const startMs = new Date(`${input.startDate}T00:00:00+09:00`).getTime();
+        // 終了日の23:59:59 JST → UTC ms
+        const endMs = new Date(`${input.endDate}T23:59:59+09:00`).getTime();
+        if (endMs < startMs) throw new TRPCError({ code: "BAD_REQUEST", message: "開始日は終了日以前にしてください" });
+        const records = await getAlcoholChecksByRange(startMs, endMs);
+        const toJST = (ms: number | null | undefined) =>
+          ms ? new Date(ms).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+        const header = ["実施日時", "区分", "氏名", "ナンバープレート", "出勤打刻", "退勤打刻", "確認方法", "検知器使用", "酒気帯有無", "確認者", "残業時間", "残業理由", "連絡先", "人数", "備考", "登録日時"];
+        const rows = records.map((r) => [
+          toJST(r.checkedAt),
+          r.type === "clock_in" ? "出勤" : "退勤",
+          r.userName,
+          r.numberPlate,
+          toJST(r.clockInAt),
+          toJST(r.clockOutAt),
+          r.confirmMethod === "online" ? "オンライン画面" : "対面",
+          r.detectorUsed ? "使用" : "未使用",
+          r.alcoholDetected ? "有" : "無",
+          r.confirmerName,
+          r.overtimeStartAt && r.overtimeEndAt
+            ? `${toJST(r.overtimeStartAt)}～${toJST(r.overtimeEndAt)}`
+            : "",
+          r.overtimeReason ?? "",
+          (r as any).overtimeContact ?? "",
+          (r as any).overtimeCount != null ? String((r as any).overtimeCount) : "",
+          r.notes ?? "",
+          toJST(r.createdAt instanceof Date ? r.createdAt.getTime() : Number(r.createdAt)),
+        ]);
+        // CSV変換（カンマ・改行をエスケープ）
+        const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
+        const csvLines = [header, ...rows].map((row) => row.map(escape).join(","));
+        const csv = "\uFEFF" + csvLines.join("\n"); // BOM付き UTF-8
+        return { csv, count: records.length };
       }),
     /** 今日の自分の打刻履歴を取得する */
     today: protectedProcedure

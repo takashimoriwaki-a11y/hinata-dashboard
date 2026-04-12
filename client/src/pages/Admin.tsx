@@ -796,7 +796,7 @@ export default function Admin() {
   }, []);
 
   // セクション切り替え
-  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "teamGoals" | "toolLogs" | "alcoholSheets">("sheets");
+  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "teamGoals" | "toolLogs" | "alcoholSheets" | "alcoholCsv">("sheets");
   const { user: currentUser } = useAuth();
 
   return (
@@ -913,6 +913,19 @@ export default function Admin() {
             )}
           >
             アルコールチェック管理
+          </button>
+        )}
+        {currentUser?.role === "admin" && (
+          <button
+            onClick={() => setActiveSection("alcoholCsv")}
+            className={cn(
+            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
+            activeSection === "alcoholCsv"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            記録CSV出力
           </button>
         )}
       </div>
@@ -1120,6 +1133,8 @@ export default function Admin() {
       {activeSection === "toolLogs" && <ToolAuditLogsPanel />}
       {/* アルコールチェック月別スプレッドシート管理 */}
       {activeSection === "alcoholSheets" && <AlcoholCheckSpreadsheetsPanel />}
+      {/* アルコールチェック記録CSVエクスポート */}
+      {activeSection === "alcoholCsv" && <AlcoholCheckCsvExportPanel />}
     </div>
   );
 }
@@ -2995,6 +3010,148 @@ function AlcoholCheckSpreadsheetsPanel() {
                 月が変わる前に翌月分のスプレッドシートを作成して登録しておくことをお勧めします。
               </p>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+
+// ============================
+// アルコールチェック記録 CSV エクスポートパネル
+// ============================
+
+function AlcoholCheckCsvExportPanel() {
+  // デフォルト: 今月1日〜今日
+  const today = new Date();
+  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+  const [startDate, setStartDate] = useState(fmt(firstOfMonth));
+  const [endDate, setEndDate] = useState(fmt(today));
+  const [enabled, setEnabled] = useState(false);
+
+  const { data, isFetching, error } = trpc.attendance.exportCsv.useQuery(
+    { startDate, endDate },
+    { enabled, staleTime: 0 }
+  );
+
+  // データが取得できたら自動ダウンロード
+  useEffect(() => {
+    if (!data || !enabled) return;
+    const blob = new Blob([data.csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `アルコールチェック記録_${startDate}_${endDate}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setEnabled(false);
+    toast.success(`${data.count}件の記録をCSVでダウンロードしました`);
+  }, [data, enabled]);
+
+  const handleExport = () => {
+    if (!startDate || !endDate) { toast.error("開始日・終了日を入力してください"); return; }
+    if (endDate < startDate) { toast.error("開始日は終了日以前にしてください"); return; }
+    setEnabled(true);
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card className="shadow-sm">
+        <CardHeader className="pb-2 pt-4">
+          <div className="flex items-center gap-2">
+            <Download className="w-4 h-4 text-primary" />
+            <CardTitle className="text-base font-semibold">アルコールチェック記録 CSV出力</CardTitle>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            指定した期間のアルコールチェック記録をCSV形式でダウンロードします。Excelで開けるBOM付きUTF-8形式です。
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* 期間選択 */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-foreground">開始日</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => { setStartDate(e.target.value); setEnabled(false); }}
+                className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:border-primary"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-foreground">終了日</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => { setEndDate(e.target.value); setEnabled(false); }}
+                className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:border-primary"
+              />
+            </div>
+          </div>
+
+          {/* クイック選択 */}
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: "今月", start: fmt(firstOfMonth), end: fmt(today) },
+              {
+                label: "先月",
+                start: fmt(new Date(today.getFullYear(), today.getMonth() - 1, 1)),
+                end: fmt(new Date(today.getFullYear(), today.getMonth(), 0)),
+              },
+              {
+                label: "過去3ヶ月",
+                start: fmt(new Date(today.getFullYear(), today.getMonth() - 2, 1)),
+                end: fmt(today),
+              },
+            ].map(({ label, start, end }) => (
+              <Button
+                key={label}
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => { setStartDate(start); setEndDate(end); setEnabled(false); }}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 text-xs text-destructive bg-destructive/10 rounded-md px-3 py-2">
+              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>{error.message}</span>
+            </div>
+          )}
+
+          <Button
+            className="w-full"
+            onClick={handleExport}
+            disabled={isFetching}
+          >
+            {isFetching ? (
+              <span className="flex items-center gap-2">
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                取得中...
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <Download className="w-4 h-4" />
+                CSVをダウンロード
+              </span>
+            )}
+          </Button>
+
+          <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
+            <p className="text-xs font-semibold text-foreground">出力される列（16列）</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              実施日時・区分・氏名・ナンバープレート・出勤打刻・退勤打刻・確認方法・検知器使用・酒気帯有無・確認者・残業時間・残業理由・連絡先・人数・備考・登録日時
+            </p>
           </div>
         </CardContent>
       </Card>
