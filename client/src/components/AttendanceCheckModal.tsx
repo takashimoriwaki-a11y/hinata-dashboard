@@ -71,6 +71,7 @@ const CLOCK_OUT_STEPS: ClockInStep[] = [
 interface AttendanceCheckModalProps {
   type: "clock_in" | "clock_out";
   onClose: () => void;
+  onConfirm?: () => void;
 }
 
 export function AttendanceCheckModal({ type, onClose }: AttendanceCheckModalProps) {
