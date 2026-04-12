@@ -1000,6 +1000,7 @@ export async function getAllStaff() {
       email: users.email,
       role: users.role,
       team: users.team,
+      numberPlate: users.numberPlate,
       createdAt: users.createdAt,
       lastSignedIn: users.lastSignedIn,
       teamSetupDone: users.teamSetupDone,
@@ -1015,6 +1016,7 @@ export async function createStaffAccount(data: {
   passwordHash: string;
   role: "user" | "admin";
   team: "身体" | "天理" | "郡山北部" | "郡山南部" | "事務員" | "全チーム";
+  numberPlate?: string;
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -1031,6 +1033,7 @@ export async function createStaffAccount(data: {
     passwordHash: data.passwordHash,
     role: data.role,
     team: data.team,
+    numberPlate: data.numberPlate ?? null,
     teamSetupDone: 1,
     loginMethod: "local",
     lastSignedIn: new Date(),
@@ -1091,8 +1094,9 @@ export async function updateStaffRole(userId: number, role: "user" | "admin") {
 /** スタッフの基本情報を一括更新する（管理者用） */
 export async function updateStaffInfo(userId: number, data: {
   name: string;
-  team: "\u8eab\u4f53" | "\u5929\u7406" | "\u90e1\u5c71\u5317\u90e8" | "\u90e1\u5c71\u5357\u90e8" | "\u4e8b\u52d9\u54e1" | "\u5168\u30c1\u30fc\u30e0";
+  team: "身体" | "天理" | "郡山北部" | "郡山南部" | "事務員" | "全チーム";
   role: "user" | "admin";
+  numberPlate?: string;
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -1100,6 +1104,7 @@ export async function updateStaffInfo(userId: number, data: {
     name: data.name,
     team: data.team,
     role: data.role,
+    numberPlate: data.numberPlate !== undefined ? (data.numberPlate || null) : undefined,
     teamSetupDone: 1,
   }).where(eq(users.id, userId));
 }

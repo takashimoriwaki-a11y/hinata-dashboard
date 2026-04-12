@@ -1918,3 +1918,14 @@
   - [x] 打刻ボタン押下で打刻＋アルコールチェック記録＋スプレッドシート転記を同時実行
 - [x] Dashboard.tsxのAttendanceCheckModal呼び出しをonConfirmなしに変更（モーダル内で打刻）
 - [x] テスト作成（5件合格）
+
+## 出勤打刻・アルコールチェック分離（2026-04-12）
+
+- [x] 管理画面の職員登録画面にナンバープレート入力欄を追加（追加・編集両対応）
+- [x] server/routers.tsのstaff.create・staff.updateInfoにnumberPlate対応を追加
+- [x] 出勤・退勤モーダルからアルコールチェックフォームを削除（打刻のみに戻す）
+- [x] attendance.clockプロシージャをシンプルな打刻のみに戻し、saveAlcoholCheckプロシージャを分離
+- [x] ホーム画面にアルコールチェック入力ボタンを追加（出勤時・退勤時の2つ）
+- [x] AlcoholCheckModalコンポーネントを新規作成（clockType: clock_in/clock_out対応）
+- [x] ナンバープレートをスタッフ情報から自動取得（管理画面の職員登録から登録可能）
+- [x] テスト更新（231件全合格）・チェックポイント保存

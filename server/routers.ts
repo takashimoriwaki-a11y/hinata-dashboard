@@ -2144,6 +2144,7 @@ export const appRouter = router({
         password: z.string().min(6).max(100),
         role: z.enum(["user", "admin"]).default("user"),
         team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]).default("身体"),
+        numberPlate: z.string().max(20).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin") {
@@ -2158,6 +2159,7 @@ export const appRouter = router({
             passwordHash,
             role: input.role,
             team: input.team,
+            numberPlate: input.numberPlate,
           });
           return { success: true };
         } catch (err: any) {
@@ -2237,6 +2239,7 @@ export const appRouter = router({
         name: z.string().min(1).max(50),
         team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]),
         role: z.enum(["user", "admin"]),
+        numberPlate: z.string().max(20).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin") {
@@ -2246,6 +2249,7 @@ export const appRouter = router({
           name: input.name,
           team: input.team,
           role: input.role,
+          numberPlate: input.numberPlate,
         });
         broadcastEvent("staff");
         return { success: true };
@@ -3685,12 +3689,26 @@ export const appRouter = router({
   // 出退勤打刻
   // ============================================================
   attendance: router({
-    /** 出勤または退勤を打刻する（アルコールチェック情報も同時に記録） */
+    /** 出勤または退勤を打刻する（打刻のみ・アルコールチェックは別途） */
     clock: protectedProcedure
       .input(z.object({
         type: z.enum(["clock_in", "clock_out"]),
-        // アルコールチェック情報
-        numberPlate: z.string().max(20).default(""),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const now = Date.now();
+        const log = await clockAttendance({
+          type: input.type,
+          userId: ctx.user.id,
+          userName: ctx.user.name ?? "不明",
+          clockedAt: now,
+        });
+        return { success: true, log };
+      }),
+    /** アルコールチェックを記録しスプレッドシートに転記する */
+    saveAlcoholCheck: protectedProcedure
+      .input(z.object({
+        clockType: z.enum(["clock_in", "clock_out"]),
+        numberPlate: z.string().max(20),
         confirmMethod: z.enum(["online", "face"]).default("online"),
         detectorUsed: z.boolean().default(true),
         alcoholDetected: z.boolean().default(false),
@@ -3699,20 +3717,13 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         const now = Date.now();
-        // 打刻記録
-        const log = await clockAttendance({
-          type: input.type,
-          userId: ctx.user.id,
-          userName: ctx.user.name ?? "不明",
-          clockedAt: now,
-        });
         // ナンバープレートをユーザー情報に保存
         if (input.numberPlate) {
           await updateUserNumberPlate(ctx.user.id, input.numberPlate);
         }
         // アルコールチェック記録
         const alcoholCheck = await saveAlcoholCheck({
-          type: input.type,
+          type: input.clockType,
           userId: ctx.user.id,
           userName: ctx.user.name ?? "不明",
           numberPlate: input.numberPlate,
@@ -3723,13 +3734,13 @@ export const appRouter = router({
           notes: input.notes ?? null,
           checkedAt: now,
         });
-        // スプレッドシートへの転記（非同期・失敗しても打刻は成功扱い）
+        // スプレッドシートへの転記（非同期・失敗しても記録は成功扱い）
         appendAlcoholCheckToSheet(alcoholCheck).then(() => {
           markAlcoholCheckSynced(alcoholCheck.id).catch(console.error);
         }).catch((err) => {
           console.error("[AlcoholCheck] Sheet sync failed:", err);
         });
-        return { success: true, log, alcoholCheckId: alcoholCheck.id };
+        return { success: true, alcoholCheckId: alcoholCheck.id };
       }),
     /** 今日の自分の打刻履歴を取得する */
     today: protectedProcedure

@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { CheckCircle2, ExternalLink, LogIn, LogOut, X, Loader2, Car, Shield } from "lucide-react";
+import { CheckCircle2, ExternalLink, LogIn, LogOut, X, Loader2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/_core/hooks/useAuth";
 
 const DAILY_REPORT_SPREADSHEET_ID = "10Leb7UR6ARVlCGbf5pBa5yxsgm5WAV9m-ETyYrzfBCs";
 
@@ -11,7 +10,7 @@ interface ClockInStep {
   label: string;
   description?: string;
   link?: { url: string; label: string; isDailyReport?: boolean };
-  isClockAction?: boolean; // 打刻アクション（最後のステップ）
+  isClockAction?: boolean;
 }
 
 const CLOCK_IN_STEPS: ClockInStep[] = [
@@ -46,7 +45,7 @@ const CLOCK_IN_STEPS: ClockInStep[] = [
   {
     id: "clock_action",
     label: "出勤打刻",
-    description: "アルコールチェックを入力して出勤打刻する",
+    description: "上の手順を全て完了したら出勤打刻する",
     isClockAction: true,
   },
 ];
@@ -82,20 +81,10 @@ const CLOCK_OUT_STEPS: ClockInStep[] = [
   {
     id: "clock_action",
     label: "退勤打刻",
-    description: "アルコールチェックを入力して退勤打刻する",
+    description: "上の手順を全て完了したら退勤打刻する",
     isClockAction: true,
   },
 ];
-
-// アルコールチェックフォームの型
-interface AlcoholCheckForm {
-  numberPlate: string;
-  confirmMethod: "online" | "face";
-  detectorUsed: boolean;
-  alcoholDetected: boolean;
-  confirmerName: string;
-  notes: string;
-}
 
 interface AttendanceCheckModalProps {
   type: "clock_in" | "clock_out";
@@ -107,18 +96,7 @@ export function AttendanceCheckModal({ type, onClose }: AttendanceCheckModalProp
   const steps = isClockIn ? CLOCK_IN_STEPS : CLOCK_OUT_STEPS;
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [openingStepId, setOpeningStepId] = useState<string | null>(null);
-  const { user } = useAuth();
   const utils = trpc.useUtils();
-
-  // アルコールチェックフォームの状態
-  const [alcoholForm, setAlcoholForm] = useState<AlcoholCheckForm>({
-    numberPlate: (user as any)?.numberPlate ?? "",
-    confirmMethod: "online",
-    detectorUsed: true,
-    alcoholDetected: false,
-    confirmerName: "森脇崇",
-    notes: "",
-  });
 
   const clockMutation = trpc.attendance.clock.useMutation({
     onSuccess: () => {
@@ -179,18 +157,10 @@ export function AttendanceCheckModal({ type, onClose }: AttendanceCheckModalProp
     }
   };
 
-  // 打刻実行
+  // 打刻実行（シンプル打刻のみ）
   const handleClock = () => {
     if (clockMutation.isPending) return;
-    clockMutation.mutate({
-      type,
-      numberPlate: alcoholForm.numberPlate,
-      confirmMethod: alcoholForm.confirmMethod,
-      detectorUsed: alcoholForm.detectorUsed,
-      alcoholDetected: alcoholForm.alcoholDetected,
-      confirmerName: alcoholForm.confirmerName,
-      notes: alcoholForm.notes || undefined,
-    });
+    clockMutation.mutate({ type });
   };
 
   return (
@@ -237,13 +207,12 @@ export function AttendanceCheckModal({ type, onClose }: AttendanceCheckModalProp
           className="overflow-y-auto flex-1 py-2"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
-          {/* 手順ステップ */}
           {steps.map((step) => {
             const isDone = done[step.id];
             const isOpening = openingStepId === step.id;
 
             if (step.isClockAction) {
-              // 打刻ステップ（アルコールチェックフォーム付き）
+              // 打刻ステップ（シンプル）
               return (
                 <div
                   key={step.id}
@@ -255,7 +224,6 @@ export function AttendanceCheckModal({ type, onClose }: AttendanceCheckModalProp
                       : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 opacity-60"
                   }`}
                 >
-                  {/* ステップヘッダー */}
                   <div className="flex items-start gap-3 px-4 pt-3 pb-2">
                     <div
                       className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
@@ -264,168 +232,31 @@ export function AttendanceCheckModal({ type, onClose }: AttendanceCheckModalProp
                           : "bg-blue-100 dark:bg-blue-900/40"
                       }`}
                     >
-                      <Shield className={`w-4 h-4 ${isClockIn ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"}`} />
+                      {isClockIn ? (
+                        <LogIn className="w-4 h-4 text-red-600 dark:text-red-400" />
+                      ) : (
+                        <LogOut className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm font-semibold leading-snug ${isClockIn ? "text-red-700 dark:text-red-300" : "text-blue-700 dark:text-blue-300"}`}>
                         {step.label}
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                        アルコールチェック記録を入力してください
-                      </p>
+                      {step.description && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                          {step.description}
+                        </p>
+                      )}
                     </div>
                   </div>
-
-                  {/* アルコールチェックフォーム */}
-                  <div className="px-4 pb-3 space-y-3">
-                    {/* ナンバープレート */}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        <Car className="w-3 h-3 inline mr-1" />
-                        ナンバープレート
-                      </label>
-                      <input
-                        type="text"
-                        value={alcoholForm.numberPlate}
-                        onChange={(e) => setAlcoholForm(f => ({ ...f, numberPlate: e.target.value }))}
-                        placeholder="例: 奈良 300 あ 1234"
-                        disabled={!allNonClockDone}
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 disabled:opacity-50"
-                        style={{ fontSize: "16px" }}
-                      />
-                    </div>
-
-                    {/* 確認方法 */}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        確認方法
-                      </label>
-                      <div className="flex gap-2">
-                        {(["online", "face"] as const).map((method) => (
-                          <button
-                            key={method}
-                            type="button"
-                            disabled={!allNonClockDone}
-                            onClick={() => setAlcoholForm(f => ({ ...f, confirmMethod: method }))}
-                            className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-colors disabled:opacity-50 ${
-                              alcoholForm.confirmMethod === method
-                                ? isClockIn
-                                  ? "bg-red-500 border-red-500 text-white"
-                                  : "bg-blue-500 border-blue-500 text-white"
-                                : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
-                            }`}
-                          >
-                            {method === "online" ? "オンライン画面" : "対面"}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 検知器使用有無 */}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        検知器使用
-                      </label>
-                      <div className="flex gap-2">
-                        {([true, false] as const).map((val) => (
-                          <button
-                            key={String(val)}
-                            type="button"
-                            disabled={!allNonClockDone}
-                            onClick={() => setAlcoholForm(f => ({ ...f, detectorUsed: val }))}
-                            className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-colors disabled:opacity-50 ${
-                              alcoholForm.detectorUsed === val
-                                ? isClockIn
-                                  ? "bg-red-500 border-red-500 text-white"
-                                  : "bg-blue-500 border-blue-500 text-white"
-                                : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
-                            }`}
-                          >
-                            {val ? "使用" : "未使用"}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 酒気帯び有無 */}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        酒気帯び
-                      </label>
-                      <div className="flex gap-2">
-                        {([false, true] as const).map((val) => (
-                          <button
-                            key={String(val)}
-                            type="button"
-                            disabled={!allNonClockDone}
-                            onClick={() => setAlcoholForm(f => ({ ...f, alcoholDetected: val }))}
-                            className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-colors disabled:opacity-50 ${
-                              alcoholForm.alcoholDetected === val
-                                ? val
-                                  ? "bg-orange-500 border-orange-500 text-white"
-                                  : isClockIn
-                                    ? "bg-red-500 border-red-500 text-white"
-                                    : "bg-blue-500 border-blue-500 text-white"
-                                : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
-                            }`}
-                          >
-                            {val ? "有" : "無"}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 確認者 */}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        確認者（安全運転管理者）
-                      </label>
-                      <div className="flex gap-2">
-                        {["森脇崇", "森脇英樹"].map((name) => (
-                          <button
-                            key={name}
-                            type="button"
-                            disabled={!allNonClockDone}
-                            onClick={() => setAlcoholForm(f => ({ ...f, confirmerName: name }))}
-                            className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-colors disabled:opacity-50 ${
-                              alcoholForm.confirmerName === name
-                                ? isClockIn
-                                  ? "bg-red-500 border-red-500 text-white"
-                                  : "bg-blue-500 border-blue-500 text-white"
-                                : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
-                            }`}
-                          >
-                            {name}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 備考（任意） */}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        備考（任意）
-                      </label>
-                      <textarea
-                        value={alcoholForm.notes}
-                        onChange={(e) => setAlcoholForm(f => ({ ...f, notes: e.target.value }))}
-                        placeholder="特記事項があれば入力"
-                        disabled={!allNonClockDone}
-                        rows={2}
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 resize-none disabled:opacity-50"
-                        style={{ fontSize: "16px" }}
-                      />
-                    </div>
-
-                    {/* 打刻ボタン */}
+                  {/* 打刻ボタン */}
+                  <div className="px-4 pb-4 pt-1">
                     <button
                       type="button"
                       disabled={!allNonClockDone || clockMutation.isPending}
                       onClick={handleClock}
-                      className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white text-sm font-bold transition-all duration-200 ${
-                        !allNonClockDone || clockMutation.isPending
-                          ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed"
-                          : isClockIn
+                      className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                        isClockIn
                           ? "bg-red-500 hover:bg-red-600 shadow-md active:scale-95"
                           : "bg-blue-500 hover:bg-blue-600 shadow-md active:scale-95"
                       }`}
@@ -536,7 +367,7 @@ export function AttendanceCheckModal({ type, onClose }: AttendanceCheckModalProp
         <div className="px-5 py-3 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
           {!allNonClockDone && (
             <p className="text-center text-xs text-gray-400 dark:text-gray-500 mb-2">
-              上の手順を全て実行するとアルコールチェック入力欄が有効になります
+              上の手順を全て実行すると打刻ボタンが有効になります
             </p>
           )}
           <button

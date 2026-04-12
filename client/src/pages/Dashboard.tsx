@@ -10,6 +10,7 @@ import { Confetti } from "@/components/Confetti";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { AttendanceCheckModal } from "@/components/AttendanceCheckModal";
+import { AlcoholCheckModal } from "@/components/AlcoholCheckModal";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -4662,6 +4663,7 @@ export default function Dashboard() {
   const { user: dashboardUser } = useAuth();
   // 出退勤打刻
   const [attendanceModalType, setAttendanceModalType] = useState<"clock_in" | "clock_out" | null>(null);
+  const [alcoholCheckModalType, setAlcoholCheckModalType] = useState<"clock_in" | "clock_out" | null>(null);
   const { data: todayAttendance, refetch: refetchAttendance } = trpc.attendance.today.useQuery();
   const clockMutation = trpc.attendance.clock.useMutation({
     onSuccess: () => { void refetchAttendance(); },
@@ -4677,12 +4679,9 @@ export default function Dashboard() {
   const handleClockOut = () => {
     setAttendanceModalType("clock_out");
   };
-  // モーダルで確認後に実際に打刻する
-  const handleClockConfirm = () => {
-    if (!attendanceModalType || clockMutation.isPending) return;
-    clockMutation.mutate({ type: attendanceModalType });
-    toast.success(attendanceModalType === "clock_in" ? "出勤を記録しました" : "退勤を記録しました");
-  };
+  // アルコールチェックモーダルを開く
+  const handleAlcoholCheckIn = () => setAlcoholCheckModalType("clock_in");
+  const handleAlcoholCheckOut = () => setAlcoholCheckModalType("clock_out");
   // ログインユーザーの名前（姓名の場合は名前部分のみ表示）
   const userName = dashboardUser?.name
     ? (dashboardUser.name.includes(' ') || dashboardUser.name.includes('　')
@@ -4764,6 +4763,16 @@ export default function Dashboard() {
               <LogOut className="w-3.5 h-3.5 md:w-4 md:h-4" />
               {lastClockType === 'clock_out' ? '退勤済' : '退勤'}
             </button>
+            {/* アルコールチェックボタン（退勤時） */}
+            <button
+              type="button"
+              onTouchStart={() => {}}
+              onClick={handleAlcoholCheckOut}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#0284c7', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#0369a1')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#0284c7')}
+            >
+              <Car className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              <span className="leading-tight">アルコール<br className="md:hidden" />退勤時</span>
+            </button>
             <Link
               href="/schedule-management"
               onTouchStart={() => {}}
@@ -4781,6 +4790,16 @@ export default function Dashboard() {
             >
               <LogIn className="w-3.5 h-3.5 md:w-4 md:h-4" />
               {lastClockType === 'clock_in' ? '出勤済' : '出勤'}
+            </button>
+            {/* アルコールチェックボタン（出勤時） */}
+            <button
+              type="button"
+              onTouchStart={() => {}}
+              onClick={handleAlcoholCheckIn}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#d97706', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#b45309')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#d97706')}
+            >
+              <Car className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              <span className="leading-tight">アルコール<br className="md:hidden" />出勤時</span>
             </button>
             <Link
               href="/record#record-condition"
@@ -4855,6 +4874,13 @@ export default function Dashboard() {
         <AttendanceCheckModal
           type={attendanceModalType}
           onClose={() => setAttendanceModalType(null)}
+        />
+      )}
+      {/* アルコールチェックモーダル */}
+      {alcoholCheckModalType && (
+        <AlcoholCheckModal
+          clockType={alcoholCheckModalType}
+          onClose={() => setAlcoholCheckModalType(null)}
         />
       )}
     </div>

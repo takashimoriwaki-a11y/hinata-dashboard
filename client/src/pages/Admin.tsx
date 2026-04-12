@@ -1154,6 +1154,7 @@ function StaffManagementPanel() {
   const [newPassword, setNewPassword] = useState("");
   const [newRole, setNewRole] = useState<"user" | "admin">("user");
   const [newTeam, setNewTeam] = useState<TeamStaff>("身体");
+  const [newNumberPlate, setNewNumberPlate] = useState("");
 
   // パスワードリセット
   const [resetUserId, setResetUserId] = useState<number | null>(null);
@@ -1163,7 +1164,7 @@ function StaffManagementPanel() {
     onSuccess: () => {
       utils.staff.getAll.invalidate();
       toast.success("スタッフアカウントを作成しました");
-      setNewName(""); setNewEmail(""); setNewPassword(""); setNewRole("user"); setNewTeam("身体"); setShowAddForm(false);
+      setNewName(""); setNewEmail(""); setNewPassword(""); setNewRole("user"); setNewTeam("身体"); setNewNumberPlate(""); setShowAddForm(false);
     },
     onError: (e) => toast.error(e.message),
   });
@@ -1196,10 +1197,11 @@ function StaffManagementPanel() {
   const [showUnsetOnly, setShowUnsetOnly] = useState(false);
 
   // スタッフ情報編集ダイアログ
-  const [editStaff, setEditStaff] = useState<{ id: number; name: string; team: TeamStaff; role: "user" | "admin" } | null>(null);
+  const [editStaff, setEditStaff] = useState<{ id: number; name: string; team: TeamStaff; role: "user" | "admin"; numberPlate: string } | null>(null);
   const [editName, setEditName] = useState("");
   const [editTeam, setEditTeam] = useState<TeamStaff>("身体");
   const [editRole, setEditRole] = useState<"user" | "admin">("user");
+  const [editNumberPlate, setEditNumberPlate] = useState("");
 
   const updateInfo = trpc.staff.updateInfo.useMutation({
     onSuccess: () => {
@@ -1210,11 +1212,12 @@ function StaffManagementPanel() {
     onError: (e) => toast.error(e.message),
   });
 
-  const openEditDialog = (staff: { id: number; name: string | null; team: string | null; role: "user" | "admin" }) => {
-    setEditStaff({ id: staff.id, name: staff.name ?? "", team: (staff.team as TeamStaff) ?? "身体", role: staff.role });
+  const openEditDialog = (staff: { id: number; name: string | null; team: string | null; role: "user" | "admin"; numberPlate?: string | null }) => {
+    setEditStaff({ id: staff.id, name: staff.name ?? "", team: (staff.team as TeamStaff) ?? "身体", role: staff.role, numberPlate: staff.numberPlate ?? "" });
     setEditName(staff.name ?? "");
     setEditTeam((staff.team as TeamStaff) ?? "身体");
     setEditRole(staff.role);
+    setEditNumberPlate(staff.numberPlate ?? "");
   };
 
   // メールアドレス編集
@@ -1235,7 +1238,7 @@ function StaffManagementPanel() {
     if (!newName.trim()) { toast.error("名前を入力してください"); return; }
     if (!newEmail.trim()) { toast.error("メールアドレスを入力してください"); return; }
     if (newPassword.length < 6) { toast.error("パスワードは6文字以上で入力してください"); return; }
-    createStaff.mutate({ name: newName.trim(), email: newEmail.trim(), password: newPassword, role: newRole, team: newTeam });
+    createStaff.mutate({ name: newName.trim(), email: newEmail.trim(), password: newPassword, role: newRole, team: newTeam, numberPlate: newNumberPlate.trim() || undefined });
   };
 
   return (
@@ -1326,6 +1329,16 @@ function StaffManagementPanel() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="パスワードを入力"
+                  className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-foreground block mb-1">ナンバープレート（任意）</label>
+                <input
+                  type="text"
+                  value={newNumberPlate}
+                  onChange={(e) => setNewNumberPlate(e.target.value)}
+                  placeholder="例：大和 12-34 あ 5678"
                   className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
@@ -1632,6 +1645,17 @@ function StaffManagementPanel() {
             </div>
           </div>
 
+          {/* ナンバープレート */}
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">ナンバープレート</label>
+            <input
+              type="text"
+              value={editNumberPlate}
+              onChange={(e) => setEditNumberPlate(e.target.value)}
+              placeholder="例：大和 12-34 あ 5678"
+              className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </div>
           {/* ボタン */}
           <div className="flex gap-2 pt-1">
             <Button
@@ -1645,7 +1669,7 @@ function StaffManagementPanel() {
               className="flex-1 h-9 text-sm"
               onClick={() => {
                 if (!editName.trim()) { toast.error("名前を入力してください"); return; }
-                updateInfo.mutate({ userId: editStaff.id, name: editName.trim(), team: editTeam, role: editRole });
+                updateInfo.mutate({ userId: editStaff.id, name: editName.trim(), team: editTeam, role: editRole, numberPlate: editNumberPlate.trim() || undefined });
               }}
               disabled={updateInfo.isPending}
             >
