@@ -4,7 +4,7 @@
  * 退勤時は残業入力フォームも表示する
  */
 import { useState, useEffect, useMemo } from "react";
-import { Car, Shield, X, Loader2, CheckCircle2, ChevronDown, Clock } from "lucide-react";
+import { Car, Shield, X, Loader2, CheckCircle2, ChevronDown, Clock, Users, FileText, BarChart2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
@@ -51,7 +51,26 @@ export function AlcoholCheckModal({ clockType, onClose, clockInAt, clockOutAt }:
   // 終了：デフォルトはモーダルを開いた時刻（10分切り捨て）
   const [overtimeEndHour, setOvertimeEndHour] = useState(() => openedAt.getHours());
   const [overtimeEndMinute, setOvertimeEndMinute] = useState(() => floorToTenMinutes(openedAt));
-  const [overtimeReason, setOvertimeReason] = useState("");
+  // 残業理由プリセット
+  const [overtimeReasonType, setOvertimeReasonType] = useState<string>("");
+  // 連動入力欄の値
+  const [overtimeContactTarget, setOvertimeContactTarget] = useState(""); // 支援者連絡・家族連絡の連絡先
+  const [overtimeRecordCount, setOvertimeRecordCount] = useState<number>(1); // 記録書Ⅱ・月次・状態報告書の人数
+  const [overtimeFreeText, setOvertimeFreeText] = useState(""); // その他の自由記述
+
+  /** 残業理由を文字列に変換（スプレッドシート転記用） */
+  const buildOvertimeReason = (): string => {
+    switch (overtimeReasonType) {
+      case "訪問看護実施": return "訪問看護実施";
+      case "支援者連絡": return overtimeContactTarget ? `支援者連絡（${overtimeContactTarget}）` : "支援者連絡";
+      case "家族連絡": return overtimeContactTarget ? `家族連絡（${overtimeContactTarget}）` : "家族連絡";
+      case "記録書Ⅱ作成": return `記録書Ⅱ作成（${overtimeRecordCount}人分）`;
+      case "月次報告書作成": return `月次報告書作成（${overtimeRecordCount}人分）`;
+      case "状態報告書作成": return `状態報告書作成（${overtimeRecordCount}人分）`;
+      case "その他": return overtimeFreeText || "その他";
+      default: return "";
+    }
+  };
 
   // ユーザーのナンバープレートを自動取得
   useEffect(() => {
@@ -83,8 +102,20 @@ export function AlcoholCheckModal({ clockType, onClose, clockInAt, clockOutAt }:
       toast.error("ナンバープレートを入力してください");
       return;
     }
-    if (!isClockIn && hasOvertime && !overtimeReason.trim()) {
-      toast.error("残業理由を入力してください");
+    if (!isClockIn && hasOvertime && !overtimeReasonType) {
+      toast.error("残業理由を選択してください");
+      return;
+    }
+    if (!isClockIn && hasOvertime && overtimeReasonType === "支援者連絡" && !overtimeContactTarget.trim()) {
+      toast.error("連絡先を入力してください");
+      return;
+    }
+    if (!isClockIn && hasOvertime && overtimeReasonType === "家族連絡" && !overtimeContactTarget.trim()) {
+      toast.error("連絡先を入力してください");
+      return;
+    }
+    if (!isClockIn && hasOvertime && overtimeReasonType === "その他" && !overtimeFreeText.trim()) {
+      toast.error("残業理由の詳細を入力してください");
       return;
     }
     alcoholCheckMutation.mutate({
@@ -99,7 +130,7 @@ export function AlcoholCheckModal({ clockType, onClose, clockInAt, clockOutAt }:
       clockOutAt: !isClockIn ? clockOutAt : undefined,
       overtimeStartAt: (!isClockIn && hasOvertime) ? toTodayMs(overtimeStartHour, overtimeStartMinute) : undefined,
       overtimeEndAt: (!isClockIn && hasOvertime) ? toTodayMs(overtimeEndHour, overtimeEndMinute) : undefined,
-      overtimeReason: (!isClockIn && hasOvertime) ? overtimeReason.trim() : undefined,
+      overtimeReason: (!isClockIn && hasOvertime) ? buildOvertimeReason() : undefined,
     });
   };
 
@@ -358,19 +389,109 @@ export function AlcoholCheckModal({ clockType, onClose, clockInAt, clockOutAt }:
                     </div>
                   </div>
 
-                  {/* 残業理由 */}
+                  {/* 残業理由プリセット */}
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                       残業理由 <span className="text-red-500">*</span>
                     </label>
-                    <textarea
-                      value={overtimeReason}
-                      onChange={(e) => setOvertimeReason(e.target.value)}
-                      placeholder="例: 記録作業の遅延、緊急対応のため"
-                      rows={2}
-                      className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-purple-400 resize-none"
-                    />
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {["訪問看護実施", "支援者連絡", "家族連絡", "記録書Ⅱ作成", "月次報告書作成", "状態報告書作成", "その他"].map((reason) => (
+                        <button
+                          key={reason}
+                          type="button"
+                          onClick={() => {
+                            setOvertimeReasonType(reason);
+                            // 切り替え時に連動入力をリセット
+                            setOvertimeContactTarget("");
+                            setOvertimeRecordCount(1);
+                            setOvertimeFreeText("");
+                          }}
+                          className={`py-2 px-2 text-xs font-medium rounded-xl border-2 transition-all text-center ${
+                            overtimeReasonType === reason
+                              ? "bg-purple-500 border-purple-500 text-white shadow-sm"
+                              : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-300"
+                          }`}
+                        >
+                          {reason}
+                        </button>
+                      ))}
+                    </div>
                   </div>
+
+                  {/* 支援者連絡：連絡先入力 */}
+                  {overtimeReasonType === "支援者連絡" && (
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                        <Users className="w-3.5 h-3.5 inline mr-1 mb-0.5" />
+                        誰に連絡したか <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={overtimeContactTarget}
+                        onChange={(e) => setOvertimeContactTarget(e.target.value)}
+                        placeholder="例: 相談支援専門員 山田さん"
+                        className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-purple-400"
+                        style={{ fontSize: "16px" }}
+                      />
+                    </div>
+                  )}
+
+                  {/* 家族連絡：連絡先入力 */}
+                  {overtimeReasonType === "家族連絡" && (
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                        <Users className="w-3.5 h-3.5 inline mr-1 mb-0.5" />
+                        誰に連絡したか <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={overtimeContactTarget}
+                        onChange={(e) => setOvertimeContactTarget(e.target.value)}
+                        placeholder="例: ○○様の長女 鈴木さん"
+                        className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-purple-400"
+                        style={{ fontSize: "16px" }}
+                      />
+                    </div>
+                  )}
+
+                  {/* 記録書Ⅱ作成・月次報告書作成・状態報告書作成：人数プルダウン */}
+                  {["記録書Ⅱ作成", "月次報告書作成", "状態報告書作成"].includes(overtimeReasonType) && (
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                        <FileText className="w-3.5 h-3.5 inline mr-1 mb-0.5" />
+                        何人分 <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={overtimeRecordCount}
+                          onChange={(e) => setOvertimeRecordCount(Number(e.target.value))}
+                          className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-purple-400 appearance-none pr-8"
+                        >
+                          {Array.from({ length: 30 }, (_, i) => i + 1).map((n) => (
+                            <option key={n} value={n}>{n}人分</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* その他：自由記述 */}
+                  {overtimeReasonType === "その他" && (
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                        <BarChart2 className="w-3.5 h-3.5 inline mr-1 mb-0.5" />
+                        詳細を入力 <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        value={overtimeFreeText}
+                        onChange={(e) => setOvertimeFreeText(e.target.value)}
+                        placeholder="残業の詳細を入力してください"
+                        rows={2}
+                        className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-purple-400 resize-none"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
