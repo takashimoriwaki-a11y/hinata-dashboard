@@ -17,6 +17,8 @@ async function appendAlcoholCheckToSheet(record: {
   overtimeStartAt?: number | null;
   overtimeEndAt?: number | null;
   overtimeReason?: string | null;
+  overtimeContact?: string | null;
+  overtimeCount?: number | null;
 }, spreadsheetId: string): Promise<void> {
   try {
     const auth = new google.auth.GoogleAuth({
@@ -60,10 +62,10 @@ async function appendAlcoholCheckToSheet(record: {
       // ヘッダー行を設定
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `${tabName}!A1:N1`,
+        range: `${tabName}!A1:P1`,
         valueInputOption: "USER_ENTERED",
         requestBody: {
-          values: [["実施日時", "区分", "氏名", "ナンバープレート", "出勤打刻", "退勤打刻", "確認方法", "検知器使用", "酒気帯有無", "確認者", "残業時間", "残業理由", "備考", "登録日時"]],
+          values: [["実施日時", "区分", "氏名", "ナンバープレート", "出勤打刻", "退勤打刻", "確認方法", "検知器使用", "酒気帯有無", "確認者", "残業時間", "残業理由", "連絡先", "人数", "備考", "登録日時"]],
         },
       });
     }
@@ -71,7 +73,7 @@ async function appendAlcoholCheckToSheet(record: {
     // データ行を追加
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: `${tabName}!A:N`,
+      range: `${tabName}!A:P`,
       valueInputOption: "USER_ENTERED",
       requestBody: {
         values: [[
@@ -87,6 +89,8 @@ async function appendAlcoholCheckToSheet(record: {
           record.confirmerName,
           overtimeStr,
           record.overtimeReason ?? "",
+          record.overtimeContact ?? "",
+          record.overtimeCount != null ? String(record.overtimeCount) : "",
           record.notes ?? "",
           timestampStr,
         ]],
@@ -209,6 +213,7 @@ import { storagePut } from "./storage";
 import { eq } from "drizzle-orm";
 import { users } from "../drizzle/schema";
 import { broadcastEvent } from "./_core/sse";
+import { sendPushToUser } from "./pushNotification";
 
 // COOKIE_NAME is imported from shared/const via googleAuth.ts; use the shared constant here too
 import { COOKIE_NAME } from "../shared/const";
@@ -3767,6 +3772,8 @@ export const appRouter = router({
         overtimeStartAt: z.number().optional(),
         overtimeEndAt: z.number().optional(),
         overtimeReason: z.string().optional(),
+        overtimeContact: z.string().optional(),
+        overtimeCount: z.number().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const now = Date.now();
@@ -3810,8 +3817,20 @@ export const appRouter = router({
             overtimeStartAt: input.overtimeStartAt ?? null,
             overtimeEndAt: input.overtimeEndAt ?? null,
             overtimeReason: input.overtimeReason ?? null,
+            overtimeContact: input.overtimeContact ?? null,
+            overtimeCount: input.overtimeCount ?? null,
           }, sheetReg.spreadsheetId);
           await markAlcoholCheckSynced(alcoholCheck.id);
+          // 酒気帯「有」の場合は管理者（森脇崇）にプッシュ通知を送信する
+          if (input.alcoholDetected) {
+            const jstNowStr = new Date(now + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 16);
+            const typeLabel = input.clockType === 'clock_in' ? '出勤' : '退勤';
+            await sendPushToUser('森脇崇', {
+              title: '⚠️ 酒気帯検知 「有」 検知あり',
+              body: `${jstNowStr}　${typeLabel}時　${ctx.user.name ?? '不明'}さんが酒気帯を検知されました。確認者: ${input.confirmerName}`,
+              url: '/',
+            }).catch((e) => console.error('[AlcoholCheck] Push notification failed:', e));
+          }
         }).catch((err) => {
           console.error("[AlcoholCheck] Sheet sync failed:", err);
         });

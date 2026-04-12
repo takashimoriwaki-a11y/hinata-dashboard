@@ -108,3 +108,50 @@ export async function sendPushToAll(
     await db.delete(pushSubscriptions).where(inArray(pushSubscriptions.endpoint, failed));
   }
 }
+
+/**
+ * 特定のユーザー名を持つデバイスにのみプッシュ通知を送信する
+ * @param userName 通知対象のユーザー名
+ * @param payload 通知内容
+ */
+export async function sendPushToUser(
+  userName: string,
+  payload: { title: string; body: string; url?: string }
+) {
+  initWebPush();
+  if (!initialized) return;
+  const db = await getDb();
+  if (!db) return;
+  const { eq } = await import("drizzle-orm");
+  const subs = await db
+    .select()
+    .from(pushSubscriptions)
+    .where(eq(pushSubscriptions.userName, userName));
+  if (subs.length === 0) {
+    console.warn(`[WebPush] No subscriptions found for user: ${userName}`);
+    return;
+  }
+  const payloadStr = JSON.stringify(payload);
+  const failed: string[] = [];
+  await Promise.allSettled(
+    subs.map(async (sub) => {
+      try {
+        await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          payloadStr
+        );
+      } catch (err: unknown) {
+        const statusCode = (err as { statusCode?: number }).statusCode;
+        if (statusCode === 404 || statusCode === 410) {
+          failed.push(sub.endpoint);
+        } else {
+          console.error("[WebPush] send error:", err);
+        }
+      }
+    })
+  );
+  if (failed.length > 0) {
+    const { inArray } = await import("drizzle-orm");
+    await db.delete(pushSubscriptions).where(inArray(pushSubscriptions.endpoint, failed));
+  }
+}

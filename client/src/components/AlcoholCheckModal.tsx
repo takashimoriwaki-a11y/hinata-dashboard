@@ -131,6 +131,8 @@ export function AlcoholCheckModal({ clockType, onClose, clockInAt, clockOutAt }:
       overtimeStartAt: (!isClockIn && hasOvertime) ? toTodayMs(overtimeStartHour, overtimeStartMinute) : undefined,
       overtimeEndAt: (!isClockIn && hasOvertime) ? toTodayMs(overtimeEndHour, overtimeEndMinute) : undefined,
       overtimeReason: (!isClockIn && hasOvertime) ? buildOvertimeReason() : undefined,
+      overtimeContact: (!isClockIn && hasOvertime && overtimeContactTarget.trim()) ? overtimeContactTarget.trim() : undefined,
+      overtimeCount: (!isClockIn && hasOvertime && ["\u8a18\u9332\u66f8\u2161\u4f5c\u6210", "\u6708\u6b21\u5831\u544a\u66f8\u4f5c\u6210", "\u72b6\u614b\u5831\u544a\u66f8\u4f5c\u6210"].includes(overtimeReasonType)) ? overtimeRecordCount : undefined,
     });
   };
 
