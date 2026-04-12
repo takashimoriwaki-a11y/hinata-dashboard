@@ -1358,7 +1358,7 @@ function ScheduleAllTeamsModal({ viewMeta, screenshots, scrollRef, onClose, onDa
                 <ChevronLeft className="w-3 h-3" />
               </button>
             )}
-            {DAYS.map((d) => {
+            {DAYS.map((d, idx) => {
               const hasData = dayHasScreenshot(d);
               return (
                 <button
@@ -1375,7 +1375,7 @@ function ScheduleAllTeamsModal({ viewMeta, screenshots, scrollRef, onClose, onDa
                   )}
                   title={!hasData ? `${d}：スクショ未登録` : d}
                 >
-                  {d}
+                  {getDayLabel(idx)}
                 </button>
               );
             })}
@@ -1474,11 +1474,43 @@ function ScheduleAllTeamsModal({ viewMeta, screenshots, scrollRef, onClose, onDa
 
 // ========== ZESTスクリーンショットカード（tRPC+S3+DB版）==========
 
+// 今日から offset 日後の日付を「M/D(曜)」形式で返す
+function getDayLabel(offset: number): string {
+  const WDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return `${d.getMonth() + 1}/${d.getDate()}(${WDAYS[d.getDay()]})`;
+}
+
 function ScheduleScreenshotCard() {
   const { user } = useAuth();
   const SCHEDULE_TEAM_KEY = "hinata_schedule_team";
   const SCHEDULE_ALL_TEAMS_KEY = "hinata_schedule_all_teams";
   const VALID_SCHEDULE_TEAMS: TeamType[] = ["身体", "天理", "郡山北部", "郡山南部"];
+
+  // 実際の日付ラベルを状態管理（日付変更時に自動更新）
+  const [dayLabels, setDayLabels] = useState<string[]>(() =>
+    [0, 1, 2, 3, 4].map(getDayLabel)
+  );
+
+  // 日付変更を監視して自動更新
+  useEffect(() => {
+    const updateLabels = () => setDayLabels([0, 1, 2, 3, 4].map(getDayLabel));
+    // 翌日0時0分1秒に更新するタイマーを設定
+    const scheduleNextUpdate = () => {
+      const now = new Date();
+      const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+      const msUntilMidnight = tomorrow.getTime() - now.getTime();
+      return setTimeout(() => {
+        updateLabels();
+        // 以降は24時間ごとに更新
+        const interval = setInterval(updateLabels, 24 * 60 * 60 * 1000);
+        return () => clearInterval(interval);
+      }, msUntilMidnight);
+    };
+    const timer = scheduleNextUpdate();
+    return () => clearTimeout(timer);
+  }, []);
 
   const [selectedTeam, setSelectedTeamRaw] = useState<TeamType>(() => {
     try {
@@ -1800,8 +1832,8 @@ function ScheduleScreenshotCard() {
             </div>
             {/* 単一チームモードのみ日付ボタンを表示 */}
             {!showAllTeams && (
-              <div className="flex gap-1 ml-auto">
-                {DAYS.map((d) => (
+              <div className="flex gap-1 ml-auto flex-wrap">
+                {DAYS.map((d, idx) => (
                   <button
                     key={d}
                     onClick={() => {
@@ -1809,13 +1841,14 @@ function ScheduleScreenshotCard() {
                       setSwipeIndex(DAYS.indexOf(d));
                     }}
                     className={cn(
-                      "text-xs px-2.5 py-1 rounded-md border transition-colors",
+                      "text-xs px-2 py-1 rounded-md border transition-colors",
                       selectedDay === d
                         ? "bg-primary text-white border-primary"
                         : "border-border text-muted-foreground hover:bg-muted"
                     )}
+                    title={d}
                   >
-                    {d}
+                    {dayLabels[idx] ?? d}
                   </button>
                 ))}
               </div>
@@ -1868,7 +1901,7 @@ function ScheduleScreenshotCard() {
                               className="absolute top-2 left-2 text-white text-xs font-bold px-2.5 py-1 rounded-full pointer-events-none shadow-md"
                               style={{ backgroundColor: TEAM_COLOR_VALUES[team as TeamName]?.active ?? '#06b6d4' }}
                             >
-                              {team} / {day}
+                              {team} / {getDayLabel(DAYS.indexOf(day as DayType))}
                             </div>
                           )}
                           {/* タップで拡大ヒント */}
@@ -1893,7 +1926,7 @@ function ScheduleScreenshotCard() {
                         /* 未登録プレースホルダー（全チームモードではコンパクトな表示、単一チームモードではドロップゾーン） */
                         showAllTeams ? (
                           <div className="flex flex-col items-center justify-center gap-2 py-10 bg-muted/20 rounded-lg">
-                            <div className="text-sm font-semibold text-foreground">{team}チーム / {day}</div>
+                            <div className="text-sm font-semibold text-foreground">{team}チーム / {getDayLabel(DAYS.indexOf(day as DayType))}</div>
                             <p className="text-xs text-muted-foreground">未登録</p>
                           </div>
                         ) : (
@@ -1969,7 +2002,7 @@ function ScheduleScreenshotCard() {
               {/* メタ情報行 */}
               <div className="flex items-center justify-between">
                 <p className="text-xs text-muted-foreground">
-                  {selectedTeam}チーム / {selectedDay}
+                  {selectedTeam}チーム / {dayLabels[DAYS.indexOf(selectedDay)] ?? selectedDay}
                   {currentScreenshot?.uploadedByName && ` ・ ${currentScreenshot.uploadedByName}`}
                   {currentScreenshot && ` ・ ${new Date(currentScreenshot.updatedAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} 登録`}
                 </p>

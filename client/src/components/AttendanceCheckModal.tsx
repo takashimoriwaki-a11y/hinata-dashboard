@@ -100,22 +100,57 @@ interface AttendanceCheckModalProps {
   checkoutChecklistUrl?: string | null;
 }
 
+// localStorageのキーを生成する（当日の日付を含める）
+function getStorageKey(type: "clock_in" | "clock_out"): string {
+  const today = new Date();
+  const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  return `attendance_${type}_${dateStr}`;
+}
+
+interface SavedState {
+  done: Record<string, boolean>;
+  alcoholRecorded: boolean;
+  clockInDone?: boolean;
+  clockOutDone?: boolean;
+  hasOvertime?: boolean;
+  overtimeStartHour?: number;
+  overtimeStartMinute?: number;
+  overtimeEndHour?: number;
+  overtimeEndMinute?: number;
+  overtimeReasonType?: string;
+  overtimeContactTarget?: string;
+  overtimeRecordCount?: number;
+  overtimeFreeText?: string;
+}
+
 export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutChecklistUrl }: AttendanceCheckModalProps) {
   const isClockIn = type === "clock_in";
   const steps = isClockIn ? CLOCK_IN_STEPS : CLOCK_OUT_STEPS;
   const { user } = useAuth();
   const utils = trpc.useUtils();
 
+  // localStorageから保存済み状態を読み込む
+  const loadSavedState = (): SavedState | null => {
+    try {
+      const saved = localStorage.getItem(getStorageKey(type));
+      if (saved) return JSON.parse(saved) as SavedState;
+    } catch {
+      // ignore
+    }
+    return null;
+  };
+  const savedState = loadSavedState();
+
   // 手順チェック状態
-  const [done, setDone] = useState<Record<string, boolean>>({});
+  const [done, setDone] = useState<Record<string, boolean>>(savedState?.done ?? {});
   const [openingStepId, setOpeningStepId] = useState<string | null>(null);
 
   // アルコールチェック記録済みフラグ（出勤・退勤共通）
-  const [alcoholRecorded, setAlcoholRecorded] = useState(false);
+  const [alcoholRecorded, setAlcoholRecorded] = useState(savedState?.alcoholRecorded ?? false);
   // 出勤打刻済みフラグ
-  const [clockInDone, setClockInDone] = useState(false);
+  const [clockInDone, setClockInDone] = useState(savedState?.clockInDone ?? false);
   // 退勤打刻済みフラグ
-  const [clockOutDone, setClockOutDone] = useState(false);
+  const [clockOutDone, setClockOutDone] = useState(savedState?.clockOutDone ?? false);
 
   // ── アルコールチェック フォーム状態 ──
   const [numberPlate, setNumberPlate] = useState("");
@@ -128,15 +163,15 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
   // 残業入力（退勤時のみ）
   const openedAt = useMemo(() => new Date(), []);
-  const [hasOvertime, setHasOvertime] = useState(false);
-  const [overtimeStartHour, setOvertimeStartHour] = useState(17);
-  const [overtimeStartMinute, setOvertimeStartMinute] = useState(0);
-  const [overtimeEndHour, setOvertimeEndHour] = useState(() => openedAt.getHours());
-  const [overtimeEndMinute, setOvertimeEndMinute] = useState(() => floorToTenMinutes(openedAt));
-  const [overtimeReasonType, setOvertimeReasonType] = useState("");
-  const [overtimeContactTarget, setOvertimeContactTarget] = useState("");
-  const [overtimeRecordCount, setOvertimeRecordCount] = useState(1);
-  const [overtimeFreeText, setOvertimeFreeText] = useState("");
+  const [hasOvertime, setHasOvertime] = useState(savedState?.hasOvertime ?? false);
+  const [overtimeStartHour, setOvertimeStartHour] = useState(savedState?.overtimeStartHour ?? 17);
+  const [overtimeStartMinute, setOvertimeStartMinute] = useState(savedState?.overtimeStartMinute ?? 0);
+  const [overtimeEndHour, setOvertimeEndHour] = useState(savedState?.overtimeEndHour ?? openedAt.getHours());
+  const [overtimeEndMinute, setOvertimeEndMinute] = useState(savedState?.overtimeEndMinute ?? floorToTenMinutes(openedAt));
+  const [overtimeReasonType, setOvertimeReasonType] = useState(savedState?.overtimeReasonType ?? "");
+  const [overtimeContactTarget, setOvertimeContactTarget] = useState(savedState?.overtimeContactTarget ?? "");
+  const [overtimeRecordCount, setOvertimeRecordCount] = useState(savedState?.overtimeRecordCount ?? 1);
+  const [overtimeFreeText, setOvertimeFreeText] = useState(savedState?.overtimeFreeText ?? "");
 
   // 位置情報
   const [locationStatus, setLocationStatus] = useState<"idle" | "loading" | "success" | "denied" | "error">("idle");
@@ -157,11 +192,37 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 状態をlocalStorageに自動保存する
+  useEffect(() => {
+    const stateToSave: SavedState = {
+      done,
+      alcoholRecorded,
+      clockInDone,
+      clockOutDone,
+      hasOvertime,
+      overtimeStartHour,
+      overtimeStartMinute,
+      overtimeEndHour,
+      overtimeEndMinute,
+      overtimeReasonType,
+      overtimeContactTarget,
+      overtimeRecordCount,
+      overtimeFreeText,
+    };
+    try {
+      localStorage.setItem(getStorageKey(type), JSON.stringify(stateToSave));
+    } catch {
+      // ignore storage errors
+    }
+  }, [type, done, alcoholRecorded, clockInDone, clockOutDone, hasOvertime, overtimeStartHour, overtimeStartMinute, overtimeEndHour, overtimeEndMinute, overtimeReasonType, overtimeContactTarget, overtimeRecordCount, overtimeFreeText]);
+
   // 出勤画面：全ステップ完了 + アルコール記録済み + 打刻済み → ホームへ自動遷移
   useEffect(() => {
     if (!isClockIn) return;
     const allStepsDone = CLOCK_IN_REQUIRED_STEP_IDS.every((id) => done[id]);
     if (allStepsDone && alcoholRecorded && clockInDone) {
+      // 完了時にlocalStorageをクリア
+      try { localStorage.removeItem(getStorageKey(type)); } catch { /* ignore */ }
       // 少し待ってからホームへ戻る
       const timer = setTimeout(() => {
         onClose();
@@ -169,19 +230,21 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       }, 800);
       return () => clearTimeout(timer);
     }
-  }, [isClockIn, done, alcoholRecorded, clockInDone, onClose, onConfirm]);
+  }, [isClockIn, done, alcoholRecorded, clockInDone, onClose, onConfirm, type]);
   // 退勤画面：退勤打刻済み + アルコール記録済み + みまもドライブ停止済み → ホームへ自動遷移
   useEffect(() => {
     if (isClockIn) return;
     const mimamoStopDone = done["mimamodrive_out"];
     if (clockOutDone && alcoholRecorded && mimamoStopDone) {
+      // 完了時にlocalStorageをクリア
+      try { localStorage.removeItem(getStorageKey(type)); } catch { /* ignore */ }
       const timer = setTimeout(() => {
         onClose();
         onConfirm?.();
       }, 800);
       return () => clearTimeout(timer);
     }
-  }, [isClockIn, done, alcoholRecorded, clockOutDone, onClose, onConfirm]);
+  }, [isClockIn, done, alcoholRecorded, clockOutDone, onClose, onConfirm, type]);
   const fetchLocation = () => {
     if (!navigator.geolocation) {
       setLocationStatus("error");
