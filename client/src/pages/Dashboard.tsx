@@ -2533,7 +2533,7 @@ function SheetSubTabs({ quickLinks, isAdmin = false }: { quickLinks: { id: numbe
                         href={link.url}
                         label={link.label}
                         colorStyle={{ color: "white" }}
-                        emoji={link.emoji ?? undefined}
+                        emoji={(link as any).emoji ?? undefined}
                       />
                       {isAdmin && (
                         <>
@@ -2597,7 +2597,7 @@ function HinatasWayButton() {
 
 function ToolsCard() {
   const { user } = useAuth();
-  const canManageTools = user?.role === "admin" || (user as any)?.team === "事務員";
+  const canManageTools = user?.role === "admin";
   const [activeTab, setActiveTab] = useState<ToolsTabId>("sheet");
 
   // 当月スプレッドシートリンク（tRPC + DB）
@@ -3116,8 +3116,8 @@ function TeamToolsCard() {
     return monthlyLinks?.find((l) => l.linkKey === teamFeeKey) ?? null;
   }, [monthlyLinks, teamFeeKey]);
 
-  // 管理者または事務員: ツール追加・編集・削除
-  const isAdmin = user?.role === "admin" || (user as any)?.team === "事務員";
+  // 管理者のみ: ツール追加・編集・削除
+  const isAdmin = user?.role === "admin";
   const [showAddForm, setShowAddForm] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [newHref, setNewHref] = useState("");

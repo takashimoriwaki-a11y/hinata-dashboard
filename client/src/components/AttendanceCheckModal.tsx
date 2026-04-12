@@ -129,6 +129,9 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   const { user } = useAuth();
   const utils = trpc.useUtils();
 
+  // 事務員はアルコールチェックが任意
+  const isOfficeStaff = (user as any)?.team === "事務員";
+
   // localStorageから保存済み状態を読み込む
   const loadSavedState = (): SavedState | null => {
     try {
@@ -390,7 +393,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   // アルコールチェック記録のみ実行
   const handleAlcoholOnly = () => {
     if (saveAlcoholCheckMutation.isPending) return;
-    if (!numberPlate.trim()) {
+    // 事務員はナンバープレート必須チェックをスキップ
+    if (!isOfficeStaff && !numberPlate.trim()) {
       toast.error("ナンバープレートを入力してください");
       return;
     }
@@ -462,7 +466,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         <div>
           <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
             <Car className="w-3.5 h-3.5 inline mr-1 mb-0.5" />
-            ナンバープレート <span className="text-red-500">*</span>
+            ナンバープレート {!isOfficeStaff && <span className="text-red-500">*</span>}{isOfficeStaff && <span className="text-xs text-gray-400 font-normal ml-1">(任意)</span>}
           </label>
           <input
             type="text"

@@ -1487,6 +1487,11 @@ function StaffManagementPanel() {
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">{staff.email ?? "メール未設定"}</p>
                     <p className="text-xs text-muted-foreground">最終ログイン: {staff.lastSignedIn ? new Date(staff.lastSignedIn).toLocaleDateString("ja-JP") : "未ログイン"}</p>
+                    {(staff as any).numberPlate && (
+                      <p className="text-xs text-muted-foreground">
+                        🚗 ナンバープレート: <span className="font-medium text-foreground">{(staff as any).numberPlate}</span>
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     {/* スタッフ情報編集 */}

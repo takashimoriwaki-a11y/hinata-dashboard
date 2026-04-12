@@ -1,7 +1,7 @@
 import { and, eq, or, isNull, isNotNull, desc, lte, gte, gt, lt, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2";
-import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot, myLinks, InsertMyLink, spreadsheetLinks, InsertSpreadsheetLink, tasks, InsertTask, messages, InsertMessage, messageReactions, InsertMessageReaction, patients, InsertPatient, visitRecords, InsertVisitRecord, appNotifications, InsertAppNotification, teamGoals, InsertTeamGoal } from "../drizzle/schema";
+import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot, myLinks, InsertMyLink, spreadsheetLinks, InsertSpreadsheetLink, tasks, InsertTask, messages, InsertMessage, messageReactions, InsertMessageReaction, patients, InsertPatient, visitRecords, InsertVisitRecord, appNotifications, InsertAppNotification, teamGoals, InsertTeamGoal, accidentLinks, InsertAccidentLink } from "../drizzle/schema";
 import { screenshotUploadLogs, InsertScreenshotUploadLog, appSettings } from "../drizzle/schema";
 import { scheduleComments, InsertScheduleComment, scheduleCommentReactions, InsertScheduleCommentReaction } from "../drizzle/schema";
 import { scheduleChanges, InsertScheduleChange } from "../drizzle/schema";
@@ -1805,4 +1805,30 @@ export async function deleteAlcoholCheckSpreadsheet(id: number): Promise<void> {
   const db = await getDb();
   if (!db) return;
   await db.delete(alcoholCheckSpreadsheets).where(eq(alcoholCheckSpreadsheets.id, id));
+}
+
+// ============================================================
+// 事故リンク（accidentLinks）
+// ============================================================
+
+/** 事故リンクを全件取得する */
+export async function getAllAccidentLinks() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(accidentLinks).orderBy(accidentLinks.sortOrder, accidentLinks.createdAt);
+}
+
+/** 事故リンクを追加する */
+export async function createAccidentLink(data: Omit<InsertAccidentLink, "id" | "createdAt">) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(accidentLinks).values(data);
+  return (result as any).insertId as number;
+}
+
+/** 事故リンクを削除する */
+export async function deleteAccidentLink(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(accidentLinks).where(eq(accidentLinks.id, id));
 }

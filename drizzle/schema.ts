@@ -771,3 +771,23 @@ export const alcoholCheckSpreadsheets = mysqlTable("alcohol_check_spreadsheets",
 });
 export type AlcoholCheckSpreadsheet = typeof alcoholCheckSpreadsheets.$inferSelect;
 export type InsertAlcoholCheckSpreadsheet = typeof alcoholCheckSpreadsheets.$inferInsert;
+
+/**
+ * 事故ページのリンクテーブル（管理者のみ追加・削除可能）
+ */
+export const accidentLinks = mysqlTable("accident_links", {
+  id: int("id").autoincrement().primaryKey(),
+  /** カテゴリ：医療事故・虚待 or ヒヤリハット */
+  category: mysqlEnum("category", ["医療事故・虚待", "ヒヤリハット・アクシデント"]).notNull(),
+  /** 表示ラベル */
+  label: varchar("label", { length: 200 }).notNull(),
+  /** URL */
+  href: text("href").notNull(),
+  /** 説明文 */
+  description: varchar("description", { length: 500 }).default(""),
+  /** 表示順 */
+  sortOrder: int("sortOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type AccidentLink = typeof accidentLinks.$inferSelect;
+export type InsertAccidentLink = typeof accidentLinks.$inferInsert;

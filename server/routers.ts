@@ -3106,9 +3106,9 @@ export const appRouter = router({
         sortOrder: z.number().int().default(0),
       }))
       .mutation(async ({ ctx, input }) => {
-        const canManage2857 = ctx.user.role === "admin" || (ctx.user as any).team === "事務員";
+        const canManage2857 = ctx.user.role === "admin";
         if (!canManage2857) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "管理者または事務員のみ変更できます" });
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
         }
         const { createQuickAccessLink } = await import("./db");
         const id = await createQuickAccessLink(input);
@@ -3126,9 +3126,9 @@ export const appRouter = router({
         sortOrder: z.number().int().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const canManageQAUpdate = ctx.user.role === "admin" || (ctx.user as any).team === "事務員";
+        const canManageQAUpdate = ctx.user.role === "admin";
         if (!canManageQAUpdate) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "管理者または事務員のみ変更できます" });
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
         }
         const { updateQuickAccessLink } = await import("./db");
         const { id, ...data } = input;
@@ -3140,9 +3140,9 @@ export const appRouter = router({
     delete: protectedProcedure
       .input(z.object({ id: z.number().int() }))
       .mutation(async ({ ctx, input }) => {
-        const canManageQADelete = ctx.user.role === "admin" || (ctx.user as any).team === "事務員";
+        const canManageQADelete = ctx.user.role === "admin";
         if (!canManageQADelete) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "管理者または事務員のみ変更できます" });
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
         }
         const { deleteQuickAccessLink } = await import("./db");
         await deleteQuickAccessLink(input.id);
@@ -3184,9 +3184,9 @@ export const appRouter = router({
         sortOrder: z.number().int().default(0),
       }))
       .mutation(async ({ ctx, input }) => {
-        const canManageTTCreate = ctx.user.role === "admin" || (ctx.user as any).team === "事務員";
+        const canManageTTCreate = ctx.user.role === "admin";
         if (!canManageTTCreate) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "管理者または事務員のみ変更できます" });
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
         }
         const { getDb } = await import("./db");
         const db = await getDb();
@@ -3215,9 +3215,9 @@ export const appRouter = router({
         sortOrder: z.number().int().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const canManageTTUpdate = ctx.user.role === "admin" || (ctx.user as any).team === "事務員";
+        const canManageTTUpdate = ctx.user.role === "admin";
         if (!canManageTTUpdate) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "管理者または事務員のみ変更できます" });
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
         }
         const { getDb } = await import("./db");
         const db = await getDb();
@@ -3233,9 +3233,9 @@ export const appRouter = router({
     delete: protectedProcedure
       .input(z.object({ id: z.number().int() }))
       .mutation(async ({ ctx, input }) => {
-        const canManageTTDelete = ctx.user.role === "admin" || (ctx.user as any).team === "事務員";
+        const canManageTTDelete = ctx.user.role === "admin";
         if (!canManageTTDelete) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "管理者または事務員のみ変更できます" });
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
         }
         const { getDb } = await import("./db");
         const db = await getDb();
@@ -4007,6 +4007,45 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
         await deleteSharedPrompt(input.id);
+        return { success: true };
+      }),
+  }),
+
+  // ============================================================
+  // 事故リンク（accidentLinks）
+  // ============================================================
+  accidentLinks: router({
+    /** 事故リンクを全件取得する */
+    getAll: protectedProcedure.query(async () => {
+      const { getAllAccidentLinks } = await import("./db");
+      return getAllAccidentLinks();
+    }),
+    /** 事故リンクを追加する（管理者のみ） */
+    create: protectedProcedure
+      .input(z.object({
+        category: z.enum(["医療事故・虚待", "ヒヤリハット・アクシデント"]),
+        label: z.string().min(1).max(200),
+        href: z.string().url(),
+        description: z.string().max(500).optional().default(""),
+        sortOrder: z.number().int().optional().default(0),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ追加できます" });
+        }
+        const { createAccidentLink } = await import("./db");
+        const id = await createAccidentLink(input);
+        return { success: true, id };
+      }),
+    /** 事故リンクを削除する（管理者のみ） */
+    delete: protectedProcedure
+      .input(z.object({ id: z.number().int() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ削除できます" });
+        }
+        const { deleteAccidentLink } = await import("./db");
+        await deleteAccidentLink(input.id);
         return { success: true };
       }),
   }),
