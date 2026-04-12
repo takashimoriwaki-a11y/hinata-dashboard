@@ -74,7 +74,7 @@ interface AttendanceCheckModalProps {
   onConfirm?: () => void;
 }
 
-export function AttendanceCheckModal({ type, onClose }: AttendanceCheckModalProps) {
+export function AttendanceCheckModal({ type, onClose, onConfirm }: AttendanceCheckModalProps) {
   const isClockIn = type === "clock_in";
   const steps = isClockIn ? CLOCK_IN_STEPS : CLOCK_OUT_STEPS;
   const [done, setDone] = useState<Record<string, boolean>>({});

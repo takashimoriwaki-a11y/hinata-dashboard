@@ -4679,12 +4679,9 @@ export default function Dashboard() {
   const handleClockOut = () => {
     setAttendanceModalType("clock_out");
   };
-  // ウェルカムバナーの残業理由事前入力
-  const [bannerOvertimeReason, setBannerOvertimeReason] = useState("");
-
-  // アルコールチェックモーダルを開く
-  const handleAlcoholCheckIn = () => setAlcoholCheckModalType("clock_in");
-  const handleAlcoholCheckOut = () => setAlcoholCheckModalType("clock_out");
+  // 出退勤ボタン: AttendanceCheckModal → AlcoholCheckModal の順に表示
+  const handleAlcoholCheckIn = () => setAttendanceModalType("clock_in");
+  const handleAlcoholCheckOut = () => setAttendanceModalType("clock_out");
   // ログインユーザーの名前（姓名の場合は名前部分のみ表示）
   const userName = dashboardUser?.name
     ? (dashboardUser.name.includes(' ') || dashboardUser.name.includes('　')
@@ -4737,27 +4734,7 @@ export default function Dashboard() {
               ✦ {dailyWord}
             </p>
           )}
-          {/* 退勤時残業理由事前入力欄 */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-white/90 text-xs font-semibold" style={{textShadow: '0 1px 3px rgba(0,0,0,0.3)'}}>
-              残業理由（退勤時に自動入力）
-            </label>
-            <select
-              value={bannerOvertimeReason}
-              onChange={e => setBannerOvertimeReason(e.target.value)}
-              className="w-full rounded-lg px-3 py-2 text-sm bg-white/20 backdrop-blur-sm text-white border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 appearance-none cursor-pointer"
-              style={{textShadow: '0 1px 2px rgba(0,0,0,0.3)'}}
-            >
-              <option value="" className="text-gray-800 bg-white">— 残業なし —</option>
-              <option value="訪問看護実施" className="text-gray-800 bg-white">訪問看護実施</option>
-              <option value="支援者連絡" className="text-gray-800 bg-white">支援者連絡</option>
-              <option value="家族連絡" className="text-gray-800 bg-white">家族連絡</option>
-              <option value="記録書Ⅱ作成" className="text-gray-800 bg-white">記録書Ⅱ作成</option>
-              <option value="月次報告書作成" className="text-gray-800 bg-white">月次報告書作成</option>
-              <option value="状態報告書作成" className="text-gray-800 bg-white">状態報告書作成</option>
-              <option value="その他" className="text-gray-800 bg-white">その他</option>
-            </select>
-          </div>
+
           {/* ショートカットボタン（モバイル: 3列グリッド均等配置 / PC: 折り返し右寄せ） */}
           <div className="grid grid-cols-3 gap-1.5 md:flex md:flex-row md:flex-wrap md:justify-center md:gap-2 items-stretch">
             <button
@@ -4875,15 +4852,21 @@ export default function Dashboard() {
       {attendanceModalType && (
         <AttendanceCheckModal
           type={attendanceModalType}
-          onClose={() => setAttendanceModalType(null)}
+          onClose={() => {
+            // AttendanceCheckModalを閉じたら、同じ種別でAlcoholCheckModalを開く
+            const type = attendanceModalType;
+            setAttendanceModalType(null);
+            if (type) {
+              setAlcoholCheckModalType(type);
+            }
+          }}
         />
       )}
       {/* アルコールチェックモーダル */}
       {alcoholCheckModalType && (
         <AlcoholCheckModal
           clockType={alcoholCheckModalType}
-          onClose={() => { setAlcoholCheckModalType(null); if (alcoholCheckModalType === "clock_out") setBannerOvertimeReason(""); }}
-          initialOvertimeReason={alcoholCheckModalType === "clock_out" ? bannerOvertimeReason : undefined}
+          onClose={() => setAlcoholCheckModalType(null)}
         />
       )}
     </div>

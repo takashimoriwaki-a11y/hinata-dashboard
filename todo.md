@@ -1993,3 +1993,14 @@
 - [x] ウェルカムバナーの退勤ボタン上に残業理由入力欄を設置する（Dashboard.tsx）
 - [x] 残業理由をAlcoholCheckModalのclock_outに引き渡す
 - [x] チェックポイント保存
+
+## ウェルカムバナー残業理由削除・出退勤ボタン両モーダル表示（2026-04-12）
+
+- [ ] ウェルカムバナーの残業理由入力欄を削除する
+- [ ] 出勤ボタン押下時にAttendanceCheckModal（出勤打刻）→AlcoholCheckModal（clock_in）の順で両方を表示する
+- [ ] 退勤ボタン押下時にAttendanceCheckModal（退勤打刻）→AlcoholCheckModal（clock_out）の順で両方を表示する
+- [ ] チェックポイント保存
+
+## 残業理由プリセット選択UI（2026-04-12 保留）
+
+- [ ] 残業理由のプリセット選択UIは一旦なしとする（ユーザー判断）
