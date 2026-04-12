@@ -1,12 +1,27 @@
 import { and, eq, or, isNull, isNotNull, desc, lte, gte, gt, lt, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2";
-import { InsertUser, users, scheduleScreenshots, InsertScheduleScreenshot, myLinks, InsertMyLink, spreadsheetLinks, InsertSpreadsheetLink, tasks, InsertTask, messages, InsertMessage, messageReactions, InsertMessageReaction, patients, InsertPatient, visitRecords, InsertVisitRecord, appNotifications, InsertAppNotification, teamGoals, InsertTeamGoal, accidentLinks, InsertAccidentLink } from "../drizzle/schema";
-import { screenshotUploadLogs, InsertScreenshotUploadLog, appSettings } from "../drizzle/schema";
-import { scheduleComments, InsertScheduleComment, scheduleCommentReactions, InsertScheduleCommentReaction } from "../drizzle/schema";
-import { scheduleChanges, InsertScheduleChange } from "../drizzle/schema";
-import { quickAccessLinks, InsertQuickAccessLink } from "../drizzle/schema";
-import { voiceFeedback } from "../drizzle/schema";
+import {
+  InsertUser, users,
+  scheduleScreenshots, InsertScheduleScreenshot,
+  myLinks, InsertMyLink,
+  spreadsheetLinks, InsertSpreadsheetLink,
+  tasks, InsertTask,
+  messages, InsertMessage,
+  messageReactions, InsertMessageReaction,
+  patients, InsertPatient,
+  visitRecords, InsertVisitRecord,
+  appNotifications, InsertAppNotification,
+  teamGoals, InsertTeamGoal,
+  accidentLinks, InsertAccidentLink,
+  screenshotUploadLogs, InsertScreenshotUploadLog,
+  appSettings,
+  scheduleComments, InsertScheduleComment,
+  scheduleCommentReactions, InsertScheduleCommentReaction,
+  scheduleChanges, InsertScheduleChange,
+  quickAccessLinks, InsertQuickAccessLink,
+  voiceFeedback,
+} from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
