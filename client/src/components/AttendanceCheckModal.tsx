@@ -26,7 +26,7 @@ const CLOCK_IN_STEPS: ClockInStep[] = [
   {
     id: "daily_report_in",
     label: "業務日報",
-    description: "前日までの日報確認と本日のアルコールチェック",
+    description: "前日までの記録確認",
     link: {
       url: `https://docs.google.com/spreadsheets/d/${DAILY_REPORT_SPREADSHEET_ID}/edit`,
       label: "業務日報を開く",
@@ -51,24 +51,6 @@ const CLOCK_IN_STEPS: ClockInStep[] = [
 ];
 
 const CLOCK_OUT_STEPS: ClockInStep[] = [
-  {
-    id: "ibow_out",
-    label: "ibow 退勤打刻",
-    description: "ibowで退勤打刻を行う",
-    link: {
-      url: "https://login.ibowservice.jp/",
-      label: "ibowを開く",
-    },
-  },
-  {
-    id: "kintai_out",
-    label: "ひなた勤怠スプレッドシートへ記入（必要時）",
-    description: "正確な退勤時間をひなた勤怠スプレッドシートに記入する（必要な場合のみ）",
-    link: {
-      url: "https://docs.google.com/spreadsheets/d/1e5xvZHvqSneNZIsO1g8h68-Ue9QnoYXCdCPkt-pIwsQ/edit?usp=sharing",
-      label: "ひなた勤怠を開く",
-    },
-  },
   {
     id: "mimamodrive_out",
     label: "自宅到着時にみまもドライブを停止",

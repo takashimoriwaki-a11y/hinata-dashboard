@@ -1,9 +1,10 @@
 /**
  * AlcoholCheckModal - アルコールチェック記録入力モーダル
  * 出勤・退勤時のアルコールチェック記録を入力してスプレッドシートに転記する
+ * 退勤時は残業入力フォームも表示する
  */
-import { useState, useEffect } from "react";
-import { Car, Shield, X, Loader2, CheckCircle2, ChevronDown } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Car, Shield, X, Loader2, CheckCircle2, ChevronDown, Clock } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
@@ -12,9 +13,22 @@ interface AlcoholCheckModalProps {
   /** 出勤時か退勤時か */
   clockType: "clock_in" | "clock_out";
   onClose: () => void;
+  /** 打刻時刻（ms）を外部から渡す場合 */
+  clockInAt?: number;
+  clockOutAt?: number;
 }
 
-export function AlcoholCheckModal({ clockType, onClose }: AlcoholCheckModalProps) {
+// 時間の選択肢（0〜23時）
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => i);
+// 分の選択肢（10分単位）
+const MINUTE_OPTIONS = [0, 10, 20, 30, 40, 50];
+
+/** 現在時刻から10分単位（一の位切り捨て）の分を返す */
+function floorToTenMinutes(date: Date): number {
+  return Math.floor(date.getMinutes() / 10) * 10;
+}
+
+export function AlcoholCheckModal({ clockType, onClose, clockInAt, clockOutAt }: AlcoholCheckModalProps) {
   const isClockIn = clockType === "clock_in";
   const { user } = useAuth();
   const utils = trpc.useUtils();
@@ -27,12 +41,31 @@ export function AlcoholCheckModal({ clockType, onClose }: AlcoholCheckModalProps
   const [confirmerName, setConfirmerName] = useState("森脇崇");
   const [notes, setNotes] = useState("");
 
+  // 残業入力（退勤時のみ）
+  // モーダルを開いた時刻を一度だけ取得
+  const openedAt = useMemo(() => new Date(), []);
+  const [hasOvertime, setHasOvertime] = useState(false);
+  // 開始：デフォルト17時00分
+  const [overtimeStartHour, setOvertimeStartHour] = useState(17);
+  const [overtimeStartMinute, setOvertimeStartMinute] = useState(0);
+  // 終了：デフォルトはモーダルを開いた時刻（10分切り捨て）
+  const [overtimeEndHour, setOvertimeEndHour] = useState(() => openedAt.getHours());
+  const [overtimeEndMinute, setOvertimeEndMinute] = useState(() => floorToTenMinutes(openedAt));
+  const [overtimeReason, setOvertimeReason] = useState("");
+
   // ユーザーのナンバープレートを自動取得
   useEffect(() => {
     if ((user as any)?.numberPlate) {
       setNumberPlate((user as any).numberPlate);
     }
   }, [user]);
+
+  /** 時刻（時・分）をUTC msに変換（今日の日付で計算） */
+  const toTodayMs = (hour: number, minute: number): number => {
+    const d = new Date();
+    d.setHours(hour, minute, 0, 0);
+    return d.getTime();
+  };
 
   const alcoholCheckMutation = trpc.attendance.saveAlcoholCheck.useMutation({
     onSuccess: () => {
@@ -50,6 +83,10 @@ export function AlcoholCheckModal({ clockType, onClose }: AlcoholCheckModalProps
       toast.error("ナンバープレートを入力してください");
       return;
     }
+    if (!isClockIn && hasOvertime && !overtimeReason.trim()) {
+      toast.error("残業理由を入力してください");
+      return;
+    }
     alcoholCheckMutation.mutate({
       clockType,
       numberPlate: numberPlate.trim(),
@@ -58,6 +95,11 @@ export function AlcoholCheckModal({ clockType, onClose }: AlcoholCheckModalProps
       alcoholDetected,
       confirmerName,
       notes: notes.trim() || undefined,
+      clockInAt: isClockIn ? clockInAt : undefined,
+      clockOutAt: !isClockIn ? clockOutAt : undefined,
+      overtimeStartAt: (!isClockIn && hasOvertime) ? toTodayMs(overtimeStartHour, overtimeStartMinute) : undefined,
+      overtimeEndAt: (!isClockIn && hasOvertime) ? toTodayMs(overtimeEndHour, overtimeEndMinute) : undefined,
+      overtimeReason: (!isClockIn && hasOvertime) ? overtimeReason.trim() : undefined,
     });
   };
 
@@ -78,8 +120,8 @@ export function AlcoholCheckModal({ clockType, onClose }: AlcoholCheckModalProps
         <div
           className={`px-5 py-4 flex items-center justify-between flex-shrink-0 rounded-t-2xl sm:rounded-t-2xl ${
             isClockIn
-              ? "bg-gradient-to-r from-red-500 to-rose-600"
-              : "bg-gradient-to-r from-blue-500 to-indigo-600"
+              ? "bg-gradient-to-r from-orange-500 to-amber-600"
+              : "bg-gradient-to-r from-cyan-500 to-blue-600"
           }`}
         >
           <div className="flex items-center gap-2.5 text-white">
@@ -136,8 +178,8 @@ export function AlcoholCheckModal({ clockType, onClose }: AlcoholCheckModalProps
                   className={`flex-1 py-2.5 text-sm font-medium rounded-xl border-2 transition-all ${
                     confirmMethod === method
                       ? isClockIn
-                        ? "bg-red-500 border-red-500 text-white shadow-sm"
-                        : "bg-blue-500 border-blue-500 text-white shadow-sm"
+                        ? "bg-orange-500 border-orange-500 text-white shadow-sm"
+                        : "bg-cyan-500 border-cyan-500 text-white shadow-sm"
                       : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-300"
                   }`}
                 >
@@ -161,8 +203,8 @@ export function AlcoholCheckModal({ clockType, onClose }: AlcoholCheckModalProps
                   className={`flex-1 py-2.5 text-sm font-medium rounded-xl border-2 transition-all ${
                     detectorUsed === used
                       ? isClockIn
-                        ? "bg-red-500 border-red-500 text-white shadow-sm"
-                        : "bg-blue-500 border-blue-500 text-white shadow-sm"
+                        ? "bg-orange-500 border-orange-500 text-white shadow-sm"
+                        : "bg-cyan-500 border-cyan-500 text-white shadow-sm"
                       : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-300"
                   }`}
                 >
@@ -188,8 +230,8 @@ export function AlcoholCheckModal({ clockType, onClose }: AlcoholCheckModalProps
                       ? detected
                         ? "bg-amber-500 border-amber-500 text-white shadow-sm"
                         : isClockIn
-                          ? "bg-red-500 border-red-500 text-white shadow-sm"
-                          : "bg-blue-500 border-blue-500 text-white shadow-sm"
+                          ? "bg-orange-500 border-orange-500 text-white shadow-sm"
+                          : "bg-cyan-500 border-cyan-500 text-white shadow-sm"
                       : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-300"
                   }`}
                 >
@@ -222,6 +264,118 @@ export function AlcoholCheckModal({ clockType, onClose }: AlcoholCheckModalProps
             </div>
           </div>
 
+          {/* 残業入力（退勤時のみ） */}
+          {!isClockIn && (
+            <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+              {/* トグルヘッダー */}
+              <button
+                type="button"
+                onClick={() => setHasOvertime((v) => !v)}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm font-semibold transition-colors ${
+                  hasOvertime
+                    ? "bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300"
+                    : "bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-750"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  残業あり
+                </div>
+                {/* トグルスイッチ */}
+                <div className={`w-10 h-5 rounded-full transition-colors flex items-center px-0.5 ${hasOvertime ? "bg-purple-500" : "bg-gray-300 dark:bg-gray-600"}`}>
+                  <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${hasOvertime ? "translate-x-5" : "translate-x-0"}`} />
+                </div>
+              </button>
+
+              {/* 残業フォーム（展開時のみ） */}
+              {hasOvertime && (
+                <div className="px-4 pb-4 pt-3 space-y-3 bg-white dark:bg-gray-900">
+                  {/* 残業開始時刻 */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                      残業開始時刻
+                      <span className="text-gray-400 font-normal ml-1">（デフォルト: 17:00）</span>
+                    </label>
+                    <div className="flex gap-2 items-center">
+                      <div className="relative flex-1">
+                        <select
+                          value={overtimeStartHour}
+                          onChange={(e) => setOvertimeStartHour(Number(e.target.value))}
+                          className="w-full px-3 py-2 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none pr-7"
+                        >
+                          {HOUR_OPTIONS.map((h) => (
+                            <option key={h} value={h}>{String(h).padStart(2, "0")}時</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                      </div>
+                      <div className="relative flex-1">
+                        <select
+                          value={overtimeStartMinute}
+                          onChange={(e) => setOvertimeStartMinute(Number(e.target.value))}
+                          className="w-full px-3 py-2 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none pr-7"
+                        >
+                          {MINUTE_OPTIONS.map((m) => (
+                            <option key={m} value={m}>{String(m).padStart(2, "0")}分</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 残業終了時刻 */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                      残業終了時刻
+                      <span className="text-gray-400 font-normal ml-1">（画面を開いた時刻から自動取得）</span>
+                    </label>
+                    <div className="flex gap-2 items-center">
+                      <div className="relative flex-1">
+                        <select
+                          value={overtimeEndHour}
+                          onChange={(e) => setOvertimeEndHour(Number(e.target.value))}
+                          className="w-full px-3 py-2 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none pr-7"
+                        >
+                          {HOUR_OPTIONS.map((h) => (
+                            <option key={h} value={h}>{String(h).padStart(2, "0")}時</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                      </div>
+                      <div className="relative flex-1">
+                        <select
+                          value={overtimeEndMinute}
+                          onChange={(e) => setOvertimeEndMinute(Number(e.target.value))}
+                          className="w-full px-3 py-2 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none pr-7"
+                        >
+                          {MINUTE_OPTIONS.map((m) => (
+                            <option key={m} value={m}>{String(m).padStart(2, "0")}分</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 残業理由 */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                      残業理由 <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={overtimeReason}
+                      onChange={(e) => setOvertimeReason(e.target.value)}
+                      placeholder="例: 記録作業の遅延、緊急対応のため"
+                      rows={2}
+                      className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-purple-400 resize-none"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* 備考 */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
@@ -245,8 +399,8 @@ export function AlcoholCheckModal({ clockType, onClose }: AlcoholCheckModalProps
             onClick={handleSubmit}
             className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
               isClockIn
-                ? "bg-red-500 hover:bg-red-600 shadow-md active:scale-95"
-                : "bg-blue-500 hover:bg-blue-600 shadow-md active:scale-95"
+                ? "bg-orange-500 hover:bg-orange-600 shadow-md active:scale-95"
+                : "bg-cyan-600 hover:bg-cyan-700 shadow-md active:scale-95"
             }`}
           >
             {alcoholCheckMutation.isPending ? (

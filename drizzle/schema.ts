@@ -730,9 +730,38 @@ export const alcoholChecks = mysqlTable("alcohol_checks", {
   notes: text("notes"),
   /** 実施日時（UTC ms） */
   checkedAt: bigint("checkedAt", { mode: "number" }).notNull(),
+  /** 出勤打刻時刻（UTC ms、出勤アルコールチェック時に記録） */
+  clockInAt: bigint("clockInAt", { mode: "number" }),
+  /** 退勤打刻時刻（UTC ms、退勤アルコールチェック時に記録） */
+  clockOutAt: bigint("clockOutAt", { mode: "number" }),
+  /** 残業開始時刻（UTC ms、退勤時のみ） */
+  overtimeStartAt: bigint("overtimeStartAt", { mode: "number" }),
+  /** 残業終了時刻（UTC ms、退勤時のみ） */
+  overtimeEndAt: bigint("overtimeEndAt", { mode: "number" }),
+  /** 残業理由（退勤時のみ、任意） */
+  overtimeReason: text("overtimeReason"),
   /** スプレッドシート転記済みフラグ */
   sheetSynced: tinyint("sheetSynced").notNull().default(0),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 export type AlcoholCheck = typeof alcoholChecks.$inferSelect;
 export type InsertAlcoholCheck = typeof alcoholChecks.$inferInsert;
+
+// ============================================================
+// 月別アルコールチェックスプレッドシート管理
+// ============================================================
+/** 月ごとのアルコールチェック記録スプレッドシートを管理するテーブル */
+export const alcoholCheckSpreadsheets = mysqlTable("alcohol_check_spreadsheets", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 対象年（例: 2026） */
+  year: int("year").notNull(),
+  /** 対象月（1～12） */
+  month: int("month").notNull(),
+  /** GoogleスプレッドシートID */
+  spreadsheetId: varchar("spreadsheetId", { length: 100 }).notNull(),
+  /** スプレッドシートの表示名（任意） */
+  label: varchar("label", { length: 100 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type AlcoholCheckSpreadsheet = typeof alcoholCheckSpreadsheets.$inferSelect;
+export type InsertAlcoholCheckSpreadsheet = typeof alcoholCheckSpreadsheets.$inferInsert;

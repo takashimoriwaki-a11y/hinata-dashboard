@@ -1,9 +1,7 @@
 import { getSessionCookieOptions } from "./_core/cookies";
 import { google } from "googleapis";
 
-const ALCOHOL_SHEET_ID = "1s9j_V1H1yoMOZhjK3-skd14RDiFy_3sLKonE977UmNc";
-
-/** アルコールチェック記録をGoogleスプレッドシートに転記する */
+/** アルコールチェック記録を月別スプレッドシートの職員タブに転記する */
 async function appendAlcoholCheckToSheet(record: {
   checkedAt: number;
   type: string;
@@ -14,7 +12,12 @@ async function appendAlcoholCheckToSheet(record: {
   alcoholDetected: number;
   confirmerName: string;
   notes: string | null;
-}): Promise<void> {
+  clockInAt?: number | null;
+  clockOutAt?: number | null;
+  overtimeStartAt?: number | null;
+  overtimeEndAt?: number | null;
+  overtimeReason?: string | null;
+}, spreadsheetId: string): Promise<void> {
   try {
     const auth = new google.auth.GoogleAuth({
       credentials: {
@@ -24,6 +27,9 @@ async function appendAlcoholCheckToSheet(record: {
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
     const sheets = google.sheets({ version: "v4", auth });
+
+    const toJST = (ms: number | null | undefined) =>
+      ms ? new Date(ms).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit" }) : "";
     const checkedDate = new Date(record.checkedAt);
     const dateStr = checkedDate.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
     const typeLabel = record.type === "clock_in" ? "出勤" : "退勤";
@@ -31,9 +37,41 @@ async function appendAlcoholCheckToSheet(record: {
     const detectorLabel = record.detectorUsed ? "使用" : "未使用";
     const alcoholLabel = record.alcoholDetected ? "有" : "無";
     const timestampStr = new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" });
+    const clockInStr = toJST(record.clockInAt);
+    const clockOutStr = toJST(record.clockOutAt);
+    const overtimeStr = record.overtimeStartAt && record.overtimeEndAt
+      ? `${toJST(record.overtimeStartAt)}～${toJST(record.overtimeEndAt)}`
+      : "";
+
+    // 職員名でタブを取得、存在しなければ作成
+    const tabName = record.userName;
+    const spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId });
+    const existingSheets = spreadsheetMeta.data.sheets ?? [];
+    const tabExists = existingSheets.some((s) => s.properties?.title === tabName);
+
+    if (!tabExists) {
+      // 新規タブを作成してヘッダー行を設定
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [{ addSheet: { properties: { title: tabName } } }],
+        },
+      });
+      // ヘッダー行を設定
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${tabName}!A1:N1`,
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: [["実施日時", "区分", "氏名", "ナンバープレート", "出勤打刻", "退勤打刻", "確認方法", "検知器使用", "酒気帯有無", "確認者", "残業時間", "残業理由", "備考", "登録日時"]],
+        },
+      });
+    }
+
+    // データ行を追加
     await sheets.spreadsheets.values.append({
-      spreadsheetId: ALCOHOL_SHEET_ID,
-      range: "記録!A:J",
+      spreadsheetId,
+      range: `${tabName}!A:N`,
       valueInputOption: "USER_ENTERED",
       requestBody: {
         values: [[
@@ -41,10 +79,14 @@ async function appendAlcoholCheckToSheet(record: {
           typeLabel,
           record.userName,
           record.numberPlate,
+          clockInStr,
+          clockOutStr,
           confirmMethodLabel,
           detectorLabel,
           alcoholLabel,
           record.confirmerName,
+          overtimeStr,
+          record.overtimeReason ?? "",
           record.notes ?? "",
           timestampStr,
         ]],
@@ -154,6 +196,10 @@ import {
   saveAlcoholCheck,
   markAlcoholCheckSynced,
   updateUserNumberPlate,
+  getAlcoholCheckSpreadsheet,
+  getAllAlcoholCheckSpreadsheets,
+  upsertAlcoholCheckSpreadsheet,
+  deleteAlcoholCheckSpreadsheet,
   getSharedPrompts,
   createSharedPrompt,
   updateSharedPrompt,
@@ -3714,6 +3760,13 @@ export const appRouter = router({
         alcoholDetected: z.boolean().default(false),
         confirmerName: z.string().max(100).default("森脇崇"),
         notes: z.string().optional(),
+        // 出退勤打刻時刻（アルコールチェック時に打刻時刻を記録）
+        clockInAt: z.number().optional(),
+        clockOutAt: z.number().optional(),
+        // 残業入力（退勤時のみ）
+        overtimeStartAt: z.number().optional(),
+        overtimeEndAt: z.number().optional(),
+        overtimeReason: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const now = Date.now();
@@ -3733,14 +3786,60 @@ export const appRouter = router({
           confirmerName: input.confirmerName,
           notes: input.notes ?? null,
           checkedAt: now,
-        });
-        // スプレッドシートへの転記（非同期・失敗しても記録は成功扱い）
-        appendAlcoholCheckToSheet(alcoholCheck).then(() => {
-          markAlcoholCheckSynced(alcoholCheck.id).catch(console.error);
+          clockInAt: input.clockInAt ?? null,
+          clockOutAt: input.clockOutAt ?? null,
+          overtimeStartAt: input.overtimeStartAt ?? null,
+          overtimeEndAt: input.overtimeEndAt ?? null,
+          overtimeReason: input.overtimeReason ?? null,
+        } as any);
+        // 月別スプレッドシートを取得して転記（非同期・失敗しても記録は成功扱い）
+        const checkedDate = new Date(now);
+        const jstOffset = 9 * 60 * 60 * 1000;
+        const jstDate = new Date(checkedDate.getTime() + jstOffset);
+        const year = jstDate.getUTCFullYear();
+        const month = jstDate.getUTCMonth() + 1;
+        getAlcoholCheckSpreadsheet(year, month).then(async (sheetReg) => {
+          if (!sheetReg) {
+            console.warn(`[AlcoholCheck] No spreadsheet registered for ${year}/${month}`);
+            return;
+          }
+          await appendAlcoholCheckToSheet({
+            ...alcoholCheck,
+            clockInAt: input.clockInAt ?? null,
+            clockOutAt: input.clockOutAt ?? null,
+            overtimeStartAt: input.overtimeStartAt ?? null,
+            overtimeEndAt: input.overtimeEndAt ?? null,
+            overtimeReason: input.overtimeReason ?? null,
+          }, sheetReg.spreadsheetId);
+          await markAlcoholCheckSynced(alcoholCheck.id);
         }).catch((err) => {
           console.error("[AlcoholCheck] Sheet sync failed:", err);
         });
         return { success: true, alcoholCheckId: alcoholCheck.id };
+      }),
+    /** 月別スプレッドシート一覧を取得する（管理者用） */
+    getSpreadsheets: protectedProcedure
+      .query(async () => {
+        return getAllAlcoholCheckSpreadsheets();
+      }),
+    /** 月別スプレッドシートを登録・更新する（管理者用） */
+    upsertSpreadsheet: protectedProcedure
+      .input(z.object({
+        year: z.number().min(2020).max(2100),
+        month: z.number().min(1).max(12),
+        spreadsheetId: z.string().min(1).max(100),
+        label: z.string().max(100).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        await upsertAlcoholCheckSpreadsheet(input);
+        return { success: true };
+      }),
+    /** 月別スプレッドシート登録を削除する（管理者用） */
+    deleteSpreadsheet: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await deleteAlcoholCheckSpreadsheet(input.id);
+        return { success: true };
       }),
     /** 今日の自分の打刻履歴を取得する */
     today: protectedProcedure

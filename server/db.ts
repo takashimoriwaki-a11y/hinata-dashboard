@@ -1742,3 +1742,54 @@ export async function updateUserNumberPlate(userId: number, numberPlate: string)
   const { eq: eqOp } = await import("drizzle-orm");
   await db.update(users).set({ numberPlate } as any).where(eqOp(users.id, userId));
 }
+
+// ─── 月別アルコールチェックスプレッドシート管理 ─────────────────────────────────
+import { alcoholCheckSpreadsheets, type AlcoholCheckSpreadsheet } from "../drizzle/schema";
+
+/** 指定年月のスプレッドシート登録を取得する */
+export async function getAlcoholCheckSpreadsheet(year: number, month: number): Promise<AlcoholCheckSpreadsheet | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db
+    .select()
+    .from(alcoholCheckSpreadsheets)
+    .where(and(eq(alcoholCheckSpreadsheets.year, year), eq(alcoholCheckSpreadsheets.month, month)));
+  return row ?? null;
+}
+
+/** 全スプレッドシート登録を取得する（新しい順） */
+export async function getAllAlcoholCheckSpreadsheets(): Promise<AlcoholCheckSpreadsheet[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(alcoholCheckSpreadsheets)
+    .orderBy(desc(alcoholCheckSpreadsheets.year), desc(alcoholCheckSpreadsheets.month));
+}
+
+/** 月別スプレッドシートを登録または更新する */
+export async function upsertAlcoholCheckSpreadsheet(data: { year: number; month: number; spreadsheetId: string; label?: string }): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const existing = await getAlcoholCheckSpreadsheet(data.year, data.month);
+  if (existing) {
+    await db
+      .update(alcoholCheckSpreadsheets)
+      .set({ spreadsheetId: data.spreadsheetId, label: data.label ?? existing.label })
+      .where(and(eq(alcoholCheckSpreadsheets.year, data.year), eq(alcoholCheckSpreadsheets.month, data.month)));
+  } else {
+    await db.insert(alcoholCheckSpreadsheets).values({
+      year: data.year,
+      month: data.month,
+      spreadsheetId: data.spreadsheetId,
+      label: data.label,
+    });
+  }
+}
+
+/** 月別スプレッドシート登録を削除する */
+export async function deleteAlcoholCheckSpreadsheet(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(alcoholCheckSpreadsheets).where(eq(alcoholCheckSpreadsheets.id, id));
+}

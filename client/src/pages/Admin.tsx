@@ -796,7 +796,7 @@ export default function Admin() {
   }, []);
 
   // セクション切り替え
-  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "teamGoals" | "toolLogs">("sheets");
+  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "teamGoals" | "toolLogs" | "alcoholSheets">("sheets");
   const { user: currentUser } = useAuth();
 
   return (
@@ -900,6 +900,19 @@ export default function Admin() {
             )}
           >
             ツール操作ログ
+          </button>
+        )}
+        {currentUser?.role === "admin" && (
+          <button
+            onClick={() => setActiveSection("alcoholSheets")}
+            className={cn(
+            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
+            activeSection === "alcoholSheets"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            アルコールチェック管理
           </button>
         )}
       </div>
@@ -1105,6 +1118,8 @@ export default function Admin() {
       {/* クイックアクセスリンク管理セクション（ホーム画面から削除済みのため非表示） */}
       {/* ツール操作ログセクション */}
       {activeSection === "toolLogs" && <ToolAuditLogsPanel />}
+      {/* アルコールチェック月別スプレッドシート管理 */}
+      {activeSection === "alcoholSheets" && <AlcoholCheckSpreadsheetsPanel />}
     </div>
   );
 }
@@ -2716,5 +2731,273 @@ function ToolAuditLogsPanel() {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// ============================
+// アルコールチェック月別スプレッドシート管理パネル
+// ============================
+
+function AlcoholCheckSpreadsheetsPanel() {
+  const utils = trpc.useUtils();
+  const { data: spreadsheets, isLoading } = trpc.attendance.getSpreadsheets.useQuery();
+
+  // 新規登録フォーム
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+  const [newYear, setNewYear] = useState(currentYear);
+  const [newMonth, setNewMonth] = useState(currentMonth);
+  const [newSpreadsheetId, setNewSpreadsheetId] = useState("");
+  const [newLabel, setNewLabel] = useState("");
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  const upsertMutation = trpc.attendance.upsertSpreadsheet.useMutation({
+    onSuccess: () => {
+      utils.attendance.getSpreadsheets.invalidate();
+      toast.success("スプレッドシートを登録しました");
+      setNewSpreadsheetId("");
+      setNewLabel("");
+      setShowAddForm(false);
+    },
+    onError: (e) => toast.error(`登録に失敗しました: ${e.message}`),
+  });
+
+  const deleteMutation = trpc.attendance.deleteSpreadsheet.useMutation({
+    onSuccess: () => {
+      utils.attendance.getSpreadsheets.invalidate();
+      toast.success("削除しました");
+    },
+    onError: (e) => toast.error(`削除に失敗しました: ${e.message}`),
+  });
+
+  /** スプレッドシートURLまたはIDからIDを抽出する */
+  const extractSheetId = (input: string): string => {
+    const match = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+    return match ? match[1] : input.trim();
+  };
+
+  const handleAdd = () => {
+    const sheetId = extractSheetId(newSpreadsheetId);
+    if (!sheetId) { toast.error("スプレッドシートIDまたはURLを入力してください"); return; }
+    upsertMutation.mutate({
+      year: newYear,
+      month: newMonth,
+      spreadsheetId: sheetId,
+      label: newLabel.trim() || undefined,
+    });
+  };
+
+  const yearOptions = [currentYear - 1, currentYear, currentYear + 1];
+  const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1);
+
+  return (
+    <div className="space-y-4">
+      {/* ヘッダー */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-bold text-foreground">アルコールチェック月別スプレッドシート</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            月ごとにスプレッドシートを登録します。打刻時に日付に応じたシートへ自動転記されます。
+          </p>
+        </div>
+        <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => setShowAddForm((v) => !v)}>
+          <Plus className="w-3.5 h-3.5" />
+          新規登録
+        </Button>
+      </div>
+
+      {/* 新規登録フォーム */}
+      {showAddForm && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="pt-4 pb-4 space-y-3">
+            <p className="text-sm font-semibold text-foreground">新規スプレッドシート登録</p>
+
+            {/* 年月選択 */}
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">年</label>
+                <div className="relative">
+                  <select
+                    value={newYear}
+                    onChange={(e) => setNewYear(Number(e.target.value))}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary appearance-none pr-7"
+                  >
+                    {yearOptions.map((y) => (
+                      <option key={y} value={y}>{y}年</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">月</label>
+                <div className="relative">
+                  <select
+                    value={newMonth}
+                    onChange={(e) => setNewMonth(Number(e.target.value))}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary appearance-none pr-7"
+                  >
+                    {monthOptions.map((m) => (
+                      <option key={m} value={m}>{m}月</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                </div>
+              </div>
+            </div>
+
+            {/* スプレッドシートURL/ID */}
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                スプレッドシートURL または ID
+              </label>
+              <input
+                type="text"
+                value={newSpreadsheetId}
+                onChange={(e) => setNewSpreadsheetId(e.target.value)}
+                placeholder="https://docs.google.com/spreadsheets/d/... または シートID"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                URLを貼り付けると自動的にIDを抽出します
+              </p>
+            </div>
+
+            {/* メモ（任意） */}
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                メモ（任意）
+              </label>
+              <input
+                type="text"
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                placeholder="例: アルコールチェック記録 2026年5月"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button
+                size="sm"
+                className="h-8 text-xs"
+                onClick={handleAdd}
+                disabled={upsertMutation.isPending || !newSpreadsheetId.trim()}
+              >
+                {upsertMutation.isPending ? "登録中..." : "登録する"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => { setShowAddForm(false); setNewSpreadsheetId(""); setNewLabel(""); }}
+              >
+                キャンセル
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 登録済みスプレッドシート一覧 */}
+      {isLoading ? (
+        <div className="text-sm text-muted-foreground py-8 text-center">読み込み中...</div>
+      ) : !spreadsheets || spreadsheets.length === 0 ? (
+        <Card>
+          <CardContent className="py-10 text-center">
+            <FileSpreadsheet className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">まだスプレッドシートが登録されていません</p>
+            <p className="text-xs text-muted-foreground mt-1">「新規登録」から月別のスプレッドシートを登録してください</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          {[...spreadsheets]
+            .sort((a, b) => {
+              if (a.year !== b.year) return b.year - a.year;
+              return b.month - a.month;
+            })
+            .map((sheet) => {
+              const isCurrentMonth = sheet.year === currentYear && sheet.month === currentMonth;
+              const isNextMonth = (sheet.year === currentYear && sheet.month === currentMonth + 1) ||
+                (sheet.year === currentYear + 1 && sheet.month === 1 && currentMonth === 12);
+              return (
+                <Card key={`${sheet.year}-${sheet.month}`} className={cn(
+                  "transition-colors",
+                  isCurrentMonth && "border-primary/40 bg-primary/5",
+                  isNextMonth && "border-emerald-400/40 bg-emerald-50/50 dark:bg-emerald-950/20"
+                )}>
+                  <CardContent className="py-3 px-4 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <FileSpreadsheet className={cn(
+                        "w-5 h-5 flex-shrink-0",
+                        isCurrentMonth ? "text-primary" : isNextMonth ? "text-emerald-500" : "text-muted-foreground"
+                      )} />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-foreground">
+                            {sheet.year}年{sheet.month}月
+                          </span>
+                          {isCurrentMonth && (
+                            <Badge className="text-xs bg-primary/10 text-primary border-0 px-1.5 py-0">今月</Badge>
+                          )}
+                          {isNextMonth && (
+                            <Badge className="text-xs bg-emerald-100 text-emerald-700 border-0 px-1.5 py-0">来月</Badge>
+                          )}
+                        </div>
+                        {sheet.label && (
+                          <p className="text-xs text-muted-foreground truncate">{sheet.label}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground/60 font-mono truncate">
+                          ID: {sheet.spreadsheetId}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <a
+                        href={`https://docs.google.com/spreadsheets/d/${sheet.spreadsheetId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                        title="スプレッドシートを開く"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm(`${sheet.year}年${sheet.month}月のスプレッドシート登録を削除しますか？`)) {
+                            deleteMutation.mutate({ id: sheet.id });
+                          }
+                        }}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        title="削除"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+        </div>
+      )}
+
+      {/* 注意書き */}
+      <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20">
+        <CardContent className="py-3 px-4">
+          <div className="flex gap-2 text-xs text-amber-700 dark:text-amber-400">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-semibold">月末前に翌月のスプレッドシートを登録してください</p>
+              <p className="text-amber-600/80 dark:text-amber-400/70">
+                登録されていない月のアルコールチェックは記録（DB）には保存されますが、スプレッドシートへの自動転記はされません。
+                月が変わる前に翌月分のスプレッドシートを作成して登録しておくことをお勧めします。
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

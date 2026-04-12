@@ -1929,3 +1929,16 @@
 - [x] AlcoholCheckModalコンポーネントを新規作成（clockType: clock_in/clock_out対応）
 - [x] ナンバープレートをスタッフ情報から自動取得（管理画面の職員登録から登録可能）
 - [x] テスト更新（231件全合格）・チェックポイント保存
+
+## アルコールチェック月別・職員タブ管理＋退勤モーダル改修（2026-04-12）
+
+- [x] DBスキーマ：alcohol_check_spreadsheetsテーブル追加（月別スプレッドシートID管理）
+- [x] DBスキーマ：alcohol_checksテーブルに出退勤時刻列・残業列を追加
+- [x] server/db.ts：月別スプレッドシート取得・登録関数追加
+- [x] server/routers.ts：saveAlcoholCheckプロシージャを月別スプレッドシート・職員タブ対応に改修
+- [x] server/routers.ts：職員タブが存在しない場合に自動作成するロジック追加
+- [x] server/routers.ts：出退勤時刻をスプレッドシートに転記
+- [x] AttendanceCheckModal（退勤）：ibowボタン削除・ひなた勤怠記入削除
+- [x] AlcoholCheckModal（退勤時）：残業入力フォーム追加（開始デフォルト17時・終了は画面を開いた時刻を自動取得・10分単位切り捨て）
+- [x] 管理画面：月別アルコールチェックスプレッドシート登録UIを追加
+- [x] テスト（231件全合格）・チェックポイント保存
