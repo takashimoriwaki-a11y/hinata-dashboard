@@ -344,6 +344,13 @@
       "when": 1776018827642,
       "tag": "0048_common_amazoness",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "5",
+      "when": 1776021376988,
+      "tag": "0049_shocking_warpath",
+      "breakpoints": true
     }
   ]
 }

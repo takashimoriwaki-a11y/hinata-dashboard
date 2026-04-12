@@ -138,6 +138,119 @@ async function appendAlcoholCheckToSheet(record: {
     throw err;
   }
 }
+/** 出退勤打刻記録を月別スプレッドシートに転記する */
+async function appendTimesheetToSheet(record: {
+  clockedAt: number;
+  type: string;
+  userName: string;
+  numberPlate?: string | null;
+  locationAddress?: string | null;
+}, spreadsheetId: string): Promise<void> {
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        private_key: (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ?? "").replace(/\\n/g, "\n"),
+      },
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+    const sheets = google.sheets({ version: "v4", auth });
+    const toJSTStr = (ms: number) =>
+      new Date(ms).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+    const typeLabel = record.type === "clock_in" ? "出勤" : "退勤";
+    const dateStr = new Date(record.clockedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" });
+    const timeStr = toJSTStr(record.clockedAt);
+    const timestampStr = new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" });
+    // 職員名タブの確認・作成
+    const tabName = record.userName;
+    const spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId });
+    const existingSheets = spreadsheetMeta.data.sheets ?? [];
+    const tabExists = existingSheets.some((s) => s.properties?.title === tabName);
+    if (!tabExists) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: { requests: [{ addSheet: { properties: { title: tabName } } }] },
+      });
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${tabName}!A1:H1`,
+        valueInputOption: "USER_ENTERED",
+        requestBody: { values: [["日付", "打刻日時", "区分", "氏名", "ナンバープレート", "位置情報", "備考", "登録日時"]] },
+      });
+    }
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: `${tabName}!A:H`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [[dateStr, timeStr, typeLabel, record.userName, record.numberPlate ?? "", record.locationAddress ?? "", "", timestampStr]],
+      },
+    });
+  } catch (err) {
+    console.error("[Timesheet] Failed to append to sheet:", err);
+    throw err;
+  }
+}
+
+/** 残業申請・承認記録をスプレッドシートに転記する */
+async function appendOvertimeToSheet(record: {
+  applicationDate: string;
+  applicantName: string;
+  requestedStartAt: number;
+  requestedEndAt: number;
+  requestedReason?: string | null;
+  status: string;
+  approverName?: string | null;
+  approvedAt?: number | null;
+  adjustedStartAt?: number | null;
+  adjustedEndAt?: number | null;
+  approverComment?: string | null;
+}, spreadsheetId: string): Promise<void> {
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        private_key: (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ?? "").replace(/\\n/g, "\n"),
+      },
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+    const sheets = google.sheets({ version: "v4", auth });
+    const toJSTStr = (ms: number | null | undefined) =>
+      ms ? new Date(ms).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+    const statusLabel = record.status === "approved" ? "承認" : record.status === "rejected" ? "却下" : "承認待ち";
+    const timestampStr = new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" });
+    // 月別タブの確認・作成
+    const [year, month] = record.applicationDate.split("-").map(Number);
+    const tabName = `${year}年${month}月残業`;
+    const spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId });
+    const existingSheets = spreadsheetMeta.data.sheets ?? [];
+    const tabExists = existingSheets.some((s) => s.properties?.title === tabName);
+    if (!tabExists) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: { requests: [{ addSheet: { properties: { title: tabName } } }] },
+      });
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${tabName}!A1:L1`,
+        valueInputOption: "USER_ENTERED",
+        requestBody: { values: [["申請日", "申請者", "申請開始時刻", "申請終了時刻", "申請理由", "ステータス", "承認者", "承認日時", "承認開始時刻", "承認終了時刻", "承認者コメント", "転記日時"]] },
+      });
+    }
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: `${tabName}!A:L`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [[record.applicationDate, record.applicantName, toJSTStr(record.requestedStartAt), toJSTStr(record.requestedEndAt), record.requestedReason ?? "", statusLabel, record.approverName ?? "", toJSTStr(record.approvedAt), toJSTStr(record.adjustedStartAt), toJSTStr(record.adjustedEndAt), record.approverComment ?? "", timestampStr]],
+      },
+    });
+  } catch (err) {
+    console.error("[Overtime] Failed to append to sheet:", err);
+    throw err;
+  }
+}
+
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { GoogleAuth } from "google-auth-library";
@@ -3806,6 +3919,8 @@ export const appRouter = router({
     clock: protectedProcedure
       .input(z.object({
         type: z.enum(["clock_in", "clock_out"]),
+        numberPlate: z.string().max(20).optional(),
+        locationAddress: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const now = Date.now();
@@ -3814,6 +3929,30 @@ export const appRouter = router({
           userId: ctx.user.id,
           userName: ctx.user.name ?? "不明",
           clockedAt: now,
+        });
+        // 出退勤スプレッドシートへ転記（非同期・失敗しても打刻は成功扱い）
+        const jstDate = new Date(now + 9 * 60 * 60 * 1000);
+        const year = jstDate.getUTCFullYear();
+        const month = jstDate.getUTCMonth() + 1;
+        const { getTimesheetSpreadsheets } = await import("./db");
+        getTimesheetSpreadsheets(year, month).then(async (sheets) => {
+          if (!sheets || sheets.length === 0) {
+            console.warn(`[Timesheet] No spreadsheet registered for ${year}/${month}`);
+            return;
+          }
+          for (const sheet of sheets) {
+            await appendTimesheetToSheet({
+              clockedAt: now,
+              type: input.type,
+              userName: ctx.user.name ?? "不明",
+              numberPlate: input.numberPlate ?? null,
+              locationAddress: input.locationAddress ?? null,
+            }, sheet.spreadsheetUrl).catch((err) => {
+              console.error("[Timesheet] Sheet sync failed:", err);
+            });
+          }
+        }).catch((err) => {
+          console.error("[Timesheet] getTimesheetSpreadsheets failed:", err);
         });
         return { success: true, log };
       }),
@@ -4152,6 +4291,148 @@ export const appRouter = router({
         }
         const { deleteAccidentLink } = await import("./db");
         await deleteAccidentLink(input.id);
+        return { success: true };
+      }),
+  }),
+
+  /** ====== タイムシートスプレッドシート管理 ====== */
+  timesheet: router({
+    /** 全スプレッドシートを取得する */
+    getAll: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const { getAllTimesheetSpreadsheets } = await import("./db");
+        return getAllTimesheetSpreadsheets();
+      }),
+    /** 月別スプレッドシートを取得する */
+    getByMonth: protectedProcedure
+      .input(z.object({ year: z.number().int(), month: z.number().int().min(1).max(12) }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const { getTimesheetSpreadsheets } = await import("./db");
+        return getTimesheetSpreadsheets(input.year, input.month);
+      }),
+    /** スプレッドシートを登録する */
+    create: protectedProcedure
+      .input(z.object({
+        year: z.number().int(),
+        month: z.number().int().min(1).max(12),
+        label: z.string().min(1).max(200),
+        spreadsheetUrl: z.string().url(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const { createTimesheetSpreadsheet } = await import("./db");
+        await createTimesheetSpreadsheet(input);
+        return { success: true };
+      }),
+    /** スプレッドシートを削除する */
+    delete: protectedProcedure
+      .input(z.object({ id: z.number().int() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const { deleteTimesheetSpreadsheet } = await import("./db");
+        await deleteTimesheetSpreadsheet(input.id);
+        return { success: true };
+      }),
+  }),
+
+  /** ====== 残業申請・承認 ====== */
+  overtime: router({
+    /** 残業申請一覧を取得する（管理者用） */
+    getAll: protectedProcedure
+      .input(z.object({
+        date: z.string().optional(),
+        status: z.enum(["pending", "approved", "rejected"]).optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const { getOvertimeApprovals } = await import("./db");
+        return getOvertimeApprovals(input ?? {});
+      }),
+    /** 自分の残業申請一覧を取得する */
+    getMine: protectedProcedure
+      .query(async ({ ctx }) => {
+        const { getOvertimeApprovalsByUser } = await import("./db");
+        return getOvertimeApprovalsByUser(ctx.user.id);
+      }),
+    /** 残業申請を作成する */
+    create: protectedProcedure
+      .input(z.object({
+        applicationDate: z.string(),
+        requestedStartAt: z.number(),
+        requestedEndAt: z.number(),
+        requestedReason: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { createOvertimeApproval } = await import("./db");
+        await createOvertimeApproval({
+          applicantUserId: ctx.user.id,
+          applicantName: ctx.user.name ?? "不明",
+          ...input,
+        });
+        return { success: true };
+      }),
+    /** 残業申請を承認・却下する（管理者用） */
+    approve: protectedProcedure
+      .input(z.object({
+        id: z.number().int(),
+        status: z.enum(["approved", "rejected"]),
+        adjustedStartAt: z.number().optional(),
+        adjustedEndAt: z.number().optional(),
+        approverComment: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const { approveOvertimeApproval, getOvertimeApprovalById, getTimesheetSpreadsheets } = await import("./db");
+        const approvedAt = Date.now();
+        await approveOvertimeApproval({
+          id: input.id,
+          approverUserId: ctx.user.id,
+          approverName: ctx.user.name ?? "不明",
+          status: input.status,
+          adjustedStartAt: input.adjustedStartAt,
+          adjustedEndAt: input.adjustedEndAt,
+          approverComment: input.approverComment,
+        });
+        // 承認後にスプレッドシートへ転記（非同期・失敗しても承認は成功扱い）
+        getOvertimeApprovalById(input.id).then(async (record) => {
+          if (!record) return;
+          const appDate = record.applicationDate;
+          const [year, month] = appDate.split("-").map(Number);
+          const sheets = await getTimesheetSpreadsheets(year, month);
+          if (!sheets || sheets.length === 0) {
+            console.warn(`[Overtime] No spreadsheet registered for ${year}/${month}`);
+            return;
+          }
+          for (const sheet of sheets) {
+            await appendOvertimeToSheet({
+              applicationDate: appDate,
+              applicantName: record.applicantName,
+              requestedStartAt: record.requestedStartAt,
+              requestedEndAt: record.requestedEndAt,
+              requestedReason: record.requestedReason,
+              status: input.status,
+              approverName: ctx.user.name ?? "不明",
+              approvedAt,
+              adjustedStartAt: input.adjustedStartAt ?? null,
+              adjustedEndAt: input.adjustedEndAt ?? null,
+              approverComment: input.approverComment ?? null,
+            }, sheet.spreadsheetUrl).catch((err) => {
+              console.error("[Overtime] Sheet sync failed:", err);
+            });
+          }
+        }).catch((err) => {
+          console.error("[Overtime] getOvertimeApprovalById failed:", err);
+        });
+        return { success: true };
+      }),
+    /** 残業申請を削除する（申請者本人のみ・pending状態のみ） */
+    delete: protectedProcedure
+      .input(z.object({ id: z.number().int() }))
+      .mutation(async ({ ctx, input }) => {
+        const { deleteOvertimeApproval } = await import("./db");
+        await deleteOvertimeApproval(input.id, ctx.user.id);
         return { success: true };
       }),
   }),

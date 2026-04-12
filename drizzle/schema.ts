@@ -827,3 +827,69 @@ export const accidentLinks = mysqlTable("accident_links", {
 });
 export type AccidentLink = typeof accidentLinks.$inferSelect;
 export type InsertAccidentLink = typeof accidentLinks.$inferInsert;
+
+// ============================================================
+// 出退勤タイムシート スプレッドシート管理テーブル
+// ============================================================
+/**
+ * 出退勤打刻・残業申請の転記先スプレッドシートを月ごとに管理するテーブル
+ */
+export const timesheetSpreadsheets = mysqlTable("timesheet_spreadsheets", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 対象年 */
+  year: int("year").notNull(),
+  /** 対象月（1～12） */
+  month: int("month").notNull(),
+  /** GoogleスプレッドシートID */
+  spreadsheetId: varchar("spreadsheetId", { length: 200 }).notNull(),
+  /** スプレッドシートのURL */
+  spreadsheetUrl: text("spreadsheetUrl").notNull(),
+  /** 表示ラベル */
+  label: varchar("label", { length: 200 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type TimesheetSpreadsheet = typeof timesheetSpreadsheets.$inferSelect;
+export type InsertTimesheetSpreadsheet = typeof timesheetSpreadsheets.$inferInsert;
+
+// ============================================================
+// 残業申請・承認テーブル
+// ============================================================
+/**
+ * 職員からの残業申請と管理者の承認記録を管理するテーブル
+ */
+export const overtimeApprovals = mysqlTable("overtime_approvals", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 申請者のユーザーID */
+  applicantUserId: int("applicantUserId").notNull(),
+  /** 申請者名（スナップショット） */
+  applicantName: varchar("applicantName", { length: 100 }).notNull(),
+  /** 申請日（YYYY-MM-DD） */
+  applicationDate: varchar("applicationDate", { length: 10 }).notNull(),
+  /** 申請残業開始時刻（UNIXタイムスタンプ ms） */
+  requestedStartAt: bigint("requestedStartAt", { mode: "number" }).notNull(),
+  /** 申請残業終了時刻（UNIXタイムスタンプ ms） */
+  requestedEndAt: bigint("requestedEndAt", { mode: "number" }).notNull(),
+  /** 残業理由 */
+  requestedReason: text("requestedReason"),
+  /** 承認ステータス */
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  /** 承認者のユーザーID */
+  approverUserId: int("approverUserId"),
+  /** 承認者名（スナップショット） */
+  approverName: varchar("approverName", { length: 100 }),
+  /** 承認日時（UNIXタイムスタンプ ms） */
+  approvedAt: bigint("approvedAt", { mode: "number" }),
+  /** 管理者が修正した残業開始時刻 */
+  adjustedStartAt: bigint("adjustedStartAt", { mode: "number" }),
+  /** 管理者が修正した残業終了時刻 */
+  adjustedEndAt: bigint("adjustedEndAt", { mode: "number" }),
+  /** 承認者コメント */
+  approverComment: text("approverComment"),
+  /** スプレッドシート転記済みフラグ */
+  sheetSynced: int("sheetSynced").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type OvertimeApproval = typeof overtimeApprovals.$inferSelect;
+export type InsertOvertimeApproval = typeof overtimeApprovals.$inferInsert;

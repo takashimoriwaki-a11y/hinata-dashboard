@@ -14,6 +14,8 @@ import {
   appNotifications, InsertAppNotification,
   teamGoals, InsertTeamGoal,
   accidentLinks, InsertAccidentLink,
+  timesheetSpreadsheets, InsertTimesheetSpreadsheet,
+  overtimeApprovals, InsertOvertimeApproval,
   screenshotUploadLogs, InsertScreenshotUploadLog,
   appSettings,
   scheduleComments, InsertScheduleComment,
@@ -1899,4 +1901,153 @@ export async function deleteAlcoholDetector(id: number): Promise<void> {
   const db = await getDb();
   if (!db) return;
   await db.delete(alcoholDetectorSettings).where(eq(alcoholDetectorSettings.id, id));
+}
+
+// ============================================================
+// タイムシートスプレッドシート ヘルパー
+// ============================================================
+
+/** 月別タイムシートスプレッドシート一覧を取得する */
+export async function getTimesheetSpreadsheets(year: number, month: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(timesheetSpreadsheets)
+    .where(and(eq(timesheetSpreadsheets.year, year), eq(timesheetSpreadsheets.month, month)))
+    .orderBy(timesheetSpreadsheets.createdAt);
+}
+
+/** 全タイムシートスプレッドシートを取得する */
+export async function getAllTimesheetSpreadsheets() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(timesheetSpreadsheets)
+    .orderBy(desc(timesheetSpreadsheets.year), desc(timesheetSpreadsheets.month));
+}
+
+/** タイムシートスプレッドシートを新規登録する */
+export async function createTimesheetSpreadsheet(input: {
+  year: number;
+  month: number;
+  label: string;
+  spreadsheetUrl: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const m = input.spreadsheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  const spreadsheetId = m ? m[1] : input.spreadsheetUrl;
+  await db.insert(timesheetSpreadsheets).values({
+    year: input.year,
+    month: input.month,
+    label: input.label,
+    spreadsheetId,
+    spreadsheetUrl: input.spreadsheetUrl,
+  });
+}
+
+/** タイムシートスプレッドシートを削除する */
+export async function deleteTimesheetSpreadsheet(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(timesheetSpreadsheets).where(eq(timesheetSpreadsheets.id, id));
+}
+
+// ============================================================
+// 残業申請・承認 ヘルパー
+// ============================================================
+
+/** 残業申請一覧を取得する（管理者用・日付範囲フィルタ付き） */
+export async function getOvertimeApprovals(opts?: { date?: string; status?: string }) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [];
+  if (opts?.date) conditions.push(eq(overtimeApprovals.applicationDate, opts.date));
+  if (opts?.status) conditions.push(eq(overtimeApprovals.status, opts.status as any));
+  const query = db.select().from(overtimeApprovals);
+  if (conditions.length > 0) {
+    return query.where(and(...conditions)).orderBy(desc(overtimeApprovals.createdAt));
+  }
+  return query.orderBy(desc(overtimeApprovals.createdAt));
+}
+
+/** 特定ユーザーの残業申請一覧を取得する */
+export async function getOvertimeApprovalsByUser(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(overtimeApprovals)
+    .where(eq(overtimeApprovals.applicantUserId, userId))
+    .orderBy(desc(overtimeApprovals.createdAt));
+}
+
+/** 残業申請を作成する */
+export async function createOvertimeApproval(input: {
+  applicantUserId: number;
+  applicantName: string;
+  applicationDate: string;
+  requestedStartAt: number;
+  requestedEndAt: number;
+  requestedReason?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(overtimeApprovals).values({
+    applicantUserId: input.applicantUserId,
+    applicantName: input.applicantName,
+    applicationDate: input.applicationDate,
+    requestedStartAt: input.requestedStartAt,
+    requestedEndAt: input.requestedEndAt,
+    requestedReason: input.requestedReason ?? null,
+  });
+  return result;
+}
+
+/** 残業申請を承認・却下する（管理者用） */
+export async function approveOvertimeApproval(input: {
+  id: number;
+  approverUserId: number;
+  approverName: string;
+  status: 'approved' | 'rejected';
+  adjustedStartAt?: number;
+  adjustedEndAt?: number;
+  approverComment?: string;
+}) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(overtimeApprovals).set({
+    status: input.status,
+    approverUserId: input.approverUserId,
+    approverName: input.approverName,
+    approvedAt: Date.now(),
+    adjustedStartAt: input.adjustedStartAt ?? null,
+    adjustedEndAt: input.adjustedEndAt ?? null,
+    approverComment: input.approverComment ?? null,
+    updatedAt: new Date(),
+  }).where(eq(overtimeApprovals.id, input.id));
+}
+
+/** 残業申請のスプレッドシート転記済みをマークする */
+export async function markOvertimeSynced(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(overtimeApprovals).set({ sheetSynced: 1 }).where(eq(overtimeApprovals.id, id));
+}
+
+/** 残業申請を削除する（申請者本人のみ・pending状態のみ） */
+export async function deleteOvertimeApproval(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(overtimeApprovals).where(
+    and(
+      eq(overtimeApprovals.id, id),
+      eq(overtimeApprovals.applicantUserId, userId),
+      eq(overtimeApprovals.status, 'pending')
+    )
+  );
+}
+
+/** 残業申請を1件取得する（ID指定） */
+export async function getOvertimeApprovalById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(overtimeApprovals).where(eq(overtimeApprovals.id, id)).limit(1);
+  return rows[0] ?? null;
 }

@@ -8,6 +8,7 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -796,7 +797,7 @@ export default function Admin() {
   }, []);
 
   // セクション切り替え
-  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "teamGoals" | "toolLogs" | "alcoholSheets" | "alcoholCsv" | "detectorSettings">("sheets");
+  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "teamGoals" | "toolLogs" | "alcoholSheets" | "alcoholCsv" | "detectorSettings" | "timesheetSheets" | "overtimeApprovals">("sheets");
   const { user: currentUser } = useAuth();
 
   return (
@@ -939,6 +940,32 @@ export default function Admin() {
             )}
           >
             検知器設定
+          </button>
+        )}
+        {currentUser?.role === "admin" && (
+          <button
+            onClick={() => setActiveSection("timesheetSheets")}
+            className={cn(
+            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
+            activeSection === "timesheetSheets"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            出退勤管理
+          </button>
+        )}
+        {currentUser?.role === "admin" && (
+          <button
+            onClick={() => setActiveSection("overtimeApprovals")}
+            className={cn(
+            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
+            activeSection === "overtimeApprovals"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            残業承認
           </button>
         )}
       </div>
@@ -1150,6 +1177,10 @@ export default function Admin() {
       {activeSection === "alcoholCsv" && <AlcoholCheckCsvExportPanel />}
       {/* 検知器設定 */}
       {activeSection === "detectorSettings" && <AlcoholDetectorSettingsPanel />}
+      {/* 出退勤管理 */}
+      {activeSection === "timesheetSheets" && <TimesheetSpreadsheetsPanel />}
+      {/* 残業承認 */}
+      {activeSection === "overtimeApprovals" && <OvertimeApprovalsPanel />}
     </div>
   );
 }
@@ -3525,6 +3556,307 @@ function AlcoholDetectorSettingsPanel() {
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+
+// ============================
+// 出退勤スプレッドシート管理パネル
+// ============================
+function TimesheetSpreadsheetsPanel() {
+  const utils = trpc.useUtils();
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [labelInput, setLabelInput] = useState("");
+  const [urlInput, setUrlInput] = useState("");
+  const [previewId, setPreviewId] = useState<number | null>(null);
+
+  const { data: sheets = [], isLoading } = trpc.timesheet.getAll.useQuery();
+
+  const createMut = trpc.timesheet.create.useMutation({
+    onSuccess: () => {
+      utils.timesheet.getAll.invalidate();
+      setLabelInput("");
+      setUrlInput("");
+    },
+  });
+  const deleteMut = trpc.timesheet.delete.useMutation({
+    onSuccess: () => utils.timesheet.getAll.invalidate(),
+  });
+
+  const filtered = sheets.filter((s) => s.year === year && s.month === month);
+  const previewSheet = filtered.find((s) => s.id === previewId);
+
+  const toEmbedUrl = (url: string) => {
+    const m = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+    if (!m) return url;
+    return `https://docs.google.com/spreadsheets/d/${m[1]}/edit?usp=sharing&embedded=true`;
+  };
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-bold">出退勤スプレッドシート管理</h2>
+      <p className="text-sm text-muted-foreground">
+        出勤・退勤打刻の記録が転記されるスプレッドシートを月ごとに登録します。
+      </p>
+
+      {/* 月選択 */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <select
+          value={year}
+          onChange={(e) => setYear(Number(e.target.value))}
+          className="border rounded px-2 py-1 text-sm"
+        >
+          {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => (
+            <option key={y} value={y}>{y}年</option>
+          ))}
+        </select>
+        <select
+          value={month}
+          onChange={(e) => setMonth(Number(e.target.value))}
+          className="border rounded px-2 py-1 text-sm"
+        >
+          {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+            <option key={m} value={m}>{m}月</option>
+          ))}
+        </select>
+      </div>
+
+      {/* 登録フォーム */}
+      <Card>
+        <CardHeader><CardTitle className="text-sm">スプレッドシートを登録</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          <Input
+            placeholder="ラベル（例: 2026年4月 出退勤記録）"
+            value={labelInput}
+            onChange={(e) => setLabelInput(e.target.value)}
+          />
+          <Input
+            placeholder="Google スプレッドシートのURL"
+            value={urlInput}
+            onChange={(e) => setUrlInput(e.target.value)}
+          />
+          <Button
+            size="sm"
+            disabled={!labelInput || !urlInput || createMut.isPending}
+            onClick={() => createMut.mutate({ year, month, label: labelInput, spreadsheetUrl: urlInput })}
+          >
+            {createMut.isPending ? "登録中..." : "登録"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* スプレッドシート一覧 */}
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">読み込み中...</p>
+      ) : filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{year}年{month}月のスプレッドシートは未登録です。</p>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map((s) => (
+            <Card key={s.id}>
+              <CardContent className="pt-4 flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div>
+                    <p className="font-medium text-sm">{s.label}</p>
+                    <p className="text-xs text-muted-foreground">{s.year}年{s.month}月</p>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <Button size="sm" variant="outline" onClick={() => window.open(s.spreadsheetUrl, "_blank")}>
+                      外部で開く
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setPreviewId(previewId === s.id ? null : s.id)}
+                    >
+                      {previewId === s.id ? "プレビューを閉じる" : "プレビュー"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => { if (confirm("削除しますか？")) deleteMut.mutate({ id: s.id }); }}
+                    >
+                      削除
+                    </Button>
+                  </div>
+                </div>
+                {previewId === s.id && (
+                  <div className="w-full border rounded overflow-hidden">
+                    <iframe
+                      src={toEmbedUrl(s.spreadsheetUrl)}
+                      className="w-full"
+                      style={{ height: "480px" }}
+                      title={s.label}
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================
+// 残業承認パネル
+// ============================
+function OvertimeApprovalsPanel() {
+  const utils = trpc.useUtils();
+  const now = new Date();
+  const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [filterDate, setFilterDate] = useState("");
+  const [commentInputs, setCommentInputs] = useState<Record<number, string>>({});
+  const [adjustStart, setAdjustStart] = useState<Record<number, string>>({});
+  const [adjustEnd, setAdjustEnd] = useState<Record<number, string>>({});
+
+  const queryInput = {
+    date: filterDate || undefined,
+    status: filterStatus === "all" ? undefined : filterStatus as "pending" | "approved" | "rejected",
+  };
+  const { data: approvals = [], isLoading } = trpc.overtime.getAll.useQuery(queryInput);
+
+  const approveMut = trpc.overtime.approve.useMutation({
+    onSuccess: () => utils.overtime.getAll.invalidate(),
+  });
+
+  const toJST = (ms: number) =>
+    new Date(ms).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+
+  const statusBadge = (status: string) => {
+    if (status === "pending") return <span className="px-2 py-0.5 rounded text-xs bg-yellow-100 text-yellow-800">承認待ち</span>;
+    if (status === "approved") return <span className="px-2 py-0.5 rounded text-xs bg-green-100 text-green-800">承認済み</span>;
+    return <span className="px-2 py-0.5 rounded text-xs bg-red-100 text-red-800">却下</span>;
+  };
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-bold">残業申請 承認管理</h2>
+      <p className="text-sm text-muted-foreground">
+        職員からの残業申請を確認・承認します。承認者名は自動的に記録されます。
+      </p>
+
+      {/* フィルター */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value as any)}
+          className="border rounded px-2 py-1 text-sm"
+        >
+          <option value="all">全て</option>
+          <option value="pending">承認待ち</option>
+          <option value="approved">承認済み</option>
+          <option value="rejected">却下</option>
+        </select>
+        <input
+          type="date"
+          value={filterDate}
+          onChange={(e) => setFilterDate(e.target.value)}
+          className="border rounded px-2 py-1 text-sm"
+        />
+        {filterDate && (
+          <Button size="sm" variant="ghost" onClick={() => setFilterDate("")}>クリア</Button>
+        )}
+      </div>
+
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">読み込み中...</p>
+      ) : approvals.length === 0 ? (
+        <p className="text-sm text-muted-foreground">該当する残業申請はありません。</p>
+      ) : (
+        <div className="space-y-3">
+          {approvals.map((a) => (
+            <Card key={a.id} className={a.status === "pending" ? "border-yellow-300" : ""}>
+              <CardContent className="pt-4 space-y-3">
+                <div className="flex items-start justify-between gap-2 flex-wrap">
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-sm">{a.applicantName}</span>
+                      {statusBadge(a.status)}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">申請日: {a.applicationDate}</p>
+                    <p className="text-sm mt-1">
+                      申請時間: {toJST(a.requestedStartAt)} ～ {toJST(a.requestedEndAt)}
+                    </p>
+                    {a.requestedReason && (
+                      <p className="text-sm text-muted-foreground">理由: {a.requestedReason}</p>
+                    )}
+                    {a.status !== "pending" && (
+                      <div className="mt-2 text-xs text-muted-foreground space-y-0.5">
+                        <p>承認者: <span className="font-medium text-foreground">{a.approverName}</span></p>
+                        {a.approvedAt && <p>承認日時: {toJST(a.approvedAt)}</p>}
+                        {a.adjustedStartAt && a.adjustedEndAt && (
+                          <p>調整後時間: {toJST(a.adjustedStartAt)} ～ {toJST(a.adjustedEndAt)}</p>
+                        )}
+                        {a.approverComment && <p>コメント: {a.approverComment}</p>}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 承認待ちの場合のみ承認フォームを表示 */}
+                {a.status === "pending" && (
+                  <div className="border-t pt-3 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">承認時間の調整（任意）</p>
+                    <div className="flex gap-2 flex-wrap items-center text-sm">
+                      <input
+                        type="datetime-local"
+                        value={adjustStart[a.id] ?? ""}
+                        onChange={(e) => setAdjustStart((prev) => ({ ...prev, [a.id]: e.target.value }))}
+                        className="border rounded px-2 py-1 text-xs"
+                      />
+                      <span>～</span>
+                      <input
+                        type="datetime-local"
+                        value={adjustEnd[a.id] ?? ""}
+                        onChange={(e) => setAdjustEnd((prev) => ({ ...prev, [a.id]: e.target.value }))}
+                        className="border rounded px-2 py-1 text-xs"
+                      />
+                    </div>
+                    <Input
+                      placeholder="コメント（任意）"
+                      value={commentInputs[a.id] ?? ""}
+                      onChange={(e) => setCommentInputs((prev) => ({ ...prev, [a.id]: e.target.value }))}
+                      className="text-sm"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        disabled={approveMut.isPending}
+                        onClick={() => approveMut.mutate({
+                          id: a.id,
+                          status: "approved",
+                          adjustedStartAt: adjustStart[a.id] ? new Date(adjustStart[a.id]).getTime() : undefined,
+                          adjustedEndAt: adjustEnd[a.id] ? new Date(adjustEnd[a.id]).getTime() : undefined,
+                          approverComment: commentInputs[a.id] || undefined,
+                        })}
+                      >
+                        承認
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={approveMut.isPending}
+                        onClick={() => approveMut.mutate({
+                          id: a.id,
+                          status: "rejected",
+                          approverComment: commentInputs[a.id] || undefined,
+                        })}
+                      >
+                        却下
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
