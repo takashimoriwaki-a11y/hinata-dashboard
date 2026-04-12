@@ -110,10 +110,12 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [openingStepId, setOpeningStepId] = useState<string | null>(null);
 
-  // アルコールチェック記録済みフラグ（出勤画面用）
+  // アルコールチェック記録済みフラグ（出勤・退勤共通）
   const [alcoholRecorded, setAlcoholRecorded] = useState(false);
   // 出勤打刻済みフラグ
   const [clockInDone, setClockInDone] = useState(false);
+  // 退勤打刻済みフラグ
+  const [clockOutDone, setClockOutDone] = useState(false);
 
   // ── アルコールチェック フォーム状態 ──
   const [numberPlate, setNumberPlate] = useState("");
@@ -168,7 +170,18 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       return () => clearTimeout(timer);
     }
   }, [isClockIn, done, alcoholRecorded, clockInDone, onClose, onConfirm]);
-
+  // 退勤画面：退勤打刻済み + アルコール記録済み + みまもドライブ停止済み → ホームへ自動遷移
+  useEffect(() => {
+    if (isClockIn) return;
+    const mimamoStopDone = done["mimamodrive_out"];
+    if (clockOutDone && alcoholRecorded && mimamoStopDone) {
+      const timer = setTimeout(() => {
+        onClose();
+        onConfirm?.();
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [isClockIn, done, alcoholRecorded, clockOutDone, onClose, onConfirm]);
   const fetchLocation = () => {
     if (!navigator.geolocation) {
       setLocationStatus("error");
@@ -229,7 +242,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       if (isClockIn) {
         setClockInDone(true);
       } else {
-        onConfirm?.();
+        setClockOutDone(true);
       }
     },
     onError: (e) => {
@@ -242,6 +255,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       toast.success(isClockIn ? "出勤アルコールチェックを記録しました" : "退勤アルコールチェックを記録しました");
       void utils.attendance.today.invalidate();
       if (isClockIn) {
+        setAlcoholRecorded(true);
+      } else {
         setAlcoholRecorded(true);
       }
     },

@@ -94,7 +94,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, openLink } from "@/lib/utils";
-import { getTeamButtonClass, getAllTeamButtonStyle, getTeamButtonStyle, getTeamTextStyle, getTeamTextStyleNight } from "@shared/teamColors";
+import { getTeamButtonClass, getAllTeamButtonStyle, getTeamButtonStyle, getTeamTextStyle, getTeamTextStyleNight, TEAM_COLOR_VALUES } from "@shared/teamColors";
+import type { TeamName } from "@shared/teamColors";
 import { Link, useLocation } from "wouter";
 import { useTheme } from "@/contexts/ThemeContext";
 import TaskCreateForm from "@/components/TaskCreateForm";
@@ -1861,9 +1862,12 @@ function ScheduleScreenshotCard() {
                             alt={`${team}チーム ${day}のスケジュール`}
                             className="w-full object-contain max-h-72"
                           />
-                          {/* チーム・日付ラベル（全チームモード時は常時表示） */}
+                          {/* チーム・日仔ラベル（全チームモード時はチームカラーで常時表示） */}
                           {showAllTeams && (
-                            <div className="absolute top-2 left-2 bg-black/65 text-white text-xs font-semibold px-2.5 py-1 rounded-full pointer-events-none">
+                            <div
+                              className="absolute top-2 left-2 text-white text-xs font-bold px-2.5 py-1 rounded-full pointer-events-none shadow-md"
+                              style={{ backgroundColor: TEAM_COLOR_VALUES[team as TeamName]?.active ?? '#06b6d4' }}
+                            >
                               {team} / {day}
                             </div>
                           )}
@@ -3005,6 +3009,7 @@ function TeamToolsCard() {
   const [newLabel, setNewLabel] = useState("");
   const [newHref, setNewHref] = useState("");
   const [newEmoji, setNewEmoji] = useState("🔗");
+  const [newTargetTeam, setNewTargetTeam] = useState<TeamTabId>("身体"); // 全チームタブ時のチーム選択
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editLabel, setEditLabel] = useState("");
   const [editHref, setEditHref] = useState("");
@@ -3025,7 +3030,8 @@ function TeamToolsCard() {
 
   const addTool = () => {
     if (!newLabel.trim() || !newHref.trim()) { toast.error("ラベルとURLを入力してください"); return; }
-    createTool.mutate({ team: activeTeam, label: newLabel.trim(), href: newHref.trim(), emoji: newEmoji || "🔗" });
+    const targetTeam: Exclude<TeamTabId, "全チーム"> = (activeTeam === "全チーム" ? newTargetTeam : activeTeam) as Exclude<TeamTabId, "全チーム">;
+    createTool.mutate({ team: targetTeam, label: newLabel.trim(), href: newHref.trim(), emoji: newEmoji || "🔗" });
   };
 
   const startEdit = (tool: { id: number; label: string; href: string; emoji: string }) => {
@@ -3150,8 +3156,24 @@ function TeamToolsCard() {
           )}
 
           {/* 追加フォーム */}
-          {isAdmin && showAddForm && activeTeam !== "全チーム" && (
+          {isAdmin && showAddForm && (
             <div className="flex flex-col gap-1.5 p-2 bg-muted/30 rounded-md">
+              {/* 全チームタブ時はチーム選択ドロップダウンを表示 */}
+              {activeTeam === "全チーム" && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">追加先チーム：</span>
+                  <select
+                    value={newTargetTeam}
+                    onChange={e => setNewTargetTeam(e.target.value as TeamTabId)}
+                    className="flex-1 border rounded px-2 py-1 text-sm bg-background"
+                  >
+                    <option value="身体">身体</option>
+                    <option value="天理">天理</option>
+                    <option value="郡山北部">郡山北部</option>
+                    <option value="郡山南部">郡山南部</option>
+                  </select>
+                </div>
+              )}
               <div className="flex gap-1">
                 <input value={newEmoji} onChange={e => setNewEmoji(e.target.value)} className="w-10 text-center border rounded px-1 py-1 text-sm bg-background" placeholder="🔗" />
                 <input value={newLabel} onChange={e => setNewLabel(e.target.value)} className="flex-1 border rounded px-2 py-1 text-sm bg-background" placeholder="ラベル" />
@@ -4744,6 +4766,7 @@ export default function Dashboard() {
   const [alcoholCheckModalType, setAlcoholCheckModalType] = useState<"clock_in" | "clock_out" | null>(null);
   // 出勤完了フラグ（出勤画面で全タスク完了後にtrueになる）
   const [clockInAllDone, setClockInAllDone] = useState(false);
+  const [clockOutAllDone, setClockOutAllDone] = useState(false);
   const { data: todayAttendance, refetch: refetchAttendance } = trpc.attendance.today.useQuery();
   // 退勤時チェックリストURL（全チーム共通ツールのcheckout_checklistリンク）
   const { data: allLinks } = trpc.spreadsheetLinks.getCurrent.useQuery();
@@ -4768,6 +4791,12 @@ export default function Dashboard() {
   // 出勤モーダルで全タスク完了時のコールバック
   const handleClockInConfirm = () => {
     setClockInAllDone(true);
+    setAttendanceModalType(null);
+    void refetchAttendance();
+  };
+  // 退勤モーダルで全タスク完了時のコールバック
+  const handleClockOutConfirm = () => {
+    setClockOutAllDone(true);
     setAttendanceModalType(null);
     void refetchAttendance();
   };
@@ -4850,10 +4879,19 @@ export default function Dashboard() {
               type="button"
               onTouchStart={() => {}}
               onClick={handleAlcoholCheckOut}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#3b8fd4', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px] relative" style={{backgroundColor: clockOutAllDone ? '#22c55e' : '#3b8fd4', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}}
             >
-              <LogOut className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              退勤
+              {clockOutAllDone ? (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  退勤済み
+                </>
+              ) : (
+                <>
+                  <LogOut className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  退勤
+                </>
+              )}
             </button>
             {/* 3. Gemini */}
             <button
@@ -4956,7 +4994,7 @@ export default function Dashboard() {
         <AttendanceCheckModal
           type={attendanceModalType}
           onClose={() => setAttendanceModalType(null)}
-          onConfirm={attendanceModalType === "clock_in" ? handleClockInConfirm : undefined}
+          onConfirm={attendanceModalType === "clock_in" ? handleClockInConfirm : handleClockOutConfirm}
           checkoutChecklistUrl={checkoutChecklistUrl}
         />
       )}
