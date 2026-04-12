@@ -221,8 +221,13 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     if (!isClockIn) return;
     const allStepsDone = CLOCK_IN_REQUIRED_STEP_IDS.every((id) => done[id]);
     if (allStepsDone && alcoholRecorded && clockInDone) {
-      // 完了時にlocalStorageをクリア
-      try { localStorage.removeItem(getStorageKey(type)); } catch { /* ignore */ }
+      // 完了フラグを別キーに保存（ページリロード後も出勤済みとして判定できるように）
+      try {
+        const today = new Date();
+        const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        localStorage.setItem(`attendance_done_clock_in_${dateStr}`, "true");
+        localStorage.removeItem(getStorageKey(type));
+      } catch { /* ignore */ }
       // 少し待ってからホームへ戻る
       const timer = setTimeout(() => {
         onClose();
@@ -236,8 +241,13 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     if (isClockIn) return;
     const mimamoStopDone = done["mimamodrive_out"];
     if (clockOutDone && alcoholRecorded && mimamoStopDone) {
-      // 完了時にlocalStorageをクリア
-      try { localStorage.removeItem(getStorageKey(type)); } catch { /* ignore */ }
+      // 完了フラグを別キーに保存（ページリロード後も退勤済みとして判定できるように）
+      try {
+        const today = new Date();
+        const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        localStorage.setItem(`attendance_done_clock_out_${dateStr}`, "true");
+        localStorage.removeItem(getStorageKey(type));
+      } catch { /* ignore */ }
       const timer = setTimeout(() => {
         onClose();
         onConfirm?.();

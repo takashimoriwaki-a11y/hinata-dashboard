@@ -1360,18 +1360,21 @@ function ScheduleAllTeamsModal({ viewMeta, screenshots, scrollRef, onClose, onDa
             )}
             {DAYS.map((d, idx) => {
               const hasData = dayHasScreenshot(d);
+              const isToday = idx === 0;
               return (
                 <button
                   key={d}
                   onClick={() => hasData ? onDayChange(d) : undefined}
                   disabled={!hasData}
                   className={cn(
-                    "px-3 py-1.5 text-xs font-semibold rounded-full transition-colors",
+                    "px-3 py-1.5 text-xs rounded-full transition-colors",
                     viewMeta.day === d
-                      ? "bg-primary text-primary-foreground"
+                      ? "bg-primary text-primary-foreground font-bold"
                       : hasData
-                        ? "bg-muted text-muted-foreground hover:bg-muted/80"
-                        : "bg-muted/30 text-muted-foreground/40 cursor-not-allowed line-through"
+                        ? isToday
+                          ? "bg-primary/10 text-primary font-bold border border-primary/40 hover:bg-primary/20"
+                          : "bg-muted text-muted-foreground font-semibold hover:bg-muted/80"
+                        : "bg-muted/30 text-muted-foreground/40 cursor-not-allowed line-through font-semibold"
                   )}
                   title={!hasData ? `${d}：スクショ未登録` : d}
                 >
@@ -1833,24 +1836,33 @@ function ScheduleScreenshotCard() {
             {/* 単一チームモードのみ日付ボタンを表示 */}
             {!showAllTeams && (
               <div className="flex gap-1 ml-auto flex-wrap">
-                {DAYS.map((d, idx) => (
-                  <button
-                    key={d}
-                    onClick={() => {
-                      setSelectedDay(d);
-                      setSwipeIndex(DAYS.indexOf(d));
-                    }}
-                    className={cn(
-                      "text-xs px-2 py-1 rounded-md border transition-colors",
-                      selectedDay === d
-                        ? "bg-primary text-white border-primary"
-                        : "border-border text-muted-foreground hover:bg-muted"
-                    )}
-                    title={d}
-                  >
-                    {dayLabels[idx] ?? d}
-                  </button>
-                ))}
+                {DAYS.map((d, idx) => {
+                  const isToday = idx === 0;
+                  return (
+                    <button
+                      key={d}
+                      onClick={() => {
+                        setSelectedDay(d);
+                        setSwipeIndex(DAYS.indexOf(d));
+                      }}
+                      className={cn(
+                        "text-xs px-2 py-1 rounded-md border transition-colors",
+                        selectedDay === d
+                          ? "bg-primary text-white border-primary"
+                          : isToday
+                            ? "border-primary/60 text-primary font-bold hover:bg-primary/10"
+                            : "border-border text-muted-foreground hover:bg-muted"
+                      )}
+                      title={d}
+                    >
+                      {isToday ? (
+                        <span className="font-bold">{dayLabels[idx] ?? d}</span>
+                      ) : (
+                        dayLabels[idx] ?? d
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -4798,8 +4810,37 @@ export default function Dashboard() {
   const [attendanceModalType, setAttendanceModalType] = useState<"clock_in" | "clock_out" | null>(null);
   const [alcoholCheckModalType, setAlcoholCheckModalType] = useState<"clock_in" | "clock_out" | null>(null);
   // 出勤完了フラグ（出勤画面で全タスク完了後にtrueになる）
-  const [clockInAllDone, setClockInAllDone] = useState(false);
-  const [clockOutAllDone, setClockOutAllDone] = useState(false);
+  // localStorageに保存済みの当日状態を読み込んで初期値に反映
+  const [clockInAllDone, setClockInAllDone] = useState(() => {
+    try {
+      const today = new Date();
+      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      // 完了フラグ専用キー（完了後に保存される）を優先確認
+      if (localStorage.getItem(`attendance_done_clock_in_${dateStr}`) === "true") return true;
+      // モーダル進行中の状態（まだ完了フラグが保存されていない場合）
+      const saved = localStorage.getItem(`attendance_clock_in_${dateStr}`);
+      if (saved) {
+        const state = JSON.parse(saved);
+        return state.clockInDone === true && state.alcoholRecorded === true;
+      }
+    } catch {}
+    return false;
+  });
+  const [clockOutAllDone, setClockOutAllDone] = useState(() => {
+    try {
+      const today = new Date();
+      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      // 完了フラグ専用キー（完了後に保存される）を優先確認
+      if (localStorage.getItem(`attendance_done_clock_out_${dateStr}`) === "true") return true;
+      // モーダル進行中の状態
+      const saved = localStorage.getItem(`attendance_clock_out_${dateStr}`);
+      if (saved) {
+        const state = JSON.parse(saved);
+        return state.clockOutDone === true && state.alcoholRecorded === true;
+      }
+    } catch {}
+    return false;
+  });
   const { data: todayAttendance, refetch: refetchAttendance } = trpc.attendance.today.useQuery();
   // 退勤時チェックリストURL（全チーム共通ツールのcheckout_checklistリンク）
   const { data: allLinks } = trpc.spreadsheetLinks.getCurrent.useQuery();
