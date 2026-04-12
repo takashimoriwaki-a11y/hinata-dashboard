@@ -3516,6 +3516,14 @@ function MessageBoard({ title }: { title: string }) {
           <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
             <MessageSquare className="w-5 h-5 text-primary" />
             <span className="tracking-wide">{title}</span>
+            {!isLoading && messages.length > 0 && (
+              <span className={cn(
+                "ml-1 inline-flex items-center justify-center min-w-[1.4rem] h-5 px-1.5 rounded-full text-xs font-bold",
+                isNight ? "bg-red-800/60 text-red-200" : "bg-red-100 text-red-700"
+              )}>
+                {messages.length}
+              </span>
+            )}
           </CardTitle>
         </div>
       </CardHeader>
