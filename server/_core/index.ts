@@ -1148,6 +1148,61 @@ function scheduleNextMonthAlcoholSheet() {
           return;
         }
 
+        // ヘッダー行を挿入
+        const ALCOHOL_HEADER = [
+          "実施日時", "区分", "氏名", "ナンバープレート",
+          "出勤打刻", "退勤打刻", "確認方法", "検知器使用",
+          "酒気帯有無", "確認者", "残業時間", "残業理由",
+          "連絡先", "人数", "備考", "登録日時"
+        ];
+        const headerUrl = `https://sheets.googleapis.com/v4/spreadsheets/${newSpreadsheetId}/values/${encodeURIComponent("Sheet1!A1")}?valueInputOption=USER_ENTERED`;
+        const headerRes = await fetch(headerUrl, {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ values: [ALCOHOL_HEADER] }),
+        });
+        if (!headerRes.ok) {
+          const text = await headerRes.text();
+          console.warn(`[AlcoholSheetAuto] ヘッダー行挿入失敗（続行）: ${text}`);
+        } else {
+          console.log(`[AlcoholSheetAuto] ヘッダー行を挿入しました`);
+        }
+
+        // ヘッダー行を太字・背景色で書式設定
+        const formatRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${newSpreadsheetId}:batchUpdate`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            requests: [
+              {
+                repeatCell: {
+                  range: { sheetId: 0, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: ALCOHOL_HEADER.length },
+                  cell: {
+                    userEnteredFormat: {
+                      backgroundColor: { red: 0.267, green: 0.533, blue: 0.667 },
+                      textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } },
+                      horizontalAlignment: "CENTER",
+                    },
+                  },
+                  fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
+                },
+              },
+              {
+                updateSheetProperties: {
+                  properties: { sheetId: 0, gridProperties: { frozenRowCount: 1 } },
+                  fields: "gridProperties.frozenRowCount",
+                },
+              },
+            ],
+          }),
+        });
+        if (!formatRes.ok) {
+          const text = await formatRes.text();
+          console.warn(`[AlcoholSheetAuto] ヘッダー書式設定失敗（続行）: ${text}`);
+        } else {
+          console.log(`[AlcoholSheetAuto] ヘッダー行の書式設定完了`);
+        }
+
         // DBに登録
         await upsertAlcoholCheckSpreadsheet({
           year: nextYear,
