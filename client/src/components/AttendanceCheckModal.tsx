@@ -193,16 +193,25 @@ export function AttendanceCheckModal({ type, onClose, onConfirm }: AttendanceChe
   };
 
   // ── ミューテーション ──
-  // saveAlcoholCheck が打刻も兼ねる（clockInAt/clockOutAt を渡すことで記録）
-  const saveAlcoholCheckMutation = trpc.attendance.saveAlcoholCheck.useMutation({
+  // 打刻専用 mutation
+  const clockMutation = trpc.attendance.clock.useMutation({
     onSuccess: () => {
-      toast.success(isClockIn ? "出勤打刻・アルコールチェックを記録しました" : "退勤打刻・アルコールチェックを記録しました");
+      toast.success(isClockIn ? "出勤打刻しました" : "退勤打刻しました");
       void utils.attendance.today.invalidate();
       onConfirm?.();
-      onClose();
     },
     onError: (e) => {
-      toast.error(`記録に失敗しました: ${e.message}`);
+      toast.error(`打刻に失敗しました: ${e.message}`);
+    },
+  });
+  // アルコールチェック記録専用 mutation
+  const saveAlcoholCheckMutation = trpc.attendance.saveAlcoholCheck.useMutation({
+    onSuccess: () => {
+      toast.success(isClockIn ? "出勤アルコールチェックを記録しました" : "退勤アルコールチェックを記録しました");
+      void utils.attendance.today.invalidate();
+    },
+    onError: (e) => {
+      toast.error(`アルコールチェック記録に失敗しました: ${e.message}`);
     },
   });
 
@@ -249,8 +258,14 @@ export function AttendanceCheckModal({ type, onClose, onConfirm }: AttendanceChe
     }
   };
 
-  // 打刻 + アルコールチェック記録を同時実行
-  const handleClock = () => {
+   // 打刻のみ実行
+  const handleClockOnly = () => {
+    if (clockMutation.isPending) return;
+    clockMutation.mutate({ type });
+  };
+
+  // アルコールチェック記録のみ実行
+  const handleAlcoholOnly = () => {
     if (saveAlcoholCheckMutation.isPending) return;
     if (!numberPlate.trim()) {
       toast.error("ナンバープレートを入力してください");
@@ -272,7 +287,6 @@ export function AttendanceCheckModal({ type, onClose, onConfirm }: AttendanceChe
       toast.error("残業理由の詳細を入力してください");
       return;
     }
-    const now = Date.now();
     saveAlcoholCheckMutation.mutate({
       clockType: type,
       numberPlate: numberPlate.trim(),
@@ -281,8 +295,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm }: AttendanceChe
       alcoholDetected,
       confirmerName,
       notes: notes.trim() || undefined,
-      clockInAt: isClockIn ? now : undefined,
-      clockOutAt: !isClockIn ? now : undefined,
+      clockInAt: undefined,
+      clockOutAt: undefined,
       overtimeStartAt: (!isClockIn && hasOvertime) ? toTodayMs(overtimeStartHour, overtimeStartMinute) : undefined,
       overtimeEndAt: (!isClockIn && hasOvertime) ? toTodayMs(overtimeEndHour, overtimeEndMinute) : undefined,
       overtimeReason: (!isClockIn && hasOvertime) ? buildOvertimeReason() : undefined,
@@ -294,7 +308,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm }: AttendanceChe
     });
   };
 
-  const isPending = saveAlcoholCheckMutation.isPending;
+  const isClockPending = clockMutation.isPending;
+  const isAlcoholPending = saveAlcoholCheckMutation.isPending;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
@@ -812,27 +827,51 @@ export function AttendanceCheckModal({ type, onClose, onConfirm }: AttendanceChe
           <div className="h-2" />
         </div>
 
-        {/* フッター：打刻ボタン（常時有効） */}
+        {/* フッター：打刻ボタンとアルコールチェック記録ボタンを分離 */}
         <div className="px-5 py-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 space-y-2">
+          {/* 打刻ボタン */}
           <button
             type="button"
-            disabled={isPending}
-            onClick={handleClock}
+            disabled={isClockPending}
+            onClick={handleClockOnly}
             className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md active:scale-95 ${
               isClockIn
                 ? "bg-red-500 hover:bg-red-600"
                 : "bg-blue-500 hover:bg-blue-600"
             }`}
           >
-            {isPending ? (
+            {isClockPending ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                打刻中...
+              </>
+            ) : (
+              <>
+                {isClockIn ? <LogIn className="w-4 h-4" /> : <LogOut className="w-4 h-4" />}
+                {isClockIn ? "出勤打刻" : "退勤打刻"}
+              </>
+            )}
+          </button>
+          {/* アルコールチェック記録ボタン */}
+          <button
+            type="button"
+            disabled={isAlcoholPending}
+            onClick={handleAlcoholOnly}
+            className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md active:scale-95 ${
+              isClockIn
+                ? "bg-orange-500 hover:bg-orange-600"
+                : "bg-cyan-600 hover:bg-cyan-700"
+            }`}
+          >
+            {isAlcoholPending ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
                 記録中...
               </>
             ) : (
               <>
-                {isClockIn ? <LogIn className="w-4 h-4" /> : <LogOut className="w-4 h-4" />}
-                {isClockIn ? "出勤打刻・アルコールチェック記録" : "退勤打刻・アルコールチェック記録"}
+                <Shield className="w-4 h-4" />
+                アルコールチェック記録
               </>
             )}
           </button>
