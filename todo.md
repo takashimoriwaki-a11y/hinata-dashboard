@@ -2136,3 +2136,21 @@
 - [x] 管理画面に「出退勤管理」タブ（TimesheetSpreadsheetsPanel）を追加する
 - [x] 管理画面に「残業承認」タブ（OvertimeApprovalsPanel）を追加する（承認者名・時間調整・コメント機能付き）
 - [ ] チェックポイント保存
+
+## 月次残業確認・署名機能 / 複数回打刻機能（2026-04-13）
+
+- [x] 残業スプレッドシートの手動編集対応（管理者がスプレッドシート上で直接編集可能な設計を維持）
+- [x] 月次残業確認・電子署名機能
+  - [x] DBスキーマ（monthly_signaturesテーブル）追加
+  - [x] tRPC API（get/list/sign/adminList/adminConfirm）実装
+  - [x] db.ts関数（upsertMonthlySignature/getMonthlySignature/getMonthlySignaturesByUser/getAllMonthlySignatures/adminConfirmMonthlySignature）追加
+  - [x] overtime.getMineByMonth プロシージャ追加（自分の月別残業申請取得）
+  - [x] MonthlyOvertimeSignatureコンポーネント作成（年月選択・残業一覧・署名フォーム）
+  - [x] Dashboard.tsxにMonthlyOvertimeSignatureコンポーネントを組み込み
+  - [x] 管理画面（Admin.tsx）に月次署名確認パネル（MonthlySignaturesPanel）を追加
+  - [x] 管理者が署名を確認済みにできるadminConfirmボタン実装
+- [x] 1日複数回打刻機能（緊急訪問看護対応）
+  - [x] AttendanceCheckModalにisEmergencyプロップを追加
+  - [x] isEmergency時はlocalStorageの完了フラグを無視して新規打刻を許可
+  - [x] 緊急出勤・緊急退勤ボタンをウェルカムバナーに追加（退勤後または出勤前の再打刻が必要な場合に表示）
+  - [x] 緊急打刻も既存のappendTimesheetToSheet関数で指定スプレッドシートに転記

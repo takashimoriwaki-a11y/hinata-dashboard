@@ -893,3 +893,34 @@ export const overtimeApprovals = mysqlTable("overtime_approvals", {
 });
 export type OvertimeApproval = typeof overtimeApprovals.$inferSelect;
 export type InsertOvertimeApproval = typeof overtimeApprovals.$inferInsert;
+
+// ============================================================
+// 月次勤怠確認署名テーブル
+// ============================================================
+/**
+ * 職員が1ヶ月分の勤怠・残業内容を確認し電子署名するテーブル
+ */
+export const monthlySignatures = mysqlTable("monthly_signatures", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 署名した職員のユーザーID */
+  userId: int("userId").notNull(),
+  /** 職員名（スナップショット） */
+  userName: varchar("userName", { length: 100 }).notNull(),
+  /** 対象年（例: 2026） */
+  targetYear: int("targetYear").notNull(),
+  /** 対象月（1〜12） */
+  targetMonth: int("targetMonth").notNull(),
+  /** 署名日時（UNIXタイムスタンプ ms） */
+  signedAt: bigint("signedAt", { mode: "number" }).notNull(),
+  /** 職員が入力した確認コメント（任意） */
+  comment: text("comment"),
+  /** 管理者による確認フラグ（0=未確認, 1=確認済み） */
+  adminConfirmed: tinyint("adminConfirmed").default(0).notNull(),
+  /** 管理者確認者名 */
+  adminConfirmerName: varchar("adminConfirmerName", { length: 100 }),
+  /** 管理者確認日時（UNIXタイムスタンプ ms） */
+  adminConfirmedAt: bigint("adminConfirmedAt", { mode: "number" }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type MonthlySignature = typeof monthlySignatures.$inferSelect;
+export type InsertMonthlySignature = typeof monthlySignatures.$inferInsert;

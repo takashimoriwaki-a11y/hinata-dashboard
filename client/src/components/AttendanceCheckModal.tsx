@@ -98,6 +98,8 @@ interface AttendanceCheckModalProps {
   onConfirm?: () => void;
   /** 退勤時チェックリストのURL（全チーム共通ツールから取得） */
   checkoutChecklistUrl?: string | null;
+  /** 緊急訪問看護などで追加打刻する場合はtrue（localStorageの完了フラグを無視して新規打刻を許可） */
+  isEmergency?: boolean;
 }
 
 // localStorageのキーを生成する（当日の日付を含める）
@@ -124,7 +126,7 @@ interface SavedState {
   overtimeFreeText?: string;
 }
 
-export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutChecklistUrl }: AttendanceCheckModalProps) {
+export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutChecklistUrl, isEmergency }: AttendanceCheckModalProps) {
   const isClockIn = type === "clock_in";
   const steps = isClockIn ? CLOCK_IN_STEPS : CLOCK_OUT_STEPS;
   const { user } = useAuth();
@@ -133,8 +135,9 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   // 事務員はアルコールチェックが任意
   const isOfficeStaff = (user as any)?.team === "事務員";
 
-  // localStorageから保存済み状態を読み込む
+  // localStorageから保存済み状態を読み込む（緊急打刻時はリセット）
   const loadSavedState = (): SavedState | null => {
+    if (isEmergency) return null; // 緊急打刻時は保存済み状態を無視
     try {
       const saved = localStorage.getItem(getStorageKey(type));
       if (saved) return JSON.parse(saved) as SavedState;
@@ -1171,7 +1174,9 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
               <LogOut className="w-5 h-5" />
             )}
             <span className="text-lg font-bold">
-              {isClockIn ? "出勤時確認" : "退勤時確認"}
+              {isEmergency
+                ? (isClockIn ? "緊急出勤打刻" : "緊急退勤打刻")
+                : (isClockIn ? "出勤時確認" : "退勤時確認")}
             </span>
           </div>
           <button

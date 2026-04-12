@@ -797,7 +797,7 @@ export default function Admin() {
   }, []);
 
   // セクション切り替え
-  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "teamGoals" | "toolLogs" | "alcoholSheets" | "alcoholCsv" | "detectorSettings" | "timesheetSheets" | "overtimeApprovals">("sheets");
+  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "teamGoals" | "toolLogs" | "alcoholSheets" | "alcoholCsv" | "detectorSettings" | "timesheetSheets" | "overtimeApprovals" | "monthlySignatures">("sheets");
   const { user: currentUser } = useAuth();
 
   return (
@@ -966,6 +966,19 @@ export default function Admin() {
             )}
           >
             残業承認
+          </button>
+        )}
+        {currentUser?.role === "admin" && (
+          <button
+            onClick={() => setActiveSection("monthlySignatures")}
+            className={cn(
+            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
+            activeSection === "monthlySignatures"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            月次署名確認
           </button>
         )}
       </div>
@@ -1181,6 +1194,8 @@ export default function Admin() {
       {activeSection === "timesheetSheets" && <TimesheetSpreadsheetsPanel />}
       {/* 残業承認 */}
       {activeSection === "overtimeApprovals" && <OvertimeApprovalsPanel />}
+      {/* 月次署名確認 */}
+      {activeSection === "monthlySignatures" && <MonthlySignaturesPanel />}
     </div>
   );
 }
@@ -3852,6 +3867,102 @@ function OvertimeApprovalsPanel() {
                     </div>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================
+// 月次署名確認パネル（管理者用）
+// ============================
+function MonthlySignaturesPanel() {
+  const utils = trpc.useUtils();
+  const now = new Date();
+  const [filterYear, setFilterYear] = useState(now.getFullYear());
+  const [filterMonth, setFilterMonth] = useState(now.getMonth() + 1);
+
+  const { data: signatures = [], isLoading } = trpc.monthlySignature.adminList.useQuery(
+    { targetYear: filterYear, targetMonth: filterMonth },
+    { enabled: true }
+  );
+
+  const confirmMut = trpc.monthlySignature.adminConfirm.useMutation({
+    onSuccess: () => utils.monthlySignature.adminList.invalidate(),
+  });
+
+  const yearOptions = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1];
+  const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1);
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-bold">月次残業確認 署名管理</h2>
+      <p className="text-sm text-muted-foreground">
+        職員が月次残業内容を確認・署名した記録を確認します。管理者確認を行うと職員側に通知されます。
+      </p>
+
+      {/* 年月フィルター */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <select
+          value={filterYear}
+          onChange={(e) => setFilterYear(Number(e.target.value))}
+          className="border rounded px-2 py-1 text-sm"
+        >
+          {yearOptions.map((y) => <option key={y} value={y}>{y}年</option>)}
+        </select>
+        <select
+          value={filterMonth}
+          onChange={(e) => setFilterMonth(Number(e.target.value))}
+          className="border rounded px-2 py-1 text-sm"
+        >
+          {monthOptions.map((m) => <option key={m} value={m}>{m}月</option>)}
+        </select>
+      </div>
+
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">読み込み中...</p>
+      ) : signatures.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{filterYear}年{filterMonth}月の署名はまだありません。</p>
+      ) : (
+        <div className="space-y-3">
+          {signatures.map((sig) => (
+            <Card key={sig.id} className="shadow-sm">
+              <CardContent className="pt-4 pb-3 px-4">
+                <div className="flex items-start justify-between gap-2 flex-wrap">
+                  <div className="space-y-1">
+                    <div className="font-semibold text-sm">{sig.userName}</div>
+                    <div className="text-xs text-muted-foreground">
+                      署名日時：{new Date(sig.signedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}
+                    </div>
+                    {sig.comment && (
+                      <div className="text-xs text-blue-600">コメント：{sig.comment}</div>
+                    )}
+                    {sig.adminConfirmed ? (
+                      <div className="text-xs text-green-600 font-medium">
+                        ✓ 管理者確認済み（{sig.adminConfirmerName}）
+                        {sig.adminConfirmedAt && (
+                          <span className="ml-1 text-gray-400">
+                            {new Date(sig.adminConfirmedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-amber-600">管理者確認待ち</div>
+                    )}
+                  </div>
+                  {!sig.adminConfirmed && (
+                    <Button
+                      size="sm"
+                      disabled={confirmMut.isPending}
+                      onClick={() => confirmMut.mutate({ id: sig.id })}
+                    >
+                      確認済みにする
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}

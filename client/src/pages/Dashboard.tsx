@@ -10,6 +10,7 @@ import { Confetti } from "@/components/Confetti";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { AttendanceCheckModal } from "@/components/AttendanceCheckModal";
+import { MonthlyOvertimeSignature } from "@/components/MonthlyOvertimeSignature";
 import { AlcoholCheckModal } from "@/components/AlcoholCheckModal";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -4952,6 +4953,15 @@ export default function Dashboard() {
     setAttendanceModalType(null);
     void refetchAttendance();
   };
+  // 緊急訪問看護用追加出勤ボタン（退勤後や出勤前に再度出勤打刻が必要な場合）
+  const handleEmergencyClockIn = () => setAttendanceModalType("clock_in");
+  const handleEmergencyClockOut = () => setAttendanceModalType("clock_out");
+  // 当日の打刻履歴数（複数回打刻判定用）
+  const clockInCount = todayAttendance?.filter((r) => r.type === "clock_in").length ?? 0;
+  const clockOutCount = todayAttendance?.filter((r) => r.type === "clock_out").length ?? 0;
+  // 緊急訪問看護の追加打刻が必要か（退勤後または出勤前の再出勤）
+  const needsEmergencyClockIn = clockInAllDone && clockOutAllDone;
+  const needsEmergencyClockOut = clockInCount > clockOutCount;
   // ログインユーザーの名前（姓名の場合は名前部分のみ表示）
   const userName = dashboardUser?.name
     ? (dashboardUser.name.includes(' ') || dashboardUser.name.includes('　')
@@ -5045,6 +5055,34 @@ export default function Dashboard() {
                 </>
               )}
             </button>
+            {/* 2b. 緊急出勤（退勤後または追加出勤が必要な場合） */}
+            {needsEmergencyClockIn && (
+              <button
+                type="button"
+                onTouchStart={() => {}}
+                onClick={handleEmergencyClockIn}
+                className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px] relative"
+                style={{backgroundColor: '#e07b39', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}}
+                title="緊急訪問看護などで再度出勤打刻が必要な場合"
+              >
+                <LogIn className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                緊急出勤
+              </button>
+            )}
+            {/* 2c. 緊急退勤（緊急出勤後に退勤打刻が必要な場合） */}
+            {needsEmergencyClockOut && (
+              <button
+                type="button"
+                onTouchStart={() => {}}
+                onClick={handleEmergencyClockOut}
+                className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px] relative"
+                style={{backgroundColor: '#e07b39', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}}
+                title="緊急訪問看護後の退勤打刻"
+              >
+                <LogOut className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                緊急退勤
+              </button>
+            )}
             {/* 3. Gemini */}
             <button
               onClick={() => openLink("https://gemini.google.com/app")}
@@ -5113,7 +5151,11 @@ export default function Dashboard() {
           <div data-scroll-reveal data-delay="200"><VisitCountCard /></div>
           {/* 曜日別件数（モバイル: 7番目、PC: 左カラム4番目） */}
           <div data-scroll-reveal data-delay="300"><DailyByTeamCard /></div>
-          {/* 新規契約（モバイル: 8番目、PC: 左カラム5番目） */}
+          {/* 月次残業確認・署名（モバイル: 8番目、PC: 左カラム5番目） */}
+          <div data-scroll-reveal data-delay="350">
+            <MonthlyOvertimeSignature />
+          </div>
+          {/* 新規契約（モバイル: 9番目、PC: 左カラム6番目） */}
           <Card data-scroll-reveal data-delay="400" className="shadow-sm">
             <CardHeader className="pb-2 pt-3 px-4">
               <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
@@ -5148,6 +5190,11 @@ export default function Dashboard() {
           onClose={() => setAttendanceModalType(null)}
           onConfirm={attendanceModalType === "clock_in" ? handleClockInConfirm : handleClockOutConfirm}
           checkoutChecklistUrl={checkoutChecklistUrl}
+          isEmergency={
+            // 緊急打刻判定: 出勤済みかつ退勤済みの後に再度出勤する場合、または緊急退勤の場合
+            (attendanceModalType === "clock_in" && needsEmergencyClockIn) ||
+            (attendanceModalType === "clock_out" && needsEmergencyClockOut)
+          }
         />
       )}
       {/* アルコールチェックモーダル */}

@@ -351,6 +351,13 @@
       "when": 1776021376988,
       "tag": "0049_shocking_warpath",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "5",
+      "when": 1776037462266,
+      "tag": "0050_low_tinkerer",
+      "breakpoints": true
     }
   ]
 }

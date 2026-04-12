@@ -2051,3 +2051,107 @@ export async function getOvertimeApprovalById(id: number) {
   const rows = await db.select().from(overtimeApprovals).where(eq(overtimeApprovals.id, id)).limit(1);
   return rows[0] ?? null;
 }
+
+// ============================================================
+// 月次勤怠確認署名 CRUD
+// ============================================================
+import { monthlySignatures } from "../drizzle/schema";
+
+/** 月次署名を作成または更新する（同一ユーザー・年月は1件のみ） */
+export async function upsertMonthlySignature(data: {
+  userId: number;
+  userName: string;
+  targetYear: number;
+  targetMonth: number;
+  signedAt: number;
+  comment?: string;
+}) {
+  const db = await getDb();
+  if (!db) return null;
+  // 既存レコードを確認
+  const existing = await db.select().from(monthlySignatures).where(
+    and(
+      eq(monthlySignatures.userId, data.userId),
+      eq(monthlySignatures.targetYear, data.targetYear),
+      eq(monthlySignatures.targetMonth, data.targetMonth)
+    )
+  ).limit(1);
+  if (existing.length > 0) {
+    // 更新
+    await db.update(monthlySignatures).set({
+      signedAt: data.signedAt,
+      comment: data.comment ?? null,
+      adminConfirmed: 0,
+      adminConfirmerName: null,
+      adminConfirmedAt: null,
+    }).where(eq(monthlySignatures.id, existing[0].id));
+    const updated = await db.select().from(monthlySignatures).where(eq(monthlySignatures.id, existing[0].id)).limit(1);
+    return updated[0] ?? null;
+  } else {
+    // 新規作成
+    await db.insert(monthlySignatures).values({
+      userId: data.userId,
+      userName: data.userName,
+      targetYear: data.targetYear,
+      targetMonth: data.targetMonth,
+      signedAt: data.signedAt,
+      comment: data.comment ?? null,
+    });
+    const created = await db.select().from(monthlySignatures).where(
+      and(
+        eq(monthlySignatures.userId, data.userId),
+        eq(monthlySignatures.targetYear, data.targetYear),
+        eq(monthlySignatures.targetMonth, data.targetMonth)
+      )
+    ).limit(1);
+    return created[0] ?? null;
+  }
+}
+
+/** 特定ユーザーの月次署名一覧を取得する */
+export async function getMonthlySignaturesByUser(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(monthlySignatures).where(
+    eq(monthlySignatures.userId, userId)
+  ).orderBy(desc(monthlySignatures.targetYear), desc(monthlySignatures.targetMonth));
+}
+
+/** 特定ユーザー・年月の月次署名を1件取得する */
+export async function getMonthlySignature(userId: number, targetYear: number, targetMonth: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(monthlySignatures).where(
+    and(
+      eq(monthlySignatures.userId, userId),
+      eq(monthlySignatures.targetYear, targetYear),
+      eq(monthlySignatures.targetMonth, targetMonth)
+    )
+  ).limit(1);
+  return rows[0] ?? null;
+}
+
+/** 全職員の月次署名一覧を取得する（管理者用） */
+export async function getAllMonthlySignatures(targetYear?: number, targetMonth?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [];
+  if (targetYear !== undefined) conditions.push(eq(monthlySignatures.targetYear, targetYear));
+  if (targetMonth !== undefined) conditions.push(eq(monthlySignatures.targetMonth, targetMonth));
+  const query = db.select().from(monthlySignatures);
+  if (conditions.length > 0) {
+    return await query.where(and(...conditions)).orderBy(desc(monthlySignatures.signedAt));
+  }
+  return await query.orderBy(desc(monthlySignatures.targetYear), desc(monthlySignatures.targetMonth), desc(monthlySignatures.signedAt));
+}
+
+/** 管理者が月次署名を確認済みにする */
+export async function adminConfirmMonthlySignature(id: number, confirmerName: string) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(monthlySignatures).set({
+    adminConfirmed: 1,
+    adminConfirmerName: confirmerName,
+    adminConfirmedAt: Date.now(),
+  }).where(eq(monthlySignatures.id, id));
+}

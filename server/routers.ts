@@ -4435,6 +4435,74 @@ export const appRouter = router({
         await deleteOvertimeApproval(input.id, ctx.user.id);
         return { success: true };
       }),
+    /** 自分の残業申請を年月で絞り込んで取得する（月次確認用） */
+    getMineByMonth: protectedProcedure
+      .input(z.object({ year: z.number().int(), month: z.number().int() }))
+      .query(async ({ ctx, input }) => {
+        const { getOvertimeApprovalsByUser } = await import("./db");
+        const all = await getOvertimeApprovalsByUser(ctx.user.id);
+        // applicationDate は "YYYY-MM-DD" 形式
+        const prefix = `${input.year}-${String(input.month).padStart(2, '0')}`;
+        return all.filter(r => r.applicationDate.startsWith(prefix));
+      }),
+  }),
+
+  // ============================================================
+  // 月次勤怠確認署名
+  // ============================================================
+  monthlySignature: router({
+    /** 自分の月次署名一覧を取得する */
+    list: protectedProcedure
+      .query(async ({ ctx }) => {
+        const { getMonthlySignaturesByUser } = await import("./db");
+        return await getMonthlySignaturesByUser(ctx.user.id);
+      }),
+    /** 特定年月の署名を取得する */
+    get: protectedProcedure
+      .input(z.object({ targetYear: z.number().int(), targetMonth: z.number().int() }))
+      .query(async ({ ctx, input }) => {
+        const { getMonthlySignature } = await import("./db");
+        return await getMonthlySignature(ctx.user.id, input.targetYear, input.targetMonth);
+      }),
+    /** 月次署名を作成または更新する */
+    sign: protectedProcedure
+      .input(z.object({
+        targetYear: z.number().int(),
+        targetMonth: z.number().int(),
+        comment: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { upsertMonthlySignature } = await import("./db");
+        const result = await upsertMonthlySignature({
+          userId: ctx.user.id,
+          userName: ctx.user.name ?? "不明",
+          targetYear: input.targetYear,
+          targetMonth: input.targetMonth,
+          signedAt: Date.now(),
+          comment: input.comment,
+        });
+        return result;
+      }),
+    /** 管理者：全職員の月次署名一覧を取得する */
+    adminList: protectedProcedure
+      .input(z.object({
+        targetYear: z.number().int().optional(),
+        targetMonth: z.number().int().optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const { getAllMonthlySignatures } = await import("./db");
+        return await getAllMonthlySignatures(input?.targetYear, input?.targetMonth);
+      }),
+    /** 管理者：月次署名を確認済みにする */
+    adminConfirm: protectedProcedure
+      .input(z.object({ id: z.number().int() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const { adminConfirmMonthlySignature } = await import("./db");
+        await adminConfirmMonthlySignature(input.id, ctx.user.name ?? "不明");
+        return { success: true };
+      }),
   }),
 });
 export type AppRouter = typeof appRouter;
