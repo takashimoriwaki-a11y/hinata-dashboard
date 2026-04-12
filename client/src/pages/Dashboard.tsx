@@ -4655,6 +4655,8 @@ export default function Dashboard() {
   // 出退勤打刻
   const [attendanceModalType, setAttendanceModalType] = useState<"clock_in" | "clock_out" | null>(null);
   const [alcoholCheckModalType, setAlcoholCheckModalType] = useState<"clock_in" | "clock_out" | null>(null);
+  // 出勤完了フラグ（出勤画面で全タスク完了後にtrueになる）
+  const [clockInAllDone, setClockInAllDone] = useState(false);
   const { data: todayAttendance, refetch: refetchAttendance } = trpc.attendance.today.useQuery();
   const clockMutation = trpc.attendance.clock.useMutation({
     onSuccess: () => { void refetchAttendance(); },
@@ -4673,6 +4675,12 @@ export default function Dashboard() {
   // 出退勤ボタン: AttendanceCheckModal → AlcoholCheckModal の順に表示
   const handleAlcoholCheckIn = () => setAttendanceModalType("clock_in");
   const handleAlcoholCheckOut = () => setAttendanceModalType("clock_out");
+  // 出勤モーダルで全タスク完了時のコールバック
+  const handleClockInConfirm = () => {
+    setClockInAllDone(true);
+    setAttendanceModalType(null);
+    void refetchAttendance();
+  };
   // ログインユーザーの名前（姓名の場合は名前部分のみ表示）
   const userName = dashboardUser?.name
     ? (dashboardUser.name.includes(' ') || dashboardUser.name.includes('　')
@@ -4749,10 +4757,19 @@ export default function Dashboard() {
               type="button"
               onTouchStart={() => {}}
               onClick={handleAlcoholCheckIn}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#d95f5f', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px] relative" style={{backgroundColor: clockInAllDone ? '#22c55e' : '#d95f5f', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}}
             >
-              <LogIn className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              出勤
+              {clockInAllDone ? (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  出勤済み
+                </>
+              ) : (
+                <>
+                  <LogIn className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  出勤
+                </>
+              )}
             </button>
             <Link
               href="/schedule-management"
@@ -4844,6 +4861,7 @@ export default function Dashboard() {
         <AttendanceCheckModal
           type={attendanceModalType}
           onClose={() => setAttendanceModalType(null)}
+          onConfirm={attendanceModalType === "clock_in" ? handleClockInConfirm : undefined}
         />
       )}
       {/* アルコールチェックモーダル */}

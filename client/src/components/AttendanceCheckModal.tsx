@@ -1,10 +1,10 @@
 /**
- * AttendanceCheckModal - 出勤前・退勤前の確認モーダル
+ * AttendanceCheckModal - 出勤時・退勤時の確認モーダル
  * 手順チェック + アルコールチェック記録 + 打刻を一画面で完結させる
  * 打刻ボタンはいつでも押せる（手順完了を待たない）
  *
- * 出勤画面レイアウト：手順チェック → アルコールチェック → フッター（出勤打刻 / アルコールチェック記録）
- * 退勤画面レイアウト：アルコールチェック → 残業カード → 退勤打刻ボタン → みまもドライブ停止 → フッター（アルコールチェック記録）
+ * 出勤画面レイアウト：手順チェック → アルコールチェック → フッター（アルコールチェック記録 / 出勤打刻）
+ * 退勤画面レイアウト：残業カード → 退勤打刻ボタン → アルコールチェック → アルコール記録 → みまもドライブ停止
  */
 import { useState, useEffect, useMemo } from "react";
 import {
@@ -80,6 +80,9 @@ const CLOCK_OUT_STEPS: ClockInStep[] = [
   },
 ];
 
+// 出勤打刻に必要な全ステップID（手順チェック）
+const CLOCK_IN_REQUIRED_STEP_IDS = CLOCK_IN_STEPS.map((s) => s.id);
+
 // 時間の選択肢
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTE_OPTIONS = [0, 10, 20, 30, 40, 50];
@@ -103,6 +106,11 @@ export function AttendanceCheckModal({ type, onClose, onConfirm }: AttendanceChe
   // 手順チェック状態
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [openingStepId, setOpeningStepId] = useState<string | null>(null);
+
+  // アルコールチェック記録済みフラグ（出勤画面用）
+  const [alcoholRecorded, setAlcoholRecorded] = useState(false);
+  // 出勤打刻済みフラグ
+  const [clockInDone, setClockInDone] = useState(false);
 
   // ── アルコールチェック フォーム状態 ──
   const [numberPlate, setNumberPlate] = useState("");
@@ -143,6 +151,20 @@ export function AttendanceCheckModal({ type, onClose, onConfirm }: AttendanceChe
     fetchLocation();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 出勤画面：全ステップ完了 + アルコール記録済み + 打刻済み → ホームへ自動遷移
+  useEffect(() => {
+    if (!isClockIn) return;
+    const allStepsDone = CLOCK_IN_REQUIRED_STEP_IDS.every((id) => done[id]);
+    if (allStepsDone && alcoholRecorded && clockInDone) {
+      // 少し待ってからホームへ戻る
+      const timer = setTimeout(() => {
+        onClose();
+        onConfirm?.();
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [isClockIn, done, alcoholRecorded, clockInDone, onClose, onConfirm]);
 
   const fetchLocation = () => {
     if (!navigator.geolocation) {
@@ -201,7 +223,11 @@ export function AttendanceCheckModal({ type, onClose, onConfirm }: AttendanceChe
     onSuccess: () => {
       toast.success(isClockIn ? "出勤打刻しました" : "退勤打刻しました");
       void utils.attendance.today.invalidate();
-      onConfirm?.();
+      if (isClockIn) {
+        setClockInDone(true);
+      } else {
+        onConfirm?.();
+      }
     },
     onError: (e) => {
       toast.error(`打刻に失敗しました: ${e.message}`);
@@ -212,6 +238,9 @@ export function AttendanceCheckModal({ type, onClose, onConfirm }: AttendanceChe
     onSuccess: () => {
       toast.success(isClockIn ? "出勤アルコールチェックを記録しました" : "退勤アルコールチェックを記録しました");
       void utils.attendance.today.invalidate();
+      if (isClockIn) {
+        setAlcoholRecorded(true);
+      }
     },
     onError: (e) => {
       toast.error(`アルコールチェック記録に失敗しました: ${e.message}`);
@@ -313,6 +342,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm }: AttendanceChe
 
   const isClockPending = clockMutation.isPending;
   const isAlcoholPending = saveAlcoholCheckMutation.isPending;
+
+  // 出勤画面：全ステップ完了チェック
+  const allClockInStepsDone = isClockIn && CLOCK_IN_REQUIRED_STEP_IDS.every((id) => done[id]);
+  const allClockInTasksDone = isClockIn && allClockInStepsDone && alcoholRecorded && clockInDone;
 
   // ── アルコールチェックフォームのJSX（共通） ──
   const alcoholCheckForm = (
@@ -812,7 +845,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm }: AttendanceChe
               <LogOut className="w-5 h-5" />
             )}
             <span className="text-lg font-bold">
-              {isClockIn ? "出勤前の確認" : "退勤前の確認"}
+              {isClockIn ? "出勤時確認" : "退勤時確認"}
             </span>
           </div>
           <button
@@ -836,11 +869,11 @@ export function AttendanceCheckModal({ type, onClose, onConfirm }: AttendanceChe
               {alcoholCheckForm}
             </>
           ) : (
-            // ── 退勤画面レイアウト：アルコールチェック → 残業カード → 退勤打刻 → みまもドライブ停止 ──
+            // ── 退勤画面レイアウト：残業カード → 退勤打刻 → アルコールチェック → アルコール記録 → みまもドライブ停止 ──
             <>
-              {alcoholCheckForm}
+              {/* 1. 残業あり */}
               {overtimeCard}
-              {/* 退勤打刻ボタン（コンテンツ内） */}
+              {/* 2. 退勤打刻ボタン */}
               <div className="mx-3 my-2">
                 <button
                   type="button"
@@ -861,27 +894,96 @@ export function AttendanceCheckModal({ type, onClose, onConfirm }: AttendanceChe
                   )}
                 </button>
               </div>
-              {/* みまもドライブ停止（退勤打刻の後） */}
+              {/* 3. アルコールチェック（フォーム） */}
+              {alcoholCheckForm}
+              {/* 4. アルコール記録ボタン */}
+              <div className="mx-3 my-2">
+                <button
+                  type="button"
+                  disabled={isAlcoholPending}
+                  onClick={handleAlcoholOnly}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md active:scale-95 bg-cyan-600 hover:bg-cyan-700"
+                >
+                  {isAlcoholPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      記録中...
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="w-4 h-4" />
+                      アルコール記録
+                    </>
+                  )}
+                </button>
+              </div>
+              {/* 5. みまもドライブ停止 */}
               {steps.map(renderStepItem)}
             </>
           )}
           <div className="h-2" />
         </div>
 
-        {/* フッター */}
-        <div className="px-5 py-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 space-y-2">
-          {/* 出勤時のみフッターに打刻ボタンを表示 */}
-          {isClockIn && (
+        {/* フッター（出勤時のみ） */}
+        {isClockIn && (
+          <div className="px-5 py-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 space-y-2">
+            {/* 全完了バナー */}
+            {allClockInTasksDone && (
+              <div className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+                <CheckCircle2 className="w-5 h-5 text-green-500" />
+                <span className="text-sm font-semibold text-green-700 dark:text-green-400">
+                  全て完了！ホームに戻ります...
+                </span>
+              </div>
+            )}
+            {/* アルコールチェック記録ボタン（先） */}
             <button
               type="button"
-              disabled={isClockPending}
+              disabled={isAlcoholPending || alcoholRecorded}
+              onClick={handleAlcoholOnly}
+              className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all disabled:cursor-not-allowed shadow-md active:scale-95 ${
+                alcoholRecorded
+                  ? "bg-green-500 opacity-80"
+                  : "bg-orange-500 hover:bg-orange-600 disabled:opacity-50"
+              }`}
+            >
+              {isAlcoholPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  記録中...
+                </>
+              ) : alcoholRecorded ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  アルコールチェック記録済み
+                </>
+              ) : (
+                <>
+                  <Shield className="w-4 h-4" />
+                  アルコールチェック記録
+                </>
+              )}
+            </button>
+            {/* 出勤打刻ボタン（後） */}
+            <button
+              type="button"
+              disabled={isClockPending || clockInDone}
               onClick={handleClockOnly}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md active:scale-95 bg-red-500 hover:bg-red-600"
+              className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all disabled:cursor-not-allowed shadow-md active:scale-95 ${
+                clockInDone
+                  ? "bg-green-500 opacity-80"
+                  : "bg-red-500 hover:bg-red-600 disabled:opacity-50"
+              }`}
             >
               {isClockPending ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   打刻中...
+                </>
+              ) : clockInDone ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  出勤打刻済み
                 </>
               ) : (
                 <>
@@ -890,38 +992,27 @@ export function AttendanceCheckModal({ type, onClose, onConfirm }: AttendanceChe
                 </>
               )}
             </button>
-          )}
-          {/* アルコールチェック記録ボタン（出勤・退勤共通） */}
-          <button
-            type="button"
-            disabled={isAlcoholPending}
-            onClick={handleAlcoholOnly}
-            className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md active:scale-95 ${
-              isClockIn
-                ? "bg-orange-500 hover:bg-orange-600"
-                : "bg-cyan-600 hover:bg-cyan-700"
-            }`}
-          >
-            {isAlcoholPending ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                記録中...
-              </>
-            ) : (
-              <>
-                <Shield className="w-4 h-4" />
-                アルコールチェック記録
-              </>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-          >
-            キャンセル
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            >
+              キャンセル
+            </button>
+          </div>
+        )}
+        {/* 退勤時フッター（閉じるのみ） */}
+        {!isClockIn && (
+          <div className="px-5 py-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            >
+              閉じる
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
