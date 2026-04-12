@@ -193,7 +193,7 @@ const initialMessages: MessageItem[] = [
 ];
 
 const TEAMS = ["身体", "天理", "郡山北部", "郡山南部"] as const;
-const DAYS = ["今日", "明日", "3日後", "4日後"] as const;
+const DAYS = ["今日", "明日", "2日後", "3日後", "4日後"] as const;
 type TeamType = typeof TEAMS[number];
 type DayType = typeof DAYS[number];
 
@@ -1276,6 +1276,16 @@ function ScheduleAllTeamsModal({ viewMeta, screenshots, scrollRef, onClose, onDa
   }));
   const registeredCount = allTeamSlides.filter((s) => s.screenshot !== null).length;
 
+  // 各日付にスクショが1枚以上あるかチェック（未アップ日付はタブをグレーアウト）
+  const dayHasScreenshot = (d: DayType) =>
+    screenshots.some((s) => s.day === d && s.imageUrl);
+
+  // 「前の日付へ」「次の日付へ」スキップ（スクショがある日付のみ）
+  const daysWithScreenshot = DAYS.filter(dayHasScreenshot);
+  const currentDayIdx = daysWithScreenshot.indexOf(viewMeta.day as DayType);
+  const prevDay = currentDayIdx > 0 ? daysWithScreenshot[currentDayIdx - 1] : null;
+  const nextDay = currentDayIdx < daysWithScreenshot.length - 1 ? daysWithScreenshot[currentDayIdx + 1] : null;
+
   const teamSectionId = (team: string) => `modal-team-${team.replace(/\s/g, "-")}`;
 
   const scrollToTeam = (team: string) => {
@@ -1319,22 +1329,47 @@ function ScheduleAllTeamsModal({ viewMeta, screenshots, scrollRef, onClose, onDa
               <X className="w-5 h-5" />
             </button>
           </div>
-          {/* 今日/明日/3日後/4日後タブ */}
-          <div className="flex gap-1">
-            {DAYS.map((d) => (
+          {/* 今日/明日/2日後/3日後/4日後タブ（スクショなしはグレーアウト） */}
+          <div className="flex gap-1 flex-wrap items-center">
+            {prevDay && (
               <button
-                key={d}
-                onClick={() => onDayChange(d)}
-                className={cn(
-                  "px-4 py-1.5 text-xs font-semibold rounded-full transition-colors",
-                  viewMeta.day === d
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80"
-                )}
+                onClick={() => onDayChange(prevDay)}
+                className="flex items-center gap-0.5 px-2 py-1.5 text-xs font-medium rounded-full bg-muted/60 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors border border-border/50"
+                title={`${prevDay}へ`}
               >
-                {d}
+                <ChevronLeft className="w-3 h-3" />
               </button>
-            ))}
+            )}
+            {DAYS.map((d) => {
+              const hasData = dayHasScreenshot(d);
+              return (
+                <button
+                  key={d}
+                  onClick={() => hasData ? onDayChange(d) : undefined}
+                  disabled={!hasData}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-semibold rounded-full transition-colors",
+                    viewMeta.day === d
+                      ? "bg-primary text-primary-foreground"
+                      : hasData
+                        ? "bg-muted text-muted-foreground hover:bg-muted/80"
+                        : "bg-muted/30 text-muted-foreground/40 cursor-not-allowed line-through"
+                  )}
+                  title={!hasData ? `${d}：スクショ未登録` : d}
+                >
+                  {d}
+                </button>
+              );
+            })}
+            {nextDay && (
+              <button
+                onClick={() => onDayChange(nextDay)}
+                className="flex items-center gap-0.5 px-2 py-1.5 text-xs font-medium rounded-full bg-muted/60 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors border border-border/50"
+                title={`${nextDay}へ`}
+              >
+                <ChevronRight className="w-3 h-3" />
+              </button>
+            )}
           </div>
           {/* チームジャンプボタン行 */}
           <div className="flex gap-1 flex-wrap">

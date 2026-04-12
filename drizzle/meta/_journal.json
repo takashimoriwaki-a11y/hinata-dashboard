@@ -302,6 +302,13 @@
       "when": 1775984426426,
       "tag": "0042_slow_hammerhead",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "5",
+      "when": 1775985474634,
+      "tag": "0043_jittery_killmonger",
+      "breakpoints": true
     }
   ]
 }

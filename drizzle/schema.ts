@@ -46,7 +46,7 @@ export const scheduleScreenshots = mysqlTable("schedule_screenshots", {
   /** チーム名 */
   team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部"]).notNull(),
   /** 今日 or 明日 or 3日後 or 4日後 */
-  day: mysqlEnum("day", ["今日", "明日", "3日後", "4日後"]).notNull(),
+  day: mysqlEnum("day", ["今日", "明日", "2日後", "3日後", "4日後"]).notNull(),
   /** 画像のURL（S3またはdata:URL） */
   imageUrl: text("imageUrl").notNull(),
   /** S3のキー（削除に使用）またはDB保存の場合は空 */
@@ -344,7 +344,7 @@ export const screenshotUploadLogs = mysqlTable("screenshot_upload_logs", {
   /** チーム名 */
   team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部"]).notNull(),
   /** 今日 or 明日 or 3日後 or 4日後 */
-  day: mysqlEnum("day", ["今日", "明日", "3日後", "4日後"]).notNull(),
+  day: mysqlEnum("day", ["今日", "明日", "2日後", "3日後", "4日後"]).notNull(),
   /** アップロードしたユーザーID */
   uploadedBy: int("uploadedBy"),
   /** アップロードしたユーザー名 */
@@ -380,7 +380,7 @@ export const scheduleComments = mysqlTable("schedule_comments", {
   /** チーム名 */
   team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部"]).notNull(),
   /** 今日 or 明日 or 3日後 or 4日後 */
-  day: mysqlEnum("day", ["今日", "明日", "3日後", "4日後"]).notNull(),
+  day: mysqlEnum("day", ["今日", "明日", "2日後", "3日後", "4日後"]).notNull(),
   /** 実際の日付（YYYY-MM-DD形式、JST）コメントが属する日の日付 */
   date: varchar("date", { length: 10 }).notNull().default(""),
   /** コメント本文 */
