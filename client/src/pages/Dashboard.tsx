@@ -1302,11 +1302,35 @@ function ScheduleAllTeamsModal({ viewMeta, screenshots, scrollRef, onClose, onDa
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
+  // スワイプで日付切り替え（スクショある日付のみスキップ）
+  const modalSwipeTouchStartX = useRef<number | null>(null);
+  const modalSwipeTouchStartY = useRef<number | null>(null);
+  const handleModalSwipeTouchStart = (e: React.TouchEvent) => {
+    modalSwipeTouchStartX.current = e.touches[0].clientX;
+    modalSwipeTouchStartY.current = e.touches[0].clientY;
+  };
+  const handleModalSwipeTouchEnd = (e: React.TouchEvent) => {
+    if (modalSwipeTouchStartX.current === null || modalSwipeTouchStartY.current === null) return;
+    const dx = e.changedTouches[0].clientX - modalSwipeTouchStartX.current;
+    const dy = e.changedTouches[0].clientY - modalSwipeTouchStartY.current;
+    modalSwipeTouchStartX.current = null;
+    modalSwipeTouchStartY.current = null;
+    // 水平スワイプが垂直より大きく、5px以上の場合のみ反応
+    if (Math.abs(dx) <= Math.abs(dy) || Math.abs(dx) < 50) return;
+    if (dx < 0 && nextDay) {
+      onDayChange(nextDay);
+    } else if (dx > 0 && prevDay) {
+      onDayChange(prevDay);
+    }
+  };
+
   return (
     <div
       ref={scrollRef}
       className="fixed inset-0 z-[80] bg-black/85 overflow-y-auto animate-fade-in-overlay"
       onClick={onClose}
+      onTouchStart={handleModalSwipeTouchStart}
+      onTouchEnd={handleModalSwipeTouchEnd}
     >
       <div
         className="relative max-w-2xl w-full mx-auto bg-card text-card-foreground rounded-xl shadow-2xl mt-4 mb-10 animate-slide-up-modal"

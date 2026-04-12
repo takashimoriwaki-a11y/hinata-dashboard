@@ -1674,3 +1674,32 @@ export async function deleteSharedPrompt(id: number): Promise<void> {
     .set({ isDeleted: 1 })
     .where(eq(sharedPrompts.id, id));
 }
+
+// ─── スケジュールローテーション ───────────────────────────────────────────────
+/** 毎日深夜に実行: 今日→削除、明日→今日、2日後→明日、3日後→2日後、4日後→3日後 */
+export async function rotateScheduleDays(): Promise<{ deleted: number; shifted: number }> {
+  const db = await getDb();
+  if (!db) return { deleted: 0, shifted: 0 };
+
+  const dayOrder = ["今日", "明日", "2日後", "3日後", "4日後"] as const;
+
+  // 1) 「今日」のスクショを削除
+  const deleteResult = await db
+    .delete(scheduleScreenshots)
+    .where(eq(scheduleScreenshots.day, "今日" as any));
+  const deleted = (deleteResult as any)[0]?.affectedRows ?? 0;
+
+  // 2) 残りの日付を1つ前にシフト（後ろから順に更新して衝突を防ぐ）
+  let shifted = 0;
+  for (let i = dayOrder.length - 1; i >= 1; i--) {
+    const from = dayOrder[i];
+    const to = dayOrder[i - 1];
+    const result = await db
+      .update(scheduleScreenshots)
+      .set({ day: to as any, updatedAt: new Date() })
+      .where(eq(scheduleScreenshots.day, from as any));
+    shifted += (result as any)[0]?.affectedRows ?? 0;
+  }
+
+  return { deleted, shifted };
+}

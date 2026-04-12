@@ -8,7 +8,7 @@ import { registerGoogleAuthRoutes } from "./googleAuth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
-import { deleteAllTodayScreenshots, moveTomorrowToToday, getTodayDueTasks, getPatients, getAllUsers, getCommentsByDate, deleteCommentsByDate, cleanupExpiredDeletedTasks } from "../db";
+import { deleteAllTodayScreenshots, moveTomorrowToToday, rotateScheduleDays, getTodayDueTasks, getPatients, getAllUsers, getCommentsByDate, deleteCommentsByDate, cleanupExpiredDeletedTasks } from "../db";
 import { notifyOwner } from "./notification";
 import multer from "multer";
 import { ENV } from "./env";
@@ -823,10 +823,9 @@ function scheduleDailyRotation() {
           console.error(`[ScheduleRotation] 申し送りコメント転記エラー:`, commentErr);
           // 転記失敗でもローテーションは続行
         }
-        // 2. スクショのローテーション
-        await deleteAllTodayScreenshots();
-        await moveTomorrowToToday();
-        console.log(`[ScheduleRotation] 完了`);
+        // 2. スクショのローテーション（今日→削除、明日→今日・2日後→明日・3日後→2日後・4日後→3日後）
+        const rotateResult = await rotateScheduleDays();
+        console.log(`[ScheduleRotation] 完了 - 削除:${rotateResult.deleted}件, シフト:${rotateResult.shifted}件`);
       } catch (e) {
         console.error(`[ScheduleRotation] エラー:`, e);
       }

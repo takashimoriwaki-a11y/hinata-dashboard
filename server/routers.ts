@@ -12,6 +12,7 @@ import {
   deleteScreenshot,
   deleteAllTodayScreenshots,
   moveTomorrowToToday,
+  rotateScheduleDays,
   updateUserTeam,
   getDb,
   getMyLinks,
@@ -892,12 +893,11 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    // 23:59に実行: 今日を削除し、明日を今日に移動（管理者のみ、またはcronから呼び出し）
+    // 23:59に実行: 今日を削除し、明日→今日・2日後→明日・3日後→2日後・4日後→3日後にシフト
     rotateDailyScreenshots: protectedProcedure.mutation(async () => {
-      await deleteAllTodayScreenshots();
-      await moveTomorrowToToday();
+      const result = await rotateScheduleDays();
       broadcastEvent("schedules");
-      return { success: true };
+      return { success: true, ...result };
     }),
 
     // アップロード履歴を取得（最新N件）
