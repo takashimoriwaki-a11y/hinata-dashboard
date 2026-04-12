@@ -87,6 +87,8 @@ import {
   BookmarkPlus,
   Check,
   AlertTriangle,
+  LogIn,
+  LogOut,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, openLink } from "@/lib/utils";
@@ -4598,6 +4600,25 @@ export default function Dashboard() {
   const greeting = getGreeting();
   const dailyWord = getDailyWord();
   const { user: dashboardUser } = useAuth();
+  // 出退勤打刻
+  const { data: todayAttendance, refetch: refetchAttendance } = trpc.attendance.today.useQuery();
+  const clockMutation = trpc.attendance.clock.useMutation({
+    onSuccess: () => { void refetchAttendance(); },
+    onError: (e) => toast.error(`打刻に失敗しました: ${e.message}`),
+  });
+  const lastClockType = todayAttendance && todayAttendance.length > 0
+    ? todayAttendance[todayAttendance.length - 1].type
+    : null;
+  const handleClockIn = () => {
+    if (clockMutation.isPending) return;
+    clockMutation.mutate({ type: "clock_in" });
+    toast.success("出勤を記録しました");
+  };
+  const handleClockOut = () => {
+    if (clockMutation.isPending) return;
+    clockMutation.mutate({ type: "clock_out" });
+    toast.success("退勤を記録しました");
+  };
   // ログインユーザーの名前（姓名の場合は名前部分のみ表示）
   const userName = dashboardUser?.name
     ? (dashboardUser.name.includes(' ') || dashboardUser.name.includes('　')
@@ -4670,12 +4691,14 @@ export default function Dashboard() {
             </button>
 
             <button
-              onClick={() => openLink("https://mimamodrive.tokiomarine-smartmobility.co.jp/?_gl=1*191av7l*_gcl_au*MTExMzk5MjkyNC4xNzc1MzE4NjA2")}
+              type="button"
               onTouchStart={() => {}}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#3b8fd4', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#2e7fc0')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#3b8fd4')}
+              onClick={handleClockOut}
+              disabled={clockMutation.isPending}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px] disabled:opacity-60" style={{backgroundColor: lastClockType === 'clock_out' ? '#6b7280' : '#3b8fd4', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}}
             >
-              <Car className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              DRIVE
+              <LogOut className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              {lastClockType === 'clock_out' ? '退勤済' : '退勤'}
             </button>
             <Link
               href="/schedule-management"
@@ -4688,16 +4711,12 @@ export default function Dashboard() {
             <button
               type="button"
               onTouchStart={() => {}}
-              onClick={() => {
-                const el = document.getElementById('today-tasks');
-                if (el) {
-                  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-              }}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#d95f5f', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}}
+              onClick={handleClockIn}
+              disabled={clockMutation.isPending}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px] disabled:opacity-60" style={{backgroundColor: lastClockType === 'clock_in' ? '#6b7280' : '#d95f5f', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}}
             >
-              <ListTodo className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              今日のタスク
+              <LogIn className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              {lastClockType === 'clock_in' ? '出勤済' : '出勤'}
             </button>
             <Link
               href="/record#record-condition"

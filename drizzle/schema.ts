@@ -652,3 +652,22 @@ export const toolAuditLogs = mysqlTable("tool_audit_logs", {
 
 export type ToolAuditLog = typeof toolAuditLogs.$inferSelect;
 export type InsertToolAuditLog = typeof toolAuditLogs.$inferInsert;
+
+/**
+ * 出退勤打刻テーブル
+ * 職員の出勤・退勤時刻を記録する
+ */
+export const attendanceLogs = mysqlTable("attendance_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 打刻種別: clock_in=出勤, clock_out=退勤 */
+  type: mysqlEnum("type", ["clock_in", "clock_out"]).notNull(),
+  /** 打刻したユーザーID */
+  userId: int("userId").notNull(),
+  /** 打刻したユーザー名 */
+  userName: varchar("userName", { length: 100 }).notNull(),
+  /** 打刻日時（UTC ms） */
+  clockedAt: bigint("clockedAt", { mode: "number" }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type AttendanceLog = typeof attendanceLogs.$inferSelect;
+export type InsertAttendanceLog = typeof attendanceLogs.$inferInsert;

@@ -288,6 +288,13 @@
       "when": 1775833032577,
       "tag": "0040_safe_millenium_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "5",
+      "when": 1775983905006,
+      "tag": "0041_curly_monster_badoon",
+      "breakpoints": true
     }
   ]
 }

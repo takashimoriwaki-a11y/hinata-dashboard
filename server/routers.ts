@@ -92,6 +92,8 @@ import {
   createTeamGoal,
   updateTeamGoal,
   deleteTeamGoal,
+  clockAttendance,
+  getTodayAttendance,
 } from "./db";
 import { storagePut } from "./storage";
 import { eq } from "drizzle-orm";
@@ -3615,6 +3617,31 @@ export const appRouter = router({
         return { success: true };
       }),
   }),
+
+  // ============================================================
+  // 出退勤打刻
+  // ============================================================
+  attendance: router({
+    /** 出勤または退勤を打刻する */
+    clock: protectedProcedure
+      .input(z.object({
+        type: z.enum(["clock_in", "clock_out"]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const log = await clockAttendance({
+          type: input.type,
+          userId: ctx.user.id,
+          userName: ctx.user.name ?? "不明",
+          clockedAt: Date.now(),
+        });
+        return { success: true, log };
+      }),
+    /** 今日の自分の打刻履歴を取得する */
+    today: protectedProcedure
+      .query(async ({ ctx }) => {
+        return getTodayAttendance(ctx.user.id);
+      }),
+  }),
 });
-export type AppRouter = typeof appRouter;;
+export type AppRouter = typeof appRouter;
 

@@ -1556,3 +1556,41 @@ export async function deleteTeamGoal(id: number): Promise<void> {
   const { eq: eqOp } = await import("drizzle-orm");
   await db.delete(teamGoals).where(eqOp(teamGoals.id, id));
 }
+
+// ============================================================
+// 出退勤打刻
+// ============================================================
+import { attendanceLogs } from "../drizzle/schema";
+import type { AttendanceLog } from "../drizzle/schema";
+
+/** 出勤または退勤を打刻する */
+export async function clockAttendance(data: {
+  type: "clock_in" | "clock_out";
+  userId: number;
+  userName: string;
+  clockedAt: number;
+}): Promise<AttendanceLog> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(attendanceLogs).values(data);
+  const insertId = (result as { insertId: number }).insertId;
+  const [row] = await db.select().from(attendanceLogs).where((await import("drizzle-orm")).eq(attendanceLogs.id, insertId));
+  return row;
+}
+
+/** 今日の自分の打刻履歴を取得する */
+export async function getTodayAttendance(userId: number): Promise<AttendanceLog[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const { and, gte, lte, eq: eqOp } = await import("drizzle-orm");
+  // 今日のJST 0:00〜23:59をUTCミリ秒で計算
+  const now = new Date();
+  const jstOffset = 9 * 60 * 60 * 1000;
+  const jstNow = new Date(now.getTime() + jstOffset);
+  const jstMidnight = new Date(jstNow.getFullYear(), jstNow.getMonth(), jstNow.getDate());
+  const startMs = jstMidnight.getTime() - jstOffset;
+  const endMs = startMs + 24 * 60 * 60 * 1000 - 1;
+  return db.select().from(attendanceLogs)
+    .where(and(eqOp(attendanceLogs.userId, userId), gte(attendanceLogs.clockedAt, startMs), lte(attendanceLogs.clockedAt, endMs)))
+    .orderBy(attendanceLogs.clockedAt);
+}
