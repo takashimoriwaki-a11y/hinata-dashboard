@@ -292,50 +292,8 @@
     {
       "idx": 41,
       "version": "5",
-      "when": 1775983905006,
-      "tag": "0041_curly_monster_badoon",
-      "breakpoints": true
-    },
-    {
-      "idx": 42,
-      "version": "5",
-      "when": 1775984426426,
-      "tag": "0042_slow_hammerhead",
-      "breakpoints": true
-    },
-    {
-      "idx": 43,
-      "version": "5",
-      "when": 1775985474634,
-      "tag": "0043_jittery_killmonger",
-      "breakpoints": true
-    },
-    {
-      "idx": 44,
-      "version": "5",
-      "when": 1775987153153,
-      "tag": "0044_early_genesis",
-      "breakpoints": true
-    },
-    {
-      "idx": 45,
-      "version": "5",
-      "when": 1775991360836,
-      "tag": "0045_fluffy_george_stacy",
-      "breakpoints": true
-    },
-    {
-      "idx": 46,
-      "version": "5",
-      "when": 1775994406332,
-      "tag": "0046_noisy_manta",
-      "breakpoints": true
-    },
-    {
-      "idx": 47,
-      "version": "5",
-      "when": 1776000133797,
-      "tag": "0047_spicy_squirrel_girl",
+      "when": 1776006724095,
+      "tag": "0041_chief_storm",
       "breakpoints": true
     }
   ]
