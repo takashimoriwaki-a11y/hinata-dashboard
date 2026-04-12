@@ -179,10 +179,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   const [longitude, setLongitude] = useState<number | null>(null);
   const [locationAddress, setLocationAddress] = useState<string | null>(null);
 
-  // ユーザーのナンバープレートを自動取得
+  // ユーザーのナンバープレートを自動取得（値がない場合は空文字列にリセット）
   useEffect(() => {
-    if ((user as any)?.numberPlate) {
-      setNumberPlate((user as any).numberPlate);
+    if (user !== undefined) {
+      setNumberPlate((user as any)?.numberPlate ?? "");
     }
   }, [user]);
 

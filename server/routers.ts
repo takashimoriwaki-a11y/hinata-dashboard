@@ -787,6 +787,20 @@ export const appRouter = router({
     getAll: protectedProcedure.query(async () => {
       return getAllSpreadsheetLinks();
     }),
+    // その他タブ用リンク一覧を取得（公開）
+    getOther: publicProcedure.query(async () => {
+      const all = await getAllSpreadsheetLinks();
+      // displayTarget === "other" のものだけを返す（linkKeyごとに最新のもの）
+      const otherLinks = all.filter((l) => l.displayTarget === "other");
+      const latestByKey = new Map<string, typeof otherLinks[0]>();
+      for (const link of otherLinks) {
+        const existing = latestByKey.get(link.linkKey);
+        if (!existing || link.yearMonth > existing.yearMonth) {
+          latestByKey.set(link.linkKey, link);
+        }
+      }
+      return Array.from(latestByKey.values());
+    }),
     // リンクを登録または更新（管理者のみ）
     upsert: protectedProcedure
       .input(
@@ -796,7 +810,7 @@ export const appRouter = router({
           yearMonth: z.string().regex(/^\d{4}-\d{2}$/, "年月はYYYY-MM形式で入力してください"),
           url: z.string().url({ message: "有効なURLを入力してください" }),
           color: z.string().max(50).optional(),
-          displayTarget: z.enum(["team", "common"]).default("common"),
+          displayTarget: z.enum(["team", "common", "other"]).default("common"),
         })
       )
       .mutation(async ({ ctx, input }) => {

@@ -2357,6 +2357,27 @@ function LinkRow({ href, label, color, colorStyle, emoji, onAddToMyLinks, isInMy
  */
 function SheetSubTabs({ quickLinks, isAdmin = false }: { quickLinks: { id: number; label: string; href: string; color: string; emoji: string | null; category: string }[] | undefined; isAdmin?: boolean }) {
   const [subTab, setSubTab] = useState<"daily" | "other">("daily");
+  // その他タブ用リンク（spreadsheetLinksテーブルのdisplayTarget=otherから取得）
+  const { data: otherSheetLinks = [] } = trpc.spreadsheetLinks.getOther.useQuery();
+  const deleteSheetLink = trpc.spreadsheetLinks.delete.useMutation({
+    onSuccess: () => { utils.spreadsheetLinks.getOther.invalidate(); toast.success("削除しました"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const updateSheetLink = trpc.spreadsheetLinks.upsert.useMutation({
+    onSuccess: () => { utils.spreadsheetLinks.getOther.invalidate(); toast.success("更新しました"); setEditingOtherId(null); },
+    onError: (e) => toast.error(e.message),
+  });
+  const [editingOtherId, setEditingOtherId] = useState<number | null>(null);
+  const [editOtherLabel, setEditOtherLabel] = useState("");
+  const [editOtherUrl, setEditOtherUrl] = useState("");
+  const [editOtherEmoji, setEditOtherEmoji] = useState("📁");
+  const startEditOther = (link: { id: number; label: string; url: string; emoji?: string | null }) => {
+    setEditingOtherId(link.id); setEditOtherLabel(link.label); setEditOtherUrl(link.url); setEditOtherEmoji(link.emoji ?? "📁");
+  };
+  const saveEditOther = (link: { linkKey: string; yearMonth: string }) => {
+    if (!editOtherLabel.trim() || !editOtherUrl.trim()) { toast.error("ラベルとURLを入力してください"); return; }
+    updateSheetLink.mutate({ linkKey: link.linkKey, label: editOtherLabel.trim(), yearMonth: link.yearMonth, url: editOtherUrl.trim(), displayTarget: "other" });
+  };
   // 月次リンク（当月分、なければ直近登録）
   const { data: monthlyLinks, isLoading: monthlyLoading } = trpc.spreadsheetLinks.getCurrent.useQuery();
   const utils = trpc.useUtils();
@@ -2488,18 +2509,45 @@ function SheetSubTabs({ quickLinks, isAdmin = false }: { quickLinks: { id: numbe
         </div>
       )}
 
-      {/* その他タブ: quickAccessLinksから取得 */}
+      {/* その他タブ: spreadsheetLinksのdisplayTarget=otherから取得 */}
       {subTab === "other" && (
         <div className="space-y-1.5">
-          {otherLinks.length > 0
-            ? otherLinks.map((link) => (
-                <LinkRow
-                  key={link.id}
-                  href={link.href}
-                  label={link.label}
-                  colorStyle={{ color: "white" }}
-                  emoji={link.emoji || undefined}
-                />
+          {otherSheetLinks.length > 0
+            ? otherSheetLinks.map((link) => (
+                <div key={link.id}>
+                  {editingOtherId === link.id ? (
+                    <div className="flex flex-col gap-1.5 p-2 bg-muted/30 rounded-md">
+                      <div className="flex gap-1">
+                        <input value={editOtherEmoji} onChange={e => setEditOtherEmoji(e.target.value)} className="w-10 text-center border rounded px-1 py-1 text-sm bg-background" placeholder="📁" />
+                        <input value={editOtherLabel} onChange={e => setEditOtherLabel(e.target.value)} className="flex-1 border rounded px-2 py-1 text-sm bg-background" placeholder="ラベル" />
+                      </div>
+                      <input value={editOtherUrl} onChange={e => setEditOtherUrl(e.target.value)} className="border rounded px-2 py-1 text-sm bg-background" placeholder="https://..." />
+                      <div className="flex gap-1 justify-end">
+                        <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setEditingOtherId(null)}>キャンセル</Button>
+                        <Button size="sm" className="h-6 text-xs" onClick={() => saveEditOther(link)} disabled={updateSheetLink.isPending}>保存</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1 group">
+                      <LinkRow
+                        href={link.url}
+                        label={link.label}
+                        colorStyle={{ color: "white" }}
+                        emoji={link.emoji ?? undefined}
+                      />
+                      {isAdmin && (
+                        <>
+                          <button onClick={() => startEditOther(link)} onTouchStart={() => {}} style={{ touchAction: 'manipulation' }} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95" title="編集">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                          </button>
+                          <button onClick={() => deleteSheetLink.mutate({ id: link.id })} onTouchStart={() => {}} style={{ touchAction: 'manipulation' }} className="text-muted-foreground hover:text-destructive p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95" title="削除">
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
               ))
             : <p className="text-xs text-muted-foreground text-center py-3">その他のリンクはまだありません</p>
           }
