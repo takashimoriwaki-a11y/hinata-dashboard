@@ -27,8 +27,7 @@ import {
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-
-const DAILY_REPORT_SPREADSHEET_ID = "10Leb7UR6ARVlCGbf5pBa5yxsgm5WAV9m-ETyYrzfBCs";
+import { DAILY_REPORT_SPREADSHEET_ID } from "@/lib/spreadsheetLinks";
 
 // 出勤・退勤の手順ステップ定義
 interface ClockInStep {
