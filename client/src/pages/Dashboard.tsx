@@ -9,6 +9,7 @@ import { useCountUp, useAnimatedProgress } from "@/hooks/useCountUp";
 import { Confetti } from "@/components/Confetti";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { AttendanceCheckModal } from "@/components/AttendanceCheckModal";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -4660,6 +4661,7 @@ export default function Dashboard() {
   const dailyWord = getDailyWord();
   const { user: dashboardUser } = useAuth();
   // 出退勤打刻
+  const [attendanceModalType, setAttendanceModalType] = useState<"clock_in" | "clock_out" | null>(null);
   const { data: todayAttendance, refetch: refetchAttendance } = trpc.attendance.today.useQuery();
   const clockMutation = trpc.attendance.clock.useMutation({
     onSuccess: () => { void refetchAttendance(); },
@@ -4668,15 +4670,18 @@ export default function Dashboard() {
   const lastClockType = todayAttendance && todayAttendance.length > 0
     ? todayAttendance[todayAttendance.length - 1].type
     : null;
+  // ボタンクリック → モーダルを開く
   const handleClockIn = () => {
-    if (clockMutation.isPending) return;
-    clockMutation.mutate({ type: "clock_in" });
-    toast.success("出勤を記録しました");
+    setAttendanceModalType("clock_in");
   };
   const handleClockOut = () => {
-    if (clockMutation.isPending) return;
-    clockMutation.mutate({ type: "clock_out" });
-    toast.success("退勤を記録しました");
+    setAttendanceModalType("clock_out");
+  };
+  // モーダルで確認後に実際に打刻する
+  const handleClockConfirm = () => {
+    if (!attendanceModalType || clockMutation.isPending) return;
+    clockMutation.mutate({ type: attendanceModalType });
+    toast.success(attendanceModalType === "clock_in" ? "出勤を記録しました" : "退勤を記録しました");
   };
   // ログインユーザーの名前（姓名の場合は名前部分のみ表示）
   const userName = dashboardUser?.name
@@ -4837,7 +4842,7 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* 右カラム（PCのみ表示）: ツール・タスク */}
+          {/* 右カラム（PCのみ表示）: ツール・タスク */}
         <div className="hidden lg:block space-y-3 md:space-y-4">
           <TeamToolsCard />
           <ToolsCard />
@@ -4845,7 +4850,14 @@ export default function Dashboard() {
         </div>
       </div>
 
-
+      {/* 出退勤手順確認モーダル */}
+      {attendanceModalType && (
+        <AttendanceCheckModal
+          type={attendanceModalType}
+          onConfirm={handleClockConfirm}
+          onClose={() => setAttendanceModalType(null)}
+        />
+      )}
     </div>
   );
 }
