@@ -9,6 +9,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   CheckCircle2,
+  ClipboardList,
   ExternalLink,
   LogIn,
   LogOut,
@@ -95,9 +96,11 @@ interface AttendanceCheckModalProps {
   type: "clock_in" | "clock_out";
   onClose: () => void;
   onConfirm?: () => void;
+  /** 退勤時チェックリストのURL（全チーム共通ツールから取得） */
+  checkoutChecklistUrl?: string | null;
 }
 
-export function AttendanceCheckModal({ type, onClose, onConfirm }: AttendanceCheckModalProps) {
+export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutChecklistUrl }: AttendanceCheckModalProps) {
   const isClockIn = type === "clock_in";
   const steps = isClockIn ? CLOCK_IN_STEPS : CLOCK_OUT_STEPS;
   const { user } = useAuth();
@@ -893,6 +896,27 @@ export function AttendanceCheckModal({ type, onClose, onConfirm }: AttendanceChe
                     </>
                   )}
                 </button>
+              </div>
+              {/* 2.5 退勤時チェックリスト（任意・最後の退勤者用） */}
+              <div className="mx-3 my-2">
+                {checkoutChecklistUrl ? (
+                  <a
+                    href={checkoutChecklistUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all shadow-md active:scale-95 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/30 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700"
+                  >
+                    <ClipboardList className="w-4 h-4" />
+                    退勤時チェックリスト
+                    <span className="text-xs text-amber-500 dark:text-amber-500">（最後の退勤者のみ）</span>
+                  </a>
+                ) : (
+                  <div className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm bg-muted/50 text-muted-foreground border border-border cursor-not-allowed opacity-60">
+                    <ClipboardList className="w-4 h-4" />
+                    退勤時チェックリスト
+                    <span className="text-xs">（未登録）</span>
+                  </div>
+                )}
               </div>
               {/* 3. アルコールチェック（フォーム） */}
               {alcoholCheckForm}

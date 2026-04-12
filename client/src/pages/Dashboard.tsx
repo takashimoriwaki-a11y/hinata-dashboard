@@ -1491,6 +1491,20 @@ function ScheduleScreenshotCard() {
     try { localStorage.setItem(SCHEDULE_TEAM_KEY, value); } catch {}
   };
 
+  // 初回ロード時、localStorageに保存値がない場合はユーザーの所属チームをデフォルト選択
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(SCHEDULE_TEAM_KEY);
+      if (!saved || !VALID_SCHEDULE_TEAMS.includes(saved as TeamType)) {
+        const t = user?.team;
+        if (t && VALID_SCHEDULE_TEAMS.includes(t as TeamType)) {
+          setSelectedTeamRaw(t as TeamType);
+        }
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.team]);
+
   // デフォルトで全チームモードを有効にする
   const [selectedDay, setSelectedDay] = useState<DayType>("今日");
   const [isDragging, setIsDragging] = useState(false);
@@ -4658,6 +4672,9 @@ export default function Dashboard() {
   // 出勤完了フラグ（出勤画面で全タスク完了後にtrueになる）
   const [clockInAllDone, setClockInAllDone] = useState(false);
   const { data: todayAttendance, refetch: refetchAttendance } = trpc.attendance.today.useQuery();
+  // 退勤時チェックリストURL（全チーム共通ツールのcheckout_checklistリンク）
+  const { data: allLinks } = trpc.spreadsheetLinks.getCurrent.useQuery();
+  const checkoutChecklistUrl = allLinks?.find((l) => l.linkKey === "checkout_checklist")?.url ?? null;
   const clockMutation = trpc.attendance.clock.useMutation({
     onSuccess: () => { void refetchAttendance(); },
     onError: (e) => toast.error(`打刻に失敗しました: ${e.message}`),
@@ -4736,23 +4753,7 @@ export default function Dashboard() {
 
           {/* ショートカットボタン（モバイル: 3列グリッド均等配置 / PC: 折り返し右寄せ） */}
           <div className="grid grid-cols-3 gap-1.5 md:flex md:flex-row md:flex-wrap md:justify-center md:gap-2 items-stretch">
-            <button
-              onClick={() => openLink("https://gemini.google.com/app")}
-              onTouchStart={() => {}}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#7c6fcd', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#6a5eb8')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#7c6fcd')}
-            >
-              <span className="text-sm leading-none">✨</span>
-              Gemini
-            </button>
-            <button
-              onClick={() => openLink("https://homecare.zest.jp/login")}
-              onTouchStart={() => {}}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#0ea5a0', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#0c9490')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#0ea5a0')}
-            >
-              <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              ZEST
-            </button>
-
+            {/* 1. 出勤 */}
             <button
               type="button"
               onTouchStart={() => {}}
@@ -4771,14 +4772,7 @@ export default function Dashboard() {
                 </>
               )}
             </button>
-            <Link
-              href="/schedule-management"
-              onTouchStart={() => {}}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#3a9e6e', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#2e8a5c')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#3a9e6e')}
-            >
-              <CalendarDays className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              <span className="leading-tight">スケジュール<br className="md:hidden" />管理</span>
-            </Link>
+            {/* 2. 退勤 */}
             <button
               type="button"
               onTouchStart={() => {}}
@@ -4788,6 +4782,34 @@ export default function Dashboard() {
               <LogOut className="w-3.5 h-3.5 md:w-4 md:h-4" />
               退勤
             </button>
+            {/* 3. Gemini */}
+            <button
+              onClick={() => openLink("https://gemini.google.com/app")}
+              onTouchStart={() => {}}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#7c6fcd', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#6a5eb8')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#7c6fcd')}
+            >
+              <span className="text-sm leading-none">✨</span>
+              Gemini
+            </button>
+            {/* 4. ZEST */}
+            <button
+              onClick={() => openLink("https://homecare.zest.jp/login")}
+              onTouchStart={() => {}}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#0ea5a0', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#0c9490')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#0ea5a0')}
+            >
+              <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              ZEST
+            </button>
+            {/* 5. 日程管理 */}
+            <Link
+              href="/schedule-management"
+              onTouchStart={() => {}}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#3a9e6e', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#2e8a5c')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#3a9e6e')}
+            >
+              <CalendarDays className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              日程管理
+            </Link>
+            {/* 6. 記録Ⅱ */}
             <Link
               href="/record#record-condition"
               onTouchStart={() => {}}
@@ -4862,6 +4884,7 @@ export default function Dashboard() {
           type={attendanceModalType}
           onClose={() => setAttendanceModalType(null)}
           onConfirm={attendanceModalType === "clock_in" ? handleClockInConfirm : undefined}
+          checkoutChecklistUrl={checkoutChecklistUrl}
         />
       )}
       {/* アルコールチェックモーダル */}

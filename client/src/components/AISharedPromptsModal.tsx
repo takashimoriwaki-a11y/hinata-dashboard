@@ -224,31 +224,30 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
           </Button>
         </div>
 
-        {/* 新規追加フォーム */}
-        {showForm && (
-          <div className="px-5 py-4 border-b border-border bg-amber-50/50 dark:bg-amber-950/20 flex-shrink-0">
-            <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-3">新しいプロンプトを追加</p>
-            <PromptForm
-              title={formTitle}
-              body={formBody}
-              aiTool={formAiTool}
-              category={formCategory}
-              usageNotes={formUsageNotes}
-              onTitleChange={setFormTitle}
-              onBodyChange={setFormBody}
-              onAiToolChange={setFormAiTool}
-              onCategoryChange={setFormCategory}
-              onUsageNotesChange={setFormUsageNotes}
-              onSubmit={handleSubmit}
-              onCancel={() => { setShowForm(false); resetForm(); }}
-              isLoading={createMutation.isPending}
-              submitLabel="追加する"
-            />
-          </div>
-        )}
-
-        {/* 一覧 */}
+        {/* 一覧 + 追加フォーム（スクロール可能エリア） */}
         <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
+          {/* 新規追加フォーム（スクロール内に配置） */}
+          {showForm && (
+            <div className="mb-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-4">
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-3">新しいプロンプトを追加</p>
+              <PromptForm
+                title={formTitle}
+                body={formBody}
+                aiTool={formAiTool}
+                category={formCategory}
+                usageNotes={formUsageNotes}
+                onTitleChange={setFormTitle}
+                onBodyChange={setFormBody}
+                onAiToolChange={setFormAiTool}
+                onCategoryChange={setFormCategory}
+                onUsageNotesChange={setFormUsageNotes}
+                onSubmit={handleSubmit}
+                onCancel={() => { setShowForm(false); resetForm(); }}
+                isLoading={createMutation.isPending}
+                submitLabel="追加する"
+              />
+            </div>
+          )}
           {isLoading && (
             <div className="text-center text-sm text-muted-foreground py-8">読み込み中...</div>
           )}
