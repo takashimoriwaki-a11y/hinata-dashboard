@@ -2308,10 +2308,35 @@ function LinkRow({ href, label, color, colorStyle, emoji, onAddToMyLinks, isInMy
  * 「日々使用」: 月次DB登録分（5種類）を自動表示
  * 「その他」: quickAccessLinksから取得
  */
-function SheetSubTabs({ quickLinks }: { quickLinks: { id: number; label: string; href: string; color: string; emoji: string | null; category: string }[] | undefined }) {
+function SheetSubTabs({ quickLinks, isAdmin = false }: { quickLinks: { id: number; label: string; href: string; color: string; emoji: string | null; category: string }[] | undefined; isAdmin?: boolean }) {
   const [subTab, setSubTab] = useState<"daily" | "other">("daily");
   // 月次リンク（当月分、なければ直近登録）
   const { data: monthlyLinks, isLoading: monthlyLoading } = trpc.spreadsheetLinks.getCurrent.useQuery();
+  const utils = trpc.useUtils();
+  // ソース追加フォームの状態
+  const [showAddSourceForm, setShowAddSourceForm] = useState(false);
+  const [newSourceLabel, setNewSourceLabel] = useState("");
+  const [newSourceUrl, setNewSourceUrl] = useState("");
+  const [newSourceEmoji, setNewSourceEmoji] = useState("📊");
+  const upsertLink = trpc.spreadsheetLinks.upsert.useMutation({
+    onSuccess: () => {
+      utils.spreadsheetLinks.getCurrent.invalidate();
+      toast.success("ソースを追加しました");
+      setShowAddSourceForm(false);
+      setNewSourceLabel("");
+      setNewSourceUrl("");
+      setNewSourceEmoji("📊");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const addSource = () => {
+    if (!newSourceLabel.trim() || !newSourceUrl.trim()) { toast.error("ラベルとURLを入力してください"); return; }
+    const now = new Date();
+    const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    // linkKeyはラベルをスネークケース化して使用
+    const linkKey = `custom_${Date.now()}`;
+    upsertLink.mutate({ linkKey, label: newSourceLabel.trim(), yearMonth, url: newSourceUrl.trim(), displayTarget: "common" });
+  };
   // 当月年月（マウント時に一度計算）
   const currentYearMonth = useMemo(() => {
     const now = new Date();
@@ -2388,6 +2413,33 @@ function SheetSubTabs({ quickLinks }: { quickLinks: { id: number; label: string;
 
                   />
                 ))}
+            </>
+          )}
+
+          {/* 管理者向けソース追加ボタン */}
+          {isAdmin && (
+            <>
+              {showAddSourceForm ? (
+                <div className="flex flex-col gap-1.5 p-2 bg-muted/30 rounded-md mt-1">
+                  <div className="flex gap-1">
+                    <input value={newSourceEmoji} onChange={e => setNewSourceEmoji(e.target.value)} className="w-10 text-center border rounded px-1 py-1 text-sm bg-background" placeholder="📊" />
+                    <input value={newSourceLabel} onChange={e => setNewSourceLabel(e.target.value)} className="flex-1 border rounded px-2 py-1 text-sm bg-background" placeholder="ラベル（例：勤怠管理表）" />
+                  </div>
+                  <input value={newSourceUrl} onChange={e => setNewSourceUrl(e.target.value)} className="border rounded px-2 py-1 text-sm bg-background" placeholder="https://docs.google.com/..." />
+                  <div className="flex gap-1 justify-end">
+                    <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => { setShowAddSourceForm(false); setNewSourceLabel(""); setNewSourceUrl(""); setNewSourceEmoji("📊"); }}>キャンセル</Button>
+                    <Button size="sm" className="h-6 text-xs" onClick={addSource} disabled={upsertLink.isPending}>追加</Button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowAddSourceForm(true)}
+                  className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 py-1 px-2 rounded-md hover:bg-muted/40 transition-colors w-full text-left mt-1"
+                >
+                  <span className="text-base leading-none">+</span>
+                  <span>ソースを追加</span>
+                </button>
+              )}
             </>
           )}
         </div>
@@ -2578,7 +2630,7 @@ function ToolsCard() {
 
           {/* スプレッドシート */}
           {activeTab === "sheet" && (
-            <SheetSubTabs quickLinks={quickLinks} />
+            <SheetSubTabs quickLinks={quickLinks} isAdmin={canManageTools} />
           )}
 
           {/* ドキュメント */}
@@ -2893,33 +2945,36 @@ function ToolsCard() {
 
 // ========== チームツールカード ==========
 const TEAM_TABS = [
+  { id: "全チーム" as const, label: "全", title: "全チーム" },
   { id: "身体" as const, label: "身", title: "身体" },
   { id: "天理" as const, label: "天", title: "天理" },
   { id: "郡山北部" as const, label: "北", title: "郡山北部" },
   { id: "郡山南部" as const, label: "南", title: "郡山南部" },
 ] as const;
-type TeamTabId = "身体" | "天理" | "郡山北部" | "郡山南部";
+type TeamTabId = "全チーム" | "身体" | "天理" | "郡山北部" | "郡山南部";
 
 function TeamToolsCard() {
   const { user } = useAuth();
   const { isNight } = useTheme();
   const utils = trpc.useUtils();
 
-  // ユーザーのチームに基づいてデフォルトタブを決定
-  // 全チーム・事務員は「身体」をデフォルト
+    // ユーザーのチームに基づいてデフォルトタブを決定
+  // 全チーム・事務員は「全チーム」をデフォルト
   const defaultTeam = ((): TeamTabId => {
     const t = user?.team;
     if (t === "身体" || t === "天理" || t === "郡山北部" || t === "郡山南部") return t;
-    return "身体";
+    // 全チーム・事務員は全チームをデフォルトに
+    if (t === "全チーム" || t === "事務員") return "全チーム";
+    return "全チーム";
   })();
-
   const [activeTeam, setActiveTeam] = useState<TeamTabId>(defaultTeam);
-
   // ユーザーのチームが変わったときにデフォルトを反映
   useEffect(() => {
     const t = user?.team;
     if (t === "身体" || t === "天理" || t === "郡山北部" || t === "郡山南部") {
       setActiveTeam(t);
+    } else if (t === "全チーム" || t === "事務員" || !t) {
+      setActiveTeam("全チーム");
     }
   }, [user?.team]);
 
@@ -3014,13 +3069,31 @@ function TeamToolsCard() {
         {/* ツールリスト */}
         <div className="flex flex-col gap-1.5">
           {/* 月次利用者料金一覧（DB登録分を先頭に表示） */}
-          {teamFeeLink && (
-            <LinkRow
-              href={teamFeeLink.url}
-              label={teamFeeLink.label}
-              colorStyle={isNight ? getTeamTextStyleNight(activeTeam) : getTeamTextStyle(activeTeam)}
-              emoji="📊"
-            />
+          {activeTeam === "全チーム" ? (
+            // 全チームタブ時：各チームの料金リンクをチームカラーで表示
+            ["fee_shintai", "fee_tenri", "fee_seishin_koriyama"].map((key) => {
+              const link = monthlyLinks?.find((l) => l.linkKey === key);
+              if (!link) return null;
+              const teamForKey = key === "fee_shintai" ? "身体" : key === "fee_tenri" ? "天理" : "郡山北部";
+              return (
+                <LinkRow
+                  key={key}
+                  href={link.url}
+                  label={link.label}
+                  colorStyle={isNight ? getTeamTextStyleNight(teamForKey) : getTeamTextStyle(teamForKey)}
+                  emoji="📊"
+                />
+              );
+            })
+          ) : (
+            teamFeeLink && (
+              <LinkRow
+                href={teamFeeLink.url}
+                label={teamFeeLink.label}
+                colorStyle={isNight ? getTeamTextStyleNight(activeTeam) : getTeamTextStyle(activeTeam)}
+                emoji="📊"
+              />
+            )
           )}
           {isLoading ? (
             <div className="space-y-2 py-1">
@@ -3028,7 +3101,7 @@ function TeamToolsCard() {
                 <div key={i} className="h-10 bg-muted/60 animate-pulse rounded-lg" />
               ))}
             </div>
-          ) : tools.length === 0 && !showAddForm && !teamFeeLink ? (
+          ) : tools.length === 0 && !showAddForm && !teamFeeLink && activeTeam !== "全チーム" ? (
             <p className="text-xs text-muted-foreground text-center py-4">
               {activeTeam}チームのツールはまだありません
               {isAdmin && <span className="block mt-1 text-primary cursor-pointer" onClick={() => setShowAddForm(true)} onTouchStart={() => {}} style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>+ 追加する</span>}
@@ -3057,7 +3130,7 @@ function TeamToolsCard() {
                     <LinkRow
                       href={tool.href}
                       label={tool.label}
-                      colorStyle={isNight ? getTeamTextStyleNight(activeTeam) : getTeamTextStyle(activeTeam)}
+                      colorStyle={isNight ? getTeamTextStyleNight(activeTeam === "全チーム" ? (tool as any).team ?? activeTeam : activeTeam) : getTeamTextStyle(activeTeam === "全チーム" ? (tool as any).team ?? activeTeam : activeTeam)}
                       emoji={tool.emoji ?? undefined}
                     />
                     {isAdmin && (
@@ -3077,7 +3150,7 @@ function TeamToolsCard() {
           )}
 
           {/* 追加フォーム */}
-          {isAdmin && showAddForm && (
+          {isAdmin && showAddForm && activeTeam !== "全チーム" && (
             <div className="flex flex-col gap-1.5 p-2 bg-muted/30 rounded-md">
               <div className="flex gap-1">
                 <input value={newEmoji} onChange={e => setNewEmoji(e.target.value)} className="w-10 text-center border rounded px-1 py-1 text-sm bg-background" placeholder="🔗" />

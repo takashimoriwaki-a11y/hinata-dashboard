@@ -3139,17 +3139,22 @@ export const appRouter = router({
 
   /** チームツールリンク管理 */
   teamTools: router({
-    /** 指定チームのツールリンクを取得 */
+    /** 指定チームのツールリンクを取得（全チームの場合は全データを返す） */
     list: protectedProcedure
       .input(z.object({
-        team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]),
+        team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "全チーム"]),
       }))
       .query(async ({ input }) => {
         const { getDb } = await import("./db");
         const db = await getDb();
         if (!db) return [];
         const { teamTools } = await import("../drizzle/schema");
-        const { eq, asc } = await import("drizzle-orm");
+        const { eq, asc, inArray } = await import("drizzle-orm");
+        if (input.team === "全チーム") {
+          return db.select().from(teamTools)
+            .where(inArray(teamTools.team, ["身体", "天理", "郡山北部", "郡山南部"]))
+            .orderBy(asc(teamTools.team), asc(teamTools.sortOrder), asc(teamTools.createdAt));
+        }
         return db.select().from(teamTools)
           .where(eq(teamTools.team, input.team))
           .orderBy(asc(teamTools.sortOrder), asc(teamTools.createdAt));
