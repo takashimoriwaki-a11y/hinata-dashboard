@@ -4848,18 +4848,11 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 出退勤手順確認モーダル */}
+      {/* 出退勤手順確認モーダル（アルコールチェック統合済み） */}
       {attendanceModalType && (
         <AttendanceCheckModal
           type={attendanceModalType}
-          onClose={() => {
-            // AttendanceCheckModalを閉じたら、同じ種別でAlcoholCheckModalを開く
-            const type = attendanceModalType;
-            setAttendanceModalType(null);
-            if (type) {
-              setAlcoholCheckModalType(type);
-            }
-          }}
+          onClose={() => setAttendanceModalType(null)}
         />
       )}
       {/* アルコールチェックモーダル */}
