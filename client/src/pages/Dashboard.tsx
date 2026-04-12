@@ -3911,7 +3911,7 @@ function MessageBoard({ title }: { title: string }) {
                           </div>
                         </div>
                       ) : (
-                        <p className="text-base font-semibold text-sky-700 dark:text-sky-300 leading-relaxed whitespace-pre-wrap w-full">{msg.text}</p>
+                        <p className="text-base font-semibold text-red-600 dark:text-red-400 leading-relaxed whitespace-pre-wrap w-full">{msg.text}</p>
                       )}
                       {/* 編集・削除ボタン（作成者のみ・本文の下に表示） */}
                       {msg.createdBy === user?.id && editingMsgId !== msg.id && (
@@ -4086,7 +4086,7 @@ function MessageBoard({ title }: { title: string }) {
                         </div>
                       )}
                     </div>
-                    <p className="text-xs text-foreground/80 leading-relaxed pl-6.5">{msg.text}</p>
+                    <p className="text-xs text-red-600 dark:text-red-400 leading-relaxed pl-6.5">{msg.text}</p>
                     {(msg.displayFrom || msg.displayUntil) && (
                       <div className="flex flex-wrap gap-1 mt-1 pl-6.5">
                         {msg.displayFrom && (
