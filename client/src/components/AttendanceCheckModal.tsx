@@ -24,8 +24,8 @@ const CLOCK_IN_STEPS: CheckStep[] = [
   },
   {
     id: "ibow_in",
-    label: "② ibow 打刻・24時間内容確認",
-    description: "ibowで出勤打刻を行い、24時間以内の記録内容を確認する",
+    label: "② ibow 打刻・24時間体制の記録確認",
+    description: "ibowで出勤打刻を行い、24時間体制の記録内容を確認する",
     link: {
       url: "https://login.ibowservice.jp/",
       label: "ibowを開く",
@@ -112,19 +112,33 @@ export function AttendanceCheckModal({ type, onConfirm, onClose }: AttendanceChe
     if (step.link.isDailyReport) {
       e.preventDefault();
       setOpeningStepId(step.id);
+      // ポップアップブロック対策：先にウィンドウを開いてからURLを書き換える
+      const newWindow = window.open("about:blank", "_blank");
       try {
         const result = await utils.spreadsheetLinks.getDailyReportSheetGid.fetch();
         const url =
           result.gid !== null
             ? `https://docs.google.com/spreadsheets/d/${DAILY_REPORT_SPREADSHEET_ID}/edit#gid=${result.gid}`
             : step.link.url;
-        window.open(url, "_blank", "noopener,noreferrer");
+        if (newWindow) {
+          newWindow.location.href = url;
+        } else {
+          window.open(url, "_blank", "noopener,noreferrer");
+        }
       } catch {
-        window.open(step.link.url, "_blank", "noopener,noreferrer");
+        if (newWindow) {
+          newWindow.location.href = step.link.url;
+        } else {
+          window.open(step.link.url, "_blank", "noopener,noreferrer");
+        }
       } finally {
         setOpeningStepId(null);
       }
+      // チェックも自動でONにする
+      toggleCheck(step.id);
+      return;
     }
+    // 通常リンクはそのまま開く（デフォルト動作）
     // チェックも自動でONにする
     toggleCheck(step.id);
   };
