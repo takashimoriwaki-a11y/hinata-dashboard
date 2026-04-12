@@ -330,6 +330,13 @@
       "when": 1775994406332,
       "tag": "0046_noisy_manta",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "5",
+      "when": 1776000133797,
+      "tag": "0047_spicy_squirrel_girl",
+      "breakpoints": true
     }
   ]
 }

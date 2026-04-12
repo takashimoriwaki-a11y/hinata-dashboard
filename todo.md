@@ -1983,3 +1983,13 @@
 - [x] 出退勤ボタンのdisabled/ロック条件を削除して常時有効化
 - [x] ウェルカムバナーの「アルコール出勤時」「アルコール退勤時」バナーを削除（ボタンに統合済みのため）
 - [x] チェックポイント保存
+
+## 出退勤時の位置情報取得・スプレッドシート転記・残業理由入力欄（2026-04-12）
+
+- [x] DBスキーマのalcoholChecksテーブルに位置情報カラム（latitude, longitude, locationAddress）を追加しALTER TABLE実行
+- [x] appendAlcoholCheckToSheet関数に位置情報列を追加
+- [x] saveAlcoholCheckルーターのinputスキーマに位置情報フィールドを追加
+- [x] AlcoholCheckModalでGeolocation APIを呼び出し、位置情報を取得してAPIに送信する
+- [x] ウェルカムバナーの退勤ボタン上に残業理由入力欄を設置する（Dashboard.tsx）
+- [x] 残業理由をAlcoholCheckModalのclock_outに引き渡す
+- [x] チェックポイント保存

@@ -19,6 +19,9 @@ async function appendAlcoholCheckToSheet(record: {
   overtimeReason?: string | null;
   overtimeContact?: string | null;
   overtimeCount?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  locationAddress?: string | null;
 }, spreadsheetId: string): Promise<void> {
   try {
     const auth = new google.auth.GoogleAuth({
@@ -62,10 +65,10 @@ async function appendAlcoholCheckToSheet(record: {
       // ヘッダー行を設定
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `${tabName}!A1:P1`,
+        range: `${tabName}!A1:S1`,
         valueInputOption: "USER_ENTERED",
         requestBody: {
-          values: [["実施日時", "区分", "氏名", "ナンバープレート", "出勤打刻", "退勤打刻", "確認方法", "検知器使用", "酒気帯有無", "確認者", "残業時間", "残業理由", "連絡先", "人数", "備考", "登録日時"]],
+          values: [["実施日時", "区分", "氏名", "ナンバープレート", "出勤打刻", "退勤打刻", "確認方法", "検知器使用", "酒気帯有無", "確認者", "残業時間", "残業理由", "連絡先", "人数", "備考", "位置情報", "緯度", "経度", "登録日時"]],
         },
       });
     }
@@ -73,7 +76,7 @@ async function appendAlcoholCheckToSheet(record: {
     // データ行を追加
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: `${tabName}!A:P`,
+      range: `${tabName}!A:S`,
       valueInputOption: "USER_ENTERED",
       requestBody: {
         values: [[
@@ -92,6 +95,9 @@ async function appendAlcoholCheckToSheet(record: {
           record.overtimeContact ?? "",
           record.overtimeCount != null ? String(record.overtimeCount) : "",
           record.notes ?? "",
+          record.locationAddress ?? "",
+          record.latitude != null ? String(record.latitude) : "",
+          record.longitude != null ? String(record.longitude) : "",
           timestampStr,
         ]],
       },
@@ -3775,6 +3781,10 @@ export const appRouter = router({
         overtimeReason: z.string().optional(),
         overtimeContact: z.string().optional(),
         overtimeCount: z.number().optional(),
+        // 位置情報（任意）
+        latitude: z.number().optional(),
+        longitude: z.number().optional(),
+        locationAddress: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const now = Date.now();
@@ -3799,6 +3809,9 @@ export const appRouter = router({
           overtimeStartAt: input.overtimeStartAt ?? null,
           overtimeEndAt: input.overtimeEndAt ?? null,
           overtimeReason: input.overtimeReason ?? null,
+          latitude: input.latitude ?? null,
+          longitude: input.longitude ?? null,
+          locationAddress: input.locationAddress ?? null,
         } as any);
         // 月別スプレッドシートを取得して転記（非同期・失敗しても記録は成功扱い）
         const checkedDate = new Date(now);
@@ -3820,6 +3833,9 @@ export const appRouter = router({
             overtimeReason: input.overtimeReason ?? null,
             overtimeContact: input.overtimeContact ?? null,
             overtimeCount: input.overtimeCount ?? null,
+            latitude: input.latitude ?? null,
+            longitude: input.longitude ?? null,
+            locationAddress: input.locationAddress ?? null,
           }, sheetReg.spreadsheetId);
           await markAlcoholCheckSynced(alcoholCheck.id);
           // 酒気帯「有」の場合は管理者（森脇崇）にプッシュ通知を送信する

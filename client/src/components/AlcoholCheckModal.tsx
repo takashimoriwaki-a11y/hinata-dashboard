@@ -16,6 +16,8 @@ interface AlcoholCheckModalProps {
   /** 打刻時刻（ms）を外部から渡す場合 */
   clockInAt?: number;
   clockOutAt?: number;
+  /** 退勤時の残業理由事前入力（ウェルカムバナーから渡す） */
+  initialOvertimeReason?: string;
 }
 
 // 時間の選択肢（0〜23時）
@@ -28,7 +30,7 @@ function floorToTenMinutes(date: Date): number {
   return Math.floor(date.getMinutes() / 10) * 10;
 }
 
-export function AlcoholCheckModal({ clockType, onClose, clockInAt, clockOutAt }: AlcoholCheckModalProps) {
+export function AlcoholCheckModal({ clockType, onClose, clockInAt, clockOutAt, initialOvertimeReason }: AlcoholCheckModalProps) {
   const isClockIn = clockType === "clock_in";
   const { user } = useAuth();
   const utils = trpc.useUtils();
@@ -44,15 +46,15 @@ export function AlcoholCheckModal({ clockType, onClose, clockInAt, clockOutAt }:
   // 残業入力（退勤時のみ）
   // モーダルを開いた時刻を一度だけ取得
   const openedAt = useMemo(() => new Date(), []);
-  const [hasOvertime, setHasOvertime] = useState(false);
+  const [hasOvertime, setHasOvertime] = useState(!!initialOvertimeReason);
   // 開始：デフォルト17時00分
   const [overtimeStartHour, setOvertimeStartHour] = useState(17);
   const [overtimeStartMinute, setOvertimeStartMinute] = useState(0);
   // 終了：デフォルトはモーダルを開いた時刻（10分切り捨て）
   const [overtimeEndHour, setOvertimeEndHour] = useState(() => openedAt.getHours());
   const [overtimeEndMinute, setOvertimeEndMinute] = useState(() => floorToTenMinutes(openedAt));
-  // 残業理由プリセット
-  const [overtimeReasonType, setOvertimeReasonType] = useState<string>("");
+  // 残業理由プリセット（ウェルカムバナーから事前入力された場合はそれを初期値に）
+  const [overtimeReasonType, setOvertimeReasonType] = useState<string>(initialOvertimeReason ?? "");
   // 連動入力欄の値
   const [overtimeContactTarget, setOvertimeContactTarget] = useState(""); // 支援者連絡・家族連絡の連絡先
   const [overtimeRecordCount, setOvertimeRecordCount] = useState<number>(1); // 記録書Ⅱ・月次・状態報告書の人数
@@ -85,6 +87,56 @@ export function AlcoholCheckModal({ clockType, onClose, clockInAt, clockOutAt }:
     d.setHours(hour, minute, 0, 0);
     return d.getTime();
   };
+
+  // 位置情報の状態管理
+  const [locationStatus, setLocationStatus] = useState<"idle" | "loading" | "success" | "denied" | "error">("idle");
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [locationAddress, setLocationAddress] = useState<string | null>(null);
+
+  /** Geolocation APIで位置情報を取得し、逆ジオコーディングで住所を取得する */
+  const fetchLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationStatus("error");
+      return;
+    }
+    setLocationStatus("loading");
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setLatitude(lat);
+        setLongitude(lng);
+        // 逆ジオコーディング（Nominatim）
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=ja`,
+            { headers: { "User-Agent": "hinata-dashboard/1.0" } }
+          );
+          const data = await res.json();
+          const addr = data?.display_name ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+          setLocationAddress(addr);
+        } catch {
+          setLocationAddress(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+        }
+        setLocationStatus("success");
+      },
+      (err) => {
+        if (err.code === 1) {
+          setLocationStatus("denied");
+        } else {
+          setLocationStatus("error");
+        }
+      },
+      { timeout: 10000, maximumAge: 60000 }
+    );
+  };
+
+  // モーダルを開いたら自動で位置情報を取得
+  useEffect(() => {
+    fetchLocation();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const alcoholCheckMutation = trpc.attendance.saveAlcoholCheck.useMutation({
     onSuccess: () => {
@@ -133,6 +185,10 @@ export function AlcoholCheckModal({ clockType, onClose, clockInAt, clockOutAt }:
       overtimeReason: (!isClockIn && hasOvertime) ? buildOvertimeReason() : undefined,
       overtimeContact: (!isClockIn && hasOvertime && overtimeContactTarget.trim()) ? overtimeContactTarget.trim() : undefined,
       overtimeCount: (!isClockIn && hasOvertime && ["\u8a18\u9332\u66f8\u2161\u4f5c\u6210", "\u6708\u6b21\u5831\u544a\u66f8\u4f5c\u6210", "\u72b6\u614b\u5831\u544a\u66f8\u4f5c\u6210"].includes(overtimeReasonType)) ? overtimeRecordCount : undefined,
+      // 位置情報
+      latitude: latitude ?? undefined,
+      longitude: longitude ?? undefined,
+      locationAddress: locationAddress ?? undefined,
     });
   };
 
@@ -194,6 +250,42 @@ export function AlcoholCheckModal({ clockType, onClose, clockInAt, clockOutAt }:
               <p className="text-xs text-gray-400 mt-1">
                 ※ アカウントに登録されたナンバープレートを自動入力しました
               </p>
+            )}
+          </div>
+
+          {/* 位置情報 */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              {locationStatus === "loading" && (
+                <span className="inline-flex items-center gap-1 text-xs text-blue-500">
+                  <Loader2 className="w-3 h-3 animate-spin" />位置情報取得中...
+                </span>
+              )}
+              {locationStatus === "success" && locationAddress && (
+                <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span className="truncate max-w-[220px]" title={locationAddress}>{locationAddress.slice(0, 30)}{locationAddress.length > 30 ? "..." : ""}</span>
+                </span>
+              )}
+              {locationStatus === "denied" && (
+                <span className="inline-flex items-center gap-1 text-xs text-amber-500">
+                  ⚠️ 位置情報の取得が許可されていません
+                </span>
+              )}
+              {locationStatus === "error" && (
+                <span className="inline-flex items-center gap-1 text-xs text-red-500">
+                  ⚠️ 位置情報の取得に失敗しました
+                </span>
+              )}
+            </div>
+            {(locationStatus === "denied" || locationStatus === "error") && (
+              <button
+                type="button"
+                onClick={fetchLocation}
+                className="text-xs text-blue-500 hover:text-blue-600 underline"
+              >
+                再取得
+              </button>
             )}
           </div>
 

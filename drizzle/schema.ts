@@ -1,4 +1,4 @@
-import { bigint, date, int, mediumtext, mysqlEnum, mysqlTable, text, timestamp, tinyint, varchar } from "drizzle-orm/mysql-core";
+import { bigint, date, double, int, mediumtext, mysqlEnum, mysqlTable, text, timestamp, tinyint, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -740,6 +740,12 @@ export const alcoholChecks = mysqlTable("alcohol_checks", {
   overtimeEndAt: bigint("overtimeEndAt", { mode: "number" }),
   /** 残業理由（退勤時のみ、任意） */
   overtimeReason: text("overtimeReason"),
+  /** 出退勤時の緯度（任意） */
+  latitude: double("latitude"),
+  /** 出退勤時の経度（任意） */
+  longitude: double("longitude"),
+  /** 出退勤時の住所文字列（リバースジオコーディング結果、任意） */
+  locationAddress: text("locationAddress"),
   /** スプレッドシート転記済みフラグ */
   sheetSynced: tinyint("sheetSynced").notNull().default(0),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
