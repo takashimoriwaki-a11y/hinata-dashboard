@@ -1225,6 +1225,8 @@ function StaffManagementPanel() {
 
   // チーム未設定フィルター
   const [showUnsetOnly, setShowUnsetOnly] = useState(false);
+  // ナンバープレート未登録フィルター
+  const [showNoPlateOnly, setShowNoPlateOnly] = useState(false);
 
   // スタッフ情報編集ダイアログ
   const [editStaff, setEditStaff] = useState<{ id: number; name: string; team: TeamStaff; role: "user" | "admin"; numberPlate: string } | null>(null);
@@ -1460,7 +1462,33 @@ function StaffManagementPanel() {
                 </div>
               ) : null;
             })()}
-            {(showUnsetOnly ? staffList.filter((s) => !s.teamSetupDone) : staffList).map((staff, idx) => (
+            {/* ナンバープレート未登録フィルター */}
+            {(() => {
+              const noPlateCount = staffList.filter((s) => !(s as any).numberPlate).length;
+              return noPlateCount > 0 ? (
+                <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-blue-700 dark:text-blue-400">ナンバープレート未登録のスタッフが {noPlateCount}名 います</span>
+                  </div>
+                  <button
+                    onClick={() => { setShowNoPlateOnly((v) => !v); if (showUnsetOnly) setShowUnsetOnly(false); }}
+                    className={cn(
+                      "text-xs px-2.5 py-1 rounded-lg font-medium transition-colors",
+                      showNoPlateOnly
+                        ? "bg-blue-500 text-white hover:bg-blue-600"
+                        : "bg-white dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 border border-blue-300 dark:border-blue-600 hover:bg-blue-100"
+                    )}
+                  >
+                    {showNoPlateOnly ? "全員表示" : "未登録のみ表示"}
+                  </button>
+                </div>
+              ) : null;
+            })()}
+            {(() => {
+              let filtered = staffList;
+              if (showUnsetOnly) filtered = filtered.filter((s) => !s.teamSetupDone);
+              if (showNoPlateOnly) filtered = filtered.filter((s) => !(s as any).numberPlate);
+              return filtered.map((staff, idx) => (
               <div key={staff.id}>
                 {idx > 0 && <Separator className="my-2" />}
                 <div className="flex items-start justify-between gap-2">
@@ -1482,6 +1510,11 @@ function StaffManagementPanel() {
                       {!staff.teamSetupDone && (
                         <Badge variant="outline" className="text-xs px-1.5 py-0 bg-orange-50 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-700">
                           チーム未設定
+                        </Badge>
+                      )}
+                      {!(staff as any).numberPlate && (
+                        <Badge variant="outline" className="text-xs px-1.5 py-0 bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-700">
+                          ナンバープレート未登録
                         </Badge>
                       )}
                     </div>
@@ -1598,7 +1631,8 @@ function StaffManagementPanel() {
                   </div>
                 )}
               </div>
-            ))}
+            ));
+            })()}
           </div>
         )}
       </CardContent>

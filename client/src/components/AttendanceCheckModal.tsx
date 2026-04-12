@@ -110,6 +110,7 @@ function getStorageKey(type: "clock_in" | "clock_out"): string {
 interface SavedState {
   done: Record<string, boolean>;
   alcoholRecorded: boolean;
+  alcoholSkipped?: boolean;
   clockInDone?: boolean;
   clockOutDone?: boolean;
   hasOvertime?: boolean;
@@ -150,6 +151,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
   // アルコールチェック記録済みフラグ（出勤・退勤共通）
   const [alcoholRecorded, setAlcoholRecorded] = useState(savedState?.alcoholRecorded ?? false);
+  // アルコールチェックスキップフラグ（事務員のみ）
+  const [alcoholSkipped, setAlcoholSkipped] = useState(savedState?.alcoholSkipped ?? false);
   // 出勤打刻済みフラグ
   const [clockInDone, setClockInDone] = useState(savedState?.clockInDone ?? false);
   // 退勤打刻済みフラグ
@@ -200,6 +203,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     const stateToSave: SavedState = {
       done,
       alcoholRecorded,
+      alcoholSkipped,
       clockInDone,
       clockOutDone,
       hasOvertime,
@@ -217,13 +221,15 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     } catch {
       // ignore storage errors
     }
-  }, [type, done, alcoholRecorded, clockInDone, clockOutDone, hasOvertime, overtimeStartHour, overtimeStartMinute, overtimeEndHour, overtimeEndMinute, overtimeReasonType, overtimeContactTarget, overtimeRecordCount, overtimeFreeText]);
+  }, [type, done, alcoholRecorded, alcoholSkipped, clockInDone, clockOutDone, hasOvertime, overtimeStartHour, overtimeStartMinute, overtimeEndHour, overtimeEndMinute, overtimeReasonType, overtimeContactTarget, overtimeRecordCount, overtimeFreeText]);
 
   // 出勤画面：全ステップ完了 + アルコール記録済み + 打刻済み → ホームへ自動遷移
   useEffect(() => {
     if (!isClockIn) return;
     const allStepsDone = CLOCK_IN_REQUIRED_STEP_IDS.every((id) => done[id]);
-    if (allStepsDone && alcoholRecorded && clockInDone) {
+    // 事務員はスキップでもOK
+    const alcoholDone = alcoholRecorded || (isOfficeStaff && alcoholSkipped);
+    if (allStepsDone && alcoholDone && clockInDone) {
       // 完了フラグを別キーに保存（ページリロード後も出勤済みとして判定できるように）
       try {
         const today = new Date();
@@ -238,12 +244,14 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       }, 800);
       return () => clearTimeout(timer);
     }
-  }, [isClockIn, done, alcoholRecorded, clockInDone, onClose, onConfirm, type]);
+  }, [isClockIn, done, alcoholRecorded, alcoholSkipped, isOfficeStaff, clockInDone, onClose, onConfirm, type]);
   // 退勤画面：退勤打刻済み + アルコール記録済み + みまもドライブ停止済み → ホームへ自動遷移
   useEffect(() => {
     if (isClockIn) return;
     const mimamoStopDone = done["mimamodrive_out"];
-    if (clockOutDone && alcoholRecorded && mimamoStopDone) {
+    // 事務員はスキップでもOK
+    const alcoholDone = alcoholRecorded || (isOfficeStaff && alcoholSkipped);
+    if (clockOutDone && alcoholDone && mimamoStopDone) {
       // 完了フラグを別キーに保存（ページリロード後も退勤済みとして判定できるように）
       try {
         const today = new Date();
@@ -257,7 +265,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       }, 800);
       return () => clearTimeout(timer);
     }
-  }, [isClockIn, done, alcoholRecorded, clockOutDone, onClose, onConfirm, type]);
+  }, [isClockIn, done, alcoholRecorded, alcoholSkipped, isOfficeStaff, clockOutDone, onClose, onConfirm, type]);
   const fetchLocation = () => {
     if (!navigator.geolocation) {
       setLocationStatus("error");
@@ -440,7 +448,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
   // 出勤画面：全ステップ完了チェック
   const allClockInStepsDone = isClockIn && CLOCK_IN_REQUIRED_STEP_IDS.every((id) => done[id]);
-  const allClockInTasksDone = isClockIn && allClockInStepsDone && alcoholRecorded && clockInDone;
+  const alcoholDoneForBanner = alcoholRecorded || (isOfficeStaff && alcoholSkipped);
+  const allClockInTasksDone = isClockIn && allClockInStepsDone && alcoholDoneForBanner && clockInDone;
 
   // ── アルコールチェックフォームのJSX（共通） ──
   const alcoholCheckForm = (
@@ -450,17 +459,51 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         : "border-cyan-200 dark:border-cyan-800"
     }`}>
       {/* セクションヘッダー */}
-      <div className={`px-4 py-3 flex items-center gap-2 ${
+      <div className={`px-4 py-3 flex items-center justify-between gap-2 ${
         isClockIn
           ? "bg-orange-100 dark:bg-orange-900/30"
           : "bg-cyan-100 dark:bg-cyan-900/30"
       }`}>
-        <Shield className={`w-4 h-4 ${isClockIn ? "text-orange-600 dark:text-orange-400" : "text-cyan-600 dark:text-cyan-400"}`} />
-        <span className={`text-sm font-bold ${isClockIn ? "text-orange-700 dark:text-orange-300" : "text-cyan-700 dark:text-cyan-300"}`}>
-          アルコールチェック
-        </span>
+        <div className="flex items-center gap-2">
+          <Shield className={`w-4 h-4 ${isClockIn ? "text-orange-600 dark:text-orange-400" : "text-cyan-600 dark:text-cyan-400"}`} />
+          <span className={`text-sm font-bold ${isClockIn ? "text-orange-700 dark:text-orange-300" : "text-cyan-700 dark:text-cyan-300"}`}>
+            アルコールチェック
+          </span>
+          {isOfficeStaff && (
+            <span className="text-xs text-gray-500 dark:text-gray-400 font-normal">(任意)</span>
+          )}
+        </div>
+        {/* 事務員向けスキップボタン */}
+        {isOfficeStaff && !alcoholRecorded && (
+          <button
+            type="button"
+            onClick={() => setAlcoholSkipped((v) => !v)}
+            className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
+              alcoholSkipped
+                ? "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+            }`}
+          >
+            {alcoholSkipped ? "✓ スキップ済み" : "スキップ"}
+          </button>
+        )}
       </div>
 
+      {/* スキップ済みの場合はフォームを非表示 */}
+      {alcoholSkipped && !alcoholRecorded ? (
+        <div className="px-4 py-3 bg-white dark:bg-gray-900">
+          <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+            アルコールチェックをスキップしました
+          </p>
+          <button
+            type="button"
+            onClick={() => setAlcoholSkipped(false)}
+            className="mt-2 w-full text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+          >
+            スキップを取り消す
+          </button>
+        </div>
+      ) : (
       <div className="px-4 py-4 space-y-4 bg-white dark:bg-gray-900">
         {/* ナンバープレート */}
         <div>
@@ -636,10 +679,12 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           />
         </div>
       </div>
+      )}
     </div>
   );
 
   // ── 残業カードのJSX（退勤時のみ） ──
+  // NOTE: 上記の `)}` は `{alcoholSkipped && !alcoholRecorded ? (…) : (…)}` の閉じタグ
   const overtimeCard = (
     <div className="mx-3 my-2 rounded-xl border-2 border-purple-200 dark:border-purple-800 overflow-hidden">
       <button
@@ -1012,27 +1057,38 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
               </div>
               {/* 3. アルコールチェック（フォーム） */}
               {alcoholCheckForm}
-              {/* 4. アルコール記録ボタン */}
+              {/* 4. アルコール記録ボタン（スキップ済みの場合は非表示） */}
+              {!alcoholSkipped && (
               <div className="mx-3 my-2">
                 <button
                   type="button"
-                  disabled={isAlcoholPending}
+                  disabled={isAlcoholPending || alcoholRecorded}
                   onClick={handleAlcoholOnly}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md active:scale-95 bg-cyan-600 hover:bg-cyan-700"
+                  className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all disabled:cursor-not-allowed shadow-md active:scale-95 ${
+                    alcoholRecorded
+                      ? "bg-green-500 opacity-80"
+                      : "bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50"
+                  }`}
                 >
                   {isAlcoholPending ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
                       記録中...
                     </>
+                  ) : alcoholRecorded ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      アルコールチェック記録済み
+                    </>
                   ) : (
                     <>
                       <Shield className="w-4 h-4" />
-                      アルコール記録
+                      アルコールチェック記録
                     </>
                   )}
                 </button>
               </div>
+              )}
               {/* 5. みまもドライブ停止 */}
               {steps.map(renderStepItem)}
             </>
@@ -1052,7 +1108,13 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 </span>
               </div>
             )}
-            {/* アルコールチェック記録ボタン（先） */}
+            {/* アルコールチェック記録ボタン（先）・スキップ済みの場合はスキップ済み表示 */}
+            {alcoholSkipped && !alcoholRecorded ? (
+              <div className="flex items-center justify-center gap-2 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                <CheckCircle2 className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                <span className="text-sm font-medium text-gray-500 dark:text-gray-400">アルコールチェックスキップ済み</span>
+              </div>
+            ) : (
             <button
               type="button"
               disabled={isAlcoholPending || alcoholRecorded}
@@ -1080,6 +1142,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 </>
               )}
             </button>
+            )}
             {/* 出勤打刻ボタン（後） */}
             <button
               type="button"
