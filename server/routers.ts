@@ -246,6 +246,11 @@ import {
   createSharedPrompt,
   updateSharedPrompt,
   deleteSharedPrompt,
+  getActiveAlcoholDetectors,
+  getAllAlcoholDetectors,
+  createAlcoholDetector,
+  updateAlcoholDetector,
+  deleteAlcoholDetector,
 } from "./db";
 import { storagePut } from "./storage";
 import { eq } from "drizzle-orm";
@@ -4001,6 +4006,54 @@ export const appRouter = router({
       .input(z.object({ numberPlate: z.string().max(20) }))
       .mutation(async ({ input, ctx }) => {
         await updateUserNumberPlate(ctx.user.id, input.numberPlate);
+        return { success: true };
+      }),
+  }),
+  // ============================================================
+  // アルコール検知器設定
+  // ============================================================
+  alcoholDetector: router({
+    /** 有効な検知器一覧を取得する（フォーム用プルダウン） */
+    getActive: protectedProcedure.query(async () => {
+      return getActiveAlcoholDetectors();
+    }),
+    /** 全検知器一覧を取得する（管理画面用） */
+    getAll: protectedProcedure.query(async () => {
+      return getAllAlcoholDetectors();
+    }),
+    /** 検知器を追加する */
+    create: protectedProcedure
+      .input(z.object({
+        name: z.string().min(1).max(200),
+        modelNumber: z.string().max(100).optional(),
+        manufacturer: z.string().max(100).optional(),
+        isActive: z.number().int().min(0).max(1).default(1),
+        sortOrder: z.number().int().default(0),
+      }))
+      .mutation(async ({ input }) => {
+        const id = await createAlcoholDetector(input);
+        return { success: true, id };
+      }),
+    /** 検知器を更新する */
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number().int(),
+        name: z.string().min(1).max(200).optional(),
+        modelNumber: z.string().max(100).nullable().optional(),
+        manufacturer: z.string().max(100).nullable().optional(),
+        isActive: z.number().int().min(0).max(1).optional(),
+        sortOrder: z.number().int().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        await updateAlcoholDetector(id, data);
+        return { success: true };
+      }),
+    /** 検知器を削除する */
+    delete: protectedProcedure
+      .input(z.object({ id: z.number().int() }))
+      .mutation(async ({ input }) => {
+        await deleteAlcoholDetector(input.id);
         return { success: true };
       }),
   }),

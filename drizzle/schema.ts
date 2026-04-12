@@ -768,6 +768,28 @@ export type AlcoholCheck = typeof alcoholChecks.$inferSelect;
 export type InsertAlcoholCheck = typeof alcoholChecks.$inferInsert;
 
 // ============================================================
+// アルコール検知器設定
+// ============================================================
+/** 使用するアルコール検知器の型番・名称を管理するテーブル（管理者が登録） */
+export const alcoholDetectorSettings = mysqlTable("alcohol_detector_settings", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 検知器の表示名（例: ライオン社製 SD-400） */
+  name: varchar("name", { length: 200 }).notNull(),
+  /** 型番（例: SD-400） */
+  modelNumber: varchar("modelNumber", { length: 100 }),
+  /** メーカー名 */
+  manufacturer: varchar("manufacturer", { length: 100 }),
+  /** 有効フラグ（無効にするとフォームに表示されない） */
+  isActive: tinyint("isActive").notNull().default(1),
+  /** 並び順 */
+  sortOrder: int("sortOrder").notNull().default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type AlcoholDetectorSetting = typeof alcoholDetectorSettings.$inferSelect;
+export type InsertAlcoholDetectorSetting = typeof alcoholDetectorSettings.$inferInsert;
+
+// ============================================================
 // 月別アルコールチェックスプレッドシート管理
 // ============================================================
 /** 月ごとのアルコールチェック記録スプレッドシートを管理するテーブル */

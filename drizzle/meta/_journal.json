@@ -337,6 +337,13 @@
       "when": 1776017968567,
       "tag": "0047_spicy_squirrel_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "5",
+      "when": 1776018827642,
+      "tag": "0048_common_amazoness",
+      "breakpoints": true
     }
   ]
 }

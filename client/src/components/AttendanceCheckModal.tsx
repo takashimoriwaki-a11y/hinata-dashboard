@@ -169,6 +169,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   // 追加項目（測定値・検知器種類・運転目的・同乗者・体調）
   const [alcoholMeasuredValue, setAlcoholMeasuredValue] = useState("");
   const [detectorType, setDetectorType] = useState("");
+  // 検知器一覧（DB登録済みのプルダウン用）
+  const { data: detectors = [] } = trpc.alcoholDetector.getActive.useQuery();
   const [drivingPurpose, setDrivingPurpose] = useState<"visit" | "transport" | "errand" | "other">("visit");
   const [hasPassenger, setHasPassenger] = useState(false);
   const [passengerCount, setPassengerCount] = useState(1);
@@ -653,13 +655,40 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
               検知器の種類・型番（任意）
             </label>
-            <input
-              type="text"
-              value={detectorType}
-              onChange={(e) => setDetectorType(e.target.value)}
-              placeholder="例: ライオン社製 SD-400"
-              className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-400"
-            />
+            {detectors.length > 0 ? (
+              <select
+                value={detectorType}
+                onChange={(e) => setDetectorType(e.target.value)}
+                className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-400"
+              >
+                <option value="">— 選択してください —</option>
+                {detectors.map((d) => (
+                  <option key={d.id} value={d.name}>
+                    {d.name}{d.modelNumber ? ` (${d.modelNumber})` : ""}
+                  </option>
+                ))}
+                <option value="__other">その他（直接入力）</option>
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={detectorType}
+                onChange={(e) => setDetectorType(e.target.value)}
+                placeholder="例: ライオン社製 SD-400"
+                className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-400"
+              />
+            )}
+            {/* 「その他」を選んだ場合は直接入力欄を表示 */}
+            {detectors.length > 0 && detectorType === "__other" && (
+              <input
+                type="text"
+                value={""}
+                onChange={(e) => setDetectorType(e.target.value)}
+                placeholder="検知器名を入力してください"
+                className="mt-2 w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-400"
+                autoFocus
+              />
+            )}
           </div>
         )}
 
@@ -855,7 +884,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       >
         <div className="flex items-center gap-2">
           <Clock className="w-4 h-4" />
-          残業あり
+          残業申請
         </div>
         <div className={`w-10 h-5 rounded-full transition-colors flex items-center px-0.5 ${hasOvertime ? "bg-purple-500" : "bg-gray-300 dark:bg-gray-600"}`}>
           <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${hasOvertime ? "translate-x-5" : "translate-x-0"}`} />
@@ -1168,7 +1197,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           ) : (
             // ── 退勤画面レイアウト：残業カード → 退勤打刻 → アルコールチェック → アルコール記録 → みまもドライブ停止 ──
             <>
-              {/* 1. 残業あり */}
+              {/* 1. 残業申請 */}
               {overtimeCard}
               {/* 2. 退勤打刻ボタン */}
               <div className="mx-3 my-2">

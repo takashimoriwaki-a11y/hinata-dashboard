@@ -1847,3 +1847,56 @@ export async function deleteAccidentLink(id: number): Promise<void> {
   if (!db) return;
   await db.delete(accidentLinks).where(eq(accidentLinks.id, id));
 }
+
+// ============================================================
+// アルコール検知器設定 CRUD
+// ============================================================
+import { alcoholDetectorSettings, type AlcoholDetectorSetting, type InsertAlcoholDetectorSetting } from "../drizzle/schema";
+
+/** 有効な検知器一覧を取得する（フォーム用） */
+export async function getActiveAlcoholDetectors(): Promise<AlcoholDetectorSetting[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(alcoholDetectorSettings)
+    .where(eq(alcoholDetectorSettings.isActive, 1))
+    .orderBy(alcoholDetectorSettings.sortOrder, alcoholDetectorSettings.id);
+}
+
+/** 全検知器一覧を取得する（管理画面用） */
+export async function getAllAlcoholDetectors(): Promise<AlcoholDetectorSetting[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(alcoholDetectorSettings)
+    .orderBy(alcoholDetectorSettings.sortOrder, alcoholDetectorSettings.id);
+}
+
+/** 検知器を追加する */
+export async function createAlcoholDetector(
+  data: Omit<InsertAlcoholDetectorSetting, "id" | "createdAt" | "updatedAt">
+): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const [result] = await db.insert(alcoholDetectorSettings).values(data);
+  return (result as any).insertId as number;
+}
+
+/** 検知器を更新する */
+export async function updateAlcoholDetector(
+  id: number,
+  data: Partial<Omit<InsertAlcoholDetectorSetting, "id" | "createdAt" | "updatedAt">>
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(alcoholDetectorSettings).set(data).where(eq(alcoholDetectorSettings.id, id));
+}
+
+/** 検知器を削除する */
+export async function deleteAlcoholDetector(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(alcoholDetectorSettings).where(eq(alcoholDetectorSettings.id, id));
+}

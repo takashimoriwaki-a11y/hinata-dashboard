@@ -796,7 +796,7 @@ export default function Admin() {
   }, []);
 
   // セクション切り替え
-  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "teamGoals" | "toolLogs" | "alcoholSheets" | "alcoholCsv">("sheets");
+  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "teamGoals" | "toolLogs" | "alcoholSheets" | "alcoholCsv" | "detectorSettings">("sheets");
   const { user: currentUser } = useAuth();
 
   return (
@@ -926,6 +926,19 @@ export default function Admin() {
             )}
           >
             記録CSV出力
+          </button>
+        )}
+        {currentUser?.role === "admin" && (
+          <button
+            onClick={() => setActiveSection("detectorSettings")}
+            className={cn(
+            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
+            activeSection === "detectorSettings"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            検知器設定
           </button>
         )}
       </div>
@@ -1135,6 +1148,8 @@ export default function Admin() {
       {activeSection === "alcoholSheets" && <AlcoholCheckSpreadsheetsPanel />}
       {/* アルコールチェック記録CSVエクスポート */}
       {activeSection === "alcoholCsv" && <AlcoholCheckCsvExportPanel />}
+      {/* 検知器設定 */}
+      {activeSection === "detectorSettings" && <AlcoholDetectorSettingsPanel />}
     </div>
   );
 }
@@ -2804,6 +2819,7 @@ function AlcoholCheckSpreadsheetsPanel() {
   const [newSpreadsheetId, setNewSpreadsheetId] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
+  const [previewSheetId, setPreviewSheetId] = useState<string | null>(null);
 
   const upsertMutation = trpc.attendance.upsertSpreadsheet.useMutation({
     onSuccess: () => {
@@ -3008,6 +3024,19 @@ function AlcoholCheckSpreadsheetsPanel() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewSheetId(previewSheetId === sheet.spreadsheetId ? null : sheet.spreadsheetId)}
+                        className={cn(
+                          "p-1.5 rounded-lg transition-colors text-xs font-medium px-2 py-1 h-7",
+                          previewSheetId === sheet.spreadsheetId
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+                        )}
+                        title="アプリ内でプレビュー"
+                      >
+                        {previewSheetId === sheet.spreadsheetId ? "閉じる" : "プレビュー"}
+                      </button>
                       <a
                         href={`https://docs.google.com/spreadsheets/d/${sheet.spreadsheetId}`}
                         target="_blank"
@@ -3031,6 +3060,29 @@ function AlcoholCheckSpreadsheetsPanel() {
                       </button>
                     </div>
                   </CardContent>
+                  {/* iframeプレビュー */}
+                  {previewSheetId === sheet.spreadsheetId && (
+                    <div className="border-t border-border">
+                      <div className="p-2 bg-muted/30 flex items-center justify-between">
+                        <p className="text-xs text-muted-foreground">スプレッドシートプレビュー（編集はGoogleスプレッドシートで行ってください）</p>
+                        <a
+                          href={`https://docs.google.com/spreadsheets/d/${sheet.spreadsheetId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary hover:underline flex items-center gap-1"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          別タブで開く
+                        </a>
+                      </div>
+                      <iframe
+                        src={`https://docs.google.com/spreadsheets/d/${sheet.spreadsheetId}/htmlview?rm=minimal`}
+                        className="w-full h-96 border-0"
+                        title={`${sheet.year}年${sheet.month}月 アルコールチェック記録`}
+                        sandbox="allow-scripts allow-same-origin allow-popups"
+                      />
+                    </div>
+                  )}
                 </Card>
               );
             })}
@@ -3191,6 +3243,285 @@ function AlcoholCheckCsvExportPanel() {
             <p className="text-xs text-muted-foreground leading-relaxed">
               実施日時・区分・氏名・ナンバープレート・出勤打刻・退勤打刻・確認方法・検知器使用・酒気帯有無・確認者・残業時間・残業理由・連絡先・人数・備考・登録日時
             </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ============================
+// アルコール検知器設定パネル
+// ============================
+function AlcoholDetectorSettingsPanel() {
+  const utils = trpc.useUtils();
+  const { data: detectors, isLoading } = trpc.alcoholDetector.getAll.useQuery();
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newModelNumber, setNewModelNumber] = useState("");
+  const [newManufacturer, setNewManufacturer] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editModelNumber, setEditModelNumber] = useState("");
+  const [editManufacturer, setEditManufacturer] = useState("");
+
+  const createMutation = trpc.alcoholDetector.create.useMutation({
+    onSuccess: () => {
+      utils.alcoholDetector.getAll.invalidate();
+      utils.alcoholDetector.getActive.invalidate();
+      toast.success("検知器を登録しました");
+      setNewName("");
+      setNewModelNumber("");
+      setNewManufacturer("");
+      setShowAddForm(false);
+    },
+    onError: (e) => toast.error(`登録に失敗しました: ${e.message}`),
+  });
+
+  const updateMutation = trpc.alcoholDetector.update.useMutation({
+    onSuccess: () => {
+      utils.alcoholDetector.getAll.invalidate();
+      utils.alcoholDetector.getActive.invalidate();
+      toast.success("更新しました");
+      setEditingId(null);
+    },
+    onError: (e) => toast.error(`更新に失敗しました: ${e.message}`),
+  });
+
+  const deleteMutation = trpc.alcoholDetector.delete.useMutation({
+    onSuccess: () => {
+      utils.alcoholDetector.getAll.invalidate();
+      utils.alcoholDetector.getActive.invalidate();
+      toast.success("削除しました");
+    },
+    onError: (e) => toast.error(`削除に失敗しました: ${e.message}`),
+  });
+
+  const handleAdd = () => {
+    if (!newName.trim()) { toast.error("検知器名を入力してください"); return; }
+    createMutation.mutate({
+      name: newName.trim(),
+      modelNumber: newModelNumber.trim() || undefined,
+      manufacturer: newManufacturer.trim() || undefined,
+      isActive: 1,
+      sortOrder: 0,
+    });
+  };
+
+  const startEdit = (d: { id: number; name: string; modelNumber: string | null; manufacturer: string | null }) => {
+    setEditingId(d.id);
+    setEditName(d.name);
+    setEditModelNumber(d.modelNumber ?? "");
+    setEditManufacturer(d.manufacturer ?? "");
+  };
+
+  const handleUpdate = (id: number) => {
+    if (!editName.trim()) { toast.error("検知器名を入力してください"); return; }
+    updateMutation.mutate({
+      id,
+      name: editName.trim(),
+      modelNumber: editModelNumber.trim() || null,
+      manufacturer: editManufacturer.trim() || null,
+    });
+  };
+
+  const handleToggleActive = (d: { id: number; isActive: number }) => {
+    updateMutation.mutate({ id: d.id, isActive: d.isActive === 1 ? 0 : 1 });
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* ヘッダー */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-bold text-foreground">アルコール検知器設定</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            登録した検知器はアルコールチェック記録フォームのプルダウンに表示されます。
+          </p>
+        </div>
+        <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => setShowAddForm((v) => !v)}>
+          <Plus className="w-3.5 h-3.5" />
+          新規登録
+        </Button>
+      </div>
+
+      {/* 新規登録フォーム */}
+      {showAddForm && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="pt-4 pb-4 space-y-3">
+            <p className="text-sm font-semibold text-foreground">新規検知器登録</p>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">検知器名 <span className="text-destructive">*</span></label>
+              <input
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="例: ライオン社製 SD-400"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">型番（任意）</label>
+                <input
+                  type="text"
+                  value={newModelNumber}
+                  onChange={(e) => setNewModelNumber(e.target.value)}
+                  placeholder="例: SD-400"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">メーカー（任意）</label>
+                <input
+                  type="text"
+                  value={newManufacturer}
+                  onChange={(e) => setNewManufacturer(e.target.value)}
+                  placeholder="例: ライオン株式会社"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button
+                size="sm"
+                className="h-8 text-xs"
+                onClick={handleAdd}
+                disabled={createMutation.isPending || !newName.trim()}
+              >
+                {createMutation.isPending ? "登録中..." : "登録する"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => { setShowAddForm(false); setNewName(""); setNewModelNumber(""); setNewManufacturer(""); }}
+              >
+                キャンセル
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 登録済み検知器一覧 */}
+      {isLoading ? (
+        <div className="text-sm text-muted-foreground py-8 text-center">読み込み中...</div>
+      ) : !detectors || detectors.length === 0 ? (
+        <Card>
+          <CardContent className="py-10 text-center">
+            <Settings className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">まだ検知器が登録されていません</p>
+            <p className="text-xs text-muted-foreground mt-1">「新規登録」から検知器を追加してください</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          {detectors.map((d) => (
+            <Card key={d.id} className={cn("transition-colors", !d.isActive && "opacity-60")}>
+              <CardContent className="py-3 px-4">
+                {editingId === d.id ? (
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      placeholder="検知器名"
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={editModelNumber}
+                        onChange={(e) => setEditModelNumber(e.target.value)}
+                        placeholder="型番（任意）"
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                      <input
+                        type="text"
+                        value={editManufacturer}
+                        onChange={(e) => setEditManufacturer(e.target.value)}
+                        placeholder="メーカー（任意）"
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" className="h-7 text-xs" onClick={() => handleUpdate(d.id)} disabled={updateMutation.isPending}>
+                        {updateMutation.isPending ? "保存中..." : "保存"}
+                      </Button>
+                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setEditingId(null)}>
+                        キャンセル
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-semibold text-foreground">{d.name}</span>
+                        {d.isActive ? (
+                          <Badge className="text-xs bg-emerald-100 text-emerald-700 border-0 px-1.5 py-0">有効</Badge>
+                        ) : (
+                          <Badge className="text-xs bg-gray-100 text-gray-500 border-0 px-1.5 py-0">無効</Badge>
+                        )}
+                      </div>
+                      {(d.modelNumber || d.manufacturer) && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {[d.manufacturer, d.modelNumber].filter(Boolean).join(" / ")}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleActive(d)}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                        title={d.isActive ? "無効にする" : "有効にする"}
+                      >
+                        {d.isActive ? <ShieldCheck className="w-4 h-4 text-emerald-500" /> : <Shield className="w-4 h-4" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => startEdit(d)}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                        title="編集"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm(`「${d.name}」を削除しますか？`)) {
+                            deleteMutation.mutate({ id: d.id });
+                          }
+                        }}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        title="削除"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* 注意書き */}
+      <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
+        <CardContent className="py-3 px-4">
+          <div className="flex gap-2 text-xs text-blue-700 dark:text-blue-400">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-semibold">検知器の型番について</p>
+              <p className="text-blue-600/80 dark:text-blue-400/70">
+                登録した検知器はアルコールチェック記録フォームのプルダウンに表示されます。
+                「無効」にした検知器はプルダウンに表示されなくなりますが、記録は保持されます。
+                検知器が1台も登録されていない場合は、フォームに自由入力欄が表示されます。
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
