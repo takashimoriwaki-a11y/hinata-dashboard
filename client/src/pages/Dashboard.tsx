@@ -2305,10 +2305,8 @@ function LinkRow({ href, label, color, colorStyle, emoji, onAddToMyLinks, isInMy
     }
   };
 
-  // colorStyle が渡された場合、昼モードでは暗い文字色、夜モードでは元の colorStyle を使う
-  const resolvedStyle: React.CSSProperties = colorStyle
-    ? (isNight ? colorStyle : {})
-    : {};
+  // colorStyle が渡された場合、昼夜モード両方でチームカラーを適用する
+  const resolvedStyle: React.CSSProperties = colorStyle ? colorStyle : {};
 
   return (
     <div className="flex items-center gap-1">
@@ -2322,10 +2320,10 @@ function LinkRow({ href, label, color, colorStyle, emoji, onAddToMyLinks, isInMy
           "flex-1 flex items-center gap-2 text-sm py-2.5 px-3 rounded-md min-w-0",
           "bg-muted/50 hover:bg-muted transition-all duration-200 font-medium hover:-translate-y-0.5 hover:shadow-sm active:scale-95 select-none",
           isOpening ? "opacity-60 cursor-wait" : "",
-          // colorStyleがある場合: 昼は text-foreground、夜は colorStyle（インラインスタイル）
+          // colorStyleがある場合: 昼夜両方ともインラインスタイルで色を適用（Tailwindクラスは不要）
           // colorStyleがない場合: Tailwindクラスで色を適用（後方互換）
           colorStyle
-            ? (!isNight ? "text-foreground" : "")
+            ? ""
             : (isNight ? (nightColor ?? "text-foreground") : (color ?? "text-foreground")),
         )}
         style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', ...resolvedStyle }}
@@ -2481,13 +2479,9 @@ function SheetSubTabs({ quickLinks, isAdmin = false }: { quickLinks: { id: numbe
                   </div>
                 </div>
               ) : (
-                <button
-                  onClick={() => setShowAddSourceForm(true)}
-                  className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 py-1 px-2 rounded-md hover:bg-muted/40 transition-colors w-full text-left mt-1"
-                >
-                  <span className="text-base leading-none">+</span>
-                  <span>ソースを追加</span>
-                </button>
+                <div className="flex justify-end">
+                  <Button variant="ghost" size="sm" className="h-6 text-xs text-primary px-2" onClick={() => setShowAddSourceForm(true)}>+ 追加</Button>
+                </div>
               )}
             </>
           )}
@@ -2496,18 +2490,44 @@ function SheetSubTabs({ quickLinks, isAdmin = false }: { quickLinks: { id: numbe
 
       {/* その他タブ: quickAccessLinksから取得 */}
       {subTab === "other" && (
-        otherLinks.length > 0
-          ? otherLinks.map((link) => (
-              <LinkRow
-                key={link.id}
-                href={link.href}
-                label={link.label}
-                colorStyle={{ color: "white" }}
-                emoji={link.emoji || undefined}
-
-              />
-            ))
-          : <p className="text-xs text-muted-foreground text-center py-3">その他のリンクはまだありません</p>
+        <div className="space-y-1.5">
+          {otherLinks.length > 0
+            ? otherLinks.map((link) => (
+                <LinkRow
+                  key={link.id}
+                  href={link.href}
+                  label={link.label}
+                  colorStyle={{ color: "white" }}
+                  emoji={link.emoji || undefined}
+                />
+              ))
+            : <p className="text-xs text-muted-foreground text-center py-3">その他のリンクはまだありません</p>
+          }
+          {isAdmin && (
+            <div className="flex justify-end">
+              <Button variant="ghost" size="sm" className="h-6 text-xs text-primary px-2" onClick={() => setShowAddSourceForm(true)}>+ 追加</Button>
+            </div>
+          )}
+          {isAdmin && showAddSourceForm && (
+            <div className="flex flex-col gap-1.5 p-2 bg-muted/30 rounded-md mt-1">
+              <div className="flex gap-1">
+                <input value={newSourceEmoji} onChange={e => setNewSourceEmoji(e.target.value)} className="w-10 text-center border rounded px-1 py-1 text-sm bg-background" placeholder="📁" />
+                <input value={newSourceLabel} onChange={e => setNewSourceLabel(e.target.value)} className="flex-1 border rounded px-2 py-1 text-sm bg-background" placeholder="ラベル" />
+              </div>
+              <input value={newSourceUrl} onChange={e => setNewSourceUrl(e.target.value)} className="border rounded px-2 py-1 text-sm bg-background" placeholder="https://..." />
+              <div className="flex gap-1 justify-end">
+                <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => { setShowAddSourceForm(false); setNewSourceLabel(""); setNewSourceUrl(""); setNewSourceEmoji("📁"); }}>キャンセル</Button>
+                <Button size="sm" className="h-6 text-xs" onClick={() => {
+                  if (!newSourceLabel.trim() || !newSourceUrl.trim()) { toast.error("ラベルとURLを入力してください"); return; }
+                  const now = new Date();
+                  const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+                  const linkKey = `custom_sheet_other_${Date.now()}`;
+                  upsertLink.mutate({ linkKey, label: newSourceLabel.trim(), yearMonth, url: newSourceUrl.trim(), displayTarget: "other" });
+                }} disabled={upsertLink.isPending}>追加</Button>
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
@@ -3095,6 +3115,16 @@ function TeamToolsCard() {
         <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
           <Users className="w-5 h-5 text-primary" />
           <span className="tracking-wide">チームツール</span>
+          {isAdmin && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="ml-auto h-7 text-xs px-2 border-primary text-primary hover:bg-primary hover:text-white"
+              onClick={() => setShowAddForm((v) => !v)}
+            >
+              {showAddForm ? "キャンセル" : "追加"}
+            </Button>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
