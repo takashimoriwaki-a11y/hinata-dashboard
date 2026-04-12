@@ -1594,3 +1594,83 @@ export async function getTodayAttendance(userId: number): Promise<AttendanceLog[
     .where(and(eqOp(attendanceLogs.userId, userId), gte(attendanceLogs.clockedAt, startMs), lte(attendanceLogs.clockedAt, endMs)))
     .orderBy(attendanceLogs.clockedAt);
 }
+
+// ============================================================
+// AI共有プロンプト
+// ============================================================
+import { sharedPrompts } from "../drizzle/schema";
+import type { SharedPrompt } from "../drizzle/schema";
+
+/** 全プロンプト一覧（削除済み除く）を取得する */
+export async function getSharedPrompts(): Promise<SharedPrompt[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(sharedPrompts)
+    .where(eq(sharedPrompts.isDeleted, 0))
+    .orderBy(desc(sharedPrompts.createdAt));
+}
+
+/** プロンプトを新規作成する */
+export async function createSharedPrompt(data: {
+  title: string;
+  body: string;
+  aiTool: string;
+  category?: string;
+  createdBy: number;
+  createdByName: string;
+}): Promise<SharedPrompt> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(sharedPrompts).values({
+    title: data.title,
+    body: data.body,
+    aiTool: data.aiTool,
+    category: data.category ?? null,
+    createdBy: data.createdBy,
+    createdByName: data.createdByName,
+    isDeleted: 0,
+  });
+  const insertId = (result as any)[0]?.insertId;
+  const [row] = await db
+    .select()
+    .from(sharedPrompts)
+    .where(eq(sharedPrompts.id, insertId));
+  return row;
+}
+
+/** プロンプトを更新する */
+export async function updateSharedPrompt(
+  id: number,
+  data: {
+    title: string;
+    body: string;
+    aiTool: string;
+    category?: string;
+    updatedByName: string;
+  }
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(sharedPrompts)
+    .set({
+      title: data.title,
+      body: data.body,
+      aiTool: data.aiTool,
+      category: data.category ?? null,
+      updatedByName: data.updatedByName,
+    })
+    .where(eq(sharedPrompts.id, id));
+}
+
+/** プロンプトを論理削除する */
+export async function deleteSharedPrompt(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(sharedPrompts)
+    .set({ isDeleted: 1 })
+    .where(eq(sharedPrompts.id, id));
+}

@@ -34,6 +34,7 @@ import {
   Star,
   Sun,
   Moon,
+  Sparkles,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
@@ -56,6 +57,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import TeamGoalsTicker from "./TeamGoalsTicker";
+import AISharedPromptsModal from "./AISharedPromptsModal";
 import { TeamSetupModal } from "./TeamSetupModal";
 import { WelcomeModal } from "./WelcomeModal";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -149,6 +151,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { isSubscribed, isLoading: pushLoading, subscribe, unsubscribe, permission: pushPermission } = usePushNotification();
   const [notifDialogOpen, setNotifDialogOpen] = useState(false);
   const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>("all");
+  const [showAIPromptsModal, setShowAIPromptsModal] = useState(false);
 
   // 初回チーム設定モーダル
   const { data: myProfile } = trpc.userSettings.getMyProfile.useQuery(undefined, {
@@ -303,6 +306,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </Link>
           );
         })}
+
+        {/* AI共有プロンプトボタン */}
+        <button
+          onClick={() => setShowAIPromptsModal(true)}
+          title={(collapsed && !mobile) ? "AI共有プロンプト" : undefined}
+          className={cn(
+            "w-full flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
+            "text-sm font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30",
+            (collapsed && !mobile) ? "justify-center px-0 w-auto" : "px-3 w-[calc(100%-1rem)]"
+          )}
+        >
+          <Sparkles className="w-5 h-5 flex-shrink-0" />
+          {(!collapsed || mobile) && <span className="truncate">AI共有</span>}
+        </button>
 
         {(!collapsed || mobile) && (
           <p className="px-4 text-xs font-semibold text-sidebar-foreground/65 uppercase tracking-wider mt-4 mb-1">
@@ -564,8 +581,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           onClose={() => setWelcomeTeam(null)}
         />
 
-        {/* ========== ボトムナビゲーションバー（モバイル・PC共通） ========== */}
-        <nav className={cn(
+        {/* AI共有プロンプトモーダル */}
+        <AISharedPromptsModal
+          open={showAIPromptsModal}
+          onClose={() => setShowAIPromptsModal(false)}
+        />
+
+        {/* ========== ボトムナビゲーションバー（モバイル・ PC共通） ========== */}        <nav className={cn(
           "fixed bottom-0 left-0 right-0 z-50 border-t border-sidebar-border bottom-nav-safe bg-sidebar",
           isNight ? "shadow-[0_-2px_12px_rgba(0,0,0,0.3)]" : "shadow-[0_-2px_12px_rgba(0,0,0,0.08)]"
         )}>

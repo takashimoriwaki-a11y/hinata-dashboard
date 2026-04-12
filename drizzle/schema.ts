@@ -671,3 +671,31 @@ export const attendanceLogs = mysqlTable("attendance_logs", {
 });
 export type AttendanceLog = typeof attendanceLogs.$inferSelect;
 export type InsertAttendanceLog = typeof attendanceLogs.$inferInsert;
+
+/**
+ * AI共有プロンプトテーブル
+ * 全職員が共有・コピー・追加・修正できるプロンプト集
+ */
+export const sharedPrompts = mysqlTable("shared_prompts", {
+  id: int("id").autoincrement().primaryKey(),
+  /** プロンプトのタイトル */
+  title: varchar("title", { length: 200 }).notNull(),
+  /** プロンプト本文 */
+  body: text("body").notNull(),
+  /** 対象AIツール（例: Gemini, Gem, NotebookLM, その他） */
+  aiTool: varchar("aiTool", { length: 100 }).notNull().default("Gemini"),
+  /** カテゴリ（任意） */
+  category: varchar("category", { length: 100 }),
+  /** 作成者ユーザーID */
+  createdBy: int("createdBy").notNull(),
+  /** 作成者名 */
+  createdByName: varchar("createdByName", { length: 100 }).notNull(),
+  /** 最終更新者名 */
+  updatedByName: varchar("updatedByName", { length: 100 }),
+  /** 削除フラグ */
+  isDeleted: tinyint("isDeleted").notNull().default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type SharedPrompt = typeof sharedPrompts.$inferSelect;
+export type InsertSharedPrompt = typeof sharedPrompts.$inferInsert;

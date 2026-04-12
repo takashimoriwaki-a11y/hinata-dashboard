@@ -94,6 +94,10 @@ import {
   deleteTeamGoal,
   clockAttendance,
   getTodayAttendance,
+  getSharedPrompts,
+  createSharedPrompt,
+  updateSharedPrompt,
+  deleteSharedPrompt,
 } from "./db";
 import { storagePut } from "./storage";
 import { eq } from "drizzle-orm";
@@ -3640,6 +3644,61 @@ export const appRouter = router({
     today: protectedProcedure
       .query(async ({ ctx }) => {
         return getTodayAttendance(ctx.user.id);
+      }),
+  }),
+  // ============================================================
+  // AI共有プロンプト
+  // ============================================================
+  sharedPrompts: router({
+    /** 全プロンプト一覧を取得する */
+    getAll: protectedProcedure
+      .query(async () => {
+        return getSharedPrompts();
+      }),
+    /** プロンプトを新規作成する */
+    create: protectedProcedure
+      .input(z.object({
+        title: z.string().min(1).max(200),
+        body: z.string().min(1),
+        aiTool: z.string().min(1).max(100),
+        category: z.string().max(100).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const prompt = await createSharedPrompt({
+          title: input.title,
+          body: input.body,
+          aiTool: input.aiTool,
+          category: input.category,
+          createdBy: ctx.user.id,
+          createdByName: ctx.user.name ?? "不明",
+        });
+        return { success: true, prompt };
+      }),
+    /** プロンプトを更新する */
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().min(1).max(200),
+        body: z.string().min(1),
+        aiTool: z.string().min(1).max(100),
+        category: z.string().max(100).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await updateSharedPrompt(input.id, {
+          title: input.title,
+          body: input.body,
+          aiTool: input.aiTool,
+          category: input.category,
+          updatedByName: ctx.user.name ?? "不明",
+        });
+        return { success: true };
+      }),
+    /** プロンプトを削除する */
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await deleteSharedPrompt(input.id);
+        return { success: true };
       }),
   }),
 });
