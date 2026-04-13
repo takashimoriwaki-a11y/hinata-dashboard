@@ -1495,7 +1495,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       >
         {/* ヘッダー */}
         <div
-          className={`px-5 py-4 flex items-center justify-between flex-shrink-0 rounded-t-2xl sm:rounded-t-2xl ${
+          className={`sticky top-0 z-10 px-5 py-4 flex items-center justify-between flex-shrink-0 rounded-t-2xl sm:rounded-t-2xl ${
             isClockIn
               ? "bg-gradient-to-r from-red-500 to-rose-600"
               : "bg-gradient-to-r from-blue-500 to-indigo-600"
