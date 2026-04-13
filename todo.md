@@ -2240,4 +2240,10 @@
 ## チームツールリンク文字色統一（2026-04-13）
 - [x] LinkRowコンポーネントのresolvedStyleを修正し、昧モードでもcolorStyleを適用する
 - [x] 全チーム共通ツール（TeamToolsCard）の各チームリンクがバッジ色と統一されることを確認
+- [x] チェックポイント保存
+
+## 退勤時確認エラー修正（2026-04-13）
+- [x] アルコールチェック記録エラー修正：DBのdrivingPurpose enumに"commute"を追加（ALTER TABLE直接適用）
+- [x] 残業申請エラー修正：overtimeApprovals.alcoholCheckIdをNOT NULL→NULL許容に変更（ALTER TABLE直接適用）
+- [x] DB直接SQLで両方の修正を適用完了
 - [ ] チェックポイント保存

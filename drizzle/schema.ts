@@ -752,8 +752,8 @@ export const alcoholChecks = mysqlTable("alcohol_checks", {
   alcoholMeasuredValue: varchar("alcoholMeasuredValue", { length: 10 }),
   /** 検知器の種類・型番（自由入力） */
   detectorType: varchar("detectorType", { length: 100 }),
-  /** 運転目的: visit=業務訪問, transport=送迎, errand=物品購入, other=その他 */
-  drivingPurpose: mysqlEnum("drivingPurpose", ["visit", "transport", "errand", "other"]).default("visit"),
+  /** 運転目的: commute=通勤, visit=業務訪問, transport=送迎, errand=物品購入, other=その他 */
+  drivingPurpose: mysqlEnum("drivingPurpose", ["commute", "visit", "transport", "errand", "other"]).default("visit"),
   /** 同乗者有無 */
   hasPassenger: tinyint("hasPassenger").default(0),
   /** 同乗者人数（hasPassenger=1 の場合） */

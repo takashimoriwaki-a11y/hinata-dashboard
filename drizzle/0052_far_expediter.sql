@@ -1,0 +1,1 @@
+ALTER TABLE `alcohol_checks` MODIFY COLUMN `drivingPurpose` enum('commute','visit','transport','errand','other') DEFAULT 'visit';
