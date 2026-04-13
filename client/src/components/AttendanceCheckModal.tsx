@@ -266,17 +266,9 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
   // モーダルが開いている間、bodyのスクロールをロックする
   useEffect(() => {
-    const scrollY = window.scrollY;
     document.body.style.overflow = "hidden";
-    document.body.style.position = "fixed";
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = "100%";
     return () => {
       document.body.style.overflow = "";
-      document.body.style.position = "";
-      document.body.style.top = "";
-      document.body.style.width = "";
-      window.scrollTo(0, scrollY);
     };
   }, []);
 
@@ -1490,7 +1482,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       </AlertDialogContent>
     </AlertDialog>
 
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto">
       {/* 背景オーバーレイ */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -1498,8 +1490,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       />
       {/* モーダル本体 */}
       <div
-        className="relative w-full sm:max-w-md mx-0 sm:mx-4 bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col"
-        style={{ maxHeight: "min(92dvh, 92vh)" }}
+        className="relative w-full sm:max-w-md mx-0 sm:mx-4 mt-0 sm:mt-4 mb-0 bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col"
+        style={{ maxHeight: "min(100dvh, 100vh)", minHeight: "min(92dvh, 92vh)" }}
       >
         {/* ヘッダー */}
         <div
