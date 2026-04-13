@@ -4368,6 +4368,26 @@ export const appRouter = router({
         const { getAllTimesheetSpreadsheets } = await import("./db");
         return getAllTimesheetSpreadsheets();
       }),
+    /** 当月の業務日報URLを取得する（全スタッフ共通、出退勤画面用） */
+    getCurrentMonthUrl: protectedProcedure
+      .query(async ({ }) => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
+        const { getTimesheetSpreadsheets } = await import("./db");
+        const sheets = await getTimesheetSpreadsheets(year, month);
+        if (sheets.length > 0) {
+          return { url: sheets[0].spreadsheetUrl, found: true };
+        }
+        // 当月がなければフォールバックとして前月を検索
+        const prevMonth = month === 1 ? 12 : month - 1;
+        const prevYear = month === 1 ? year - 1 : year;
+        const prevSheets = await getTimesheetSpreadsheets(prevYear, prevMonth);
+        if (prevSheets.length > 0) {
+          return { url: prevSheets[0].spreadsheetUrl, found: false };
+        }
+        return { url: null, found: false };
+      }),
     /** 月別スプレッドシートを取得する */
     getByMonth: protectedProcedure
       .input(z.object({ year: z.number().int(), month: z.number().int().min(1).max(12) }))

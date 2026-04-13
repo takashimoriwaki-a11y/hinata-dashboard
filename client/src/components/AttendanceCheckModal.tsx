@@ -138,9 +138,24 @@ interface SavedState {
 
 export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutChecklistUrl, isEmergency }: AttendanceCheckModalProps) {
   const isClockIn = type === "clock_in";
-  const steps = isClockIn ? CLOCK_IN_STEPS : CLOCK_OUT_STEPS;
   const { user } = useAuth();
   const utils = trpc.useUtils();
+
+  // 当月の業務日報URLをDBから取得（出勤画面のみ使用）
+  const { data: currentMonthSheet } = trpc.timesheet.getCurrentMonthUrl.useQuery(
+    undefined,
+    { enabled: isClockIn }
+  );
+
+  // 当月URLが取得できた場合は業務日報リンクを差し替える
+  const steps = isClockIn
+    ? CLOCK_IN_STEPS.map((step) => {
+        if (step.id === "daily_report_in" && currentMonthSheet?.url) {
+          return { ...step, link: { ...step.link!, url: currentMonthSheet.url } };
+        }
+        return step;
+      })
+    : CLOCK_OUT_STEPS;
 
   // 事務員はアルコールチェックが任意
   const isOfficeStaff = (user as any)?.team === "事務員";
@@ -183,7 +198,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   const [confirmerName, setConfirmerName] = useState("森脇崇");
   const [notes, setNotes] = useState("");
   // 追加項目（測定値・検知器種類・運転目的・同乗者・体調）
-  const [alcoholMeasuredValue, setAlcoholMeasuredValue] = useState("");
+  const [alcoholMeasuredValue, setAlcoholMeasuredValue] = useState("0.00");
   const [detectorType, setDetectorType] = useState("");
   // 検知器一覧（DB登録済みのプルダウン用）
   const { data: detectors = [] } = trpc.alcoholDetector.getActive.useQuery();
@@ -752,7 +767,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">測定値（mg/L）</label>
-              <button type="button" onClick={() => setAlcoholMeasuredValue("")} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
+              <button type="button" onClick={() => setAlcoholMeasuredValue("0.00")} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
             </div>
             <div className="relative">
               <select
