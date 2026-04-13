@@ -936,23 +936,45 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   // NOTE: 上記の `)}` は `{alcoholSkipped && !alcoholRecorded ? (…) : (…)}` の閉じタグ
   const overtimeCard = (
     <div className="mx-3 my-2 rounded-xl border-2 border-purple-200 dark:border-purple-800 overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setHasOvertime((v) => !v)}
-        className={`w-full flex items-center justify-between px-4 py-3 text-sm font-semibold transition-colors ${
-          hasOvertime
-            ? "bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300"
-            : "bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-750"
-        }`}
-      >
-        <div className="flex items-center gap-2">
-          <Clock className="w-4 h-4" />
-          残業申請
-        </div>
-        <div className={`w-10 h-5 rounded-full transition-colors flex items-center px-0.5 ${hasOvertime ? "bg-purple-500" : "bg-gray-300 dark:bg-gray-600"}`}>
-          <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${hasOvertime ? "translate-x-5" : "translate-x-0"}`} />
-        </div>
-      </button>
+      <div className={`flex items-center ${hasOvertime ? "bg-purple-50 dark:bg-purple-950/30" : "bg-gray-50 dark:bg-gray-800"}`}>
+        <button
+          type="button"
+          onClick={() => setHasOvertime((v) => !v)}
+          className={`flex-1 flex items-center justify-between px-4 py-3 text-sm font-semibold transition-colors ${
+            hasOvertime
+              ? "text-purple-700 dark:text-purple-300"
+              : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-750"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4" />
+            残業申請
+          </div>
+          <div className={`w-10 h-5 rounded-full transition-colors flex items-center px-0.5 ${hasOvertime ? "bg-purple-500" : "bg-gray-300 dark:bg-gray-600"}`}>
+            <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${hasOvertime ? "translate-x-5" : "translate-x-0"}`} />
+          </div>
+        </button>
+        {hasOvertime && !overtimeSubmitted && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOvertimeStartHour(17);
+              setOvertimeStartMinute(0);
+              setOvertimeEndHour(openedAt.getHours());
+              setOvertimeEndMinute(floorToTenMinutes(openedAt));
+              setOvertimeReasonType("");
+              setOvertimeContactTarget("");
+              setOvertimeRecordCount(1);
+              setOvertimeFreeText("");
+            }}
+            className="flex items-center gap-1 mr-3 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-800/50 transition-colors whitespace-nowrap"
+          >
+            <RefreshCw className="w-3 h-3" />
+            全リセット
+          </button>
+        )}
+      </div>
 
       {hasOvertime && (
         <div className="px-4 pb-4 pt-3 space-y-3 bg-white dark:bg-gray-900">
