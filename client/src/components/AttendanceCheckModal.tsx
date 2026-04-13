@@ -161,6 +161,9 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   // 退勤打刻済みフラグ
   const [clockOutDone, setClockOutDone] = useState(savedState?.clockOutDone ?? false);
 
+  // 緊急打刻時の備考
+  const [emergencyNote, setEmergencyNote] = useState("");
+
   // ── アルコールチェック フォーム状態 ──
   const [numberPlate, setNumberPlate] = useState("");
   // 退勤時はデフォルトで「対面」、出勤時は「オンライン画面」
@@ -408,7 +411,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   // 打刻のみ実行
   const handleClockOnly = () => {
     if (clockMutation.isPending) return;
-    clockMutation.mutate({ type });
+    clockMutation.mutate({
+      type,
+      emergencyNote: isEmergency && emergencyNote.trim() ? emergencyNote.trim() : undefined,
+    });
   };
 
   // アルコールチェック記録のみ実行
@@ -1193,6 +1199,24 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           className="overflow-y-auto flex-1 py-2"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
+          {/* 緊急打刻時の備考入力フォーム */}
+          {isEmergency && (
+            <div className="mx-3 my-2 p-3 rounded-xl border border-orange-300 dark:border-orange-600 bg-orange-50 dark:bg-orange-950/30">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-orange-600 dark:text-orange-400 text-sm font-semibold">⚠️ 緊急訪問備考</span>
+                <span className="text-xs text-orange-500 dark:text-orange-400">（任意）</span>
+              </div>
+              <textarea
+                value={emergencyNote}
+                onChange={(e) => setEmergencyNote(e.target.value)}
+                placeholder="緊急訪問の理由や内容を入力してください（例：○○様の状態悪化による緊急訪問）"
+                className="w-full text-sm rounded-lg border border-orange-200 dark:border-orange-700 bg-white dark:bg-gray-800 text-foreground px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-orange-400"
+                rows={3}
+                maxLength={500}
+              />
+              <div className="text-right text-xs text-muted-foreground mt-1">{emergencyNote.length}/500</div>
+            </div>
+          )}
           {isClockIn ? (
             // ── 出勤画面レイアウト：手順チェック → アルコールチェック ──
             <>

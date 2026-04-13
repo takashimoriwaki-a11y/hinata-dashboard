@@ -1591,6 +1591,7 @@ export async function clockAttendance(data: {
   userId: number;
   userName: string;
   clockedAt: number;
+  emergencyNote?: string | null;
 }): Promise<AttendanceLog> {
   const db = await getDb();
   if (!db) throw new Error("DB not available");

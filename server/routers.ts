@@ -145,6 +145,8 @@ async function appendTimesheetToSheet(record: {
   userName: string;
   numberPlate?: string | null;
   locationAddress?: string | null;
+  /** 緊急打刻時の備考（緊急訪問の理由など） */
+  emergencyNote?: string | null;
 }, spreadsheetId: string): Promise<void> {
   try {
     const auth = new google.auth.GoogleAuth({
@@ -161,6 +163,10 @@ async function appendTimesheetToSheet(record: {
     const dateStr = new Date(record.clockedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" });
     const timeStr = toJSTStr(record.clockedAt);
     const timestampStr = new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" });
+    // 緊急打刻の場合は区分に「緊急」プレフィックスを付ける
+    const isEmergency = !!record.emergencyNote;
+    const displayTypeLabel = isEmergency ? `緊急${typeLabel}` : typeLabel;
+    const noteStr = record.emergencyNote ?? "";
     // 職員名タブの確認・作成
     const tabName = record.userName;
     const spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId });
@@ -175,7 +181,7 @@ async function appendTimesheetToSheet(record: {
         spreadsheetId,
         range: `${tabName}!A1:H1`,
         valueInputOption: "USER_ENTERED",
-        requestBody: { values: [["日付", "打刻日時", "区分", "氏名", "ナンバープレート", "位置情報", "備考", "登録日時"]] },
+        requestBody: { values: [["日付", "打刻日時", "区分", "氏名", "ナンバープレート", "位置情報", "備考（緊急理由）", "登録日時"]] },
       });
     }
     await sheets.spreadsheets.values.append({
@@ -183,7 +189,7 @@ async function appendTimesheetToSheet(record: {
       range: `${tabName}!A:H`,
       valueInputOption: "USER_ENTERED",
       requestBody: {
-        values: [[dateStr, timeStr, typeLabel, record.userName, record.numberPlate ?? "", record.locationAddress ?? "", "", timestampStr]],
+        values: [[dateStr, timeStr, displayTypeLabel, record.userName, record.numberPlate ?? "", record.locationAddress ?? "", noteStr, timestampStr]],
       },
     });
   } catch (err) {
@@ -205,6 +211,8 @@ async function appendOvertimeToSheet(record: {
   adjustedStartAt?: number | null;
   adjustedEndAt?: number | null;
   approverComment?: string | null;
+  /** trueの場合、既存行を検索して上書き更新する（承認・却下時） */
+  updateExisting?: boolean;
 }, spreadsheetId: string): Promise<void> {
   try {
     const auth = new google.auth.GoogleAuth({
@@ -237,13 +245,43 @@ async function appendOvertimeToSheet(record: {
         requestBody: { values: [["申請日", "申請者", "申請開始時刻", "申請終了時刻", "申請理由", "ステータス", "承認者", "承認日時", "承認開始時刻", "承認終了時刻", "承認者コメント", "転記日時"]] },
       });
     }
+    const newRow = [record.applicationDate, record.applicantName, toJSTStr(record.requestedStartAt), toJSTStr(record.requestedEndAt), record.requestedReason ?? "", statusLabel, record.approverName ?? "", toJSTStr(record.approvedAt), toJSTStr(record.adjustedStartAt), toJSTStr(record.adjustedEndAt), record.approverComment ?? "", timestampStr];
+    if (record.updateExisting) {
+      // 既存行を検索して上書き更新する
+      const existingData = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: `${tabName}!A:L`,
+      });
+      const rows = existingData.data.values ?? [];
+      // 申請日（A列）と申請者（B列）と申請開始時刻（C列）が一致する行を検索
+      const reqStartStr = toJSTStr(record.requestedStartAt);
+      let targetRowIndex = -1;
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (row[0] === record.applicationDate && row[1] === record.applicantName && row[2] === reqStartStr) {
+          targetRowIndex = i + 1; // 1-indexed
+          break;
+        }
+      }
+      if (targetRowIndex > 0) {
+        // 既存行を上書き
+        await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `${tabName}!A${targetRowIndex}:L${targetRowIndex}`,
+          valueInputOption: "USER_ENTERED",
+          requestBody: { values: [newRow] },
+        });
+        console.log(`[Overtime] Updated row ${targetRowIndex} in ${tabName}`);
+        return;
+      }
+      // 既存行が見つからない場合は新規追記
+      console.warn(`[Overtime] Existing row not found for ${record.applicationDate}/${record.applicantName}, appending new row`);
+    }
     await sheets.spreadsheets.values.append({
       spreadsheetId,
       range: `${tabName}!A:L`,
       valueInputOption: "USER_ENTERED",
-      requestBody: {
-        values: [[record.applicationDate, record.applicantName, toJSTStr(record.requestedStartAt), toJSTStr(record.requestedEndAt), record.requestedReason ?? "", statusLabel, record.approverName ?? "", toJSTStr(record.approvedAt), toJSTStr(record.adjustedStartAt), toJSTStr(record.adjustedEndAt), record.approverComment ?? "", timestampStr]],
-      },
+      requestBody: { values: [newRow] },
     });
   } catch (err) {
     console.error("[Overtime] Failed to append to sheet:", err);
@@ -3921,6 +3959,8 @@ export const appRouter = router({
         type: z.enum(["clock_in", "clock_out"]),
         numberPlate: z.string().max(20).optional(),
         locationAddress: z.string().optional(),
+        /** 緊急打刻時の備考（緊急訪問の理由など） */
+        emergencyNote: z.string().max(500).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const now = Date.now();
@@ -3929,6 +3969,7 @@ export const appRouter = router({
           userId: ctx.user.id,
           userName: ctx.user.name ?? "不明",
           clockedAt: now,
+          emergencyNote: input.emergencyNote ?? null,
         });
         // 出退勤スプレッドシートへ転記（非同期・失敗しても打刻は成功扱い）
         const jstDate = new Date(now + 9 * 60 * 60 * 1000);
@@ -3947,6 +3988,7 @@ export const appRouter = router({
               userName: ctx.user.name ?? "不明",
               numberPlate: input.numberPlate ?? null,
               locationAddress: input.locationAddress ?? null,
+              emergencyNote: input.emergencyNote ?? null,
             }, sheet.spreadsheetUrl).catch((err) => {
               console.error("[Timesheet] Sheet sync failed:", err);
             });
@@ -4418,6 +4460,7 @@ export const appRouter = router({
               adjustedStartAt: input.adjustedStartAt ?? null,
               adjustedEndAt: input.adjustedEndAt ?? null,
               approverComment: input.approverComment ?? null,
+              updateExisting: true, // 承認・却下時は既存行を上書き更新
             }, sheet.spreadsheetUrl).catch((err) => {
               console.error("[Overtime] Sheet sync failed:", err);
             });

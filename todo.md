@@ -2154,3 +2154,15 @@
   - [x] isEmergency時はlocalStorageの完了フラグを無視して新規打刻を許可
   - [x] 緊急出勤・緊急退勤ボタンをウェルカムバナーに追加（退勤後または出勤前の再打刻が必要な場合に表示）
   - [x] 緊急打刻も既存のappendTimesheetToSheet関数で指定スプレッドシートに転記
+
+## 残業承認後スプレッドシート自動更新 / 緊急打刻備考入力（2026-04-13）
+
+- [x] 残業スプレッドシートの承認後自動更新
+  - [x] appendOvertimeToSheet関数を「更新」モード対応に拡張（既存行の上書き）
+  - [x] overtime.approve プロシージャで承認・却下後にシート転記を呼び出す
+  - [x] updateExisting: true で既存行を上書き更新
+- [x] 緊急打刻の備考入力機能
+  - [x] attendance.clock プロシージャに emergencyNote フィールドを追加
+  - [x] AttendanceCheckModal に緊急打刻時の備考入力フォームを追加
+  - [x] appendTimesheetToSheet 関数の備考列に emergencyNote を転記
+  - [x] Dashboard.tsx の緊急打刻ボタンから備考を渡せるよう対応

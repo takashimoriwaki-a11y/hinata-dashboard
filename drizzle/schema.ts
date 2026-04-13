@@ -669,6 +669,8 @@ export const attendanceLogs = mysqlTable("attendance_logs", {
   userName: varchar("userName", { length: 100 }).notNull(),
   /** 打刻日時（UTC ms） */
   clockedAt: bigint("clockedAt", { mode: "number" }).notNull(),
+  /** 緊急打刻時の備考（緊急訪問の理由など） */
+  emergencyNote: varchar("emergencyNote", { length: 500 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 export type AttendanceLog = typeof attendanceLogs.$inferSelect;
