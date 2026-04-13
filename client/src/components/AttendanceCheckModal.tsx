@@ -29,6 +29,16 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
 import { DAILY_REPORT_SPREADSHEET_ID } from "@/lib/spreadsheetLinks";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // 出勤・退勤の手順ステップ定義
 interface ClockInStep {
@@ -336,6 +346,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   // ── ミューテーション ──
   // 残業申請専用 mutation
   const [overtimeSubmitted, setOvertimeSubmitted] = useState(false);
+  const [showOvertimeConfirm, setShowOvertimeConfirm] = useState(false);
   const overtimeMutation = trpc.overtime.create.useMutation({
     onSuccess: () => {
       toast.success("残業申請を送信しました");
@@ -365,6 +376,11 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       toast.error("残業理由の詳細を入力してください");
       return;
     }
+    // バリデーション通過後、確認ダイアログを表示
+    setShowOvertimeConfirm(true);
+  };
+
+  const handleOvertimeConfirm = () => {
     const today = new Date();
     const applicationDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
     overtimeMutation.mutate({
@@ -373,6 +389,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       requestedEndAt: toTodayMs(overtimeEndHour, overtimeEndMinute),
       requestedReason: buildOvertimeReason(),
     });
+    setShowOvertimeConfirm(false);
   };
 
   // 打刻専用 mutation
@@ -449,6 +466,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     clockMutation.mutate({
       type,
       emergencyNote: isEmergency && emergencyNote.trim() ? emergencyNote.trim() : undefined,
+      drivingPurpose: drivingPurpose ?? undefined,
+      alcoholMeasuredValue: (detectorUsed && alcoholMeasuredValue.trim()) ? alcoholMeasuredValue.trim() : undefined,
     });
   };
 
@@ -1226,6 +1245,57 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   };
 
   return (
+    <>
+    {/* 残業申請確認ダイアログ */}
+    <AlertDialog open={showOvertimeConfirm} onOpenChange={setShowOvertimeConfirm}>
+      <AlertDialogContent className="max-w-sm mx-4">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <Clock className="w-5 h-5 text-purple-500" />
+            残業申請の確認
+          </AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-3 text-sm">
+              <p className="text-muted-foreground">以下の内容で残業申請を送信します。よろしいですか？</p>
+              <div className="bg-purple-50 dark:bg-purple-950/30 rounded-xl p-3 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">申請日</span>
+                  <span className="font-medium text-foreground">
+                    {new Date().toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric" })}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">残業開始</span>
+                  <span className="font-medium text-foreground">
+                    {String(overtimeStartHour).padStart(2, "0")}:{String(overtimeStartMinute).padStart(2, "0")}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">残業終了</span>
+                  <span className="font-medium text-foreground">
+                    {String(overtimeEndHour).padStart(2, "0")}:{String(overtimeEndMinute).padStart(2, "0")}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">理由</span>
+                  <span className="font-medium text-foreground text-right max-w-[180px]">{buildOvertimeReason()}</span>
+                </div>
+              </div>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>キャンセル</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleOvertimeConfirm}
+            className="bg-purple-500 hover:bg-purple-600 text-white"
+          >
+            申請する
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       {/* 背景オーバーレイ */}
       <div
@@ -1481,5 +1551,6 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         )}
       </div>
     </div>
+    </>
   );
 }

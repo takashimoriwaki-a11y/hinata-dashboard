@@ -148,6 +148,10 @@ async function appendTimesheetToSheet(record: {
   locationAddress?: string | null;
   /** 緊急打刻時の備考（緊急訪問の理由など） */
   emergencyNote?: string | null;
+  /** 運転目的 */
+  drivingPurpose?: string | null;
+  /** アルコール測定値 */
+  alcoholMeasuredValue?: string | null;
 }, spreadsheetId: string): Promise<void> {
   try {
     const auth = new google.auth.GoogleAuth({
@@ -168,6 +172,17 @@ async function appendTimesheetToSheet(record: {
     const isEmergency = !!record.emergencyNote;
     const displayTypeLabel = isEmergency ? `緊急${typeLabel}` : typeLabel;
     const noteStr = record.emergencyNote ?? "";
+    // 運転目的ラベル変換
+    const drivingPurposeLabel = (() => {
+      switch (record.drivingPurpose) {
+        case "commute": return "通勤";
+        case "visit": return "業務訪問";
+        case "transport": return "送迎";
+        case "errand": return "物品購入";
+        case "other": return "その他";
+        default: return record.drivingPurpose ?? "";
+      }
+    })();
     // 職員名タブの確認・作成
     const tabName = record.userName;
     const spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId });
@@ -180,17 +195,17 @@ async function appendTimesheetToSheet(record: {
       });
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `${tabName}!A1:H1`,
+        range: `${tabName}!A1:J1`,
         valueInputOption: "USER_ENTERED",
-        requestBody: { values: [["日付", "打刻日時", "区分", "氏名", "ナンバープレート", "位置情報", "備考（緊急理由）", "登録日時"]] },
+        requestBody: { values: [["日付", "打刻日時", "区分", "氏名", "ナンバープレート", "位置情報", "備考（緊急理由）", "運転目的", "アルコール測定値(mg/L)", "登録日時"]] },
       });
     }
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: `${tabName}!A:H`,
+      range: `${tabName}!A:J`,
       valueInputOption: "USER_ENTERED",
       requestBody: {
-        values: [[dateStr, timeStr, displayTypeLabel, record.userName, record.numberPlate ?? "", record.locationAddress ?? "", noteStr, timestampStr]],
+        values: [[dateStr, timeStr, displayTypeLabel, record.userName, record.numberPlate ?? "", record.locationAddress ?? "", noteStr, drivingPurposeLabel, record.alcoholMeasuredValue ?? "", timestampStr]],
       },
     });
   } catch (err) {
@@ -3962,6 +3977,10 @@ export const appRouter = router({
         locationAddress: z.string().optional(),
         /** 緊急打刻時の備考（緊急訪問の理由など） */
         emergencyNote: z.string().max(500).optional(),
+        /** 運転目的 */
+        drivingPurpose: z.enum(["commute", "visit", "transport", "errand", "other"]).optional(),
+        /** アルコール測定値 */
+        alcoholMeasuredValue: z.string().max(10).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const now = Date.now();
@@ -3990,6 +4009,8 @@ export const appRouter = router({
               numberPlate: input.numberPlate ?? null,
               locationAddress: input.locationAddress ?? null,
               emergencyNote: input.emergencyNote ?? null,
+              drivingPurpose: input.drivingPurpose ?? null,
+              alcoholMeasuredValue: input.alcoholMeasuredValue ?? null,
             }, sheet.spreadsheetUrl).catch((err) => {
               console.error("[Timesheet] Sheet sync failed:", err);
             });
