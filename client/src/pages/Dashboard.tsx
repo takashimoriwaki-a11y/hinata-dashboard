@@ -2306,11 +2306,9 @@ function LinkRow({ href, label, color, colorStyle, emoji, onAddToMyLinks, isInMy
     }
   };
 
-  // colorStyle が渡された場合、昼夜モードに応じて色を切り替える
-  // 昼モード: text-foreground（ダーク系テキスト）、夜モード: white
-  const resolvedStyle: React.CSSProperties = colorStyle
-    ? (isNight ? colorStyle : {})
-    : {};
+  // colorStyle が渡された場合、昇夜モード共にチームカラーを適用する
+  // 昇モード: colorStyle（チームの昇色）、夜モード: colorStyle（チームの夜色）
+  const resolvedStyle: React.CSSProperties = colorStyle ? colorStyle : {};
 
   return (
     <div className="flex items-center gap-1">
@@ -2324,10 +2322,10 @@ function LinkRow({ href, label, color, colorStyle, emoji, onAddToMyLinks, isInMy
           "flex-1 flex items-center gap-2 text-sm py-2.5 px-3 rounded-md min-w-0",
           "bg-muted/50 hover:bg-muted transition-all duration-200 font-medium hover:-translate-y-0.5 hover:shadow-sm active:scale-95 select-none",
           isOpening ? "opacity-60 cursor-wait" : "",
-          // colorStyleがある場合: 夜モードはインラインスタイルで白色、昼モードはtext-foreground
-          // colorStyleがない場合: Tailwindクラスで色を適用（後方互換）
+          // colorStyleがある場合: 昇夜モード共にインラインスタイルに任せる（Tailwindクラスで色を上書きしない）
+          // colorStyleがない場合: Tailwindクラスで色を適用（後方互换）
           colorStyle
-            ? (!isNight ? "text-foreground" : "")
+            ? ""
             : (isNight ? (nightColor ?? "text-foreground") : (color ?? "text-foreground")),
         )}
         style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', ...resolvedStyle }}
