@@ -1364,45 +1364,96 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <Clock className="w-5 h-5 text-purple-500" />
-            残業申請の確認
+            残業申請 — 送信前確認
           </AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div className="space-y-3 text-sm">
-              <p className="text-muted-foreground">以下の内容で残業申請を送信します。よろしいですか？</p>
+              <p className="text-muted-foreground text-xs">以下の内容で残業申請を送信します。内容をご確認ください。</p>
+
+              {/* 申請者・日付バッジ */}
+              <div className="flex items-center justify-between bg-purple-50 dark:bg-purple-950/30 rounded-xl px-3 py-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">申請者</span>
+                  <span className="text-xs font-semibold text-foreground">{user?.name ?? "—"}</span>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {new Date().toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric" })}
+                </span>
+              </div>
+
+              {/* 時刻・残業時間 */}
               <div className="bg-purple-50 dark:bg-purple-950/30 rounded-xl p-3 space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">申請日</span>
-                  <span className="font-medium text-foreground">
-                    {new Date().toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric" })}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">残業開始</span>
-                  <span className="font-medium text-foreground">
+                {/* 時刻行 */}
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">残業時間帯</span>
+                  <span className="font-semibold text-foreground tabular-nums">
                     {String(overtimeStartHour).padStart(2, "0")}:{String(overtimeStartMinute).padStart(2, "0")}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">残業終了</span>
-                  <span className="font-medium text-foreground">
+                    {" 〜 "}
                     {String(overtimeEndHour).padStart(2, "0")}:{String(overtimeEndMinute).padStart(2, "0")}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">理由</span>
-                  <span className="font-medium text-foreground text-right max-w-[180px]">{buildOvertimeReason()}</span>
+                {/* 合計時間 */}
+                {(() => {
+                  const startMins = overtimeStartHour * 60 + overtimeStartMinute;
+                  const endMins = overtimeEndHour * 60 + overtimeEndMinute;
+                  const diffMins = endMins - startMins;
+                  if (diffMins > 0) {
+                    const h = Math.floor(diffMins / 60);
+                    const m = diffMins % 60;
+                    return (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">合計時間</span>
+                        <span className="font-semibold text-purple-600 dark:text-purple-400 tabular-nums">
+                          {h > 0 ? `${h}時間` : ""}{m > 0 ? `${m}分` : ""}
+                        </span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+                {/* 区切り線 */}
+                <div className="border-t border-purple-200 dark:border-purple-800 pt-2 mt-1" />
+                {/* 理由 */}
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-muted-foreground flex-shrink-0">残業理由</span>
+                  <span className="font-medium text-foreground text-right">{buildOvertimeReason()}</span>
                 </div>
+                {/* 連絡先（支援者・家族連絡の場合） */}
+                {(overtimeReasonType === "支援者連絡" || overtimeReasonType === "家族連絡") && overtimeContactTarget && (
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-muted-foreground flex-shrink-0">連絡先</span>
+                    <span className="font-medium text-foreground text-right">{overtimeContactTarget}</span>
+                  </div>
+                )}
+                {/* 人数（記録書系の場合） */}
+                {["記録書Ⅱ作成", "月次報告書作成", "状態報告書作成"].includes(overtimeReasonType) && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">対象人数</span>
+                    <span className="font-medium text-foreground">{overtimeRecordCount}人分</span>
+                  </div>
+                )}
+                {/* 自由記述（その他の場合） */}
+                {overtimeReasonType === "その他" && overtimeFreeText && (
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-muted-foreground flex-shrink-0">詳細</span>
+                    <span className="font-medium text-foreground text-right">{overtimeFreeText}</span>
+                  </div>
+                )}
               </div>
+
+              <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded-lg px-3 py-2">
+                ⚠️ 送信後は内容を変更できません。内容をよく確認してから申請してください。
+              </p>
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>キャンセル</AlertDialogCancel>
+          <AlertDialogCancel>修正する</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleOvertimeConfirm}
             className="bg-purple-500 hover:bg-purple-600 text-white"
           >
-            申請する
+            この内容で申請する
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
