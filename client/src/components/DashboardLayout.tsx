@@ -312,9 +312,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           onClick={() => setShowAIPromptsModal(true)}
           title={(collapsed && !mobile) ? "AI共有プロンプト" : undefined}
           className={cn(
-            "w-full flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
-            "text-sm font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30",
-            (collapsed && !mobile) ? "justify-center px-0 w-auto" : "px-3 w-[calc(100%-1rem)]"
+            "flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
+            "text-sm font-medium text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+            (collapsed && !mobile) ? "justify-center px-0" : "px-3 w-[calc(100%-1rem)]"
           )}
         >
           <Sparkles className="w-5 h-5 flex-shrink-0" />
