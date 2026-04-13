@@ -347,6 +347,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   // 残業申請専用 mutation
   const [overtimeSubmitted, setOvertimeSubmitted] = useState(false);
   const [showOvertimeConfirm, setShowOvertimeConfirm] = useState(false);
+  // 全リセット確認ダイアログ
+  const [showOvertimeResetConfirm, setShowOvertimeResetConfirm] = useState(false);
+  // アルコールチェック全リセット確認ダイアログ
+  const [showAlcoholResetConfirm, setShowAlcoholResetConfirm] = useState(false);
   const overtimeMutation = trpc.overtime.create.useMutation({
     onSuccess: () => {
       toast.success("残業申請を送信しました");
@@ -565,6 +569,21 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             <span className="text-xs text-gray-500 dark:text-gray-400 font-normal">(任意)</span>
           )}
         </div>
+        {/* 全リセットボタン（未記録時のみ表示） */}
+        {!alcoholRecorded && !alcoholSkipped && (
+          <button
+            type="button"
+            onClick={() => setShowAlcoholResetConfirm(true)}
+            className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
+              isClockIn
+                ? "bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 hover:bg-orange-200 dark:hover:bg-orange-800/50"
+                : "bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-200 dark:hover:bg-cyan-800/50"
+            }`}
+          >
+            <RefreshCw className="w-3 h-3" />
+            全リセット
+          </button>
+        )}
         {/* 事務員向けスキップボタン */}
         {isOfficeStaff && !alcoholRecorded && (
           <button
@@ -946,11 +965,17 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
               : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-750"
           }`}
         >
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4" />
-            残業申請
+          <div className="flex items-center gap-2 min-w-0">
+            <Clock className="w-4 h-4 flex-shrink-0" />
+            <span className="flex-shrink-0">残業申請</span>
+            {/* トグルオフ時に入力内容プレビューを表示 */}
+            {!hasOvertime && overtimeReasonType && (
+              <span className="text-xs text-purple-600 dark:text-purple-400 font-normal truncate ml-1">
+                {String(overtimeStartHour).padStart(2, "0")}:{String(overtimeStartMinute).padStart(2, "0")}〜{String(overtimeEndHour).padStart(2, "0")}:{String(overtimeEndMinute).padStart(2, "0")} / {buildOvertimeReason()}
+              </span>
+            )}
           </div>
-          <div className={`w-10 h-5 rounded-full transition-colors flex items-center px-0.5 ${hasOvertime ? "bg-purple-500" : "bg-gray-300 dark:bg-gray-600"}`}>
+          <div className={`w-10 h-5 rounded-full transition-colors flex items-center px-0.5 flex-shrink-0 ${hasOvertime ? "bg-purple-500" : "bg-gray-300 dark:bg-gray-600"}`}>
             <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${hasOvertime ? "translate-x-5" : "translate-x-0"}`} />
           </div>
         </button>
@@ -959,14 +984,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              setOvertimeStartHour(17);
-              setOvertimeStartMinute(0);
-              setOvertimeEndHour(openedAt.getHours());
-              setOvertimeEndMinute(floorToTenMinutes(openedAt));
-              setOvertimeReasonType("");
-              setOvertimeContactTarget("");
-              setOvertimeRecordCount(1);
-              setOvertimeFreeText("");
+              setShowOvertimeResetConfirm(true);
             }}
             className="flex items-center gap-1 mr-3 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-800/50 transition-colors whitespace-nowrap"
           >
@@ -1267,6 +1285,79 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
   return (
     <>
+    {/* 残業申請全リセット確認ダイアログ */}
+    <AlertDialog open={showOvertimeResetConfirm} onOpenChange={setShowOvertimeResetConfirm}>
+      <AlertDialogContent className="max-w-sm mx-4">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <RefreshCw className="w-5 h-5 text-purple-500" />
+            入力内容のリセット
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            残業申請の全ての入力内容をリセットします。よろしいですか？
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>キャンセル</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              setOvertimeStartHour(17);
+              setOvertimeStartMinute(0);
+              setOvertimeEndHour(openedAt.getHours());
+              setOvertimeEndMinute(floorToTenMinutes(openedAt));
+              setOvertimeReasonType("");
+              setOvertimeContactTarget("");
+              setOvertimeRecordCount(1);
+              setOvertimeFreeText("");
+              setShowOvertimeResetConfirm(false);
+            }}
+            className="bg-purple-500 hover:bg-purple-600 text-white"
+          >
+            リセットする
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    {/* アルコールチェック全リセット確認ダイアログ */}
+    <AlertDialog open={showAlcoholResetConfirm} onOpenChange={setShowAlcoholResetConfirm}>
+      <AlertDialogContent className="max-w-sm mx-4">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <RefreshCw className={`w-5 h-5 ${isClockIn ? "text-orange-500" : "text-cyan-500"}`} />
+            入力内容のリセット
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            アルコールチェックの全ての入力内容をリセットします。よろしいですか？
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>キャンセル</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              setNumberPlate((user as any)?.numberPlate ?? "");
+              setConfirmMethod(isClockIn ? "online" : "face");
+              setDetectorUsed(true);
+              setAlcoholDetected(false);
+              setConfirmerName("森脇崇");
+              setNotes("");
+              setAlcoholMeasuredValue("");
+              setDetectorType("");
+              setDrivingPurpose(isClockIn ? "visit" : "commute");
+              setHasPassenger(false);
+              setPassengerCount(1);
+              setPhysicalCondition("good");
+              setPhysicalConditionNote("");
+              setShowAlcoholResetConfirm(false);
+            }}
+            className={isClockIn ? "bg-orange-500 hover:bg-orange-600 text-white" : "bg-cyan-500 hover:bg-cyan-600 text-white"}
+          >
+            リセットする
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
     {/* 残業申請確認ダイアログ */}
     <AlertDialog open={showOvertimeConfirm} onOpenChange={setShowOvertimeConfirm}>
       <AlertDialogContent className="max-w-sm mx-4">
