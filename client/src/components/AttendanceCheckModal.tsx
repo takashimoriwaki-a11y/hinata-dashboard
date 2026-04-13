@@ -599,10 +599,13 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       <div className="px-4 py-4 space-y-4 bg-white dark:bg-gray-900">
         {/* ナンバープレート */}
         <div>
-          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-            <Car className="w-3.5 h-3.5 inline mr-1 mb-0.5" />
-            ナンバープレート {!isOfficeStaff && <span className="text-red-500">*</span>}{isOfficeStaff && <span className="text-xs text-gray-400 font-normal ml-1">(任意)</span>}
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+              <Car className="w-3.5 h-3.5 inline mr-1 mb-0.5" />
+              ナンバープレート {!isOfficeStaff && <span className="text-red-500">*</span>}{isOfficeStaff && <span className="text-xs text-gray-400 font-normal ml-1">(任意)</span>}
+            </label>
+            <button type="button" onClick={() => setNumberPlate((user as any)?.numberPlate ?? "")} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
+          </div>
           <input
             type="text"
             value={numberPlate}
@@ -659,9 +662,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
         {/* 確認方法 */}
         <div>
-          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-            確認方法
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">確認方法</label>
+            <button type="button" onClick={() => setConfirmMethod(isClockIn ? "online" : "face")} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
+          </div>
           <div className="flex gap-2">
             {(["online", "face"] as const).map((method) => (
               <button
@@ -684,9 +688,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
         {/* 検知器使用 */}
         <div>
-          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-            検知器使用
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">検知器使用</label>
+            <button type="button" onClick={() => { setDetectorUsed(true); setAlcoholMeasuredValue(""); }} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
+          </div>
           <div className="flex gap-2">
             {([true, false] as const).map((used) => (
               <button
@@ -710,9 +715,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         {/* 測定値（検知器使用時のみ） */}
         {detectorUsed && (
           <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-              測定値（mg/L）
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">測定値（mg/L）</label>
+              <button type="button" onClick={() => setAlcoholMeasuredValue("")} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
+            </div>
             <div className="relative">
               <select
                 value={alcoholMeasuredValue}
@@ -744,9 +750,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
         {/* 酒気帯び有無 */}
         <div>
-          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-            酒気帯び
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">酒気帯び</label>
+            <button type="button" onClick={() => setAlcoholDetected(false)} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
+          </div>
           <div className="flex gap-2">
             {([false, true] as const).map((detected) => (
               <button
@@ -776,9 +783,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
         {/* 確認者 */}
         <div>
-          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-            確認者（安全運転管理者）
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">確認者（安全運転管理者）</label>
+            <button type="button" onClick={() => setConfirmerName("森脇崇")} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
+          </div>
           <div className="relative">
             <select
               value={confirmerName}
@@ -794,9 +802,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
         {/* 運転目的 */}
         <div>
-          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-            運転目的
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">運転目的</label>
+            <button type="button" onClick={() => setDrivingPurpose(isClockIn ? "visit" : "commute")} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
+          </div>
           <div className="grid grid-cols-2 gap-2">
             {([
               { value: "commute", label: "通勤" },
@@ -825,9 +834,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
         {/* 同乗者の有無 */}
         <div>
-          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-            同乗者
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">同乗者</label>
+            <button type="button" onClick={() => { setHasPassenger(false); setPassengerCount(1); }} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
+          </div>
           <div className="flex gap-2">
             {([false, true] as const).map((val) => (
               <button
@@ -863,9 +873,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
         {/* 体調確認 */}
         <div>
-          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-            体調確認
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">体調確認</label>
+            <button type="button" onClick={() => { setPhysicalCondition("good"); setPhysicalConditionNote(""); }} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
+          </div>
           <div className="flex gap-2">
             {(["good", "poor"] as const).map((val) => (
               <button
@@ -904,9 +915,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
         {/* 備考 */}
         <div>
-          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-            備考（任意）
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">備考（任意）</label>
+            <button type="button" onClick={() => setNotes("")} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
+          </div>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
@@ -946,10 +958,13 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         <div className="px-4 pb-4 pt-3 space-y-3 bg-white dark:bg-gray-900">
           {/* 残業開始時刻 */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-              残業開始時刻
-              <span className="text-gray-400 font-normal ml-1">（デフォルト: 17:00）</span>
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                残業開始時刻
+                <span className="text-gray-400 font-normal ml-1">（デフォルト: 17:00）</span>
+              </label>
+              <button type="button" onClick={() => { setOvertimeStartHour(17); setOvertimeStartMinute(0); }} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
+            </div>
             <div className="flex gap-2 items-center">
               <div className="relative flex-1">
                 <select
@@ -980,10 +995,13 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
           {/* 残業終了時刻 */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-              残業終了時刻
-              <span className="text-gray-400 font-normal ml-1">（画面を開いた時刻から自動取得）</span>
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                残業終了時刻
+                <span className="text-gray-400 font-normal ml-1">（画面を開いた時刻から自動取得）</span>
+              </label>
+              <button type="button" onClick={() => { setOvertimeEndHour(openedAt.getHours()); setOvertimeEndMinute(floorToTenMinutes(openedAt)); }} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
+            </div>
             <div className="flex gap-2 items-center">
               <div className="relative flex-1">
                 <select
@@ -1014,9 +1032,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
           {/* 残業理由プリセット */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-              残業理由 <span className="text-red-500">*</span>
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">残業理由 <span className="text-red-500">*</span></label>
+              <button type="button" onClick={() => { setOvertimeReasonType(""); setOvertimeContactTarget(""); setOvertimeRecordCount(1); setOvertimeFreeText(""); }} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
+            </div>
             <div className="grid grid-cols-2 gap-1.5">
               {["訪問看護実施", "支援者連絡", "家族連絡", "記録書Ⅱ作成", "月次報告書作成", "状態報告書作成", "その他"].map((reason) => (
                 <button
