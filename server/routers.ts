@@ -84,6 +84,7 @@ async function appendAlcoholCheckToSheet(record: {
     // 運転目的ラベル変換
     const drivingPurposeLabel = (() => {
       switch (record.drivingPurpose) {
+        case "commute": return "通勤";
         case "visit": return "業務訪問";
         case "transport": return "送迎";
         case "errand": return "物品購入";
@@ -4024,7 +4025,7 @@ export const appRouter = router({
         // 追加項目
         alcoholMeasuredValue: z.string().max(10).optional(),
         detectorType: z.string().max(100).optional(),
-        drivingPurpose: z.enum(["visit", "transport", "errand", "other"]).optional(),
+        drivingPurpose: z.enum(["commute", "visit", "transport", "errand", "other"]).optional(),
         hasPassenger: z.boolean().optional(),
         passengerCount: z.number().int().min(1).optional(),
         physicalCondition: z.enum(["good", "poor"]).optional(),

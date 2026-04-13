@@ -73,7 +73,7 @@ const CLOCK_OUT_STEPS: ClockInStep[] = [
   {
     id: "mimamodrive_out",
     label: "自宅到着時にみまもドライブを停止",
-    description: "自宅に到着したらみまもドライブを停止する",
+    description: "自宅到着時に日報を確定して",
     link: {
       url: "https://mimamodrive.tokiomarine-smartmobility.co.jp/index.html",
       label: "みまもドライブを開く",
@@ -177,7 +177,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   const [detectorType, setDetectorType] = useState("");
   // 検知器一覧（DB登録済みのプルダウン用）
   const { data: detectors = [] } = trpc.alcoholDetector.getActive.useQuery();
-  const [drivingPurpose, setDrivingPurpose] = useState<"visit" | "transport" | "errand" | "other">("visit");
+  const [drivingPurpose, setDrivingPurpose] = useState<"commute" | "visit" | "transport" | "errand" | "other">("commute");
   const [hasPassenger, setHasPassenger] = useState(false);
   const [passengerCount, setPassengerCount] = useState(1);
   const [physicalCondition, setPhysicalCondition] = useState<"good" | "poor">("good");
@@ -334,6 +334,47 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   };
 
   // ── ミューテーション ──
+  // 残業申請専用 mutation
+  const [overtimeSubmitted, setOvertimeSubmitted] = useState(false);
+  const overtimeMutation = trpc.overtime.create.useMutation({
+    onSuccess: () => {
+      toast.success("残業申請を送信しました");
+      setOvertimeSubmitted(true);
+      void utils.overtime.getMine.invalidate();
+    },
+    onError: (e) => {
+      toast.error(`残業申請に失敗しました: ${e.message}`);
+    },
+  });
+
+  const handleOvertimeSubmit = () => {
+    if (!hasOvertime) return;
+    if (!overtimeReasonType) {
+      toast.error("残業理由を選択してください");
+      return;
+    }
+    if (overtimeReasonType === "支援者連絡" && !overtimeContactTarget.trim()) {
+      toast.error("連絡先を入力してください");
+      return;
+    }
+    if (overtimeReasonType === "家族連絡" && !overtimeContactTarget.trim()) {
+      toast.error("連絡先を入力してください");
+      return;
+    }
+    if (overtimeReasonType === "その他" && !overtimeFreeText.trim()) {
+      toast.error("残業理由の詳細を入力してください");
+      return;
+    }
+    const today = new Date();
+    const applicationDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    overtimeMutation.mutate({
+      applicationDate,
+      requestedStartAt: toTodayMs(overtimeStartHour, overtimeStartMinute),
+      requestedEndAt: toTodayMs(overtimeEndHour, overtimeEndMinute),
+      requestedReason: buildOvertimeReason(),
+    });
+  };
+
   // 打刻専用 mutation
   const clockMutation = trpc.attendance.clock.useMutation({
     onSuccess: () => {
@@ -368,29 +409,23 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   // 業務日報リンクを開く
   const openDailyReport = async (step: ClockInStep) => {
     if (!step.link) return;
+    // まず直接URLでウィンドウを開く（ポップアップブロック対策）
+    const targetUrl = step.link.url;
+    const newWindow = window.open(targetUrl, "_blank", "noopener,noreferrer");
+    setDone((prev) => ({ ...prev, [step.id]: true }));
     setOpeningStepId(step.id);
-    const newWindow = window.open("about:blank", "_blank");
     try {
+      // バックグラウンドでgidを取得し、取得できたら既存ウィンドウのURLを更新
       const result = await utils.spreadsheetLinks.getDailyReportSheetGid.fetch();
-      const url =
-        result.gid !== null
-          ? `https://docs.google.com/spreadsheets/d/${DAILY_REPORT_SPREADSHEET_ID}/edit#gid=${result.gid}`
-          : step.link.url;
-      if (newWindow) {
-        newWindow.location.href = url;
-      } else {
-        window.open(url, "_blank", "noopener,noreferrer");
+      if (result.gid !== null && newWindow && !newWindow.closed) {
+        const gidUrl = `https://docs.google.com/spreadsheets/d/${DAILY_REPORT_SPREADSHEET_ID}/edit#gid=${result.gid}`;
+        newWindow.location.href = gidUrl;
       }
     } catch {
-      if (newWindow) {
-        newWindow.location.href = step.link.url;
-      } else {
-        window.open(step.link.url, "_blank", "noopener,noreferrer");
-      }
+      // gid取得失敗時はデフォルトURLのまま（既に開いているので問題なし）
     } finally {
       setOpeningStepId(null);
     }
-    setDone((prev) => ({ ...prev, [step.id]: true }));
   };
 
   const openLink = (step: ClockInStep) => {
@@ -648,13 +683,20 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
               測定値（mg/L）
             </label>
-            <input
-              type="text"
-              value={alcoholMeasuredValue}
-              onChange={(e) => setAlcoholMeasuredValue(e.target.value)}
-              placeholder="例: 0.00"
-              className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-400"
-            />
+            <div className="relative">
+              <select
+                value={alcoholMeasuredValue}
+                onChange={(e) => setAlcoholMeasuredValue(e.target.value)}
+                className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-400 appearance-none pr-8"
+              >
+                <option value="">— 選択してください —</option>
+                {Array.from({ length: 26 }, (_, i) => (i * 0.01).toFixed(2)).map((v) => (
+                  <option key={v} value={v}>{v} mg/L</option>
+                ))}
+                <option value="0.26">検知（要報告）</option>
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            </div>
           </div>
         )}
 
@@ -758,6 +800,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           </label>
           <div className="grid grid-cols-2 gap-2">
             {([
+              { value: "commute", label: "通勤" },
               { value: "visit", label: "業務訪問" },
               { value: "transport", label: "送迎" },
               { value: "errand", label: "物品購入" },
@@ -1047,7 +1090,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                   onChange={(e) => setOvertimeRecordCount(Number(e.target.value))}
                   className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-purple-400 appearance-none pr-8"
                 >
-                  {Array.from({ length: 30 }, (_, i) => i + 1).map((n) => (
+                  {Array.from({ length: 7 }, (_, i) => i + 1).map((n) => (
                     <option key={n} value={n}>{n}人分</option>
                   ))}
                 </select>
@@ -1072,6 +1115,35 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
               />
             </div>
           )}
+
+          {/* 残業申請「申請」ボタン */}
+          <button
+            type="button"
+            disabled={overtimeMutation.isPending || overtimeSubmitted || !overtimeReasonType}
+            onClick={handleOvertimeSubmit}
+            className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all shadow-md active:scale-95 disabled:cursor-not-allowed ${
+              overtimeSubmitted
+                ? "bg-green-500 opacity-80"
+                : "bg-purple-500 hover:bg-purple-600 disabled:opacity-50"
+            }`}
+          >
+            {overtimeMutation.isPending ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                申請中...
+              </>
+            ) : overtimeSubmitted ? (
+              <>
+                <CheckCircle2 className="w-4 h-4" />
+                申請済み
+              </>
+            ) : (
+              <>
+                <Clock className="w-4 h-4" />
+                申請
+              </>
+            )}
+          </button>
         </div>
       )}
     </div>
