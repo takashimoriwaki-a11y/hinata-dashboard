@@ -1482,16 +1482,16 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       </AlertDialogContent>
     </AlertDialog>
 
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto">
-      {/* 背景オーバーレイ */}
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      {/* 胍景オーバーレイ */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
       {/* モーダル本体 */}
+      <div className="relative flex items-start justify-center min-h-full">
       <div
-        className="relative w-full sm:max-w-md mx-0 sm:mx-4 mt-0 sm:mt-4 mb-0 bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col"
-        style={{ maxHeight: "min(100dvh, 100vh)", minHeight: "min(92dvh, 92vh)" }}
+        className="relative w-full sm:max-w-md mx-0 sm:mx-4 mt-0 sm:mt-4 mb-4 bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col"
       >
         {/* ヘッダー */}
         <div
@@ -1522,11 +1522,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           </button>
         </div>
 
-        {/* スクロール可能なコンテンツ */}
-        <div
-          className="overflow-y-auto flex-1 py-2"
-          style={{ WebkitOverflowScrolling: "touch" }}
-        >
+        {/* コンテンツ */}
+        <div className="py-2">
           {/* 緊急打刻時の備考入力フォーム */}
           {isEmergency && (
             <div className="mx-3 my-2 p-3 rounded-xl border border-orange-300 dark:border-orange-600 bg-orange-50 dark:bg-orange-950/30">
@@ -1735,6 +1732,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             </button>
           </div>
         )}
+      </div>
       </div>
     </div>
     </>
