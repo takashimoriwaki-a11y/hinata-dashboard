@@ -187,7 +187,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   const [detectorType, setDetectorType] = useState("");
   // 検知器一覧（DB登録済みのプルダウン用）
   const { data: detectors = [] } = trpc.alcoholDetector.getActive.useQuery();
-  const [drivingPurpose, setDrivingPurpose] = useState<"commute" | "visit" | "transport" | "errand" | "other">("commute");
+  const [drivingPurpose, setDrivingPurpose] = useState<"commute" | "visit" | "transport" | "errand" | "other">(isClockIn ? "visit" : "commute");
   const [hasPassenger, setHasPassenger] = useState(false);
   const [passengerCount, setPassengerCount] = useState(1);
   const [physicalCondition, setPhysicalCondition] = useState<"good" | "poor">("good");
@@ -437,9 +437,20 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       if (result.gid !== null && newWindow && !newWindow.closed) {
         const gidUrl = `https://docs.google.com/spreadsheets/d/${DAILY_REPORT_SPREADSHEET_ID}/edit#gid=${result.gid}`;
         newWindow.location.href = gidUrl;
+      } else if (newWindow && !newWindow.closed) {
+        // gidが取得できない場合、今日の日付をシート名として検索するURLを構築
+        // Googleスプレッドシートはシート名でURLを指定できないため、デフォルトURLのまま
+        // ただし、URLにrangeparamを付与して今日の日付シートを示すヒントを追加
+        const now = new Date();
+        const month = now.getMonth() + 1;
+        const day = now.getDate();
+        const sheetName = `${month}/${day}`;
+        const encodedSheet = encodeURIComponent(sheetName);
+        const rangeUrl = `https://docs.google.com/spreadsheets/d/${DAILY_REPORT_SPREADSHEET_ID}/edit#rangeid=${encodedSheet}`;
+        newWindow.location.href = rangeUrl;
       }
     } catch {
-      // gid取得失敗時はデフォルトURLのまま（既に開いているので問題なし）
+      // gid取得失敗時もデフォルトURLのまま（既に開いているので問題なし）
     } finally {
       setOpeningStepId(null);
     }
@@ -515,7 +526,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       locationAddress: locationAddress ?? undefined,
       // 追加項目
       alcoholMeasuredValue: (detectorUsed && alcoholMeasuredValue.trim()) ? alcoholMeasuredValue.trim() : undefined,
-      detectorType: (detectorUsed && detectorType.trim()) ? detectorType.trim() : undefined,
+      detectorType: detectorUsed ? "Portable alcohol tester CSY-006" : undefined,
       drivingPurpose,
       hasPassenger,
       passengerCount: hasPassenger ? passengerCount : undefined,
@@ -719,46 +730,15 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           </div>
         )}
 
-        {/* 検知器の種類・型番（検知器使用時のみ） */}
+        {/* 検知器の種類・型番（固定） */}
         {detectorUsed && (
           <div>
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-              検知器の種類・型番（任意）
+              検知器の種類・型番
             </label>
-            {detectors.length > 0 ? (
-              <select
-                value={detectorType}
-                onChange={(e) => setDetectorType(e.target.value)}
-                className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-400"
-              >
-                <option value="">— 選択してください —</option>
-                {detectors.map((d) => (
-                  <option key={d.id} value={d.name}>
-                    {d.name}{d.modelNumber ? ` (${d.modelNumber})` : ""}
-                  </option>
-                ))}
-                <option value="__other">その他（直接入力）</option>
-              </select>
-            ) : (
-              <input
-                type="text"
-                value={detectorType}
-                onChange={(e) => setDetectorType(e.target.value)}
-                placeholder="例: ライオン社製 SD-400"
-                className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-400"
-              />
-            )}
-            {/* 「その他」を選んだ場合は直接入力欄を表示 */}
-            {detectors.length > 0 && detectorType === "__other" && (
-              <input
-                type="text"
-                value={""}
-                onChange={(e) => setDetectorType(e.target.value)}
-                placeholder="検知器名を入力してください"
-                className="mt-2 w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-400"
-                autoFocus
-              />
-            )}
+            <div className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 text-gray-700 dark:text-gray-300">
+              Portable alcohol tester CSY-006
+            </div>
           </div>
         )}
 
