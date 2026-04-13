@@ -249,6 +249,22 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     }
   }, [type, done, alcoholRecorded, alcoholSkipped, clockInDone, clockOutDone, hasOvertime, overtimeStartHour, overtimeStartMinute, overtimeEndHour, overtimeEndMinute, overtimeReasonType, overtimeContactTarget, overtimeRecordCount, overtimeFreeText]);
 
+  // モーダルが開いている間、bodyのスクロールをロックする
+  useEffect(() => {
+    const scrollY = window.scrollY;
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
+
   // 出勤画面：全ステップ完了 + アルコール記録済み + 打刻済み → ホームへ自動遷移
   useEffect(() => {
     if (!isClockIn) return;

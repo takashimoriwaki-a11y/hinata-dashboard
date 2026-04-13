@@ -4939,8 +4939,14 @@ export default function Dashboard() {
     setAttendanceModalType("clock_out");
   };
   // 出退勤ボタン: AttendanceCheckModal → AlcoholCheckModal の順に表示
-  const handleAlcoholCheckIn = () => setAttendanceModalType("clock_in");
-  const handleAlcoholCheckOut = () => setAttendanceModalType("clock_out");
+  const handleAlcoholCheckIn = () => {
+    window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+    setAttendanceModalType("clock_in");
+  };
+  const handleAlcoholCheckOut = () => {
+    window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+    setAttendanceModalType("clock_out");
+  };
   // 出勤モーダルで全タスク完了時のコールバック
   const handleClockInConfirm = () => {
     setClockInAllDone(true);
@@ -4954,8 +4960,14 @@ export default function Dashboard() {
     void refetchAttendance();
   };
   // 緊急訪問看護用追加出勤ボタン（退勤後や出勤前に再度出勤打刻が必要な場合）
-  const handleEmergencyClockIn = () => setAttendanceModalType("clock_in");
-  const handleEmergencyClockOut = () => setAttendanceModalType("clock_out");
+  const handleEmergencyClockIn = () => {
+    window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+    setAttendanceModalType("clock_in");
+  };
+  const handleEmergencyClockOut = () => {
+    window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+    setAttendanceModalType("clock_out");
+  };
   // 当日の打刻履歴数（複数回打刻判定用）
   const clockInCount = todayAttendance?.filter((r) => r.type === "clock_in").length ?? 0;
   const clockOutCount = todayAttendance?.filter((r) => r.type === "clock_out").length ?? 0;
