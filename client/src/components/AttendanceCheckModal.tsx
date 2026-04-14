@@ -609,7 +609,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
   // ── アルコールチェックフォームのJSX（共通） ──
   const alcoholCheckForm = (
-    <div className={`mx-3 my-2 rounded-xl border-2 overflow-hidden ${
+    <div className={`mx-3 mt-2 mb-0 rounded-xl border-2 overflow-hidden ${
       isClockIn
         ? "border-orange-200 dark:border-orange-800"
         : "border-cyan-200 dark:border-cyan-800"
@@ -1586,7 +1586,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         </div>
 
         {/* コンテンツ */}
-        <div className="py-2 overflow-y-auto flex-1">
+        <div className="py-2 overflow-y-auto flex-1 min-h-0">
           {/* 緊急打刻時の備考入力フォーム */}
           {isEmergency && (
             <div className="mx-3 my-2 p-3 rounded-xl border border-orange-300 dark:border-orange-600 bg-orange-50 dark:bg-orange-950/30">
@@ -1696,12 +1696,11 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
               {steps.map(renderStepItem)}
             </>
           )}
-          <div className="h-2" />
         </div>
 
         {/* フッター（出勤時のみ） */}
         {isClockIn && (
-          <div className="px-5 py-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 space-y-2 bg-white dark:bg-gray-900">
+          <div className="px-5 pt-2 pb-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 space-y-2 bg-white dark:bg-gray-900">
             {/* 全完了バナー */}
             {allClockInTasksDone && (
               <div className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
@@ -1785,7 +1784,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         )}
         {/* 退勤時フッター（閉じるのみ） */}
         {!isClockIn && (
-          <div className="px-5 py-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-900">
+          <div className="px-5 pt-2 pb-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-900">
             <button
               type="button"
               onClick={handleCloseRequest}

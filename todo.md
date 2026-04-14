@@ -2293,4 +2293,9 @@
 - [x] timesheetUtils.ts でDBから共有先メールを取得して自動共有するよう修正
 - [x] 残業申請承認・却下時のappendOvertimeToSheetバグ修正（spreadsheetUrl→spreadsheetId）
 - [x] SystemSettingsPanelに「スプレッドシート共有先メール設定」UIを追加（メール追加・削除・保存）
+- [x] チェックポイント保存
+
+## 出退勤モーダル余白修正（2026-04-14）
+- [x] 退勤時確認：まもドライブ〜閉じるボタン間の余白を削除（h-2ブロック削除・pt-2 pb-4に変更）
+- [x] 出勤時確認：アルコールチェック備考欄〜記録ボタン間の余白を削除（alcoholCheckFormのmb-0化・フッターpt-2化）
 - [ ] チェックポイント保存
