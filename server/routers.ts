@@ -329,13 +329,14 @@ export async function autoCreateTimesheetSpreadsheet(year: number, month: number
     // 概要シートに説明を記入
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: "概要!A1:B3",
+      range: "概要!A1:B4",
       valueInputOption: "USER_ENTERED",
       requestBody: {
         values: [
           ["出退勤記録", `${year}年${month}月`],
           ["作成日時", new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })],
-          ["備考", "職員名タブに各職員の出退勤記録が自動転記されます"],
+          ["内容", "職員名タブに各職員の出退勤打刻・残業情報が自動転記されます"],
+          ["記載項目", "日付 / 出勤打刻時間 / 退勤打刻時間 / 総労働時間(分) / 残業開始 / 残業終了 / 残業時間(分) / 残業理由 / 残業詳細（連絡先・件数） / 残業申請承認状況 / 氏名 / 登録日時"],
         ],
       },
     });
@@ -5045,7 +5046,7 @@ export const appRouter = router({
                   ["出退勤記録", `${year}年${month}月`],
                   ["作成日時", new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })],
                   ["内容", "職員名タブに各職員の出退勤打刻・残業情報が自動転記されます"],
-                  ["記載項目", "日付 / 打刻日時 / 区分(出勤・退勤) / 氏名 / ナンバープレート / 位置情報 / 備考 / 運転目的 / アルコール測定値 / 残業開始 / 残業終了 / 残業理由 / 連絡先 / 件数"],
+                  ["記載項目", "日付 / 出勤打刻時間 / 退勤打刻時間 / 総労働時間(分) / 残業開始 / 残業終了 / 残業時間(分) / 残業理由 / 残業詳細（連絡先・件数） / 残業申請承認状況 / 氏名 / 登録日時"],
                 ],
               },
             });
