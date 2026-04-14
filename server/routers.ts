@@ -187,18 +187,18 @@ async function autoCreateAlcoholCheckSpreadsheet(year: number, month: number): P
       },
     });
 
-    // サービスアカウントからオーナーのGoogleアカウントへ編集共有
-    const ownerEmail = process.env.OWNER_EMAIL;
-    if (ownerEmail) {
+    // DBに登録された共有先メールアドレスに自動共有
+    const shareEmailsValue = await getSetting("sheet_share_emails", "");
+    const shareEmails = shareEmailsValue ? shareEmailsValue.split(",").map((e: string) => e.trim()).filter(Boolean) : [];
+    for (const email of shareEmails) {
       await drive.permissions.create({
         fileId: spreadsheetId,
-        requestBody: {
-          type: "user",
-          role: "writer",
-          emailAddress: ownerEmail,
-        },
+        requestBody: { type: "user", role: "writer", emailAddress: email },
         sendNotificationEmail: false,
-      }).catch((e: unknown) => console.warn("[AutoSheet] Share failed:", e));
+      }).catch((e: unknown) => console.warn(`[AutoSheet] Share to ${email} failed:`, e));
+    }
+    if (shareEmails.length > 0) {
+      console.log(`[AutoSheet] Shared spreadsheet with: ${shareEmails.join(", ")}`);
     }
 
     // DBに登録
@@ -3414,9 +3414,25 @@ export const appRouter = router({
         broadcastEvent("settings");
         return { success: true, days: input.days };
       }),
+    /** スプレッドシート共有先メールアドレス一覧を取得 */
+    getShareEmails: protectedProcedure.query(async () => {
+      const value = await getSetting("sheet_share_emails", "");
+      const emails = value ? value.split(",").map((e) => e.trim()).filter(Boolean) : [];
+      return { emails };
+    }),
+    /** スプレッドシート共有先メールアドレスを更新（adminのみ） */
+    setShareEmails: protectedProcedure
+      .input(z.object({ emails: z.array(z.string().email()).max(20) }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
+        }
+        await setSetting("sheet_share_emails", input.emails.join(","));
+        broadcastEvent("settings");
+        return { success: true };
+      }),
   }),
-
-  // ========== クイックアクセスリンク ==========
+  // ========== クイックアクセスリンク ===========
   quickAccessLinks: router({
     /** 全クイックアクセスリンクを取得 */
     list: protectedProcedure.query(async () => {
@@ -4766,7 +4782,7 @@ export const appRouter = router({
               adjustedEndAt: input.adjustedEndAt ?? null,
               approverComment: input.approverComment ?? null,
               updateExisting: true, // 承認・却下時は既存行を上書き更新
-            }, sheet.spreadsheetUrl).catch((err) => {
+            }, sheet.spreadsheetId).catch((err) => {
               console.error("[Overtime] Sheet sync failed:", err);
             });
           }

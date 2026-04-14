@@ -1,9 +1,10 @@
 import { google } from "googleapis";
-import { getTimesheetSpreadsheets, upsertTimesheetSpreadsheet } from "./db";
+import { getTimesheetSpreadsheets, upsertTimesheetSpreadsheet, getSetting } from "./db";
 
 /**
  * 指定年月の出退勤管理用スプレッドシートをGoogle Driveに自動作成し、DBに登録する。
  * 既に登録済みの場合は何もしない。
+ * 管理画面で設定された共有先メールアドレスに自動共有する。
  */
 export async function autoCreateTimesheetSpreadsheet(year: number, month: number): Promise<string | null> {
   try {
@@ -51,14 +52,18 @@ export async function autoCreateTimesheetSpreadsheet(year: number, month: number
       },
     });
 
-    // サービスアカウントからオーナーのGoogleアカウントへ編集共有
-    const ownerEmail = process.env.OWNER_EMAIL;
-    if (ownerEmail) {
+    // DBに登録された共有先メールアドレスに自動共有
+    const shareEmailsValue = await getSetting("sheet_share_emails", "");
+    const shareEmails = shareEmailsValue ? shareEmailsValue.split(",").map((e: string) => e.trim()).filter(Boolean) : [];
+    for (const email of shareEmails) {
       await drive.permissions.create({
         fileId: spreadsheetId,
-        requestBody: { type: "user", role: "writer", emailAddress: ownerEmail },
+        requestBody: { type: "user", role: "writer", emailAddress: email },
         sendNotificationEmail: false,
-      }).catch((e: unknown) => console.warn("[TimesheetAutoSheet] Share failed:", e));
+      }).catch((e: unknown) => console.warn(`[TimesheetAutoSheet] Share to ${email} failed:`, e));
+    }
+    if (shareEmails.length > 0) {
+      console.log(`[TimesheetAutoSheet] Shared spreadsheet with: ${shareEmails.join(", ")}`);
     }
 
     // DBに登録

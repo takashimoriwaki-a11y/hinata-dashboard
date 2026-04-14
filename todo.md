@@ -2285,4 +2285,12 @@
 - [x] timesheet.autoCreate プロシージャ追加（管理者用手動作成ボタン）
 - [x] timesheet.shareSpreadsheet プロシージャ追加（URLコピー）
 - [x] 管理画面のTimesheetSpreadsheetsPanelに自動作成ボタン・URLコピーボタンを追加
+- [x] チェックポイント保存
+
+## スプレッドシート自動共有・残業申請連携（2026-04-14）
+- [x] settings.getShareEmails / setShareEmails プロシージャを追加（DB保存）
+- [x] autoCreateAlcoholCheckSpreadsheet でDBから共有先メールを取得して自動共有するよう修正
+- [x] timesheetUtils.ts でDBから共有先メールを取得して自動共有するよう修正
+- [x] 残業申請承認・却下時のappendOvertimeToSheetバグ修正（spreadsheetUrl→spreadsheetId）
+- [x] SystemSettingsPanelに「スプレッドシート共有先メール設定」UIを追加（メール追加・削除・保存）
 - [ ] チェックポイント保存

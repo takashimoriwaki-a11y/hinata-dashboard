@@ -2337,6 +2337,7 @@ function TeamGoalsPanel() {
 
 function SystemSettingsPanel() {
   const { data: cleanupDaysData, isLoading } = trpc.settings.getSheetCleanupDays.useQuery();
+  const { data: shareEmailsData, isLoading: isLoadingEmails } = trpc.settings.getShareEmails.useQuery();
   const utils = trpc.useUtils();
   const setCleanupDaysMutation = trpc.settings.setSheetCleanupDays.useMutation({
     onSuccess: () => {
@@ -2345,8 +2346,17 @@ function SystemSettingsPanel() {
     },
     onError: (e) => toast.error(e.message),
   });
+  const setShareEmailsMutation = trpc.settings.setShareEmails.useMutation({
+    onSuccess: () => {
+      utils.settings.getShareEmails.invalidate();
+      toast.success("共有先メールアドレスを保存しました");
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   const [selectedDays, setSelectedDays] = useState<number>(7);
+  const [emailInput, setEmailInput] = useState("");
+  const [emailList, setEmailList] = useState<string[]>([]);
 
   // データ取得後にセレクトの初期値を設定
   useEffect(() => {
@@ -2354,6 +2364,31 @@ function SystemSettingsPanel() {
       setSelectedDays(cleanupDaysData.days);
     }
   }, [cleanupDaysData?.days]);
+
+  useEffect(() => {
+    if (shareEmailsData?.emails) {
+      setEmailList(shareEmailsData.emails);
+    }
+  }, [shareEmailsData?.emails]);
+
+  const handleAddEmail = () => {
+    const trimmed = emailInput.trim();
+    if (!trimmed) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      toast.error("正しいメールアドレスを入力してください");
+      return;
+    }
+    if (emailList.includes(trimmed)) {
+      toast.error("すでに登録済みのメールアドレスです");
+      return;
+    }
+    setEmailList((prev) => [...prev, trimmed]);
+    setEmailInput("");
+  };
+
+  const handleRemoveEmail = (email: string) => {
+    setEmailList((prev) => prev.filter((e) => e !== email));
+  };
 
   const RETENTION_OPTIONS = [
     { value: 3, label: "3日" },
@@ -2366,6 +2401,72 @@ function SystemSettingsPanel() {
 
   return (
     <div className="space-y-4">
+      {/* スプレッドシート共有先メール設定 */}
+      <Card className="shadow-sm">
+        <CardHeader className="pb-2 pt-4">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <Mail className="w-4 h-4 text-primary" />
+            スプレッドシート共有先メール設定
+          </CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            アルコールチェック・出退勤タイムシートのスプレッドシートを自動作成した際に、登録したメールアドレスに自動共有（編集権限）します。
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {isLoadingEmails ? (
+            <div className="h-9 bg-muted animate-pulse rounded-md" />
+          ) : (
+            <>
+              <div className="flex gap-2">
+                <Input
+                  type="email"
+                  placeholder="example@gmail.com"
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddEmail(); } }}
+                  className="flex-1 h-9 text-sm"
+                />
+                <Button size="sm" variant="outline" onClick={handleAddEmail} className="h-9 px-3">
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+              {emailList.length > 0 && (
+                <div className="space-y-1.5">
+                  {emailList.map((email) => (
+                    <div key={email} className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-md bg-muted/50 border border-border">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Mail className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                        <span className="text-sm text-foreground truncate">{email}</span>
+                      </div>
+                      <button onClick={() => handleRemoveEmail(email)} className="text-muted-foreground hover:text-destructive flex-shrink-0">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {emailList.length === 0 && (
+                <p className="text-xs text-muted-foreground italic">共有先メールアドレスが登録されていません。スプレッドシートはサービスアカウントのみアクセス可能な状態で作成されます。</p>
+              )}
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  onClick={() => setShareEmailsMutation.mutate({ emails: emailList })}
+                  disabled={setShareEmailsMutation.isPending}
+                >
+                  {setShareEmailsMutation.isPending ? "保存中..." : "共有先を保存"}
+                </Button>
+              </div>
+              <div className="rounded-lg bg-muted/50 border border-border p-3 text-xs text-muted-foreground space-y-1">
+                <p className="font-medium text-foreground">共有の仕組み</p>
+                <p>・毎月スプレッドシートを自動作成する際に、登録された全メールアドレスに自動で編集権限を付与します</p>
+                <p>・既存のスプレッドシートには遅及して共有されません（新規作成分のみ適用）</p>
+                <p>・アルコールチェック・出退勤タイムシートの両方に適用されます</p>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
       <Card className="shadow-sm">
         <CardHeader className="pb-2 pt-4">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
