@@ -207,6 +207,22 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   const swipeDeltaY = useRef<number>(0);
   const [dragY, setDragY] = useState(0);
 
+  // スクロールコンテナと次のアクションターゲットの ref
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const afterAlcoholRef = useRef<HTMLDivElement>(null);
+
+  // アルコールチェック完了後に次のアクションへスクロールするヘルパー
+  const scrollToAfterAlcohol = useCallback(() => {
+    setTimeout(() => {
+      if (afterAlcoholRef.current && scrollContainerRef.current) {
+        const container = scrollContainerRef.current;
+        const target = afterAlcoholRef.current;
+        const targetTop = target.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+        container.scrollTo({ top: targetTop - 8, behavior: 'smooth' });
+      }
+    }, 350); // アコーディオンのアニメーション完了後にスクロール
+  }, []);
+
   const handleSwipeStart = useCallback((e: React.TouchEvent | React.PointerEvent) => {
     const y = "touches" in e ? (e as React.TouchEvent).touches[0].clientY : (e as React.PointerEvent).clientY;
     swipeStartY.current = y;
@@ -537,8 +553,9 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       toast.success(isClockIn ? "出勤アルコールチェックを記録しました" : "退勤アルコールチェックを記録しました");
       void utils.attendance.today.invalidate();
       setAlcoholRecorded(true);
-      // 記録完了後は即座にアコーディオンを折りたたむ
+      // 記録完了後は即座にアコーディオンを折りたたむ、次のアクションへスクロール
       setAlcoholOpen(false);
+      scrollToAfterAlcohol();
     },
     onError: (e) => {
       toast.error(`アルコールチェック記録に失敗しました: ${e.message}`);
@@ -695,10 +712,21 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             <span className="text-xs text-gray-500 dark:text-gray-400 font-normal">(任意)</span>
           )}
           {alcoholRecorded && (
-            <span className="text-xs text-green-600 dark:text-green-400 font-semibold">✓ 記録済み</span>
+            <span
+              className="text-xs text-green-600 dark:text-green-400 font-semibold flex items-center gap-0.5"
+              style={{ animation: 'alcoholBadgeIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both' }}
+            >
+              <CheckCircle2 className="w-3 h-3" />
+              記録済み
+            </span>
           )}
           {alcoholSkipped && !alcoholRecorded && (
-            <span className="text-xs text-gray-500 dark:text-gray-400 font-semibold">スキップ済み</span>
+            <span
+              className="text-xs text-gray-500 dark:text-gray-400 font-semibold flex items-center gap-0.5"
+              style={{ animation: 'alcoholBadgeIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both' }}
+            >
+              スキップ済み
+            </span>
           )}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
@@ -721,7 +749,15 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           {isOfficeStaff && !alcoholRecorded && (
             <button
               type="button"
-              onClick={() => setAlcoholSkipped((v) => !v)}
+              onClick={() => {
+                const newSkipped = !alcoholSkipped;
+                setAlcoholSkipped(newSkipped);
+                // スキップ時はアコーディオンを折りたたんで次のアクションへスクロール
+                if (newSkipped) {
+                  setAlcoholOpen(false);
+                  scrollToAfterAlcohol();
+                }
+              }}
               className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
                 alcoholSkipped
                   ? "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
@@ -1730,13 +1766,15 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         </div>
 
         {/* コンテンツ */}
-        <div className="pt-2 pb-0 overflow-y-auto flex-1 min-h-0 overscroll-contain" style={{WebkitOverflowScrolling: 'touch', touchAction: 'pan-y'}}>
+        <div ref={scrollContainerRef} className="pt-2 pb-0 overflow-y-auto flex-1 min-h-0 overscroll-contain" style={{WebkitOverflowScrolling: 'touch', touchAction: 'pan-y'}}>
 
           {isClockIn ? (
             // ── 出勤画面レイアウト：手順チェック → アルコールチェック ──
             <>
               {steps.map(renderStepItem)}
               {alcoholCheckForm}
+              {/* アルコール記録後のスクロールターゲット（出勤打刻ボタンの直前） */}
+              <div ref={afterAlcoholRef} />
             </>
           ) : (
             // ── 退勤画面レイアウト：残業カード → 退勤打刻 → アルコールチェック → アルコール記録 → みまもドライブ停止 ──
@@ -1797,6 +1835,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
               </div>
               {/* 3. アルコールチェック（フォーム） */}
               {alcoholCheckForm}
+              {/* アルコール記録後のスクロールターゲット（アルコール記録ボタンの直前） */}
+              <div ref={afterAlcoholRef} />
               {/* 4. アルコール記録ボタン（スキップ済みの場合は非表示） */}
               {!alcoholSkipped && (
               <div className="mx-3 my-2">
