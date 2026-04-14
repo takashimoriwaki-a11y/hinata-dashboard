@@ -81,11 +81,41 @@ const scorePatient = (p: PatientEntry, query: string): number => {
   if (qHira.includes(toHiragana(normKana)) || qKata.includes(normKana)) return 45;
   return 0;
 };
+
+/** スコア0でも部分一致で近似候補を探す（サジェスト用） */
+const findFuzzyMatches = (
+  query: string,
+  patients: PatientEntry[],
+  maxResults = 3
+): PatientEntry[] => {
+  if (!query || query.length < 1) return [];
+  const q = normalizeVoice(query);
+  if (!q) return [];
+  // 部分文字列マッチ（1文字以上共通）
+  const scored = patients.map(p => {
+    const normName = normalizeVoice(p.name);
+    const normKana = p.nameKana ? normalizeVoice(p.nameKana) : "";
+    const lastName = normName.split(/[\s　]+/)[0];
+    let score = 0;
+    // 1文字以上共通する文字数でスコアリング
+    for (let len = Math.min(q.length, 3); len >= 1; len--) {
+      for (let i = 0; i <= q.length - len; i++) {
+        const sub = q.slice(i, i + len);
+        if (normName.includes(sub) || normKana.includes(sub) || lastName.includes(sub)) {
+          score = Math.max(score, len * 10);
+        }
+      }
+    }
+    return { p, score };
+  }).filter(x => x.score > 0).sort((a, b) => b.score - a.score);
+  return scored.slice(0, maxResults).map(x => x.p);
+};
+
 const findBestMatches = (
   alternatives: Array<{ transcript: string; confidence: number }>,
   patients: PatientEntry[],
   teamFilter?: Team | null
-): { matches: PatientEntry[]; usedTranscript: string; detectedTeam: Team | null } => {
+): { matches: PatientEntry[]; usedTranscript: string; detectedTeam: Team | null; bestScore: number } => {
   let bestMatches: PatientEntry[] = [];
   let bestScore = 0;
   let bestTranscript = alternatives[0]?.transcript || "";
@@ -104,7 +134,7 @@ const findBestMatches = (
       bestMatches = scored.filter(x => x.score >= topScore - 10).map(x => x.p);
     }
   }
-  return { matches: bestMatches, usedTranscript: bestTranscript, detectedTeam: bestTeam };
+  return { matches: bestMatches, usedTranscript: bestTranscript, detectedTeam: bestTeam, bestScore };
 };
 
 const MAX_SLOTS = 8;
@@ -227,12 +257,68 @@ export default function RecordInput() {
 
   const filledSlots = slots.filter(s => s.patientName).length;
 
+  // ===== ヘッダー手動検索フィールド =====
+  const [headerSearchQuery, setHeaderSearchQuery] = useState("");
+  const [headerSearchResults, setHeaderSearchResults] = useState<PatientEntry[]>([]);
+  const [showHeaderSearchResults, setShowHeaderSearchResults] = useState(false);
+  const headerSearchRef = useRef<HTMLDivElement>(null);
+
+  // ヘッダー検索クエリが変わったら候補を更新
+  useEffect(() => {
+    if (!headerSearchQuery.trim()) {
+      setHeaderSearchResults([]);
+      setShowHeaderSearchResults(false);
+      return;
+    }
+    const q = headerSearchQuery.toLowerCase();
+    const results = allPatients.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      (p.nameKana && p.nameKana.toLowerCase().includes(q))
+    ).slice(0, 8);
+    setHeaderSearchResults(results);
+    setShowHeaderSearchResults(results.length > 0);
+  }, [headerSearchQuery, allPatients]);
+
+  // ヘッダー検索で利用者を選択 → 空き枠に入力
+  const handleHeaderSearchSelect = useCallback((p: PatientEntry) => {
+    const emptySlotIndex = slots.findIndex(s => !s.patientName);
+    if (emptySlotIndex === -1) {
+      toast.warning("全ての枠が埋まっています");
+      return;
+    }
+    handleSlotChange(emptySlotIndex, {
+      team: (p.team as Team) || "",
+      patientId: p.id,
+      patientName: p.name,
+    });
+    setSlotSearch(emptySlotIndex, p.name);
+    setHeaderSearchQuery("");
+    setHeaderSearchResults([]);
+    setShowHeaderSearchResults(false);
+    toast.success(`枠${emptySlotIndex + 1}に「${p.name}」を入力しました`);
+  }, [slots]);
+
+  // ヘッダー検索フィールド外クリックで閉じる
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (headerSearchRef.current && !headerSearchRef.current.contains(e.target as Node)) {
+        setShowHeaderSearchResults(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   // ===== 一括音声入力 =====
   const [isBulkListening, setIsBulkListening] = useState(false);
   const bulkRecognitionRef = useRef<SpeechRecognitionType | null>(null);
   // 一括音声入力で複数候補が出た場合のモーダル
   const [bulkCandidates, setBulkCandidates] = useState<PatientEntry[]>([]);
   const [bulkCandidateSlotIndex, setBulkCandidateSlotIndex] = useState<number>(-1);
+  // 一括音声入力で候補なし時のサジェスト
+  const [bulkSuggestCandidates, setBulkSuggestCandidates] = useState<PatientEntry[]>([]);
+  const [bulkSuggestQuery, setBulkSuggestQuery] = useState("");
+  const [bulkSuggestSlotIndex, setBulkSuggestSlotIndex] = useState<number>(-1);
 
   const startBulkVoiceInput = useCallback(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -271,7 +357,7 @@ export default function RecordInput() {
         toast.warning("全ての枠が埋まっています");
         return;
       }
-      const { matches, usedTranscript } = findBestMatches(alternatives, allPatients, null);
+      const { matches, usedTranscript, bestScore } = findBestMatches(alternatives, allPatients, null);
       if (matches.length === 1) {
         handleSlotChange(emptySlotIndex, {
           team: (matches[0].team as Team) || "",
@@ -286,7 +372,18 @@ export default function RecordInput() {
         setBulkCandidateSlotIndex(emptySlotIndex);
         toast.info(`「${usedTranscript}」の候補が${matches.length}件あります。選択してください`);
       } else {
-        toast.warning(`「${usedTranscript}」に一致する利用者が見つかりません`);
+        // 候補なし → 近似候補をサジェスト
+        const { team: detectedTeam, rest } = extractTeamFromVoice(alternatives[0]?.transcript || "");
+        const searchBase = detectedTeam ? allPatients.filter(p => p.team === detectedTeam) : allPatients;
+        const fuzzy = findFuzzyMatches(rest || usedTranscript, searchBase, 5);
+        if (fuzzy.length > 0) {
+          setBulkSuggestCandidates(fuzzy);
+          setBulkSuggestQuery(usedTranscript);
+          setBulkSuggestSlotIndex(emptySlotIndex);
+          toast.warning(`「${usedTranscript}」に完全一致する利用者が見つかりません。近い候補を表示します`);
+        } else {
+          toast.warning(`「${usedTranscript}」に一致する利用者が見つかりません`);
+        }
       }
     };
     recognition.start();
@@ -302,8 +399,8 @@ export default function RecordInput() {
       {/* ===== 今日の訪問予定セクション ===== */}
       <Card className="shadow-sm">
         <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2 flex-shrink-0">
               <Users className="w-4 h-4 text-primary" />
               今日の訪問予定
               {filledSlots > 0 && (
@@ -312,13 +409,60 @@ export default function RecordInput() {
                 </Badge>
               )}
             </CardTitle>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-1 justify-end">
+              {/* ===== ヘッダー手動検索フィールド ===== */}
+              <div className="relative flex-1 max-w-[180px]" ref={headerSearchRef}>
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
+                <Input
+                  className="pl-6 pr-2 text-xs h-7 w-full"
+                  placeholder="名前で検索して追加..."
+                  value={headerSearchQuery}
+                  onChange={(e) => setHeaderSearchQuery(e.target.value)}
+                  onFocus={() => {
+                    if (headerSearchResults.length > 0) setShowHeaderSearchResults(true);
+                  }}
+                />
+                {headerSearchQuery && (
+                  <button
+                    type="button"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => {
+                      setHeaderSearchQuery("");
+                      setHeaderSearchResults([]);
+                      setShowHeaderSearchResults(false);
+                    }}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+                {/* 検索結果ドロップダウン */}
+                {showHeaderSearchResults && headerSearchResults.length > 0 && (
+                  <div className="absolute z-50 top-full mt-1 left-0 right-0 border rounded-md bg-background shadow-lg max-h-52 overflow-y-auto">
+                    {headerSearchResults.map((p) => (
+                      <button
+                        key={p.id}
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center justify-between border-b last:border-b-0 transition-colors"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          handleHeaderSearchSelect(p);
+                        }}
+                      >
+                        <span className="font-medium">{p.name}</span>
+                        {p.team && (
+                          <span className="text-muted-foreground bg-muted px-1.5 py-0.5 rounded text-[10px]">{p.team}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* 一括音声入力ボタン */}
               <button
                 type="button"
                 onClick={startBulkVoiceInput}
                 className={cn(
-                  "flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-medium transition-colors",
+                  "flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-medium transition-colors flex-shrink-0",
                   isBulkListening
                     ? "bg-red-500 border-red-500 text-white animate-pulse"
                     : "border-primary/40 text-primary hover:bg-primary/10"
@@ -326,12 +470,12 @@ export default function RecordInput() {
                 title={isBulkListening ? "録音停止（連続音声入力中）" : "音声で利用者を連続入力"}
               >
                 {isBulkListening ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
-                {isBulkListening ? "停止" : "一括音声入力"}
+                {isBulkListening ? "停止" : "音声入力"}
               </button>
               <button
                 type="button"
                 onClick={handleResetAll}
-                className="flex items-center gap-1 px-2 py-1 rounded-lg border border-border text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-colors"
+                className="flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg border border-border text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                 全リセット
@@ -396,6 +540,55 @@ export default function RecordInput() {
         </div>
       )}
 
+      {/* 一括音声入力の近似候補サジェストモーダル */}
+      {bulkSuggestCandidates.length > 0 && bulkSuggestSlotIndex >= 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setBulkSuggestCandidates([])}>
+          <div className="bg-background rounded-xl shadow-xl p-4 w-80 max-w-[90vw]" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-bold flex items-center gap-1.5">
+                <Search className="w-4 h-4 text-amber-500" />
+                もしかして？
+              </h3>
+              <button onClick={() => setBulkSuggestCandidates([])} className="text-muted-foreground hover:text-foreground p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              「{bulkSuggestQuery}」に完全一致する利用者が見つかりませんでした。<br />
+              近い候補を選択してください（枠{bulkSuggestSlotIndex + 1}）
+            </p>
+            <div className="space-y-1.5 max-h-60 overflow-y-auto">
+              {bulkSuggestCandidates.map((p) => (
+                <button
+                  key={p.id}
+                  className="w-full text-left px-3 py-2.5 rounded-lg border border-amber-200 hover:bg-amber-50 hover:border-amber-400 dark:border-amber-800 dark:hover:bg-amber-950/30 transition-colors flex items-center justify-between"
+                  onClick={() => {
+                    handleSlotChange(bulkSuggestSlotIndex, {
+                      team: (p.team as Team) || "",
+                      patientId: p.id,
+                      patientName: p.name,
+                    });
+                    setSlotSearch(bulkSuggestSlotIndex, p.name);
+                    setBulkSuggestCandidates([]);
+                    setBulkSuggestSlotIndex(-1);
+                    setBulkSuggestQuery("");
+                    toast.success(`枠${bulkSuggestSlotIndex + 1}に「${p.name}」を入力しました`);
+                  }}
+                >
+                  <span className="text-sm font-medium">{p.name}</span>
+                  {p.team && (
+                    <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{p.team}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-3 text-center">
+              該当する方がいない場合は閉じて手動で検索してください
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* プロンプト選択UIはAI共有モーダルに移動 */}
 
       {/* ===== 8つの訪問チェック項目カード ===== */}
@@ -432,6 +625,9 @@ function SlotSelector({
   const slotNumber = index + 1;
   const [isListening, setIsListening] = useState(false);
   const [voiceCandidates, setVoiceCandidates] = useState<Array<{ id: number; name: string; team: string | null }>>([]);
+  // 候補なし時のサジェスト
+  const [suggestCandidates, setSuggestCandidates] = useState<PatientEntry[]>([]);
+  const [suggestQuery, setSuggestQuery] = useState("");
   const recognitionRef = useRef<SpeechRecognitionType | null>(null);
 
   // チームでフィルタリングした利用者リスト
@@ -480,7 +676,7 @@ function SlotSelector({
         alternatives.push({ transcript: resultSet[i].transcript, confidence: resultSet[i].confidence });
       }
       // チームフィルタを適用してスコアリング
-      const { matches, usedTranscript } = findBestMatches(alternatives, allPatients, slot.team as Team | null);
+      const { matches, usedTranscript, bestScore } = findBestMatches(alternatives, allPatients, slot.team as Team | null);
       if (matches.length === 1) {
         // 1件のみ → 自動選択
         onSlotChange({
@@ -491,19 +687,36 @@ function SlotSelector({
         onSearchChange(matches[0].name);
         onShowListChange(false);
         setVoiceCandidates([]);
+        setSuggestCandidates([]);
         toast.success(`「${matches[0].name}」を選択しました`);
       } else if (matches.length > 1) {
         // 複数候補 → 候補リストを表示
         setVoiceCandidates(matches);
+        setSuggestCandidates([]);
         onSearchChange(usedTranscript);
         onShowListChange(false);
         toast.info(`「${usedTranscript}」の候補が${matches.length}件あります`);
       } else {
-        // 候補なし → テキスト検索にフォールバック
-        onSearchChange(usedTranscript);
-        onShowListChange(true);
-        setVoiceCandidates([]);
-        toast.warning(`「${usedTranscript}」に一致する利用者が見つかりません`);
+        // 候補なし → 近似候補をサジェスト
+        const { team: detectedTeam, rest } = extractTeamFromVoice(alternatives[0]?.transcript || "");
+        const effectiveTeam = (slot.team as Team | null) || detectedTeam;
+        const searchBase = effectiveTeam ? allPatients.filter(p => p.team === effectiveTeam) : allPatients;
+        const fuzzy = findFuzzyMatches(rest || usedTranscript, searchBase, 5);
+        if (fuzzy.length > 0) {
+          setSuggestCandidates(fuzzy);
+          setSuggestQuery(usedTranscript);
+          setVoiceCandidates([]);
+          onSearchChange(usedTranscript);
+          onShowListChange(false);
+          toast.warning(`「${usedTranscript}」に完全一致する利用者が見つかりません。近い候補を確認してください`);
+        } else {
+          // 近似候補もなし → テキスト検索にフォールバック
+          onSearchChange(usedTranscript);
+          onShowListChange(true);
+          setVoiceCandidates([]);
+          setSuggestCandidates([]);
+          toast.warning(`「${usedTranscript}」に一致する利用者が見つかりません`);
+        }
       }
     };
     recognition.start();
@@ -574,6 +787,7 @@ function SlotSelector({
                     onSlotChange({ team: teamId, patientId: null, patientName: "" });
                     onSearchChange("");
                     onShowListChange(true);
+                    setSuggestCandidates([]);
                   }}
                   className={cn(
                     "flex-1 text-xs py-1 rounded-md font-medium transition-all",
@@ -599,6 +813,7 @@ function SlotSelector({
                       onSearchChange(e.target.value);
                       onShowListChange(true);
                       setVoiceCandidates([]);
+                      setSuggestCandidates([]);
                     }}
                     onFocus={() => onShowListChange(true)}
                   />
@@ -626,7 +841,7 @@ function SlotSelector({
                 </button>
               </div>
 
-              {/* 音声入力候補リスト */}
+              {/* 音声入力候補リスト（複数一致） */}
               {voiceCandidates.length > 1 && (
                 <div className="absolute z-50 top-full mt-1 left-0 right-0 border rounded-md bg-background shadow-md">
                   <div className="px-3 py-1.5 text-xs text-muted-foreground border-b bg-muted/50">
@@ -645,6 +860,7 @@ function SlotSelector({
                         onSearchChange(p.name);
                         onShowListChange(false);
                         setVoiceCandidates([]);
+                        setSuggestCandidates([]);
                       }}
                     >
                       <span className="font-medium">{p.name}</span>
@@ -654,7 +870,41 @@ function SlotSelector({
                 </div>
               )}
 
-              {showList && voiceCandidates.length === 0 && (
+              {/* 音声入力の近似候補サジェスト（候補なし時） */}
+              {suggestCandidates.length > 0 && voiceCandidates.length === 0 && (
+                <div className="absolute z-50 top-full mt-1 left-0 right-0 border border-amber-300 rounded-md bg-background shadow-md dark:border-amber-700">
+                  <div className="px-3 py-1.5 text-xs border-b bg-amber-50 dark:bg-amber-950/30 flex items-center gap-1.5">
+                    <Search className="w-3 h-3 text-amber-500" />
+                    <span className="text-amber-700 dark:text-amber-400 font-medium">もしかして？（「{suggestQuery}」の近似候補）</span>
+                  </div>
+                  {suggestCandidates.map((p) => (
+                    <button
+                      key={p.id}
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-amber-50 dark:hover:bg-amber-950/20 flex items-center justify-between border-b last:border-b-0 transition-colors"
+                      onClick={() => {
+                        onSlotChange({
+                          team: (p.team as Team) || slot.team,
+                          patientId: p.id,
+                          patientName: p.name,
+                        });
+                        onSearchChange(p.name);
+                        onShowListChange(false);
+                        setVoiceCandidates([]);
+                        setSuggestCandidates([]);
+                        toast.success(`「${p.name}」を選択しました`);
+                      }}
+                    >
+                      <span className="font-medium">{p.name}</span>
+                      {p.team && <span className="text-muted-foreground">{p.team}</span>}
+                    </button>
+                  ))}
+                  <div className="px-3 py-1.5 text-[10px] text-muted-foreground bg-muted/30">
+                    該当しない場合は上の検索フィールドで手動検索してください
+                  </div>
+                </div>
+              )}
+
+              {showList && voiceCandidates.length === 0 && suggestCandidates.length === 0 && (
                 <div className="absolute z-50 top-full mt-1 left-0 right-0 border rounded-md bg-background shadow-md max-h-48 overflow-y-auto">
                   {filteredPatients.length === 0 ? (
                     <div className="p-2 text-xs text-muted-foreground text-center">
