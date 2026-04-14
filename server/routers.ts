@@ -787,6 +787,8 @@ async function appendTimesheetToSheet(record: {
   overtimeContact?: string | null;
   overtimeCount?: number | null;
   totalWorkMinutes?: number | null;
+  isOvernightClockOut?: boolean;
+  clockInAt?: number | null;
 }, spreadsheetId: string): Promise<void> {
   try {
     const auth = new google.auth.GoogleAuth({
@@ -803,8 +805,12 @@ async function appendTimesheetToSheet(record: {
     const toTimeStrOpt = (ms: number | null | undefined) =>
       ms ? new Date(ms).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit" }) : "";
     // 日付文字列（例: 2026/04/14）
-    const dateStr = new Date(record.clockedAt).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" });
-    const clockTimeStr = toTimeStr(record.clockedAt);
+    // 日付またぎ退勤の場合、スプレッドシートの検索キーは出勤日（前日）の日付を使用する
+    const searchDateMs = (record.isOvernightClockOut && record.clockInAt) ? record.clockInAt : record.clockedAt;
+    const dateStr = new Date(searchDateMs).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" });
+    // 退勤時刻の表示: 日付またぎの場合は「翌日 HH:MM」と明示する
+    const rawClockTimeStr = toTimeStr(record.clockedAt);
+    const clockTimeStr = record.isOvernightClockOut ? `翌日 ${rawClockTimeStr}` : rawClockTimeStr;
     const timestampStr = new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" });
 
     // 残業情報
@@ -816,6 +822,7 @@ async function appendTimesheetToSheet(record: {
     const overtimeDetail = [
       record.overtimeContact ? `連絡先: ${record.overtimeContact}` : "",
       record.overtimeCount != null ? `件数: ${record.overtimeCount}件` : "",
+      record.isOvernightClockOut ? "※日付またぎ退勤" : "",
     ].filter(Boolean).join(" / ");
 
     // 職員名タブの確認・作成
@@ -1290,6 +1297,7 @@ import {
   deleteTeamGoal,
   clockAttendance,
   getTodayAttendance,
+  getYesterdayAttendance,
   saveAlcoholCheck,
   markAlcoholCheckSynced,
   updateUserNumberPlate,
@@ -4916,12 +4924,27 @@ export const appRouter = router({
         autoCreateTimesheetSpreadsheet(year, month).catch((e) => console.warn("[Timesheet] Auto-create failed:", e));
         // 退勤打刻時に総労働時間を計算（同日の出勤打刻時刻をDBから取得）
         let totalWorkMinutes: number | null = null;
+        // 日付またぎフラグ: 出勤が前日で退勤が今日の場合にtrue
+        let isOvernightClockOut = false;
+        // 出勤打刻の clockedAt（スプレッドシート転記で前日行を検索するために使用）
+        let clockInAt: number | null = null;
         if (input.type === "clock_out") {
           try {
             const todayLogs = await getTodayAttendance(ctx.user.id);
             const clockInLog = todayLogs.find((l) => l.type === "clock_in");
             if (clockInLog) {
               totalWorkMinutes = Math.round((now - clockInLog.clockedAt) / 60000);
+              clockInAt = clockInLog.clockedAt;
+            } else {
+              // 今日の出勤ログがない場合、前日の出勤ログを検索（日付またぎ退勤）
+              const yesterdayLogs = await getYesterdayAttendance(ctx.user.id);
+              const prevClockInLog = yesterdayLogs.find((l) => l.type === "clock_in");
+              if (prevClockInLog) {
+                totalWorkMinutes = Math.round((now - prevClockInLog.clockedAt) / 60000);
+                clockInAt = prevClockInLog.clockedAt;
+                isOvernightClockOut = true;
+                console.log("[Timesheet] Overnight clock_out detected for", ctx.user.name, "clockIn:", new Date(prevClockInLog.clockedAt).toISOString());
+              }
             }
           } catch (e) {
             console.warn("[Timesheet] Failed to get today attendance for totalWorkMinutes:", e);
@@ -4954,6 +4977,8 @@ export const appRouter = router({
                 overtimeContact: input.overtimeContact ?? null,
                 overtimeCount: input.overtimeCount ?? null,
                 totalWorkMinutes,
+                isOvernightClockOut,
+                clockInAt,
               }, sheet.spreadsheetId).catch((err) => {
                 console.error("[Timesheet] Sheet sync failed:", err);
               });
@@ -4976,6 +5001,8 @@ export const appRouter = router({
               overtimeContact: input.overtimeContact ?? null,
               overtimeCount: input.overtimeCount ?? null,
               totalWorkMinutes,
+              isOvernightClockOut,
+              clockInAt,
             }, sheet.spreadsheetId).catch((err) => {
               console.error("[Timesheet] Sheet sync failed:", err);
             });

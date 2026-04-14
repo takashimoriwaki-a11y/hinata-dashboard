@@ -1618,6 +1618,23 @@ export async function getTodayAttendance(userId: number): Promise<AttendanceLog[
     .orderBy(attendanceLogs.clockedAt);
 }
 
+/** 前日（JST）の出退勤ログを取得する（日付をまたいだ退勤検出用） */
+export async function getYesterdayAttendance(userId: number): Promise<AttendanceLog[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const { and, gte, lte, eq: eqOp } = await import("drizzle-orm");
+  // 前日のJST 0:00〜23:59をUTCミリ秒で計算
+  const now = new Date();
+  const jstOffset = 9 * 60 * 60 * 1000;
+  const jstNow = new Date(now.getTime() + jstOffset);
+  const jstYesterday = new Date(jstNow.getFullYear(), jstNow.getMonth(), jstNow.getDate() - 1);
+  const startMs = jstYesterday.getTime() - jstOffset;
+  const endMs = startMs + 24 * 60 * 60 * 1000 - 1;
+  return db.select().from(attendanceLogs)
+    .where(and(eqOp(attendanceLogs.userId, userId), gte(attendanceLogs.clockedAt, startMs), lte(attendanceLogs.clockedAt, endMs)))
+    .orderBy(attendanceLogs.clockedAt);
+}
+
 // ============================================================
 // AI共有プロンプト
 // ============================================================
