@@ -1666,21 +1666,21 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         </div>
         {/* ヘッダー */}
         <div
-          className={`sticky top-0 z-10 px-5 py-4 flex items-center justify-between flex-shrink-0 rounded-t-none sm:rounded-t-2xl ${
+          className={`sticky top-0 z-10 px-4 py-3.5 flex items-center gap-2 flex-shrink-0 rounded-t-none sm:rounded-t-2xl ${
             isClockIn
               ? "bg-gradient-to-r from-red-500 to-rose-600"
               : "bg-gradient-to-r from-blue-500 to-indigo-600"
           }`}
         >
-          <div className="flex items-center gap-2 text-white">
+          <div className="flex items-center gap-2 text-white flex-1 min-w-0">
             {isClockIn ? (
-              <LogIn className="w-5 h-5" />
+              <LogIn className="w-5 h-5 flex-shrink-0" />
             ) : (
-              <LogOut className="w-5 h-5" />
+              <LogOut className="w-5 h-5 flex-shrink-0" />
             )}
-            <span className="text-lg font-bold">
+            <span className="text-base font-bold truncate">
               {isEmergency
-                ? (isClockIn ? "緊急出勤打刻" : "緊急退勤打刻")
+                ? (isClockIn ? "絊急出勤打刻" : "絊急退勤打刻")
                 : (isClockIn ? "出勤時確認" : "退勤時確認")}
             </span>
           </div>
@@ -1694,7 +1694,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
               const completedClockIn = clockInDone ? 1 : 0;
               const completed = completedSteps + completedAlcohol + completedClockIn;
               return (
-                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
+                <div className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
                   completed === total
                     ? 'bg-white/30 text-white'
                     : 'bg-white/20 text-white/90'
@@ -1711,7 +1711,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
               const completedSteps = steps.filter(s => done[s.id]).length;
               const completed = completedClockOut + completedAlcohol + completedSteps;
               return (
-                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
+                <div className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
                   completed === total
                     ? 'bg-white/30 text-white'
                     : 'bg-white/20 text-white/90'

@@ -12,7 +12,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   ClipboardEdit, Search, Loader2, ChevronDown, X, Users, Mic, MicOff, ExternalLink
 } from "lucide-react";
-import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getTeamButtonClass, getTeamButtonStyle } from "@shared/teamColors";
@@ -739,13 +738,14 @@ export default function RecordInput() {
 
       {/* ===== 8つの訪問チェック項目カード ===== */}
       {slots.map((slot, index) => (
-        <VisitSlotCard
-          key={index}
-          slotIndex={index}
-          slotData={slot}
-          onSlotChange={handleSlotChange}
-          selectedPromptBody={selectedPromptBody}
-        />
+        <div key={index} id={`visit-check-card-${index}`}>
+          <VisitSlotCard
+            slotIndex={index}
+            slotData={slot}
+            onSlotChange={handleSlotChange}
+            selectedPromptBody={selectedPromptBody}
+          />
+        </div>
       ))}
     </div>
   );
@@ -770,7 +770,6 @@ function SlotSelector({
   onSearchChange, onShowListChange, onSlotChange,
   slotRef, onCandidateSelected
 }: SlotSelectorProps) {
-  const [, navigate] = useLocation();
   const slotNumber = index + 1;
   const [isListening, setIsListening] = useState(false);
   const [voiceCandidates, setVoiceCandidates] = useState<Array<{ id: number; name: string; team: string | null }>>([]);
@@ -923,12 +922,17 @@ function SlotSelector({
             <span className="text-sm font-medium text-foreground truncate flex-1">
               {slot.patientName}
             </span>
-            {/* 利用者カードへのリンクボタン */}
+            {/* 訪問チェック項目カードへスクロール */}
             <button
               type="button"
-              onClick={() => navigate(`/patients?search=${encodeURIComponent(slot.patientName)}`)}
+              onClick={() => {
+                const target = document.getElementById(`visit-check-card-${index}`);
+                if (target) {
+                  target.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+              }}
               className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors p-1 rounded"
-              title={`${slot.patientName}の利用者カードを開く`}
+              title={`${slot.patientName}の訪問チェック項目カードへ移動`}
             >
               <ExternalLink className="w-3.5 h-3.5" />
             </button>
