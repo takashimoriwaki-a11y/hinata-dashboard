@@ -4,13 +4,13 @@
  * - 8つの訪問チェック項目カード（①訪問タスク＋②次回訪問日時を統合）
  * - タスク管理との連携（利用者のタスクを取得・チェックで自動完了）
  */
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  ClipboardEdit, Search, Loader2, ChevronDown, X, Users
+  ClipboardEdit, Search, Loader2, ChevronDown, X, Users, Mic, MicOff
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -268,11 +268,22 @@ type SlotSelectorProps = {
   onSlotChange: (data: Partial<VisitSlotData>) => void;
 };
 
+// Web Speech API の型定義
+declare global {
+  interface Window {
+    SpeechRecognition: typeof SpeechRecognition;
+    webkitSpeechRecognition: typeof SpeechRecognition;
+  }
+}
+
 function SlotSelector({
   index, slot, allPatients, searchQuery, showList,
   onSearchChange, onShowListChange, onSlotChange
 }: SlotSelectorProps) {
   const slotNumber = index + 1;
+  const [isListening, setIsListening] = useState(false);
+  const [voiceCandidates, setVoiceCandidates] = useState<Array<{ id: number; name: string; team: string | null }>>([]);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   // チームでフィルタリングした利用者リスト
   const filteredPatients = useMemo(() => {
@@ -286,6 +297,69 @@ function SlotSelector({
       (p.nameKana && p.nameKana.toLowerCase().includes(q))
     );
   }, [allPatients, slot.team, searchQuery]);
+
+  // 音声入力で苗字を認識 → 候補を検索
+  const startVoiceInput = useCallback(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error("このブラウザは音声入力に対応していません");
+      return;
+    }
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = "ja-JP";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognitionRef.current = recognition;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => {
+      setIsListening(false);
+      toast.error("音声認識に失敗しました");
+    };
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript.trim();
+      // 苗字で候補を検索（チームフィルタあり）
+      const searchBase = slot.team
+        ? allPatients.filter(p => p.team === slot.team)
+        : allPatients;
+      const matched = searchBase.filter(p => {
+        const lastName = p.name.split(/\s+/)[0];
+        return lastName.includes(transcript) || p.name.includes(transcript) ||
+          (p.nameKana && p.nameKana.includes(transcript));
+      });
+      if (matched.length === 1) {
+        // 1件のみ → 自動選択
+        onSlotChange({
+          team: (matched[0].team as Team) || slot.team,
+          patientId: matched[0].id,
+          patientName: matched[0].name,
+        });
+        onSearchChange(matched[0].name);
+        onShowListChange(false);
+        setVoiceCandidates([]);
+        toast.success(`「${matched[0].name}」を選択しました`);
+      } else if (matched.length > 1) {
+        // 複数候補 → 候補リストを表示
+        setVoiceCandidates(matched);
+        onSearchChange(transcript);
+        onShowListChange(false);
+        toast.info(`「${transcript}」の候補が${matched.length}件あります`);
+      } else {
+        // 候補なし → テキスト検索にフォールバック
+        onSearchChange(transcript);
+        onShowListChange(true);
+        setVoiceCandidates([]);
+        toast.warning(`「${transcript}」に一致する利用者が見つかりません`);
+      }
+    };
+    recognition.start();
+  }, [isListening, allPatients, slot.team, onSlotChange, onSearchChange, onShowListChange]);
 
   const isSelected = !!slot.patientName;
 
@@ -355,7 +429,7 @@ function SlotSelector({
               ))}
             </div>
 
-            {/* 利用者検索 */}
+              {/* 利用者検索 */}
             <div className="relative">
               <div className="flex gap-1.5">
                 <div className="relative flex-1">
@@ -367,10 +441,25 @@ function SlotSelector({
                     onChange={(e) => {
                       onSearchChange(e.target.value);
                       onShowListChange(true);
+                      setVoiceCandidates([]);
                     }}
                     onFocus={() => onShowListChange(true)}
                   />
                 </div>
+                {/* 音声入力ボタン */}
+                <button
+                  type="button"
+                  className={cn(
+                    "flex-shrink-0 h-8 w-8 flex items-center justify-center border rounded-md transition-colors",
+                    isListening
+                      ? "bg-red-500 border-red-500 text-white animate-pulse"
+                      : "hover:bg-muted text-muted-foreground"
+                  )}
+                  onClick={startVoiceInput}
+                  title={isListening ? "録音停止" : "音声で苗字を入力"}
+                >
+                  {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                </button>
                 <button
                   type="button"
                   className="flex-shrink-0 h-8 w-8 flex items-center justify-center border rounded-md hover:bg-muted transition-colors"
@@ -380,7 +469,35 @@ function SlotSelector({
                 </button>
               </div>
 
-              {showList && (
+              {/* 音声入力候補リスト */}
+              {voiceCandidates.length > 1 && (
+                <div className="absolute z-50 top-full mt-1 left-0 right-0 border rounded-md bg-background shadow-md">
+                  <div className="px-3 py-1.5 text-xs text-muted-foreground border-b bg-muted/50">
+                    候補を選択してください
+                  </div>
+                  {voiceCandidates.map((p) => (
+                    <button
+                      key={p.id}
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center justify-between border-b last:border-b-0"
+                      onClick={() => {
+                        onSlotChange({
+                          team: (p.team as Team) || slot.team,
+                          patientId: p.id,
+                          patientName: p.name,
+                        });
+                        onSearchChange(p.name);
+                        onShowListChange(false);
+                        setVoiceCandidates([]);
+                      }}
+                    >
+                      <span className="font-medium">{p.name}</span>
+                      {p.team && <span className="text-muted-foreground">{p.team}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {showList && voiceCandidates.length === 0 && (
                 <div className="absolute z-50 top-full mt-1 left-0 right-0 border rounded-md bg-background shadow-md max-h-48 overflow-y-auto">
                   {filteredPatients.length === 0 ? (
                     <div className="p-2 text-xs text-muted-foreground text-center">
