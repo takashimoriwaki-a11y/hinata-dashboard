@@ -35,6 +35,78 @@ declare global {
 const TEAMS = ["身体", "天理", "郡山北部", "郡山南部"] as const;
 type Team = typeof TEAMS[number];
 
+// ===== 音声入力ユーティリティ =====
+const TEAM_VOICE_MAP: Record<string, Team> = {
+  "しんたい": "身体", "身体": "身体",
+  "てんり": "天理", "天理": "天理",
+  "こおりやまほくぶ": "郡山北部", "こおりやまきたぶ": "郡山北部",
+  "郡山北部": "郡山北部", "ほくぶ": "郡山北部", "北部": "郡山北部",
+  "こおりやまなんぶ": "郡山南部", "こおりやまみなみぶ": "郡山南部",
+  "郡山南部": "郡山南部", "なんぶ": "郡山南部", "南部": "郡山南部",
+};
+const toKatakana = (s: string) => s.replace(/[\u3041-\u3096]/g, c => String.fromCharCode(c.charCodeAt(0) + 0x60));
+const toHiragana = (s: string) => s.replace(/[\u30A1-\u30F6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+const removeHonorific = (s: string) => s.replace(/(さん|様|くん|ちゃん|の|を|が|は|に|へ|で|と|から|まで|より)$/g, "");
+const normalizeVoice = (s: string): string => removeHonorific(s.normalize("NFKC").replace(/\s+/g, "").toLowerCase());
+const extractTeamFromVoice = (transcript: string): { team: Team | null; rest: string } => {
+  const norm = normalizeVoice(transcript);
+  for (const [key, team] of Object.entries(TEAM_VOICE_MAP)) {
+    const normKey = normalizeVoice(key);
+    if (norm.startsWith(normKey)) return { team, rest: norm.slice(normKey.length).replace(/^の/, "") };
+    if (norm.includes(normKey)) {
+      const idx = norm.indexOf(normKey);
+      return { team, rest: (norm.slice(0, idx) + norm.slice(idx + normKey.length)).replace(/^の|の$/, "") };
+    }
+  }
+  return { team: null, rest: norm };
+};
+type PatientEntry = { id: number; name: string; team: string | null; nameKana?: string | null };
+const scorePatient = (p: PatientEntry, query: string): number => {
+  if (!query) return 0;
+  const normName = normalizeVoice(p.name);
+  const normKana = p.nameKana ? normalizeVoice(p.nameKana) : "";
+  const normKanaHira = normKana ? toHiragana(normKana) : "";
+  const lastName = normName.split(/[\s　]+/)[0];
+  const lastNameKana = normKana ? normKana.split(/[\s　]+/)[0] : "";
+  const q = normalizeVoice(query);
+  const qHira = toHiragana(q);
+  const qKata = toKatakana(q);
+  if (normName === q || normKana === q || normKanaHira === q) return 100;
+  if (normName.includes(q) || normKana.includes(q) || normKanaHira.includes(q)) return 80;
+  if (q.includes(normName)) return 75;
+  if (lastName === q || lastNameKana === q || toHiragana(lastNameKana) === q) return 70;
+  if (lastName.includes(q) || q.includes(lastName)) return 60;
+  if (lastNameKana.includes(q) || q.includes(lastNameKana)) return 55;
+  if (normKana.includes(qKata) || normKanaHira.includes(qHira)) return 50;
+  if (qHira.includes(toHiragana(normKana)) || qKata.includes(normKana)) return 45;
+  return 0;
+};
+const findBestMatches = (
+  alternatives: Array<{ transcript: string; confidence: number }>,
+  patients: PatientEntry[],
+  teamFilter?: Team | null
+): { matches: PatientEntry[]; usedTranscript: string; detectedTeam: Team | null } => {
+  let bestMatches: PatientEntry[] = [];
+  let bestScore = 0;
+  let bestTranscript = alternatives[0]?.transcript || "";
+  let bestTeam: Team | null = null;
+  for (const alt of alternatives) {
+    const raw = alt.transcript.trim();
+    const { team: detectedTeam, rest } = extractTeamFromVoice(raw);
+    const effectiveTeam = teamFilter || detectedTeam;
+    const searchBase = effectiveTeam ? patients.filter(p => p.team === effectiveTeam) : patients;
+    const scored = searchBase.map(p => ({ p, score: scorePatient(p, rest) })).filter(x => x.score > 0).sort((a, b) => b.score - a.score);
+    if (scored.length > 0 && scored[0].score > bestScore) {
+      bestScore = scored[0].score;
+      bestTranscript = rest;
+      bestTeam = detectedTeam;
+      const topScore = scored[0].score;
+      bestMatches = scored.filter(x => x.score >= topScore - 10).map(x => x.p);
+    }
+  }
+  return { matches: bestMatches, usedTranscript: bestTranscript, detectedTeam: bestTeam };
+};
+
 const MAX_SLOTS = 8;
 
 type VisitSlotData = {
@@ -158,6 +230,9 @@ export default function RecordInput() {
   // ===== 一括音声入力 =====
   const [isBulkListening, setIsBulkListening] = useState(false);
   const bulkRecognitionRef = useRef<SpeechRecognitionType | null>(null);
+  // 一括音声入力で複数候補が出た場合のモーダル
+  const [bulkCandidates, setBulkCandidates] = useState<PatientEntry[]>([]);
+  const [bulkCandidateSlotIndex, setBulkCandidateSlotIndex] = useState<number>(-1);
 
   const startBulkVoiceInput = useCallback(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -174,45 +249,44 @@ export default function RecordInput() {
     recognition.lang = "ja-JP";
     recognition.continuous = true;
     recognition.interimResults = false;
+    recognition.maxAlternatives = 5;
     bulkRecognitionRef.current = recognition;
 
     recognition.onstart = () => setIsBulkListening(true);
     recognition.onend = () => setIsBulkListening(false);
-    recognition.onerror = () => {
+    recognition.onerror = (e: any) => {
       setIsBulkListening(false);
-      toast.error("音声認識に失敗しました");
+      if (e.error !== "no-speech") toast.error("音声認識に失敗しました");
     };
     recognition.onresult = (event: any) => {
-      const rawTranscript = event.results[event.results.length - 1][0].transcript.trim();
-      // 正規化：全角→半角、スペース除去、小文字化
-      const normalize = (s: string) => s.normalize("NFKC").replace(/\s+/g, "").toLowerCase();
-      const transcript = normalize(rawTranscript);
-      // 空き枠を探して利用者を自動入力
+      const resultSet = event.results[event.results.length - 1];
+      // 全認識候補を収集
+      const alternatives: Array<{ transcript: string; confidence: number }> = [];
+      for (let i = 0; i < resultSet.length; i++) {
+        alternatives.push({ transcript: resultSet[i].transcript, confidence: resultSet[i].confidence });
+      }
+      // 空き枠を探す
       const emptySlotIndex = slots.findIndex(s => !s.patientName);
       if (emptySlotIndex === -1) {
         toast.warning("全ての枠が埋まっています");
         return;
       }
-      const matched = allPatients.filter(p => {
-        const normName = normalize(p.name);
-        const normKana = p.nameKana ? normalize(p.nameKana) : "";
-        const lastName = normalize(p.name.split(/\s+/)[0]);
-        return normName.includes(transcript) || lastName.includes(transcript) ||
-          normKana.includes(transcript) ||
-          transcript.includes(normName) || transcript.includes(lastName);
-      });
-      if (matched.length === 1) {
+      const { matches, usedTranscript } = findBestMatches(alternatives, allPatients, null);
+      if (matches.length === 1) {
         handleSlotChange(emptySlotIndex, {
-          team: (matched[0].team as Team) || "",
-          patientId: matched[0].id,
-          patientName: matched[0].name,
+          team: (matches[0].team as Team) || "",
+          patientId: matches[0].id,
+          patientName: matches[0].name,
         });
-        setSlotSearch(emptySlotIndex, matched[0].name);
-        toast.success(`枠${emptySlotIndex + 1}に「${matched[0].name}」を入力しました`);
-      } else if (matched.length > 1) {
-        toast.info(`「${transcript}」の候補が${matched.length}件あります。個別入力で選択してください`);
+        setSlotSearch(emptySlotIndex, matches[0].name);
+        toast.success(`枠${emptySlotIndex + 1}に「${matches[0].name}」を入力しました`);
+      } else if (matches.length > 1) {
+        // 複数候補 → モーダルで選択
+        setBulkCandidates(matches);
+        setBulkCandidateSlotIndex(emptySlotIndex);
+        toast.info(`「${usedTranscript}」の候補が${matches.length}件あります。選択してください`);
       } else {
-        toast.warning(`「${transcript}」に一致する利用者が見つかりません`);
+        toast.warning(`「${usedTranscript}」に一致する利用者が見つかりません`);
       }
     };
     recognition.start();
@@ -282,6 +356,45 @@ export default function RecordInput() {
           ))}
         </CardContent>
       </Card>
+
+      {/* 一括音声入力の複数候補選択モーダル */}
+      {bulkCandidates.length > 0 && bulkCandidateSlotIndex >= 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setBulkCandidates([])}>
+          <div className="bg-background rounded-xl shadow-xl p-4 w-80 max-w-[90vw]" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold">候補を選択してください</h3>
+              <button onClick={() => setBulkCandidates([])} className="text-muted-foreground hover:text-foreground p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">枠{bulkCandidateSlotIndex + 1}に入力する利用者を選んでください</p>
+            <div className="space-y-1.5 max-h-60 overflow-y-auto">
+              {bulkCandidates.map((p) => (
+                <button
+                  key={p.id}
+                  className="w-full text-left px-3 py-2.5 rounded-lg border hover:bg-primary/10 hover:border-primary/40 transition-colors flex items-center justify-between"
+                  onClick={() => {
+                    handleSlotChange(bulkCandidateSlotIndex, {
+                      team: (p.team as Team) || "",
+                      patientId: p.id,
+                      patientName: p.name,
+                    });
+                    setSlotSearch(bulkCandidateSlotIndex, p.name);
+                    setBulkCandidates([]);
+                    setBulkCandidateSlotIndex(-1);
+                    toast.success(`枠${bulkCandidateSlotIndex + 1}に「${p.name}」を入力しました`);
+                  }}
+                >
+                  <span className="text-sm font-medium">{p.name}</span>
+                  {p.team && (
+                    <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{p.team}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* プロンプト選択UIはAI共有モーダルに移動 */}
 
@@ -358,46 +471,39 @@ function SlotSelector({
       setIsListening(false);
       toast.error("音声認識に失敗しました");
     };
+    recognition.maxAlternatives = 5;
     recognition.onresult = (event: any) => {
-      const rawTranscript = event.results[0][0].transcript.trim();
-      // 正規化：全角→半角、スペース除去、小文字化
-      const normalize = (s: string) => s.normalize("NFKC").replace(/\s+/g, "").toLowerCase();
-      const transcript = normalize(rawTranscript);
-      // 苗字・フルネームで候補を検索（チームフィルタあり）
-      const searchBase = slot.team
-        ? allPatients.filter(p => p.team === slot.team)
-        : allPatients;
-      const matched = searchBase.filter(p => {
-        const normName = normalize(p.name);
-        const normKana = p.nameKana ? normalize(p.nameKana) : "";
-        const lastName = normalize(p.name.split(/\s+/)[0]);
-        return normName.includes(transcript) || lastName.includes(transcript) ||
-          normKana.includes(transcript) ||
-          transcript.includes(normName) || transcript.includes(lastName);
-      });
-      if (matched.length === 1) {
+      // 全認識候補を収集
+      const resultSet = event.results[0];
+      const alternatives: Array<{ transcript: string; confidence: number }> = [];
+      for (let i = 0; i < resultSet.length; i++) {
+        alternatives.push({ transcript: resultSet[i].transcript, confidence: resultSet[i].confidence });
+      }
+      // チームフィルタを適用してスコアリング
+      const { matches, usedTranscript } = findBestMatches(alternatives, allPatients, slot.team as Team | null);
+      if (matches.length === 1) {
         // 1件のみ → 自動選択
         onSlotChange({
-          team: (matched[0].team as Team) || slot.team,
-          patientId: matched[0].id,
-          patientName: matched[0].name,
+          team: (matches[0].team as Team) || slot.team,
+          patientId: matches[0].id,
+          patientName: matches[0].name,
         });
-        onSearchChange(matched[0].name);
+        onSearchChange(matches[0].name);
         onShowListChange(false);
         setVoiceCandidates([]);
-        toast.success(`「${matched[0].name}」を選択しました`);
-      } else if (matched.length > 1) {
+        toast.success(`「${matches[0].name}」を選択しました`);
+      } else if (matches.length > 1) {
         // 複数候補 → 候補リストを表示
-        setVoiceCandidates(matched);
-        onSearchChange(transcript);
+        setVoiceCandidates(matches);
+        onSearchChange(usedTranscript);
         onShowListChange(false);
-        toast.info(`「${transcript}」の候補が${matched.length}件あります`);
+        toast.info(`「${usedTranscript}」の候補が${matches.length}件あります`);
       } else {
         // 候補なし → テキスト検索にフォールバック
-        onSearchChange(transcript);
+        onSearchChange(usedTranscript);
         onShowListChange(true);
         setVoiceCandidates([]);
-        toast.warning(`「${transcript}」に一致する利用者が見つかりません`);
+        toast.warning(`「${usedTranscript}」に一致する利用者が見つかりません`);
       }
     };
     recognition.start();
