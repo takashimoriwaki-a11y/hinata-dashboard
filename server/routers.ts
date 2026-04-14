@@ -2,21 +2,75 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { google } from "googleapis";
 
 /**
- * 位置情報の住所文字列から都道府県＋市区町村名のみを抽出する
- * 例: "奈良県大和郡山市柳町1-2-3" → "奈良県大和郡山市"
+ * 位置情報の住所文字列から「何県何市何町」（都道府県＋市区町村＋町名）を抽出する
+ * Google Maps APIのカンマ区切り形式にも対応
+ * 例1: "菊茶天, 国道25号, 小林町西三丁目, 大和郡山市, 奈良県, 639-1023, 日本" → "奈良県大和郡山市小林町西三丁目"
+ * 例2: "奈良県大和郡山市柳町1-2-3" → "奈良県大和郡山市柳町"
  */
 function extractCityAddress(address: string | null | undefined): string {
   if (!address) return "";
-  // 都道府県パターン
-  const prefMatch = address.match(/^(.+?[都道府県])(.+?[市区町村郡])/);
-  if (prefMatch) {
-    return prefMatch[1] + prefMatch[2];
+
+  // カンマ区切り形式（Google Maps API形式: "町名, 市名, 県名, 郵便番号, 日本"）の場合
+  if (address.includes(",")) {
+    const parts = address.split(",").map(p => p.trim());
+
+    // 都道府県を探す（例: "奈良県"）
+    const prefIndex = parts.findIndex(p => /^.+[都道府県]$/.test(p));
+    // 市区村を探す（例: "大和郡山市"）—「市」「区」「村」で終わるものを優先
+    // 「町」は町名にも使われるため、市区村が見つからない場合のみ「町」で終わるものを探す
+    let cityIndex = parts.findIndex(p => /^.+[市区村]$/.test(p));
+    if (cityIndex === -1) {
+      // 「町」で終わるもの（例: "大和郡山町"のような自治体名）
+      cityIndex = parts.findIndex((p, i) => /^.+[町]$/.test(p) && i > 0);
+    }
+
+    if (prefIndex !== -1 && cityIndex !== -1) {
+      const pref = parts[prefIndex]; // 例: "奈良県"
+      const city = parts[cityIndex]; // 例: "大和郡山市"
+      // 町名: 市区町村・都道府県より前にある要素で、道路名・郵便番号・国名でないもの
+      const beforeBoth = Math.min(prefIndex, cityIndex);
+      const townCandidates = parts.slice(0, beforeBoth).filter(p => {
+        if (/^\d/.test(p)) return false;       // 数字始まり（郵便番号等）
+        if (p === "日本") return false;          // 国名
+        if (/国道|県道|府道/.test(p)) return false; // 道路名
+        // 町名を含む（丁目・町・大字・字）
+        if (/丁目|大字|字/.test(p)) return true;
+        if (/町$/.test(p)) return true;
+        return false;
+      });
+      const town = townCandidates.length > 0 ? townCandidates[townCandidates.length - 1] : "";
+      return pref + city + town;
+    }
+
+    // 都道府県が見つからない場合：市区町村＋町名
+    if (cityIndex !== -1) {
+      const city = parts[cityIndex];
+      const townCandidates = parts.slice(0, cityIndex).filter(p => {
+        if (/^\d/.test(p)) return false;
+        if (p === "日本") return false;
+        if (/国道|県道|府道/.test(p)) return false;
+        if (/丁目|大字|字/.test(p)) return true;
+        if (/町$/.test(p)) return true;
+        return false;
+      });
+      const town = townCandidates.length > 0 ? townCandidates[townCandidates.length - 1] : "";
+      return city + town;
+    }
   }
+
+  // 日本語連続形式（例: "奈良県大和郡山市柳町1-2-3"）の場合
+  // 都道府県＋市区町村＋町名（丁目まで）を抽出
+  const fullMatch = address.match(/^(.+?[都道府県])(.+?[市区町村])(.+?(?:丁目|町|大字|字))?/);
+  if (fullMatch) {
+    return (fullMatch[1] || "") + (fullMatch[2] || "") + (fullMatch[3] || "");
+  }
+
   // 都道府県なしで市区町村から始まる場合
-  const cityMatch = address.match(/^(.+?[市区町村郡])/);
+  const cityMatch = address.match(/^(.+?[市区町村])/);
   if (cityMatch) {
     return cityMatch[1];
   }
+
   // マッチしない場合はそのまま返す
   return address;
 }
