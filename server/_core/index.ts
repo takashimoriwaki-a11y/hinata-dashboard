@@ -1259,7 +1259,7 @@ function scheduleNextMonthTimesheetSheet() {
         }
 
         // 累月スプレッドシートを自動作成
-        const { autoCreateTimesheetSpreadsheet } = await import("../timesheetUtils");
+        const { autoCreateTimesheetSpreadsheet } = await import("../routers");
         const newSpreadsheetId = await autoCreateTimesheetSpreadsheet(nextYear, nextMonth);
         if (!newSpreadsheetId) {
           console.error(`[TimesheetSheetAuto] ${nextMonthLabel}分のスプレッドシート作成に失敗しました`);

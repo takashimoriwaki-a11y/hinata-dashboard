@@ -791,41 +791,41 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           </div>
         </div>
 
-        {/* 測定値（検知器使用時のみ） */}
-        {detectorUsed && (
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">測定値（mg/L）</label>
-              <button type="button" onClick={() => setAlcoholMeasuredValue("0.00")} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
+        {/* 測定値（検知器使用時のみ） + 検知器の種類・型番 — アコーディオンアニメーション */}
+        <div
+          className={`accordion-grid ${detectorUsed ? "accordion-grid-open" : "accordion-grid-closed"}`}
+        >
+          <div className="flex flex-col gap-3">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">測定値（mg/L）</label>
+                <button type="button" onClick={() => setAlcoholMeasuredValue("0.00")} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
+              </div>
+              <div className="relative">
+                <select
+                  value={alcoholMeasuredValue}
+                  onChange={(e) => setAlcoholMeasuredValue(e.target.value)}
+                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-400 appearance-none pr-8"
+                >
+                  <option value="">— 選択してください —</option>
+                  {Array.from({ length: 26 }, (_, i) => (i * 0.01).toFixed(2)).map((v) => (
+                    <option key={v} value={v}>{v} mg/L</option>
+                  ))}
+                  <option value="0.26">検知（要報告）</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
             </div>
-            <div className="relative">
-              <select
-                value={alcoholMeasuredValue}
-                onChange={(e) => setAlcoholMeasuredValue(e.target.value)}
-                className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-400 appearance-none pr-8"
-              >
-                <option value="">— 選択してください —</option>
-                {Array.from({ length: 26 }, (_, i) => (i * 0.01).toFixed(2)).map((v) => (
-                  <option key={v} value={v}>{v} mg/L</option>
-                ))}
-                <option value="0.26">検知（要報告）</option>
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                検知器の種類・型番
+              </label>
+              <div className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 text-gray-700 dark:text-gray-300">
+                Portable alcohol tester CSY-006
+              </div>
             </div>
           </div>
-        )}
-
-        {/* 検知器の種類・型番（固定） */}
-        {detectorUsed && (
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-              検知器の種類・型番
-            </label>
-            <div className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 text-gray-700 dark:text-gray-300">
-              Portable alcohol tester CSY-006
-            </div>
-          </div>
-        )}
+        </div>
 
         {/* 酒気帯び有無 */}
         <div>
@@ -1626,24 +1626,34 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
               {overtimeCard}
               {/* 2. 退勤打刻ボタン */}
               <div className="mx-3 my-2">
-                <button
-                  type="button"
-                  disabled={isClockPending}
-                  onClick={handleClockOnly}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md active:scale-95 bg-blue-500 hover:bg-blue-600"
-                >
-                  {isClockPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      打刻中...
-                    </>
-                  ) : (
-                    <>
-                      <LogOut className="w-4 h-4" />
-                      退勤打刻
-                    </>
-                  )}
-                </button>
+                {clockOutDone ? (
+                  <div
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm shadow-md bg-green-500"
+                    style={{ animation: "clockOutSuccess 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both" }}
+                  >
+                    <CheckCircle2 className="w-5 h-5" />
+                    退勤打刻完了
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={isClockPending}
+                    onClick={handleClockOnly}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md active:scale-95 bg-blue-500 hover:bg-blue-600"
+                  >
+                    {isClockPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        打刻中...
+                      </>
+                    ) : (
+                      <>
+                        <LogOut className="w-4 h-4" />
+                        退勤打刻
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
               {/* 2.5 退勤時チェックリスト（任意・最後の退勤者用） */}
               <div className="mx-3 my-2">
