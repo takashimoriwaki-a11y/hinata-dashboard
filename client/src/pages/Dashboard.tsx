@@ -95,6 +95,7 @@ import {
   Bell,
   ThumbsUp,
   ThumbsDown,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, openLink } from "@/lib/utils";
@@ -5085,6 +5086,22 @@ export default function Dashboard() {
     setAttendanceModalType(null);
     void refetchAttendance();
   };
+  // 出勤・退勤の打刻状態をlocalStorageからリセットする
+  const handleResetAttendance = () => {
+    try {
+      const today = new Date();
+      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      localStorage.removeItem(`attendance_done_clock_in_${dateStr}`);
+      localStorage.removeItem(`attendance_done_clock_out_${dateStr}`);
+      localStorage.removeItem(`attendance_clock_in_${dateStr}`);
+      localStorage.removeItem(`attendance_clock_out_${dateStr}`);
+      setClockInAllDone(false);
+      setClockOutAllDone(false);
+      toast.success("打刻状態をリセットしました");
+    } catch {
+      toast.error("リセットに失敗しました");
+    }
+  };
   // 緊急訪問看護用追加出勤ボタン（退勤後や出勤前に再度出勤打刻が必要な場合）
   const handleEmergencyClockIn = () => {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
@@ -5219,6 +5236,20 @@ export default function Dashboard() {
               >
                 <LogOut className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 緊急退勤
+              </button>
+            )}
+            {/* 2d. リセットボタン（出勤済みまたは退勤済みの場合のみ表示） */}
+            {(clockInAllDone || clockOutAllDone) && (
+              <button
+                type="button"
+                onTouchStart={() => {}}
+                onClick={handleResetAttendance}
+                className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px] relative"
+                style={{backgroundColor: '#6b7280', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}}
+                title="出勤・退勤の打刻済み表示をリセットします（テスト・誤操作時に使用）"
+              >
+                <RotateCcw className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                リセット
               </button>
             )}
             {/* 3. Gemini */}
