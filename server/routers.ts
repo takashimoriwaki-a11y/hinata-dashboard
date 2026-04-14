@@ -5813,6 +5813,18 @@ export const appRouter = router({
         comment: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
+        // 当月以降は署名不可（月が変わってから前月分のみ署名できる仕様）
+        const nowJST = new Date(Date.now() + 9 * 60 * 60 * 1000);
+        const currentYear = nowJST.getUTCFullYear();
+        const currentMonth = nowJST.getUTCMonth() + 1;
+        const isCurrentOrFuture = input.targetYear > currentYear ||
+          (input.targetYear === currentYear && input.targetMonth >= currentMonth);
+        if (isCurrentOrFuture) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: `${input.targetYear}年${input.targetMonth}月分の署名は翌月以降に行うことができます`,
+          });
+        }
         const { upsertMonthlySignature } = await import("./db");
         const result = await upsertMonthlySignature({
           userId: ctx.user.id,

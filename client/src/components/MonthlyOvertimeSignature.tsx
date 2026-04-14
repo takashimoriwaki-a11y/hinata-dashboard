@@ -56,11 +56,23 @@ interface MonthlyOvertimeSignatureProps {
 export function MonthlyOvertimeSignature({ defaultYear, defaultMonth }: MonthlyOvertimeSignatureProps) {
   const { user } = useAuth();
   const now = new Date();
-  const [year, setYear] = useState(defaultYear ?? now.getFullYear());
-  const [month, setMonth] = useState(defaultMonth ?? now.getMonth() + 1);
+
+  // デフォルトは前月（月が変わってから前月分を署名する仕様）
+  const prevMonthDate = useMemo(() => {
+    const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return { year: d.getFullYear(), month: d.getMonth() + 1 };
+  }, []);
+
+  const [year, setYear] = useState(defaultYear ?? prevMonthDate.year);
+  const [month, setMonth] = useState(defaultMonth ?? prevMonthDate.month);
   const [confirmed, setConfirmed] = useState(false);
   const [comment, setComment] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // 当月以降は署名不可（月が変わってから前月分のみ署名できる）
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const isCurrentOrFuture = year > currentYear || (year === currentYear && month >= currentMonth);
 
   // 残業申請一覧（当月分）
   const { data: overtimeList = [], isLoading: overtimeLoading } = trpc.overtime.getMineByMonth.useQuery(
@@ -87,10 +99,10 @@ export function MonthlyOvertimeSignature({ defaultYear, defaultMonth }: MonthlyO
     },
   });
 
-  // 年月選択肢
+  // 年月選択肢（当月以前のみ）
   const yearOptions = useMemo(() => {
     const current = new Date().getFullYear();
-    return [current - 1, current, current + 1];
+    return [current - 1, current];
   }, []);
 
   const monthOptions = useMemo(() => Array.from({ length: 12 }, (_, i) => i + 1), []);
@@ -261,8 +273,18 @@ export function MonthlyOvertimeSignature({ defaultYear, defaultMonth }: MonthlyO
             </div>
           )}
 
-          {/* 署名フォーム（未署名時のみ表示） */}
-          {!isAlreadySigned && overtimeList.length > 0 && (
+          {/* 当月以降は署名不可メッセージ */}
+          {isCurrentOrFuture && (
+            <div className="flex items-start gap-2 bg-gray-50 rounded-lg p-3 border border-gray-200">
+              <AlertCircle className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-gray-500">
+                {year}年{month}月分の署名は、翌月以降に行うことができます。
+              </p>
+            </div>
+          )}
+
+          {/* 署名フォーム（未署名時のみ表示・当月以降は非表示） */}
+          {!isAlreadySigned && !isCurrentOrFuture && overtimeList.length > 0 && (
             <div className="space-y-3 border-t border-gray-100 pt-3">
               {/* 注意事項 */}
               <div className="flex items-start gap-2 bg-amber-50 rounded-lg p-3">
@@ -318,8 +340,8 @@ export function MonthlyOvertimeSignature({ defaultYear, defaultMonth }: MonthlyO
             </div>
           )}
 
-          {/* 残業申請がない月の署名フォーム */}
-          {!isAlreadySigned && overtimeList.length === 0 && !overtimeLoading && (
+          {/* 残業申請がない月の署名フォーム（当月以降は非表示） */}
+          {!isAlreadySigned && !isCurrentOrFuture && overtimeList.length === 0 && !overtimeLoading && (
             <div className="space-y-3 border-t border-gray-100 pt-3">
               <div className="flex items-start gap-2 bg-blue-50 rounded-lg p-3">
                 <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
