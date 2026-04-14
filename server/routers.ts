@@ -103,6 +103,8 @@ async function appendAlcoholCheckToSheet(record: {
   passengerCount?: number | null;
   physicalCondition?: string | null;
   physicalConditionNote?: string | null;
+  isOvernightClockOut?: boolean;
+  isMonthCrossClockOut?: boolean;
 }, spreadsheetId: string): Promise<void> {
   try {
     const auth = new google.auth.GoogleAuth({
@@ -115,9 +117,25 @@ async function appendAlcoholCheckToSheet(record: {
     const sheets = google.sheets({ version: "v4", auth });
 
     const checkedDate = new Date(record.checkedAt);
-    const dateStr = checkedDate.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+    // 日付またぎ・月またぎの場合は退勤時刻を「翌日 HH:MM」「翌月 HH:MM」形式で表示
+    const timeOnlyStr = checkedDate.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit" });
+    let dateStr: string;
+    if (record.isMonthCrossClockOut) {
+      dateStr = `翌月 ${timeOnlyStr}`;
+    } else if (record.isOvernightClockOut) {
+      dateStr = `翌日 ${timeOnlyStr}`;
+    } else {
+      dateStr = checkedDate.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+    }
     // 日付部分のみ（YYYY/MM/DD形式）を同日検索に使用
-    const dateOnlyStr = checkedDate.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" });
+    // 日付またぎの場合は出勤日（前日）の日付で検索する
+    let dateOnlyStr: string;
+    if ((record.isOvernightClockOut || record.isMonthCrossClockOut) && record.clockInAt) {
+      const clockInDate = new Date(record.clockInAt);
+      dateOnlyStr = clockInDate.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" });
+    } else {
+      dateOnlyStr = checkedDate.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" });
+    }
     const typeLabel = record.type === "clock_in" ? "出勤" : "退勤";
     const confirmMethodLabel = record.confirmMethod === "online" ? "オンライン画面" : "対面";
     const detectorLabel = record.detectorUsed ? "使用" : "未使用";
@@ -160,7 +178,7 @@ async function appendAlcoholCheckToSheet(record: {
       record.passengerCount != null ? String(record.passengerCount) : "",
       physicalConditionLabel,
       record.physicalConditionNote ?? "",
-      record.notes ?? "",
+      (() => { const base = record.notes ?? ""; if (record.isMonthCrossClockOut) return base ? `${base} ※月またぎ退勤` : "※月またぎ退勤"; if (record.isOvernightClockOut) return base ? `${base} ※日付またぎ退勤` : "※日付またぎ退勤"; return base; })(),
       extractCityAddress(record.locationAddress),
       timestampStr,
     ];
@@ -5145,6 +5163,8 @@ export const appRouter = router({
             passengerCount: input.passengerCount ?? null,
             physicalCondition: input.physicalCondition ?? null,
             physicalConditionNote: input.physicalConditionNote ?? null,
+            isOvernightClockOut: isOvernightAlcohol,
+            isMonthCrossClockOut: isMonthCrossAlcohol,
           }, sheetReg.spreadsheetId);
           await markAlcoholCheckSynced(alcoholCheck.id);
           // 酒気帯「有」の場合は管理者（森脇崇）にプッシュ通知を送信する
