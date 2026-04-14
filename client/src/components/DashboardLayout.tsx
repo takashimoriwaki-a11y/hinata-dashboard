@@ -218,12 +218,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
     // 新しいページの保存済みスクロール位置を復元（なければ先頭）
     const saved = sessionStorage.getItem(`scroll:${location}`);
-    // DOMが描画された後に復元するため少し遅延させる
+    // DOMが描画された後に復元するため遅延させる（RouteTransitionWrapperのアニメーション40ms + 余裕分）
     const timer = setTimeout(() => {
       if (mainRef.current) {
         mainRef.current.scrollTop = saved ? parseInt(saved, 10) : 0;
       }
-    }, 50);
+    }, 120);
     return () => clearTimeout(timer);
   }, [location]);
 
@@ -232,17 +232,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     month: "long",
     day: "numeric",
     weekday: "short",
+    timeZone: "Asia/Tokyo",
   });
   const timeStr = now.toLocaleTimeString("ja-JP", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
     hour12: false,
+    timeZone: "Asia/Tokyo",
   });
   const timeStrShort = now.toLocaleTimeString("ja-JP", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
+    timeZone: "Asia/Tokyo",
   });
 
   // サイドバー内容（PC・モバイル共通）
@@ -364,7 +367,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* ボトムアクション */}
       <div className="border-t border-sidebar-border py-2 pb-[68px] flex-shrink-0">
         <button
-          onTouchStart={() => {}}
+          onPointerDown={() => {}}
           onClick={async () => {
             if (pushPermission === "unsupported") {
               toast.error("このブラウザはプッシュ通知に対応していません");
@@ -635,7 +638,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", WebkitTouchCallout: "none" }}
-                    onTouchStart={() => {}}
+                    onPointerDown={() => {}}
                     className={cn(
                       "flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors select-none",
                       isNight ? "text-slate-200 active:text-primary active:scale-95" : "text-muted-foreground active:text-primary active:scale-95"
@@ -654,7 +657,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   key={item.label}
                   href={item.href}
                   style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", WebkitTouchCallout: "none" }}
-                  onTouchStart={() => {}}
+                  onPointerDown={() => {}}
                   className={cn(
                     "flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors relative select-none active:scale-95",
                     isActive ? "text-primary" : isNight ? "text-slate-200 active:text-primary" : "text-muted-foreground active:text-primary"
@@ -755,7 +758,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             {/* ボタングループ */}
             <div className="flex gap-2 pt-1">
               <button
-                onTouchStart={() => {}}
+                onPointerDown={() => {}}
                 onClick={async () => {
                   const filter = selectedTeamFilter === "all" ? null : selectedTeamFilter;
                   // iOS対応: ボタンクリック時に既に許可取得済みの場合はフラグを渡す

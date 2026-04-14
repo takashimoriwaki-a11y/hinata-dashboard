@@ -98,8 +98,24 @@ const CLOCK_IN_REQUIRED_STEP_IDS = CLOCK_IN_STEPS.map((s) => s.id);
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTE_OPTIONS = [0, 10, 20, 30, 40, 50];
 
+/** JSTの時を取得（ブラウザのロケールに依存せず常にAsia/Tokyo基準） */
+function getJSTHours(date: Date): number {
+  return parseInt(
+    date.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", hour: "numeric", hour12: false }),
+    10
+  );
+}
+
+/** JSTの分を取得 */
+function getJSTMinutes(date: Date): number {
+  return parseInt(
+    date.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", minute: "numeric" }),
+    10
+  );
+}
+
 function floorToTenMinutes(date: Date): number {
-  return Math.floor(date.getMinutes() / 10) * 10;
+  return Math.floor(getJSTMinutes(date) / 10) * 10;
 }
 
 interface AttendanceCheckModalProps {
@@ -213,7 +229,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   const [hasOvertime, setHasOvertime] = useState(savedState?.hasOvertime ?? false);
   const [overtimeStartHour, setOvertimeStartHour] = useState(savedState?.overtimeStartHour ?? 17);
   const [overtimeStartMinute, setOvertimeStartMinute] = useState(savedState?.overtimeStartMinute ?? 0);
-  const [overtimeEndHour, setOvertimeEndHour] = useState(savedState?.overtimeEndHour ?? openedAt.getHours());
+  const [overtimeEndHour, setOvertimeEndHour] = useState(savedState?.overtimeEndHour ?? getJSTHours(openedAt));
   const [overtimeEndMinute, setOvertimeEndMinute] = useState(savedState?.overtimeEndMinute ?? floorToTenMinutes(openedAt));
   const [overtimeReasonType, setOvertimeReasonType] = useState(savedState?.overtimeReasonType ?? "");
   const [overtimeContactTarget, setOvertimeContactTarget] = useState(savedState?.overtimeContactTarget ?? "");
@@ -1108,7 +1124,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 残業終了時刻
                 <span className="text-gray-400 font-normal ml-1">（画面を開いた時刻から自動取得）</span>
               </label>
-              <button type="button" onClick={() => { setOvertimeEndHour(openedAt.getHours()); setOvertimeEndMinute(floorToTenMinutes(openedAt)); }} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
+              <button type="button" onClick={() => { setOvertimeEndHour(getJSTHours(openedAt)); setOvertimeEndMinute(floorToTenMinutes(openedAt)); }} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
             </div>
             <div className="flex gap-2 items-center">
               <div className="relative flex-1">
@@ -1399,7 +1415,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             onClick={() => {
               setOvertimeStartHour(17);
               setOvertimeStartMinute(0);
-              setOvertimeEndHour(openedAt.getHours());
+              setOvertimeEndHour(getJSTHours(openedAt));
               setOvertimeEndMinute(floorToTenMinutes(openedAt));
               setOvertimeReasonType("");
               setOvertimeContactTarget("");
@@ -1473,7 +1489,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                   <span className="text-xs font-semibold text-foreground">{user?.name ?? "—"}</span>
                 </div>
                 <span className="text-xs text-muted-foreground">
-                  {new Date().toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric" })}
+                  {new Date().toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Tokyo" })}
                 </span>
               </div>
 
@@ -1555,7 +1571,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       </AlertDialogContent>
     </AlertDialog>
 
-    <div className="fixed inset-0 z-50 flex items-end sm:items-start justify-center sm:pt-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center">
       {/* 背景オーバーレイ */}
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm"
@@ -1563,11 +1579,11 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       />
       {/* モーダル本体 */}
       <div
-        className="relative w-full sm:max-w-md mx-0 sm:mx-4 bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[90dvh] sm:max-h-[calc(100dvh-2rem)] overflow-hidden"
+        className="relative w-full sm:max-w-md mx-0 sm:mx-4 bg-white dark:bg-gray-900 rounded-b-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[100dvh] sm:max-h-[calc(100dvh-2rem)] overflow-hidden"
       >
         {/* ヘッダー */}
         <div
-          className={`sticky top-0 z-10 px-5 py-4 flex items-center justify-between flex-shrink-0 rounded-t-2xl sm:rounded-t-2xl ${
+          className={`sticky top-0 z-10 px-5 py-4 flex items-center justify-between flex-shrink-0 rounded-t-none sm:rounded-t-2xl ${
             isClockIn
               ? "bg-gradient-to-r from-red-500 to-rose-600"
               : "bg-gradient-to-r from-blue-500 to-indigo-600"

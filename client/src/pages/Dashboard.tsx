@@ -2453,7 +2453,7 @@ function LinkRow({ href, label, color, colorStyle, emoji, onAddToMyLinks, isInMy
         target="_blank"
         rel="noopener noreferrer"
         onClick={handleClick}
-        onTouchStart={() => {}}
+        onPointerDown={() => {}}
         className={cn(
           "flex-1 flex items-center gap-2 text-sm py-2.5 px-3 rounded-md min-w-0",
           "bg-muted/50 hover:bg-muted transition-all duration-200 font-medium hover:-translate-y-0.5 hover:shadow-sm active:scale-95 select-none",
@@ -2673,10 +2673,10 @@ function SheetSubTabs({ quickLinks, isAdmin = false }: { quickLinks: { id: numbe
                       />
                       {isAdmin && (
                         <>
-                          <button onClick={() => startEditOther(link)} onTouchStart={() => {}} style={{ touchAction: 'manipulation' }} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95" title="編集">
+                          <button onClick={() => startEditOther(link)} onPointerDown={() => {}} style={{ touchAction: 'manipulation' }} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95" title="編集">
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                           </button>
-                          <button onClick={() => deleteSheetLink.mutate({ id: link.id })} onTouchStart={() => {}} style={{ touchAction: 'manipulation' }} className="text-muted-foreground hover:text-destructive p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95" title="削除">
+                          <button onClick={() => deleteSheetLink.mutate({ id: link.id })} onPointerDown={() => {}} style={{ touchAction: 'manipulation' }} className="text-muted-foreground hover:text-destructive p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95" title="削除">
                             <Trash2 className="w-3 h-3" />
                           </button>
                         </>
@@ -3312,7 +3312,7 @@ function TeamToolsCard() {
             <button
               key={tab.id}
               onClick={() => setActiveTeam(tab.id)}
-              onTouchStart={() => {}}
+              onPointerDown={() => {}}
               className={cn(
                 "flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md text-xs font-bold transition-colors",
                 getTeamButtonClass(tab.id, activeTeam === tab.id)
@@ -3363,7 +3363,7 @@ function TeamToolsCard() {
           ) : tools.length === 0 && !showAddForm && !teamFeeLink && activeTeam !== "全チーム" ? (
             <p className="text-xs text-muted-foreground text-center py-4">
               {activeTeam}チームのツールはまだありません
-              {isAdmin && <span className="block mt-1 text-primary cursor-pointer" onClick={() => setShowAddForm(true)} onTouchStart={() => {}} style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>+ 追加する</span>}
+              {isAdmin && <span className="block mt-1 text-primary cursor-pointer" onClick={() => setShowAddForm(true)} onPointerDown={() => {}} style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>+ 追加する</span>}
             </p>
           ) : (
             tools
@@ -3394,10 +3394,10 @@ function TeamToolsCard() {
                     />
                     {isAdmin && (
                       <>
-                        <button onClick={() => startEdit(tool)} onTouchStart={() => {}} style={{ touchAction: 'manipulation' }} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95 touch-manipulation" title="編集">
+                        <button onClick={() => startEdit(tool)} onPointerDown={() => {}} style={{ touchAction: 'manipulation' }} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95 touch-manipulation" title="編集">
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </button>
-                        <button onClick={() => deleteTool.mutate({ id: tool.id })} onTouchStart={() => {}} style={{ touchAction: 'manipulation' }} className="text-muted-foreground hover:text-destructive p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95 touch-manipulation" title="削除">
+                        <button onClick={() => deleteTool.mutate({ id: tool.id })} onPointerDown={() => {}} style={{ touchAction: 'manipulation' }} className="text-muted-foreground hover:text-destructive p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95 touch-manipulation" title="削除">
                           <Trash2 className="w-3 h-3" />
                         </button>
                       </>
@@ -4355,7 +4355,7 @@ function MessageBoard({ title }: { title: string }) {
                       {msg.createdBy === user?.id && editingMsgId !== msg.id && (
                         <div className="flex items-center gap-2 mt-2">
                           <button
-                            onTouchStart={() => {}}
+                            onPointerDown={() => {}}
                             onClick={() => {
                               setEditingMsgId(msg.id);
                               setEditingText(msg.text);
@@ -4367,7 +4367,7 @@ function MessageBoard({ title }: { title: string }) {
                             編集
                           </button>
                           <button
-                            onTouchStart={() => {}}
+                            onPointerDown={() => {}}
                             onClick={() => {
                               setDeleteMsgId(msg.id);
                               setDeleteMsgText(msg.text);
@@ -5193,7 +5193,7 @@ export default function Dashboard() {
             {/* 1. 出勤 */}
             <button
               type="button"
-              onTouchStart={() => {}}
+              onPointerDown={() => {}}
               onClick={handleAlcoholCheckIn}
               className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px] relative" style={{backgroundColor: clockInAllDone ? '#22c55e' : '#d95f5f', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}}
             >
@@ -5212,7 +5212,7 @@ export default function Dashboard() {
             {/* 2. 退勤 */}
             <button
               type="button"
-              onTouchStart={() => {}}
+              onPointerDown={() => {}}
               onClick={handleAlcoholCheckOut}
               className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px] relative" style={{backgroundColor: clockOutAllDone ? '#22c55e' : '#3b8fd4', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}}
             >
@@ -5232,7 +5232,7 @@ export default function Dashboard() {
             {needsEmergencyClockIn && (
               <button
                 type="button"
-                onTouchStart={() => {}}
+                onPointerDown={() => {}}
                 onClick={handleEmergencyClockIn}
                 className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px] relative"
                 style={{backgroundColor: '#e07b39', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}}
@@ -5246,7 +5246,7 @@ export default function Dashboard() {
             {needsEmergencyClockOut && (
               <button
                 type="button"
-                onTouchStart={() => {}}
+                onPointerDown={() => {}}
                 onClick={handleEmergencyClockOut}
                 className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px] relative"
                 style={{backgroundColor: '#e07b39', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}}
@@ -5260,7 +5260,7 @@ export default function Dashboard() {
             {(clockInAllDone || clockOutAllDone) && (
               <button
                 type="button"
-                onTouchStart={() => {}}
+                onPointerDown={() => {}}
                 onClick={handleResetAttendance}
                 className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px] relative"
                 style={{backgroundColor: '#6b7280', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}}
@@ -5273,7 +5273,7 @@ export default function Dashboard() {
             {/* 3. Gemini */}
             <button
               onClick={() => openLink("https://gemini.google.com/app")}
-              onTouchStart={() => {}}
+              onPointerDown={() => {}}
               className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#7c6fcd', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#6a5eb8')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#7c6fcd')}
             >
               <span className="text-sm leading-none">✨</span>
@@ -5282,7 +5282,7 @@ export default function Dashboard() {
             {/* 4. ZEST */}
             <button
               onClick={() => openLink("https://homecare.zest.jp/login")}
-              onTouchStart={() => {}}
+              onPointerDown={() => {}}
               className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#0ea5a0', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#0c9490')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#0ea5a0')}
             >
               <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4" />
@@ -5291,7 +5291,7 @@ export default function Dashboard() {
             {/* 5. 日程管理 */}
             <Link
               href="/schedule-management"
-              onTouchStart={() => {}}
+              onPointerDown={() => {}}
               className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#3a9e6e', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#2e8a5c')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#3a9e6e')}
             >
               <CalendarDays className="w-3.5 h-3.5 md:w-4 md:h-4" />
@@ -5300,7 +5300,7 @@ export default function Dashboard() {
             {/* 6. 訪問 */}
             <Link
               href="/record#record-condition"
-              onTouchStart={() => {}}
+              onPointerDown={() => {}}
               className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#b06a1a', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#9a5c14')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#b06a1a')}
             >
               <ClipboardEdit className="w-3.5 h-3.5 md:w-4 md:h-4" />

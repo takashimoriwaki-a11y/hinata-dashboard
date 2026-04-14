@@ -2,14 +2,18 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 
 type Theme = "light" | "dark";
 
-// 時間帯判定：19:01〜4:59 = 夜モード、5:00〜19:00 = 昼モード
+// 時間帯判定：19:01〜4:59 = 夜モード、5:00〜19:00 = 昼モード（常にJST基準）
 function isNightTime(): boolean {
   const now = new Date();
-  const hours = now.getHours();
-  const minutes = now.getMinutes();
+  // ブラウザのロケールに依存せず、常にAsia/Tokyoで時刻を取得
+  const jstHour = parseInt(
+    now.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", hour: "numeric", hour12: false }),
+    10
+  );
+  const jstMinute = now.getUTCMinutes(); // 分はタイムゾーンに依存しない
   // 19:01〜4:59 が夜モード
-  if (hours === 19 && minutes === 0) return false; // 19:00 は昼モード
-  if (hours >= 19 || hours < 5) return true;
+  if (jstHour === 19 && jstMinute === 0) return false; // 19:00 は昼モード
+  if (jstHour >= 19 || jstHour < 5) return true;
   return false;
 }
 

@@ -266,9 +266,9 @@
     [role="button"]:active,
     [role="tab"]:active,
     a:active {
-      opacity: 0.75;
-      transform: scale(0.97);
-      transition: opacity 0.05s ease, transform 0.05s ease;
+      opacity: 0.78;
+      transform: scale(0.95);
+      transition: opacity 0.02s ease, transform 0.02s ease;
     }
   }
 
@@ -654,28 +654,33 @@
 /* ボタン: タップ時の即時フィードバック強化（全プラットフォーム共通） */
 button:not(:disabled):active,
 [role="button"]:not([aria-disabled="true"]):active,
-[data-slot="button"]:not([data-disabled]):active {
-  transform: scale(0.94) !important;
-  opacity: 0.82 !important;
-  transition: transform 0.05s ease, opacity 0.05s ease !important;
+[data-slot="button"]:not([data-disabled]):active,
+a[href]:active {
+  transform: scale(0.93) !important;
+  opacity: 0.80 !important;
+  transition: transform 0.03s ease, opacity 0.03s ease !important;
 }
 
 /* タブ: タップ時の即時フィードバック */
 [role="tab"]:active,
 [data-slot="tabs-trigger"]:active {
-  transform: scale(0.95) !important;
+  transform: scale(0.94) !important;
   opacity: 0.78 !important;
-  transition: transform 0.05s ease, opacity 0.05s ease !important;
+  transition: transform 0.03s ease, opacity 0.03s ease !important;
 }
 
-/* ボタン・タブ: ホバー/フォーカス時のトランジションを高速化 */
+/* ボタン・タブ: ホバー/フォーカス時のトランジションを極限まで高速化 */
 button:not(:disabled),
 [role="button"]:not([aria-disabled="true"]),
 [data-slot="button"]:not([data-disabled]),
 [role="tab"],
-[data-slot="tabs-trigger"] {
-  transition: transform 0.07s ease, opacity 0.07s ease, background-color 0.1s ease, box-shadow 0.1s ease !important;
+[data-slot="tabs-trigger"],
+a[href] {
+  transition: transform 0.05s ease, opacity 0.05s ease, background-color 0.08s ease, box-shadow 0.08s ease !important;
   will-change: transform;
+  /* GPUコンポジットレイヤーを事前に作成しタップレイテンシを最小化 */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }
 
 /* カード: 昼間モードの境界線を明確化 */
