@@ -313,11 +313,19 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     }
   }, [type, done, alcoholRecorded, alcoholSkipped, clockInDone, clockOutDone, hasOvertime, overtimeStartHour, overtimeStartMinute, overtimeEndHour, overtimeEndMinute, overtimeReasonType, overtimeContactTarget, overtimeRecordCount, overtimeFreeText]);
 
-  // モーダルが開いている間、bodyのスクロールをロックする
+  // モーダルが開いている間、bodyのスクロールをロックする（iOS対応）
   useEffect(() => {
+    const scrollY = window.scrollY;
     document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
     return () => {
       document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
+      window.scrollTo(0, scrollY);
     };
   }, []);
 
@@ -1656,7 +1664,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         </div>
 
         {/* コンテンツ */}
-        <div className="py-2 overflow-y-auto flex-1 min-h-0">
+        <div className="pt-2 pb-0 overflow-y-auto flex-1 min-h-0 overscroll-contain" style={{WebkitOverflowScrolling: 'touch', touchAction: 'pan-y'}}>
 
           {isClockIn ? (
             // ── 出勤画面レイアウト：手順チェック → アルコールチェック ──
