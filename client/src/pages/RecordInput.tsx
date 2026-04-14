@@ -48,6 +48,28 @@ const toKatakana = (s: string) => s.replace(/[\u3041-\u3096]/g, c => String.from
 const toHiragana = (s: string) => s.replace(/[\u30A1-\u30F6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
 const removeHonorific = (s: string) => s.replace(/(さん|様|くん|ちゃん|の|を|が|は|に|へ|で|と|から|まで|より)$/g, "");
 const normalizeVoice = (s: string): string => removeHonorific(s.normalize("NFKC").replace(/\s+/g, "").toLowerCase());
+
+/**
+ * 一括音声入力のトランスクリプトを複数人名に分割する
+ * 「田中さんと佐藤さんと山田さん」→ ["田中", "佐藤", "山田"]
+ * 「田中、佐藤、山田」→ ["田中", "佐藤", "山田"]
+ */
+const splitMultipleNames = (transcript: string): string[] => {
+  // 区切り文字で分割: 「と」「、」「，」「あと」「それから」「次に」「次は」「それと」「および」「&」
+  const separators = /(?:と|、|，|,|あと|それから|次に|次は|それと|および|&|\s+と\s+|\s+)/g;
+  // まず敬称を除去してから分割
+  const cleaned = transcript
+    .replace(/さん|様|くん|ちゃん/g, "")
+    .replace(/の訪問|への訪問|を訪問/g, "");
+  const parts = cleaned.split(separators)
+    .map(p => p.trim())
+    .filter(p => p.length >= 1);
+  // チーム名を除去
+  return parts.filter(p => {
+    const norm = normalizeVoice(p);
+    return !Object.keys(TEAM_VOICE_MAP).some(k => normalizeVoice(k) === norm);
+  });
+};
 const extractTeamFromVoice = (transcript: string): { team: Team | null; rest: string } => {
   const norm = normalizeVoice(transcript);
   for (const [key, team] of Object.entries(TEAM_VOICE_MAP)) {
@@ -66,19 +88,32 @@ const scorePatient = (p: PatientEntry, query: string): number => {
   const normName = normalizeVoice(p.name);
   const normKana = p.nameKana ? normalizeVoice(p.nameKana) : "";
   const normKanaHira = normKana ? toHiragana(normKana) : "";
-  const lastName = normName.split(/[\s　]+/)[0];
-  const lastNameKana = normKana ? normKana.split(/[\s　]+/)[0] : "";
+  const lastName = normName.split(/[\s\u3000]+/)[0];
+  const lastNameKana = normKana ? normKana.split(/[\s\u3000]+/)[0] : "";
+  const lastNameKanaHira = lastNameKana ? toHiragana(lastNameKana) : "";
   const q = normalizeVoice(query);
   const qHira = toHiragana(q);
   const qKata = toKatakana(q);
-  if (normName === q || normKana === q || normKanaHira === q) return 100;
-  if (normName.includes(q) || normKana.includes(q) || normKanaHira.includes(q)) return 80;
-  if (q.includes(normName)) return 75;
-  if (lastName === q || lastNameKana === q || toHiragana(lastNameKana) === q) return 70;
+
+  // ===== よみがな優先スコアリング =====
+  // 完全一致（よみがな最優先）
+  if (normKana === q || normKanaHira === q || normKana === qHira || normKana === qKata) return 105;
+  if (normName === q) return 100;
+  // 苗字よみがな完全一致
+  if (lastNameKana === q || lastNameKanaHira === q || lastNameKana === qHira || lastNameKana === qKata) return 95;
+  // よみがな前方一致（苗字部分）
+  if (normKanaHira.startsWith(qHira) || normKana.startsWith(qKata)) return 88;
+  if (lastNameKanaHira.startsWith(qHira) || lastNameKana.startsWith(qKata)) return 85;
+  // よみがな部分一致
+  if (normKana.includes(q) || normKanaHira.includes(q) || normKanaHira.includes(qHira)) return 80;
+  if (lastNameKana.includes(q) || lastNameKanaHira.includes(qHira)) return 75;
+  // 漢字名前一致
+  if (normName.includes(q)) return 72;
+  if (q.includes(normName)) return 70;
+  if (lastName === q) return 68;
   if (lastName.includes(q) || q.includes(lastName)) return 60;
-  if (lastNameKana.includes(q) || q.includes(lastNameKana)) return 55;
-  if (normKana.includes(qKata) || normKanaHira.includes(qHira)) return 50;
-  if (qHira.includes(toHiragana(normKana)) || qKata.includes(normKana)) return 45;
+  // よみがなの逆包含
+  if (qHira.includes(normKanaHira) || qKata.includes(normKana)) return 45;
   return 0;
 };
 
@@ -351,7 +386,48 @@ export default function RecordInput() {
       for (let i = 0; i < resultSet.length; i++) {
         alternatives.push({ transcript: resultSet[i].transcript, confidence: resultSet[i].confidence });
       }
-      // 空き枠を探す
+
+      const rawTranscript = alternatives[0]?.transcript || "";
+
+      // ===== 複数人名分割処理 =====
+      // まずチーム名を除去してから複数人名に分割
+      const { rest: transcriptWithoutTeam } = extractTeamFromVoice(rawTranscript);
+      const nameTokens = splitMultipleNames(transcriptWithoutTeam || rawTranscript);
+
+      // 複数名が検出された場合は順番に処理
+      if (nameTokens.length > 1) {
+        let successCount = 0;
+        // 現在の空き枠インデックスを追跡
+        const currentSlots = [...slots];
+        for (const namePart of nameTokens) {
+          const emptyIdx = currentSlots.findIndex(s => !s.patientName);
+          if (emptyIdx === -1) break;
+          const nameAlts = [{ transcript: namePart, confidence: 1.0 }];
+          const { matches, usedTranscript: usedName } = findBestMatches(nameAlts, allPatients, null);
+          if (matches.length === 1) {
+            handleSlotChange(emptyIdx, {
+              team: (matches[0].team as Team) || "",
+              patientId: matches[0].id,
+              patientName: matches[0].name,
+            });
+            setSlotSearch(emptyIdx, matches[0].name);
+            // 仮想的にスロットを埋めたとしてマーク
+            currentSlots[emptyIdx] = { ...currentSlots[emptyIdx], patientName: matches[0].name };
+            successCount++;
+          } else if (matches.length > 1) {
+            // 複数候補 → 最初の複数候補のみモーダル表示
+            setBulkCandidates(matches);
+            setBulkCandidateSlotIndex(emptyIdx);
+            currentSlots[emptyIdx] = { ...currentSlots[emptyIdx], patientName: "__pending__" };
+          }
+        }
+        if (successCount > 0) {
+          toast.success(`${successCount}名を訪問予定に追加しました`);
+        }
+        return;
+      }
+
+      // ===== 1人分の処理（従来通り） =====
       const emptySlotIndex = slots.findIndex(s => !s.patientName);
       if (emptySlotIndex === -1) {
         toast.warning("全ての枠が埋まっています");
@@ -630,20 +706,39 @@ function SlotSelector({
   const [suggestQuery, setSuggestQuery] = useState("");
   const recognitionRef = useRef<SpeechRecognitionType | null>(null);
 
-  // チームでフィルタリングした利用者リスト
+  // チームでフィルタリングした利用者リスト（よみがな優先でソート）
   const filteredPatients = useMemo(() => {
     const teamFiltered = slot.team
       ? allPatients.filter(p => p.team === slot.team)
       : allPatients;
     if (!searchQuery.trim()) return teamFiltered;
     const q = searchQuery.toLowerCase();
-    return teamFiltered.filter(p =>
-      p.name.toLowerCase().includes(q) ||
-      (p.nameKana && p.nameKana.toLowerCase().includes(q))
-    );
+    const qHira = toHiragana(q);
+    const qKata = toKatakana(q);
+    const matched = teamFiltered.filter(p => {
+      const nameL = p.name.toLowerCase();
+      const kanaL = p.nameKana ? p.nameKana.toLowerCase() : "";
+      const kanaHira = toHiragana(kanaL);
+      return nameL.includes(q) ||
+        kanaL.includes(q) ||
+        kanaHira.includes(qHira) ||
+        kanaL.includes(qKata);
+    });
+    // よみがなマッチを上位に
+    return matched.sort((a, b) => {
+      const aKana = (a.nameKana || "").toLowerCase();
+      const bKana = (b.nameKana || "").toLowerCase();
+      const aKanaHira = toHiragana(aKana);
+      const bKanaHira = toHiragana(bKana);
+      const aKanaMatch = aKana.includes(q) || aKanaHira.includes(qHira) || aKana.includes(qKata);
+      const bKanaMatch = bKana.includes(q) || bKanaHira.includes(qHira) || bKana.includes(qKata);
+      if (aKanaMatch && !bKanaMatch) return -1;
+      if (!aKanaMatch && bKanaMatch) return 1;
+      return 0;
+    });
   }, [allPatients, slot.team, searchQuery]);
 
-  // 音声入力で苗字を認識 → 候補を検索
+  // 音声入力で苗字を認識 → 候補を検索（よみがな優先）
   const startVoiceInput = useCallback(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -690,12 +785,12 @@ function SlotSelector({
         setSuggestCandidates([]);
         toast.success(`「${matches[0].name}」を選択しました`);
       } else if (matches.length > 1) {
-        // 複数候補 → 候補リストを表示
+        // 複数候補 → 候補リストを「利用者名で検索」欄の下に表示
         setVoiceCandidates(matches);
         setSuggestCandidates([]);
         onSearchChange(usedTranscript);
         onShowListChange(false);
-        toast.info(`「${usedTranscript}」の候補が${matches.length}件あります`);
+        toast.info(`「${usedTranscript}」の候補が${matches.length}件あります。下から選択してください`);
       } else {
         // 候補なし → 近似候補をサジェスト
         const { team: detectedTeam, rest } = extractTeamFromVoice(alternatives[0]?.transcript || "");
@@ -841,11 +936,12 @@ function SlotSelector({
                 </button>
               </div>
 
-              {/* 音声入力候補リスト（複数一致） */}
-              {voiceCandidates.length > 1 && (
+              {/* 音声入力候補リスト（複数一致） - 1件以上で表示 */}
+              {voiceCandidates.length >= 1 && (
                 <div className="absolute z-50 top-full mt-1 left-0 right-0 border rounded-md bg-background shadow-md">
-                  <div className="px-3 py-1.5 text-xs text-muted-foreground border-b bg-muted/50">
-                    候補を選択してください
+                  <div className="px-3 py-1.5 text-xs text-muted-foreground border-b bg-muted/50 flex items-center gap-1.5">
+                    <Search className="w-3 h-3" />
+                    {voiceCandidates.length === 1 ? "1件一致 - タップして選択" : `${voiceCandidates.length}件の候補 - 選択してください`}
                   </div>
                   {voiceCandidates.map((p) => (
                     <button
