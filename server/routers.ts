@@ -4807,29 +4807,20 @@ export const appRouter = router({
             const sheets = google.sheets({ version: "v4", auth });
             const drive = google.drive({ version: "v3", auth });
             const title = `出退勤記録_${year}年${month}月`;
-            const createRes = await sheets.spreadsheets.create({
-              requestBody: {
-                properties: { title },
-                sheets: [{ properties: { title: "概要" } }],
-              },
-            });
-            spreadsheetId = createRes.data.spreadsheetId!;
-            const spreadsheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
-            // 指定のGoogle Driveフォルダに移動
+            // 指定のGoogle Driveフォルダ内に直接スプレッドシートを作成
             const TIMESHEET_FOLDER_ID = "11GxLu7YB23OzV8kxMpkwSWTLOei9j7hk";
-            try {
-              const fileRes = await drive.files.get({ fileId: spreadsheetId, fields: "parents" });
-              const prevParents = (fileRes.data.parents ?? []).join(",");
-              await drive.files.update({
-                fileId: spreadsheetId,
-                addParents: TIMESHEET_FOLDER_ID,
-                removeParents: prevParents,
-                fields: "id, parents",
-              });
-              console.log(`[TimesheetAutoSheet] Moved to folder: ${TIMESHEET_FOLDER_ID}`);
-            } catch (e) {
-              console.warn("[TimesheetAutoSheet] Failed to move to folder:", e);
-            }
+            const createRes = await drive.files.create({
+              requestBody: {
+                name: title,
+                mimeType: "application/vnd.google-apps.spreadsheet",
+                parents: [TIMESHEET_FOLDER_ID],
+              },
+              fields: "id",
+              supportsAllDrives: true,
+            });
+            spreadsheetId = createRes.data.id!;
+            const spreadsheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
+            console.log(`[TimesheetAutoSheet] Created spreadsheet in folder: ${TIMESHEET_FOLDER_ID}`);
             // 概要シートに説明を記入
             await sheets.spreadsheets.values.update({
               spreadsheetId,
