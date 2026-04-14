@@ -15,7 +15,7 @@ import {
   Plus, Trash2, ExternalLink, Settings, ClipboardPaste,
   CheckCircle2, AlertCircle, ChevronDown, ChevronUp,
   Users, Pencil, X, ChevronRight, UserPlus, Key, Shield, ShieldCheck,
-  FileSpreadsheet, Upload, Download, LogOut, RotateCcw, Mail, Link,
+  FileSpreadsheet, Upload, Download, LogOut, RotateCcw, Mail, Link, Copy, Share2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -2893,6 +2893,16 @@ function AlcoholCheckSpreadsheetsPanel() {
     },
     onError: (e) => toast.error(`自動作成に失敗しました: ${e.message}`),
   });
+  const shareSpreadsheetMutation = trpc.attendance.shareSpreadsheet.useMutation({
+    onSuccess: (data) => {
+      navigator.clipboard.writeText(data.url).then(() => {
+        toast.success("URLをクリップボードにコピーしました");
+      }).catch(() => {
+        toast.info(`URL: ${data.url}`);
+      });
+    },
+    onError: (e) => toast.error(`共有設定に失敗しました: ${e.message}`),
+  });
 
   /** スプレッドシートURLまたはIDからIDを抽出する */
   const extractSheetId = (input: string): string => {
@@ -3087,6 +3097,15 @@ function AlcoholCheckSpreadsheetsPanel() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => shareSpreadsheetMutation.mutate({ spreadsheetId: sheet.spreadsheetId })}
+                        disabled={shareSpreadsheetMutation.isPending}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                        title="URLをコピー（共有設定も行います）"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
                       <button
                         type="button"
                         onClick={() => setPreviewSheetId(previewSheetId === sheet.spreadsheetId ? null : sheet.spreadsheetId)}

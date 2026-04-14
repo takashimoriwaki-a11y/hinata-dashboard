@@ -4305,6 +4305,42 @@ export const appRouter = router({
         const csv = "\uFEFF" + csvLines.join("\n"); // BOM付き UTF-8
         return { csv, count: records.length };
       }),
+    /** スプレッドシートを共有設定し、URLを返す（管理者用） */
+    shareSpreadsheet: protectedProcedure
+      .input(z.object({ spreadsheetId: z.string().min(1).max(100) }))
+      .mutation(async ({ input }) => {
+        const auth = new google.auth.GoogleAuth({
+          credentials: {
+            client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+            private_key: (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ?? "").replace(/\\n/g, "\n"),
+          },
+          scopes: ["https://www.googleapis.com/auth/drive"],
+        });
+        const drive = google.drive({ version: "v3", auth });
+        // 既存の権限を確認する
+        let alreadyShared = false;
+        try {
+          const permsRes = await drive.permissions.list({
+            fileId: input.spreadsheetId,
+            fields: "permissions(id,type,role,emailAddress)",
+          });
+          const perms = permsRes.data.permissions ?? [];
+          alreadyShared = perms.some((p) => p.type === "anyone" || p.role === "writer" || p.role === "reader");
+        } catch (_) {}
+        // OWNER_EMAILへの共有が未設定なら追加する
+        const ownerEmail = process.env.OWNER_EMAIL;
+        if (ownerEmail) {
+          try {
+            await drive.permissions.create({
+              fileId: input.spreadsheetId,
+              requestBody: { type: "user", role: "writer", emailAddress: ownerEmail },
+              sendNotificationEmail: false,
+            });
+          } catch (_) { /* 既に共有済みの場合は無視 */ }
+        }
+        const url = `https://docs.google.com/spreadsheets/d/${input.spreadsheetId}/edit`;
+        return { success: true, url, alreadyShared };
+      }),
     /** 今日の自分の打刻履歴を取得する */
     today: protectedProcedure
       .query(async ({ ctx }) => {
