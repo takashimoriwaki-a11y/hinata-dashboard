@@ -3035,10 +3035,22 @@ function AlcoholCheckSpreadsheetsPanel() {
             月ごとにスプレッドシートを登録します。打刻時に日付に応じたシートへ自動転記されます。
           </p>
         </div>
-        <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => setShowAddForm((v) => !v)}>
-          <Plus className="w-3.5 h-3.5" />
-          新規登録
-        </Button>
+        <div className="flex items-center gap-2">
+          <a
+            href="https://drive.google.com/drive/folders/1M1po6_l4AAqqygD9xoQU8jQPF9XXX7_4"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5">
+              <ExternalLink className="w-3.5 h-3.5" />
+              Driveで開く
+            </Button>
+          </a>
+          <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => setShowAddForm((v) => !v)}>
+            <Plus className="w-3.5 h-3.5" />
+            新規登録
+          </Button>
+        </div>
       </div>
 
       {/* 新規登録フォーム */}
@@ -3761,7 +3773,19 @@ function TimesheetSpreadsheetsPanel() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold">出退勤スプレッドシート管理</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold">出退勤スプレッドシート管理</h2>
+        <a
+          href="https://drive.google.com/drive/folders/11GxLu7YB23OzV8kxMpkwSWTLOei9j7hk"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5">
+            <ExternalLink className="w-3.5 h-3.5" />
+            Driveで開く
+          </Button>
+        </a>
+      </div>
       <p className="text-sm text-muted-foreground">
         出勤・退勤打刻・残業申請の記録が職員別タブに自動転記されるスプレッドシートを月ごとに管理します。毎月25日に翌月分が自動作成されます。
       </p>
