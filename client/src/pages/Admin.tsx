@@ -15,7 +15,7 @@ import {
   Plus, Trash2, ExternalLink, Settings, ClipboardPaste,
   CheckCircle2, AlertCircle, ChevronDown, ChevronUp,
   Users, Pencil, X, ChevronRight, UserPlus, Key, Shield, ShieldCheck,
-  FileSpreadsheet, Upload, Download, LogOut, RotateCcw, Mail, Link, Copy, Share2,
+  FileSpreadsheet, Upload, Download, LogOut, RotateCcw, Mail, Link, Copy, Share2, ThumbsUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -3888,18 +3888,13 @@ function TimesheetSpreadsheetsPanel() {
 // ============================
 function OvertimeApprovalsPanel() {
   const utils = trpc.useUtils();
-  const now = new Date();
-  const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "approved" | "rejected">("all");
-  const [filterDate, setFilterDate] = useState("");
   const [commentInputs, setCommentInputs] = useState<Record<number, string>>({});
   const [adjustStart, setAdjustStart] = useState<Record<number, string>>({});
   const [adjustEnd, setAdjustEnd] = useState<Record<number, string>>({});
+  const [isBulkApproving, setIsBulkApproving] = useState(false);
 
-  const queryInput = {
-    date: filterDate || undefined,
-    status: filterStatus === "all" ? undefined : filterStatus as "pending" | "approved" | "rejected",
-  };
-  const { data: approvals = [], isLoading } = trpc.overtime.getAll.useQuery(queryInput);
+  // 承認待ちのみ取得
+  const { data: approvals = [], isLoading } = trpc.overtime.getAll.useQuery({ status: "pending" });
 
   const approveMut = trpc.overtime.approve.useMutation({
     onSuccess: () => utils.overtime.getAll.invalidate(),
@@ -3908,39 +3903,43 @@ function OvertimeApprovalsPanel() {
   const toJST = (ms: number) =>
     new Date(ms).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
 
-  const statusBadge = (status: string) => {
-    if (status === "pending") return <span className="px-2 py-0.5 rounded text-xs bg-yellow-100 text-yellow-800">承認待ち</span>;
-    if (status === "approved") return <span className="px-2 py-0.5 rounded text-xs bg-green-100 text-green-800">承認済み</span>;
-    return <span className="px-2 py-0.5 rounded text-xs bg-red-100 text-red-800">却下</span>;
+  // 一括承認処理
+  const handleBulkApprove = async () => {
+    if (approvals.length === 0) return;
+    setIsBulkApproving(true);
+    try {
+      for (const a of approvals) {
+        await approveMut.mutateAsync({
+          id: a.id,
+          status: "approved",
+        });
+      }
+      toast.success(`${approvals.length}件の残業申請を一括承認しました`);
+    } catch (e) {
+      toast.error("一括承認中にエラーが発生しました");
+    } finally {
+      setIsBulkApproving(false);
+    }
   };
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold">残業申請 承認管理</h2>
-      <p className="text-sm text-muted-foreground">
-        職員からの残業申請を確認・承認します。承認者名は自動的に記録されます。
-      </p>
-
-      {/* フィルター */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value as any)}
-          className="border rounded px-2 py-1 text-sm"
-        >
-          <option value="all">全て</option>
-          <option value="pending">承認待ち</option>
-          <option value="approved">承認済み</option>
-          <option value="rejected">却下</option>
-        </select>
-        <input
-          type="date"
-          value={filterDate}
-          onChange={(e) => setFilterDate(e.target.value)}
-          className="border rounded px-2 py-1 text-sm"
-        />
-        {filterDate && (
-          <Button size="sm" variant="ghost" onClick={() => setFilterDate("")}>クリア</Button>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div>
+          <h2 className="text-lg font-bold">残業申請 承認管理</h2>
+          <p className="text-sm text-muted-foreground">
+            職員からの残業申請を確認・承認します。承認者名は自動的に記録されます。
+          </p>
+        </div>
+        {approvals.length > 0 && (
+          <Button
+            onClick={handleBulkApprove}
+            disabled={isBulkApproving}
+            className="bg-green-600 hover:bg-green-700 text-white gap-1.5"
+          >
+            <ThumbsUp className="w-4 h-4" />
+            {isBulkApproving ? "処理中..." : `一括承認（${approvals.length}件）`}
+          </Button>
         )}
       </div>
 

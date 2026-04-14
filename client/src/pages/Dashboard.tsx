@@ -5351,12 +5351,7 @@ export default function Dashboard() {
           <div data-scroll-reveal data-delay="200"><VisitCountCard /></div>
           {/* 曜日別件数（モバイル: 7番目、PC: 左カラム4番目） */}
           <div data-scroll-reveal data-delay="300"><DailyByTeamCard /></div>
-          {/* 残業申請承認（管理者のみ・モバイル: 9番目、PC: 左カラム6番目） */}
-          {dashboardUser?.role === "admin" && (
-            <div data-scroll-reveal data-delay="375">
-              <OvertimeApprovalCard />
-            </div>
-          )}
+
           {/* 新規契約（モバイル: 10番目、PC: 左カラム7番目） */}
           <Card data-scroll-reveal data-delay="400" className="shadow-sm">
             <CardHeader className="pb-2 pt-3 px-4">
