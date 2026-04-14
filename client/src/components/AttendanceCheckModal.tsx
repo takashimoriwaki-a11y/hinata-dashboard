@@ -210,6 +210,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   // スクロールコンテナと次のアクションターゲットの ref
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const afterAlcoholRef = useRef<HTMLDivElement>(null);
+  const alcoholHeaderRef = useRef<HTMLDivElement>(null); // アコーディオン展開時のスクロールターゲット
 
   // アルコールチェック完了後に次のアクションへスクロールするヘルパー
   const scrollToAfterAlcohol = useCallback(() => {
@@ -221,6 +222,18 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         container.scrollTo({ top: targetTop - 8, behavior: 'smooth' });
       }
     }, 350); // アコーディオンのアニメーション完了後にスクロール
+  }, []);
+
+  // アコーディオン展開時にフォーム先頭へスクロールするヘルパー
+  const scrollToAlcoholHeader = useCallback(() => {
+    setTimeout(() => {
+      if (alcoholHeaderRef.current && scrollContainerRef.current) {
+        const container = scrollContainerRef.current;
+        const target = alcoholHeaderRef.current;
+        const targetTop = target.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+        container.scrollTo({ top: targetTop - 8, behavior: 'smooth' });
+      }
+    }, 50); // 展開開始直後にスクロール
   }, []);
 
   const handleSwipeStart = useCallback((e: React.TouchEvent | React.PointerEvent) => {
@@ -355,6 +368,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     // 事務員はスキップでもOK
     const alcoholDone = alcoholRecorded || (isOfficeStaff && alcoholSkipped);
     if (allStepsDone && alcoholDone && clockInDone) {
+      // 全タスク完了時の触覚フィードバック（iOS: ダブルバイブレーション）
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate([100, 50, 100]);
+      }
       // 完了フラグを別キーに保存（ページリロード後も出勤済みとして判定できるように）
       try {
         const today = new Date();
@@ -377,6 +394,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     // 事務員はスキップでもOK
     const alcoholDone = alcoholRecorded || (isOfficeStaff && alcoholSkipped);
     if (clockOutDone && alcoholDone && mimamoStopDone) {
+      // 全タスク完了時の触覚フィードバック（iOS: ダブルバイブレーション）
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate([100, 50, 100]);
+      }
       // 完了フラグを別キーに保存（ページリロード後も退勤済みとして判定できるように）
       try {
         const today = new Date();
@@ -450,6 +471,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   const [showOvertimeResetConfirm, setShowOvertimeResetConfirm] = useState(false);
   // アルコールチェック全リセット確認ダイアログ
   const [showAlcoholResetConfirm, setShowAlcoholResetConfirm] = useState(false);
+  const [showAlcoholReEditConfirm, setShowAlcoholReEditConfirm] = useState(false); // 記録済み後の再編集確認
   // 閉じる前の確認ダイアログ
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
@@ -697,7 +719,12 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     }`}>
       {/* セクションヘッダー（タップで展開/折りたたみ） */}
       <div
-        onClick={() => setAlcoholOpen(v => !v)}
+        ref={alcoholHeaderRef}
+        onClick={() => {
+          const next = !alcoholOpen;
+          setAlcoholOpen(next);
+          if (next) scrollToAlcoholHeader();
+        }}
         className={`px-4 py-3 flex items-center justify-between gap-2 cursor-pointer select-none ${
         isClockIn
           ? "bg-orange-100 dark:bg-orange-900/30"
@@ -712,13 +739,16 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             <span className="text-xs text-gray-500 dark:text-gray-400 font-normal">(任意)</span>
           )}
           {alcoholRecorded && (
-            <span
-              className="text-xs text-green-600 dark:text-green-400 font-semibold flex items-center gap-0.5"
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); setShowAlcoholReEditConfirm(true); }}
+              className="text-xs text-green-600 dark:text-green-400 font-semibold flex items-center gap-0.5 hover:opacity-70 transition-opacity active:scale-95 underline-offset-2 hover:underline"
               style={{ animation: 'alcoholBadgeIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both' }}
+              title="タップして再編集"
             >
               <CheckCircle2 className="w-3 h-3" />
               記録済み
-            </span>
+            </button>
           )}
           {alcoholSkipped && !alcoholRecorded && (
             <span
@@ -1570,6 +1600,36 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             className={isClockIn ? "bg-orange-500 hover:bg-orange-600 text-white" : "bg-cyan-500 hover:bg-cyan-600 text-white"}
           >
             リセットする
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    {/* アルコールチェック再編集確認ダイアログ */}
+    <AlertDialog open={showAlcoholReEditConfirm} onOpenChange={setShowAlcoholReEditConfirm}>
+      <AlertDialogContent className="max-w-sm mx-4">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <RefreshCw className={`w-5 h-5 ${isClockIn ? "text-orange-500" : "text-cyan-500"}`} />
+            アルコールチェックの再編集
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            記録済みのアルコールチェックを再編集します。入力内容はリセットされます。よろしいですか？
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>キャンセル</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              // 記録済みフラグをリセットしてアコーディオンを展開
+              setAlcoholRecorded(false);
+              setAlcoholOpen(true);
+              setShowAlcoholReEditConfirm(false);
+              scrollToAlcoholHeader();
+            }}
+            className={isClockIn ? "bg-orange-500 hover:bg-orange-600 text-white" : "bg-cyan-500 hover:bg-cyan-600 text-white"}
+          >
+            再編集する
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
