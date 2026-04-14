@@ -202,11 +202,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   // 退勤打刻済みフラグ
   const [clockOutDone, setClockOutDone] = useState(savedState?.clockOutDone ?? false);
 
-  // ===== 下スワイプで閉じるジェスチャー =====
-  const swipeStartY = useRef<number | null>(null);
-  const swipeDeltaY = useRef<number>(0);
-  const swipeStartScrollTop = useRef<number>(0); // スワイプ開始時のスクロール位置
-  const [dragY, setDragY] = useState(0);
+  // dragY は削除（スワイプジェスチャーを無効化）
+  const dragY = 0;
 
   // スクロールコンテナと次のアクションターゲットの ref
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -237,37 +234,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     }, 50); // 展開開始直後にスクロール
   }, []);
 
-  const handleSwipeStart = useCallback((e: React.TouchEvent | React.PointerEvent) => {
-    const y = "touches" in e ? (e as React.TouchEvent).touches[0].clientY : (e as React.PointerEvent).clientY;
-    swipeStartY.current = y;
-    swipeDeltaY.current = 0;
-    // スワイプ開始時のスクロール位置を記録
-    swipeStartScrollTop.current = scrollContainerRef.current?.scrollTop ?? 0;
-  }, []);
-
-  const handleSwipeMove = useCallback((e: React.TouchEvent | React.PointerEvent) => {
-    if (swipeStartY.current === null) return;
-    const y = "touches" in e ? (e as React.TouchEvent).touches[0].clientY : (e as React.PointerEvent).clientY;
-    const delta = y - swipeStartY.current;
-    // コンテンツエリアが先頭以外にスクロールされている場合、または上方向スワイプの場合はドラッグしない
-    if (swipeStartScrollTop.current > 0 || delta <= 0) return;
-    if (delta > 0) {
-      swipeDeltaY.current = delta;
-      setDragY(Math.min(delta, 200));
-    }
-  }, []);
-
-  const handleSwipeEnd = useCallback(() => {
-    if (swipeDeltaY.current > 80) {
-      setDragY(0);
-      swipeStartY.current = null;
-      handleCloseRequest();
-    } else {
-      setDragY(0);
-      swipeStartY.current = null;
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // スワイプジェスチャーは削除済み（誤操作防止のため）
 
   // 緊急打刻時の備考
   const [emergencyNote, setEmergencyNote] = useState("");
@@ -1750,19 +1717,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       {/* モーダル本体 */}
       <div
         className="relative w-full sm:max-w-md mx-0 sm:mx-4 bg-white dark:bg-gray-900 rounded-b-2xl sm:rounded-2xl shadow-2xl flex flex-col h-[100dvh] sm:h-auto max-h-[100dvh] sm:max-h-[calc(100dvh-2rem)] overflow-hidden"
-        style={{
-          transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
-          transition: dragY === 0 ? "transform 0.25s cubic-bezier(0.25,0.46,0.45,0.94)" : "none",
-          opacity: dragY > 0 ? Math.max(0.5, 1 - dragY / 300) : 1,
-        }}
-        onTouchStart={handleSwipeStart}
-        onTouchMove={handleSwipeMove}
-        onTouchEnd={handleSwipeEnd}
       >
-        {/* 下スワイプインジケーター */}
-        <div className="flex justify-center pt-2 pb-0 flex-shrink-0">
-          <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-gray-600" />
-        </div>
+        {/* スワイプインジケーターは削除（誤操作防止） */}
         {/* ヘッダー */}
         <div
           className={`px-4 py-3.5 flex items-center gap-2 flex-shrink-0 rounded-t-none sm:rounded-t-2xl ${
