@@ -87,7 +87,7 @@ const externalTools = [
 
 // ボトムナビゲーション
 const bottomNavItems = [
-  { type: "internal", href: "/", icon: LayoutDashboard, label: "ホーム" },
+  { type: "internal", href: "/", icon: LayoutDashboard, label: "ホーム", monthlySignatureBadge: true },
   { type: "internal", href: "/traffic-accident", icon: ShieldAlert, label: "事故" },
   { type: "internal", href: "/minutes", icon: BookOpen, label: "議事録", badge: true },
   { type: "internal", href: "/record", icon: MapPin, label: "訪問" },
@@ -655,6 +655,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               }
 
               const badgeCount = item.badge && item.href === "/minutes" ? (minutesUnchecked?.count ?? 0) : 0;
+              const showMonthlySignatureDot = !!(item as any).monthlySignatureBadge && isMonthlySignatureUnsigned;
               return (
                 <Link
                   key={item.label}
@@ -668,13 +669,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 >
                   <div className="relative">
                     <item.icon className={cn("w-5 h-5", isActive && "scale-110")} />
-                    {isActive && (
+                    {isActive && !showMonthlySignatureDot && (
                       <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-primary" />
                     )}
                     {!isActive && badgeCount > 0 && (
                       <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center">
                         {badgeCount > 99 ? "99+" : badgeCount}
                       </span>
+                    )}
+                    {showMonthlySignatureDot && (
+                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-sidebar" />
                     )}
                   </div>
                   <span className={cn("text-xs whitespace-nowrap", isActive ? "font-bold" : "font-medium")}>
