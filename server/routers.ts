@@ -163,30 +163,19 @@ async function autoCreateAlcoholCheckSpreadsheet(year: number, month: number): P
     const drive = google.drive({ version: "v3", auth });
 
     const title = `アルコールチェック記録_${year}年${month}月`;
-
-    // 新規スプレッドシートを作成
-    const createRes = await sheets.spreadsheets.create({
-      requestBody: {
-        properties: { title },
-        sheets: [{ properties: { title: "概要" } }],
-      },
-    });
-     const spreadsheetId = createRes.data.spreadsheetId!;
-    // 指定のGoogle Driveフォルダに移動
+    // 指定のGoogle Driveフォルダ内に直接スプレッドシートを作成
     const ALCOHOL_FOLDER_ID = "1M1po6_l4AAqqygD9xoQU8jQPF9XXX7_4";
-    try {
-      const fileRes = await drive.files.get({ fileId: spreadsheetId, fields: "parents" });
-      const prevParents = (fileRes.data.parents ?? []).join(",");
-      await drive.files.update({
-        fileId: spreadsheetId,
-        addParents: ALCOHOL_FOLDER_ID,
-        removeParents: prevParents,
-        fields: "id, parents",
-      });
-      console.log(`[AutoSheet] Moved to folder: ${ALCOHOL_FOLDER_ID}`);
-    } catch (e) {
-      console.warn("[AutoSheet] Failed to move to folder:", e);
-    }
+    const createRes = await drive.files.create({
+      requestBody: {
+        name: title,
+        mimeType: "application/vnd.google-apps.spreadsheet",
+        parents: [ALCOHOL_FOLDER_ID],
+      },
+      fields: "id",
+      supportsAllDrives: true,
+    });
+    const spreadsheetId = createRes.data.id!;
+    console.log(`[AutoSheet] Created spreadsheet in folder: ${ALCOHOL_FOLDER_ID}`);
     // 概要シートに説明を記入
     await sheets.spreadsheets.values.update({
       spreadsheetId,
@@ -255,31 +244,19 @@ export async function autoCreateTimesheetSpreadsheet(year: number, month: number
     const drive = google.drive({ version: "v3", auth });
 
     const title = `出退勤記録_${year}年${month}月`;
-
-    // 新規スプレッドシートを作成
-    const createRes = await sheets.spreadsheets.create({
-      requestBody: {
-        properties: { title },
-        sheets: [{ properties: { title: "概要" } }],
-      },
-    });
-    const spreadsheetId = createRes.data.spreadsheetId!;
-
-    // 指定のGoogle Driveフォルダに移動
+    // 指定のGoogle Driveフォルダ内に直接スプレッドシートを作成
     const TIMESHEET_FOLDER_ID = "11GxLu7YB23OzV8kxMpkwSWTLOei9j7hk";
-    try {
-      const fileRes = await drive.files.get({ fileId: spreadsheetId, fields: "parents" });
-      const prevParents = (fileRes.data.parents ?? []).join(",");
-      await drive.files.update({
-        fileId: spreadsheetId,
-        addParents: TIMESHEET_FOLDER_ID,
-        removeParents: prevParents,
-        fields: "id, parents",
-      });
-      console.log(`[TimesheetAutoSheet] Moved to folder: ${TIMESHEET_FOLDER_ID}`);
-    } catch (e) {
-      console.warn("[TimesheetAutoSheet] Failed to move to folder:", e);
-    }
+    const createRes = await drive.files.create({
+      requestBody: {
+        name: title,
+        mimeType: "application/vnd.google-apps.spreadsheet",
+        parents: [TIMESHEET_FOLDER_ID],
+      },
+      fields: "id",
+      supportsAllDrives: true,
+    });
+    const spreadsheetId = createRes.data.id!;
+    console.log(`[TimesheetAutoSheet] Created spreadsheet in folder: ${TIMESHEET_FOLDER_ID}`);
 
     // 概要シートに説明を記入
     await sheets.spreadsheets.values.update({

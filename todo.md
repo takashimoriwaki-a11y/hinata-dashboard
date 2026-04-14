@@ -2326,3 +2326,4 @@
 - [x] 出退勤スプレッドシート自動作成時に指定のGoogle Driveフォルダ（11GxLu7YB23OzV8kxMpkwSWTLOei9j7hk）内に作成されるよう修正する
 - [x] アルコールチェックスプレッドシート自動作成時に指定のGoogle Driveフォルダ（1M1po6_l4AAqqygD9xoQU8jQPF9XXX7_4）内に作成されるよう修正する
 - [x] 管理画面のアルコールチェックと出退勤スプレッドシート管理セクションにGoogle Driveフォルダへのリンクボタンを追加する
+- [x] Drive APIのfiles.createを使ってスプレッドシートを作成する方式に変更する（Google Workspace権限エラー対応）
