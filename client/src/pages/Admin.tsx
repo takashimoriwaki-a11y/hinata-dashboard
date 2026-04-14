@@ -4023,22 +4023,36 @@ function OvertimeApprovalsPanel() {
 
                 {/* 承認待ちの場合のみ承認フォームを表示 */}
                 {a.status === "pending" && (
-                  <div className="border-t pt-3 space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">承認時間の調整（任意）</p>
-                    <div className="flex gap-2 flex-wrap items-center text-sm">
-                      <input
-                        type="datetime-local"
-                        value={adjustStart[a.id] ?? ""}
-                        onChange={(e) => setAdjustStart((prev) => ({ ...prev, [a.id]: e.target.value }))}
-                        className="border rounded px-2 py-1 text-xs"
-                      />
-                      <span>～</span>
-                      <input
-                        type="datetime-local"
-                        value={adjustEnd[a.id] ?? ""}
-                        onChange={(e) => setAdjustEnd((prev) => ({ ...prev, [a.id]: e.target.value }))}
-                        className="border rounded px-2 py-1 text-xs"
-                      />
+                  <div className="border-t pt-3 space-y-3">
+                    {/* 申請内容の確認 */}
+                    <div className="bg-blue-50 rounded-lg px-3 py-2 text-xs text-blue-700 space-y-1">
+                      <p className="font-medium">申請内容：{toJST(a.requestedStartAt)} 〜 {toJST(a.requestedEndAt)}</p>
+                      <p className="text-blue-600">→ 承認する場合は「承認」ボタンを押してください。時間を修正する場合は下の入力欄に正しい時間を入力してから承認してください。</p>
+                    </div>
+                    {/* 承認時間の修正（任意） */}
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-medium text-muted-foreground">承認残業時間の修正（申請通り承認する場合は空白のままでOK）</p>
+                      <div className="flex gap-2 flex-wrap items-center">
+                        <div className="flex flex-col gap-0.5">
+                          <label className="text-xs text-muted-foreground">開始時刻</label>
+                          <input
+                            type="time"
+                            value={adjustStart[a.id] ?? ""}
+                            onChange={(e) => setAdjustStart((prev) => ({ ...prev, [a.id]: e.target.value }))}
+                            className="border rounded px-2 py-1 text-sm w-28"
+                          />
+                        </div>
+                        <span className="mt-4">〜</span>
+                        <div className="flex flex-col gap-0.5">
+                          <label className="text-xs text-muted-foreground">終了時刻</label>
+                          <input
+                            type="time"
+                            value={adjustEnd[a.id] ?? ""}
+                            onChange={(e) => setAdjustEnd((prev) => ({ ...prev, [a.id]: e.target.value }))}
+                            className="border rounded px-2 py-1 text-sm w-28"
+                          />
+                        </div>
+                      </div>
                     </div>
                     <Input
                       placeholder="コメント（任意）"
@@ -4050,13 +4064,22 @@ function OvertimeApprovalsPanel() {
                       <Button
                         size="sm"
                         disabled={approveMut.isPending}
-                        onClick={() => approveMut.mutate({
-                          id: a.id,
-                          status: "approved",
-                          adjustedStartAt: adjustStart[a.id] ? new Date(adjustStart[a.id]).getTime() : undefined,
-                          adjustedEndAt: adjustEnd[a.id] ? new Date(adjustEnd[a.id]).getTime() : undefined,
-                          approverComment: commentInputs[a.id] || undefined,
-                        })}
+                        onClick={() => {
+                          // 時刻入力がある場合は申請日をベースにUTCタイムスタンプに変換
+                          const toMs = (timeStr: string | undefined, dateStr: string) => {
+                            if (!timeStr) return undefined;
+                            const [h, m] = timeStr.split(":").map(Number);
+                            const d = new Date(`${dateStr}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00+09:00`);
+                            return d.getTime();
+                          };
+                          approveMut.mutate({
+                            id: a.id,
+                            status: "approved",
+                            adjustedStartAt: toMs(adjustStart[a.id], a.applicationDate),
+                            adjustedEndAt: toMs(adjustEnd[a.id], a.applicationDate),
+                            approverComment: commentInputs[a.id] || undefined,
+                          });
+                        }}
                       >
                         承認
                       </Button>
