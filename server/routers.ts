@@ -331,7 +331,7 @@ export async function autoCreateTimesheetSpreadsheet(year: number, month: number
           ["出退勤記録", `${year}年${month}月`],
           ["作成日時", new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })],
           ["内容", "職員名タブに各職員の出退勤打刻・残業情報が自動転記されます"],
-          ["記載項目", "日付 / 出勤打刻時間 / 退勤打刻時間 / 総労働時間(分) / 残業開始 / 残業終了 / 残業時間(分) / 残業理由 / 残業詳細（連絡先・件数） / 残業申請承認状況 / 氏名 / 登録日時"],
+          ["記載項目", "日付 / 出勤打刻時間 / 退勤打刻時間 / 総労働時間(分) / 残業開始 / 残業終了 / 残業時間(分) / 残業理由 / 残業詳細（連絡先・件数） / 残業申請承認状況"],
         ],
       },
     });
@@ -430,7 +430,7 @@ async function appendTimesheetToSheet(record: {
     const existingSheets = spreadsheetMeta.data.sheets ?? [];
     const tabExists = existingSheets.some((s) => s.properties?.title === tabName);
     // ヘッダー列定義（12列）
-    const HEADERS = ["日付", "出勤打刻時間", "退勤打刻時間", "総労働時間(分)", "残業開始", "残業終了", "残業時間(分)", "残業理由", "残業詳細（連絡先・件数）", "残業申請承認状況", "氏名", "登録日時"];
+    const HEADERS = ["日付", "出勤打刻時間", "退勤打刻時間", "総労働時間(分)", "残業開始", "残業終了", "残業時間(分)", "残業理由", "残業詳細（連絡先・件数）", "残業申請承認状況"];
     const COL_COUNT = HEADERS.length;
     if (!tabExists) {
       await sheets.spreadsheets.batchUpdate({
@@ -439,7 +439,7 @@ async function appendTimesheetToSheet(record: {
       });
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `${tabName}!A1:L1`,
+        range: `${tabName}!A1:J1`,
         valueInputOption: "USER_ENTERED",
         requestBody: { values: [HEADERS] },
       });
@@ -480,7 +480,7 @@ async function appendTimesheetToSheet(record: {
       // ===== 出勤打刻: 新しい行を追加 =====
       await sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: `${tabName}!A:L`,
+        range: `${tabName}!A:J`,
         valueInputOption: "USER_ENTERED",
         requestBody: {
           values: [[
@@ -503,13 +503,13 @@ async function appendTimesheetToSheet(record: {
       // ===== 退勤打刻: 同日の行を検索して上書き =====
       const existingData = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: `${tabName}!A:L`,
+        range: `${tabName}!A:J`,
       });
       const rows = existingData.data.values ?? [];
       // 同日・同氏名の行を検索（最後に一致した行を使用）
       let targetRowIndex = -1;
       for (let i = 1; i < rows.length; i++) {
-        if (rows[i][0] === dateStr && rows[i][10] === record.userName) {
+        if (rows[i][0] === dateStr) {
           targetRowIndex = i + 1; // 1-indexed
         }
       }
@@ -518,7 +518,7 @@ async function appendTimesheetToSheet(record: {
         // 既存行の退勤・残業列を上書き（A列の日付・B列の出勤時間・K列の氏名は保持）
         await sheets.spreadsheets.values.update({
           spreadsheetId,
-          range: `${tabName}!C${targetRowIndex}:L${targetRowIndex}`,
+          range: `${tabName}!C${targetRowIndex}:J${targetRowIndex}`,
           valueInputOption: "USER_ENTERED",
           requestBody: {
             values: [[
@@ -530,8 +530,6 @@ async function appendTimesheetToSheet(record: {
               record.overtimeReason ?? "", // H: 残業理由
               overtimeDetail,  // I: 残業詳細
               "",              // J: 残業申請承認状況（承認処理で更新）
-              record.userName, // K: 氏名
-              timestampStr,    // L: 登録日時
             ]],
           },
         });
@@ -541,7 +539,7 @@ async function appendTimesheetToSheet(record: {
         console.warn(`[Timesheet] No clock_in row found for ${record.userName} on ${dateStr}, appending new row`);
         await sheets.spreadsheets.values.append({
           spreadsheetId,
-          range: `${tabName}!A:L`,
+          range: `${tabName}!A:J`,
           valueInputOption: "USER_ENTERED",
           requestBody: {
             values: [[
@@ -555,8 +553,6 @@ async function appendTimesheetToSheet(record: {
               record.overtimeReason ?? "",
               overtimeDetail,
               "",
-              record.userName,
-              timestampStr,
             ]],
           },
         });
@@ -607,12 +603,12 @@ async function updateTimesheetOvertimeApproval(record: {
     // 対象行を検索
     const existingData = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${tabName}!A:K`,
+      range: `${tabName}!A:J`,
     });
     const rows = existingData.data.values ?? [];
     let targetRowIndex = -1;
     for (let i = 1; i < rows.length; i++) {
-      if (rows[i][0] === dateStr && rows[i][10] === record.applicantName) {
+      if (rows[i][0] === dateStr) {
         targetRowIndex = i + 1;
       }
     }
@@ -5041,7 +5037,7 @@ export const appRouter = router({
                   ["出退勤記録", `${year}年${month}月`],
                   ["作成日時", new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })],
                   ["内容", "職員名タブに各職員の出退勤打刻・残業情報が自動転記されます"],
-                  ["記載項目", "日付 / 出勤打刻時間 / 退勤打刻時間 / 総労働時間(分) / 残業開始 / 残業終了 / 残業時間(分) / 残業理由 / 残業詳細（連絡先・件数） / 残業申請承認状況 / 氏名 / 登録日時"],
+                  ["記載項目", "日付 / 出勤打刻時間 / 退勤打刻時間 / 総労働時間(分) / 残業開始 / 残業終了 / 残業時間(分) / 残業理由 / 残業詳細（連絡先・件数） / 残業申請承認状況"],
                 ],
               },
             });
