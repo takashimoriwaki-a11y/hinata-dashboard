@@ -1985,9 +1985,24 @@ export const appRouter = router({
         `${String(month).padStart(2, "0")}月${String(day).padStart(2, "0")}日`,
       ];
       const sheet = meta.sheets.find((s) => candidates.includes(s.properties.title));
-      return { gid: sheet?.properties.sheetId ?? null, title: sheet?.properties.title ?? null, spreadsheetId: targetSpreadsheetId };
+       return { gid: sheet?.properties.sheetId ?? null, title: sheet?.properties.title ?? null, spreadsheetId: targetSpreadsheetId };
     }),
-
+    // 当月の業務日報URL取得（linkKey='daily_report'の当月登録を返す）
+    getDailyReportUrl: publicProcedure.query(async () => {
+      const now = new Date();
+      const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      // まず当月分を検索
+      const current = await getSpreadsheetLinks(yearMonth);
+      const currentNippo = current.find((l) => l.linkKey === "daily_report");
+      if (currentNippo) return { url: currentNippo.url, yearMonth: currentNippo.yearMonth };
+      // 当月がなければ全登録から最新の daily_report を返す
+      const all = await getAllSpreadsheetLinks();
+      const allNippo = all
+        .filter((l) => l.linkKey === "daily_report")
+        .sort((a, b) => b.yearMonth.localeCompare(a.yearMonth));
+      if (allNippo.length > 0) return { url: allNippo[0].url, yearMonth: allNippo[0].yearMonth };
+      return { url: null, yearMonth: null };
+    }),
     // 一括登録（管理者のみ）
     batchUpsert: protectedProcedure
       .input(

@@ -2390,3 +2390,8 @@
 - [x] db.ts：getUnsyncedAlcoholChecks関数を追加（sheetSynced=0のレコードを取得）
 - [x] routers.ts：retrySync エンドポイントを追加（未同期レコードをスプレッドシートに再転記）
 - [x] Admin.tsx：「⚠️ 未同期を再転記」ボタンをアルコールチェックスプレッドシート管理パネルに追加
+
+## 出勤時確認「業務日報」ボタンURL修正（2026-04-15）
+- [x] routers.ts：spreadsheetLinks.getDailyReportUrl エンドポイントを追加（linkKey='daily_report'の当月URLを返す）
+- [x] AttendanceCheckModal.tsx：業務日報ボタンのURL取得を timesheet.getCurrentMonthUrl から spreadsheetLinks.getDailyReportUrl に変更
+- [x] 退勤時確認画面の業務日報ボタンも同様に当月URLを使うよう修正（出勤画面のみ業務日報ボタンあり）

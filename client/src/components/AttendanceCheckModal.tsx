@@ -141,8 +141,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   const { user } = useAuth();
   const utils = trpc.useUtils();
 
-  // 当月の業務日報URLをDBから取得（出勤画面のみ使用）
-  const { data: currentMonthSheet } = trpc.timesheet.getCurrentMonthUrl.useQuery(
+  // 当月の業務日報URLをスプレッドシートURL管理（linkKey='daily_report'）から取得
+  const { data: dailyReportLink } = trpc.spreadsheetLinks.getDailyReportUrl.useQuery(
     undefined,
     { enabled: isClockIn }
   );
@@ -150,8 +150,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   // 当月URLが取得できた場合は業務日報リンクを差し替える
   const steps = isClockIn
     ? CLOCK_IN_STEPS.map((step) => {
-        if (step.id === "daily_report_in" && currentMonthSheet?.url) {
-          return { ...step, link: { ...step.link!, url: currentMonthSheet.url } };
+        if (step.id === "daily_report_in" && dailyReportLink?.url) {
+          return { ...step, link: { ...step.link!, url: dailyReportLink.url } };
         }
         return step;
       })
