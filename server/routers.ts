@@ -72,10 +72,10 @@ async function appendAlcoholCheckToSheet(record: {
       // ヘッダー行を設定
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `${tabName}!A1:X1`,
+        range: `${tabName}!A1:R1`,
         valueInputOption: "USER_ENTERED",
         requestBody: {
-          values: [["実施日時", "区分", "氏名", "ナンバープレート", "出勤打刻", "退勤打刻", "確認方法", "検知器使用", "測定値(mg/L)", "検知器種類・型番", "酒気帯有無", "確認者", "運転目的", "同乗者", "同乗者人数", "体調確認", "体調詳細", "残業時間", "残業理由", "連絡先", "人数", "備考", "位置情報", "登録日時"]],
+          values: [["実施日時", "区分", "氏名", "ナンバープレート", "確認方法", "検知器使用", "測定値(mg/L)", "検知器種類・型番", "酒気帯有無", "確認者", "運転目的", "同乗者", "同乗者人数", "体調確認", "体調詳細", "備考", "位置情報", "登録日時"]],
         },
       });
     }
@@ -103,7 +103,7 @@ async function appendAlcoholCheckToSheet(record: {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: `${tabName}!A:X`,
+      range: `${tabName}!A:R`,
       valueInputOption: "USER_ENTERED",
       requestBody: {
         values: [[
@@ -111,8 +111,6 @@ async function appendAlcoholCheckToSheet(record: {
           typeLabel,
           record.userName,
           record.numberPlate,
-          clockInStr,
-          clockOutStr,
           confirmMethodLabel,
           detectorLabel,
           record.alcoholMeasuredValue ?? "",
@@ -124,10 +122,6 @@ async function appendAlcoholCheckToSheet(record: {
           record.passengerCount != null ? String(record.passengerCount) : "",
           physicalConditionLabel,
           record.physicalConditionNote ?? "",
-          overtimeStr,
-          record.overtimeReason ?? "",
-          record.overtimeContact ?? "",
-          record.overtimeCount != null ? String(record.overtimeCount) : "",
           record.notes ?? "",
           record.locationAddress ?? "",
           timestampStr,
@@ -216,13 +210,14 @@ async function autoCreateAlcoholCheckSpreadsheet(year: number, month: number): P
     // 概要シートに説明を記入
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: "概要!A1:B3",
+      range: "概要!A1:B4",
       valueInputOption: "USER_ENTERED",
       requestBody: {
         values: [
           ["アルコールチェック記録", `${year}年${month}月`],
           ["作成日時", new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })],
-          ["備考", "職員名タブに各職員の記録が自動転記されます"],
+          ["内容", "職員名タブに各職員のアルコールチェック記録が自動転記されます"],
+          ["記載項目", "実施日時 / 区分（出勤・退勤） / 氏名 / ナンバープレート / 確認方法 / 検知器使用 / 測定値(mg/L) / 検知器種類・型番 / 酒気帯有無 / 確認者 / 運転目的 / 同乗者 / 同乗者人数 / 体調確認 / 体調詳細 / 備考 / 位置情報 / 登録日時"],
         ],
       },
     });
