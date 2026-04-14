@@ -251,6 +251,22 @@ export async function autoCreateTimesheetSpreadsheet(year: number, month: number
     });
     const spreadsheetId = createRes.data.spreadsheetId!;
 
+    // 指定のGoogle Driveフォルダに移動
+    const TIMESHEET_FOLDER_ID = "11GxLu7YB23OzV8kxMpkwSWTLOei9j7hk";
+    try {
+      const fileRes = await drive.files.get({ fileId: spreadsheetId, fields: "parents" });
+      const prevParents = (fileRes.data.parents ?? []).join(",");
+      await drive.files.update({
+        fileId: spreadsheetId,
+        addParents: TIMESHEET_FOLDER_ID,
+        removeParents: prevParents,
+        fields: "id, parents",
+      });
+      console.log(`[TimesheetAutoSheet] Moved to folder: ${TIMESHEET_FOLDER_ID}`);
+    } catch (e) {
+      console.warn("[TimesheetAutoSheet] Failed to move to folder:", e);
+    }
+
     // 概要シートに説明を記入
     await sheets.spreadsheets.values.update({
       spreadsheetId,
@@ -4808,6 +4824,21 @@ export const appRouter = router({
             });
             spreadsheetId = createRes.data.spreadsheetId!;
             const spreadsheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
+            // 指定のGoogle Driveフォルダに移動
+            const TIMESHEET_FOLDER_ID = "11GxLu7YB23OzV8kxMpkwSWTLOei9j7hk";
+            try {
+              const fileRes = await drive.files.get({ fileId: spreadsheetId, fields: "parents" });
+              const prevParents = (fileRes.data.parents ?? []).join(",");
+              await drive.files.update({
+                fileId: spreadsheetId,
+                addParents: TIMESHEET_FOLDER_ID,
+                removeParents: prevParents,
+                fields: "id, parents",
+              });
+              console.log(`[TimesheetAutoSheet] Moved to folder: ${TIMESHEET_FOLDER_ID}`);
+            } catch (e) {
+              console.warn("[TimesheetAutoSheet] Failed to move to folder:", e);
+            }
             // 概要シートに説明を記入
             await sheets.spreadsheets.values.update({
               spreadsheetId,
