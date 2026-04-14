@@ -374,6 +374,43 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   const [showOvertimeResetConfirm, setShowOvertimeResetConfirm] = useState(false);
   // アルコールチェック全リセット確認ダイアログ
   const [showAlcoholResetConfirm, setShowAlcoholResetConfirm] = useState(false);
+  // 閉じる前の確認ダイアログ
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+
+  // 変更があるかどうかを判定する（アルコールチェック入力・残業入力が初期値から変わっているか）
+  const hasUnsavedChanges = (() => {
+    // アルコールチェック記録済み・スキップ済みの場合は変更なし
+    if (alcoholRecorded || alcoholSkipped) return false;
+    // 手順チェックが1つでも完了していたら変更あり
+    if (Object.values(done).some(Boolean)) return true;
+    // アルコールチェックフォームが初期値から変わっているか
+    const defaultNumberPlate = (user as any)?.numberPlate ?? "";
+    const defaultConfirmMethod = isClockIn ? "online" : "face";
+    const defaultDrivingPurpose = isClockIn ? "visit" : "commute";
+    if (numberPlate !== defaultNumberPlate) return true;
+    if (confirmMethod !== defaultConfirmMethod) return true;
+    if (!detectorUsed) return true; // デフォルトはtrue
+    if (alcoholDetected) return true; // デフォルトはfalse
+    if (confirmerName !== "森脇崇") return true;
+    if (notes.trim() !== "") return true;
+    if (alcoholMeasuredValue !== "0.00" && alcoholMeasuredValue !== "") return true;
+    if (drivingPurpose !== defaultDrivingPurpose) return true;
+    if (hasPassenger) return true; // デフォルトはfalse
+    if (physicalCondition !== "good") return true;
+    if (physicalConditionNote.trim() !== "") return true;
+    // 退勤時：残業入力が変わっているか
+    if (!isClockIn && hasOvertime) return true;
+    return false;
+  })();
+
+  // 閉じるハンドラー（変更があれば確認ダイアログを表示）
+  const handleCloseRequest = () => {
+    if (hasUnsavedChanges) {
+      setShowCloseConfirm(true);
+    } else {
+      onClose();
+    }
+  };
   const overtimeMutation = trpc.overtime.create.useMutation({
     onSuccess: () => {
       toast.success("残業申請を送信しました");
@@ -1308,6 +1345,33 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
   return (
     <>
+    {/* 閉じる前の確認ダイアログ */}
+    <AlertDialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
+      <AlertDialogContent className="max-w-sm mx-4">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <X className={`w-5 h-5 ${isClockIn ? "text-red-500" : "text-blue-500"}`} />
+            入力内容が保存されていません
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            アルコールチェックや手順の入力内容が残っています。このまま閉じると入力内容は失われます。本当に閉じますか？
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>入力を続ける</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              setShowCloseConfirm(false);
+              onClose();
+            }}
+            className="bg-gray-600 hover:bg-gray-700 text-white"
+          >
+            このまま閉じる
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
     {/* 残業申請全リセット確認ダイアログ */}
     <AlertDialog open={showOvertimeResetConfirm} onOpenChange={setShowOvertimeResetConfirm}>
       <AlertDialogContent className="max-w-sm mx-4">
@@ -1486,7 +1550,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       {/* 背景オーバーレイ */}
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={handleCloseRequest}
       />
       {/* モーダル本体 */}
       <div
@@ -1514,7 +1578,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleCloseRequest}
             className="text-white/80 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/20"
           >
             <X className="w-5 h-5" />
@@ -1712,7 +1776,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             </button>
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleCloseRequest}
               className="w-full py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
               キャンセル
@@ -1724,7 +1788,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           <div className="px-5 py-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-900">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleCloseRequest}
               className="w-full py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
               閉じる
