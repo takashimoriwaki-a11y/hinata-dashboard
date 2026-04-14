@@ -19,7 +19,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   ClipboardEdit, Send, Search, Calendar,
   User, ChevronDown, Loader2, FileSpreadsheet, CheckCircle2, ExternalLink,
-  AlertTriangle, RefreshCw
+  AlertTriangle, RefreshCw, CheckSquare
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -36,10 +36,39 @@ type Team = typeof TEAMS[number];
 const NOTIFY_TO_OPTIONS = ["本人", "家族", "その他"] as const;
 const NOTIFY_METHOD_OPTIONS = ["口頭", "カレンダー記入", "付箋", "電話", "その他"] as const;
 
+// 訪問タスク チェックリスト定義
+const VISIT_TASKS_BEFORE_DEFAULT = [
+  { id: "voice_memo", label: "ボイスメモ（録音）", checked: false, optional: false },
+  { id: "task_check", label: "タスクの有無確認と実施", checked: false, optional: false },
+  { id: "limit_mgmt", label: "上限管理票の確認、記載", checked: false, optional: false },
+  { id: "fee_sheet", label: "料金表記入", checked: false, optional: false },
+  { id: "docs_hand", label: "請求書、領収書、看護計画渡す", checked: false, optional: true },
+  { id: "insurance", label: "月初めは保険証、マイナンバーカード確認と読み込み", checked: false, optional: true },
+];
+
+const VISIT_TASKS_AFTER_DEFAULT = [
+  { id: "record_voice", label: "処置内容を録音", checked: false, optional: false },
+  { id: "notebooklm", label: "ボイスメモをNotebookLMにソースとして追加し、指定のプロンプトで文章を作成", checked: false, optional: false },
+];
+
 export default function RecordInput() {
   const { user } = useAuth();
 
-  // ① 利用者・次回訪問日時
+  // ① 訪問タスク チェックリスト
+  const [visitTasksBefore, setVisitTasksBefore] = useState(
+    () => VISIT_TASKS_BEFORE_DEFAULT.map(t => ({ ...t }))
+  );
+  const [visitTasksAfter, setVisitTasksAfter] = useState(
+    () => VISIT_TASKS_AFTER_DEFAULT.map(t => ({ ...t }))
+  );
+  const toggleVisitTaskBefore = (id: string) => {
+    setVisitTasksBefore(prev => prev.map(t => t.id === id ? { ...t, checked: !t.checked } : t));
+  };
+  const toggleVisitTaskAfter = (id: string) => {
+    setVisitTasksAfter(prev => prev.map(t => t.id === id ? { ...t, checked: !t.checked } : t));
+  };
+
+  // ② 利用者・次回訪問日時
   const RECORD_TEAM_KEY = "hinata_record_team";
   const [team, setTeamRaw] = useState<Team | "">(() => {
     try {
@@ -875,7 +904,7 @@ export default function RecordInput() {
     <div className="p-4 max-w-2xl mx-auto space-y-4 pb-20">
       <div className="flex items-center gap-2 mb-2">
         <ClipboardEdit className="w-5 h-5 text-primary" />
-        <h1 className="text-lg font-bold">訪問記録入力</h1>
+        <h1 className="text-lg font-bold">訪問時チェック項目</h1>
       </div>
 
       {/* 下書き復元バナー */}
@@ -897,1323 +926,93 @@ export default function RecordInput() {
         </div>
       )}
 
-      {/* ① 確認項目・バイタル＋病状の経過（統合カード） */}
-      <Card id="record-condition" className="shadow-sm">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold">① 観察・記録</CardTitle>
-            <div className="flex items-center gap-2">
-              {/* 録音経過時間表示 */}
-              {notesVoice.isRecording && (
-                <span className="text-xs font-mono font-medium text-red-600 dark:text-red-400 tabular-nums">
-                  {formatElapsedTime(notesVoice.elapsedSeconds)} / 3:00
-                </span>
-              )}
-              {/* 病状の経過リセットボタン */}
-              {clinicalNotes.trim() && !notesVoice.isRecording && (
-                <TooltipProvider delayDuration={300}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (confirm("入力内容を全て削除します。よろしいですか？")) {
-                            setClinicalNotes("");
-                            notesVoice.clearLastTranscribedText();
-                            // タイムスタンプ表示もリセット
-                            setLastSavedAt(null);
-                            setSavedAgoText("");
-                            // localStorageからも削除
-                            try {
-                              const raw = localStorage.getItem(DRAFT_KEY);
-                              if (raw) {
-                                const draft = JSON.parse(raw);
-                                draft.clinicalNotes = "";
-                                localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-                              }
-                            } catch { /* ignore */ }
-                            toast.success("病状の経過をリセットしました");
-                          }
-                        }}
-                        className="text-xs px-2 py-0.5 rounded-full border font-medium transition-all bg-muted text-muted-foreground border-border hover:bg-red-50 hover:text-red-600 hover:border-red-300 dark:hover:bg-red-950/30 dark:hover:text-red-400 dark:hover:border-red-700"
-                      >
-                        リセット
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="text-xs">
-                      入力内容を全て削除します
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* 確認項目 */}
-          <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2">確認項目</p>
-            <div className="grid grid-cols-2 gap-2">
-              {/* 睡眠 */}
-              <div>
-                <label className="text-xs font-bold text-foreground mb-1 block">睡眠</label>
-                <Input
-                  className="text-sm h-9"
-                  placeholder="睡眠の状態を入力..."
-                  value={checkItems.睡眠}
-                  onChange={(e) => setCheckItems(prev => ({ ...prev, 睡眠: e.target.value }))}
-                />
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {["良眠", "中途覚醒", "不眠"].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setCheckItems(prev => ({ ...prev, 睡眠: preset }))}
-                      className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
-                        checkItems.睡眠 === preset
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background text-muted-foreground border-border hover:border-primary hover:text-primary"
-                      }`}
-                    >
-                      {preset}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {/* 食事 */}
-              <div>
-                <label className="text-xs font-bold text-foreground mb-1 block">食事</label>
-                <Input
-                  className="text-sm h-9"
-                  placeholder="食事の状態を入力..."
-                  value={checkItems.食事}
-                  onChange={(e) => setCheckItems(prev => ({ ...prev, 食事: e.target.value }))}
-                />
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {["全量", "半量", "摂取不十分", "拒否"].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setCheckItems(prev => ({ ...prev, 食事: preset }))}
-                      className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
-                        checkItems.食事 === preset
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background text-muted-foreground border-border hover:border-primary hover:text-primary"
-                      }`}
-                    >
-                      {preset}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {/* 排泄 */}
-              <div>
-                <label className="text-xs font-bold text-foreground mb-1 block">排泄</label>
-                <Input
-                  className="text-sm h-9"
-                  placeholder="排泄の状態を入力..."
-                  value={checkItems.排泄}
-                  onChange={(e) => setCheckItems(prev => ({ ...prev, 排泄: e.target.value }))}
-                />
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {["自然", "便秘", "下痢"].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setCheckItems(prev => ({ ...prev, 排泄: preset }))}
-                      className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
-                        checkItems.排泄 === preset
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background text-muted-foreground border-border hover:border-primary hover:text-primary"
-                      }`}
-                    >
-                      {preset}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {/* 服薬 */}
-              <div>
-                <label className="text-xs font-bold text-foreground mb-1 block">服薬</label>
-                <Input
-                  className="text-sm h-9"
-                  placeholder="服薬の状態を入力..."
-                  value={checkItems.服薬}
-                  onChange={(e) => setCheckItems(prev => ({ ...prev, 服薬: e.target.value }))}
-                />
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {["良好", "拒薬", "不明"].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setCheckItems(prev => ({ ...prev, 服薬: preset }))}
-                      className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
-                        checkItems.服薬 === preset
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background text-muted-foreground border-border hover:border-primary hover:text-primary"
-                      }`}
-                    >
-                      {preset}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* バイタルサイン */}
-          <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2">バイタルサイン</p>
-            <div className="grid grid-cols-2 gap-2">
-              {/* 体温 */}
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">体温 (℃)</label>
-                <Select value={vitals.体温} onValueChange={(v) => setVitals(prev => ({ ...prev, 体温: v }))}>
-                  <SelectTrigger className="h-9 text-sm">
-                    <SelectValue placeholder="選択" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: Math.round((42.0 - 35.0) / 0.1) + 1 }, (_, i) => +(35.0 + i * 0.1).toFixed(1)).map(v => (
-                      <SelectItem key={v} value={String(v)}>{v}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {/* 脈拍 */}
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">脈拍 (回/分)</label>
-                <Select value={vitals.脈拍} onValueChange={(v) => setVitals(prev => ({ ...prev, 脈拍: v }))}>
-                  <SelectTrigger className="h-9 text-sm">
-                    <SelectValue placeholder="選択" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: 130 - 50 + 1 }, (_, i) => 50 + i).map(v => (
-                      <SelectItem key={v} value={String(v)}>{v}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {/* SpO2 */}
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">SpO2 (%)</label>
-                <Select value={vitals.SpO2} onValueChange={(v) => setVitals(prev => ({ ...prev, SpO2: v }))}>
-                  <SelectTrigger className="h-9 text-sm">
-                    <SelectValue placeholder="選択" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: 99 - 90 + 1 }, (_, i) => 99 - i).map(v => (
-                      <SelectItem key={v} value={String(v)}>{v}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {/* 血圧（収縮期） */}
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">血圧・収縮期 (mmHg)</label>
-                <Select value={vitals.収縮期} onValueChange={(v) => setVitals(prev => ({ ...prev, 収縮期: v }))}>
-                  <SelectTrigger className="h-9 text-sm">
-                    <SelectValue placeholder="選択" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: (190 - 96) / 2 + 1 }, (_, i) => 96 + i * 2).map(v => (
-                      <SelectItem key={v} value={String(v)}>{v}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {/* 血圧（拡張期） */}
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">血圧・拡張期 (mmHg)</label>
-                <Select value={vitals.拡張期} onValueChange={(v) => setVitals(prev => ({ ...prev, 拡張期: v }))}>
-                  <SelectTrigger className="h-9 text-sm">
-                    <SelectValue placeholder="選択" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: (100 - 50) + 1 }, (_, i) => 50 + i).map(v => (
-                      <SelectItem key={v} value={String(v)}>{v}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-
-          {/* 区切り線 */}
-          <div className="border-t border-border" />
-
-          {/* 病状の経過 */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex-1 min-w-0">
-                <label className="text-xs font-medium text-muted-foreground">病状の経過（本日観察・収集した情報）</label>
-                {/* リアルタイムステータス表示 */}
-                {notesVoice.transcriptionStatus === "recording" || notesVoice.isRecording ? (
-                  <p className={cn(
-                    "text-xs font-medium mt-0.5",
-                    notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
-                      ? "text-orange-600 dark:text-orange-400"
-                      : "text-red-600 dark:text-red-400 animate-pulse"
-                  )}>
-                    {notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
-                      ? `あと${notesVoice.silenceCountdown}秒で自動停止`
-                      : "🎤 話してください..."}
-                  </p>
-                ) : notesVoice.transcriptionStatus === "uploading" ? (
-                  <p className="text-xs text-blue-600 dark:text-blue-400 font-medium animate-pulse mt-0.5">⬆️ 音声を受信中...</p>
-                ) : notesVoice.transcriptionStatus === "analyzing" ? (
-                  <p className="text-xs text-primary font-medium animate-pulse mt-0.5">🔬 医療用語を解析中...</p>
-                ) : notesVoice.transcriptionStatus === "done" ? (
-                  <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">✅ 転記完了</p>
-                ) : notesVoice.transcriptionStatus === "error" ? (
-                  <p className="text-xs text-red-600 dark:text-red-400 font-medium mt-0.5">❌ 認識エラー</p>
-                ) : null}
-              </div>
-              {/* VoiceMicButton共通コンポーネントを使用（他の音声入力ボタンと統一） */}
-              <VoiceMicButton
-                externalState={{
-                  isRecording: notesVoice.isRecording,
-                  isProcessing: notesVoice.isProcessing,
-                  toggleVoice: notesVoice.toggleVoice,
-                  interimText: notesVoice.interimText,
-                  silenceCountdown: notesVoice.silenceCountdown,
-                  elapsedSeconds: notesVoice.elapsedSeconds,
-                }}
-                size="lg"
-                previewMode="tooltip"
-              />
-            </div>
-            {/* テキストエリア（オーバーレイなし） */}
-            <Textarea
-              ref={clinicalNotesTextareaRef}
-              placeholder="本日訪問で観察した症状・状態・利用者の言葉・環境の変化などをメモしてください..."
-              value={clinicalNotes}
-              onChange={(e) => {
-                setClinicalNotes(e.target.value);
-                adjustTextareaHeight(e.target);
-              }}
-              className="min-h-[200px] text-sm resize-none overflow-hidden"
-            />
-            {/* 最終保存タイムスタンプ + 文字数カウンター */}
-            <div className="flex items-center justify-between mt-1">
-              <div>
-                {lastSavedAt && clinicalNotes.trim() && (
-                  <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                    ✓ 自動保存済み · {savedAgoText}
-                  </p>
-                )}
-              </div>
-              {clinicalNotes.length > 0 && (
-                <p className="text-xs text-muted-foreground tabular-nums">
-                  {clinicalNotes.length.toLocaleString()}文字
-                </p>
-              )}
-            </div>
-            {/* テキストエリア下: 録音中のinterimTextリアルタイム表示 */}
-            {notesVoice.isRecording && (
-              <div className={cn(
-                "mt-1.5 px-3 py-2 rounded-md border min-h-[36px] transition-colors",
-                notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
-                  ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
-                  : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
-              )}>
-                {notesVoice.interimText ? (
-                  <p className={cn(
-                    "text-sm italic leading-relaxed",
-                    notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
-                      ? "text-orange-700 dark:text-orange-300"
-                      : "text-red-700 dark:text-red-300"
-                  )}>
-                    {notesVoice.interimText}
-                  </p>
-                ) : (
-                  <p className={cn(
-                    "text-xs font-medium",
-                    notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
-                      ? "text-orange-600 dark:text-orange-400"
-                      : "text-red-500 dark:text-red-400"
-                  )}>
-                    {notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
-                      ? `⏱ あと${notesVoice.silenceCountdown}秒で自動停止します`
-                      : "🎤 話してください..."}
-                  </p>
-                )}
-              </div>
-            )}
-            {/* 録音完了後: 最後の転記テキスト + 誤変換フィードバック */}
-            {!notesVoice.isRecording && notesVoice.lastTranscribedText && (
-              <div className="mt-1.5 px-2 py-1.5 rounded-md border bg-muted/40 border-border">
-                <div className="space-y-1.5">
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    🎤 {notesVoice.lastTranscribedText}
-                  </p>
-                  {/* 誤変換フィードバックボタン */}
-                  <button
-                    type="button"
-                    onClick={() => openFeedbackDialog(notesVoice.lastTranscribedText, "notesVoice")}
-                    className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    誤変換を報告して次回から改善
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-          {/* /病状の経過 */}
-
-          {/* コピー内容プレビュー */}
-          {(() => {
-            const previewParts: string[] = [];
-            const checkParts: string[] = [];
-            if (checkItems.睡眠.trim()) checkParts.push(`睡眠：${checkItems.睡眠.trim()}`);
-            if (checkItems.食事.trim()) checkParts.push(`食事：${checkItems.食事.trim()}`);
-            if (checkItems.排泄.trim()) checkParts.push(`排泄：${checkItems.排泄.trim()}`);
-            if (checkItems.服薬.trim()) checkParts.push(`服薬：${checkItems.服薬.trim()}`);
-            if (checkParts.length > 0) previewParts.push(checkParts.join("、"));
-            const vitalParts: string[] = [];
-            if (vitals.体温.trim()) vitalParts.push(`体温：${vitals.体温.trim()}℃`);
-            if (vitals.脈拍.trim()) vitalParts.push(`脈拍：${vitals.脈拍.trim()}回/分`);
-            if (vitals.SpO2.trim()) vitalParts.push(`SpO2：${vitals.SpO2.trim()}%`);
-            if (vitals.収縮期.trim() || vitals.拡張期.trim()) {
-              const bp = [vitals.収縮期.trim(), vitals.拡張期.trim()].filter(Boolean).join("/");
-              vitalParts.push(`血圧：${bp}mmHg`);
-            }
-            if (vitalParts.length > 0) previewParts.push(vitalParts.join("、"));
-            if (clinicalNotes.trim()) previewParts.push(clinicalNotes.trim());
-            const previewText = previewParts.join("\n");
-            if (!previewText) return null;
-            return (
-              <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
-                <p className="text-xs font-medium text-muted-foreground mb-1">コピーされる内容</p>
-                <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap break-words line-clamp-6">{previewText}</p>
-              </div>
-            );
-          })()}
-          <Button
-            className="w-full"
-            onClick={handleCopyAndOpenGem}
-            disabled={!clinicalNotes.trim() && !Object.values(checkItems).some(v => v.trim()) && !Object.values(vitals).some(v => v.trim())}
-          >
-            <><Send className="w-4 h-4 mr-2" />記録をコピーしてGemへ</>
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* ② 利用者・次回訪問日時 */}
+      {/* ① 訪問タスク（チェックリストカード） */}
       <Card className="shadow-sm">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">② 次回訪問日時</CardTitle>
-          {/* ZESTボタン */}
-          <a
-            href="https://homecare.zest.jp/login"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full h-11 rounded-full text-sm font-bold text-white transition-opacity hover:opacity-90 active:opacity-80 mt-2"
-            style={{ backgroundColor: "#2ab5a5" }}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            ZEST
-          </a>
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <CheckSquare className="w-4 h-4 text-primary" />
+            ① 訪問タスク
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-
-          {/* 一括音声入力エリア（最上部） */}
-          <div id="record-voice-area" className={cn(
-            "rounded-xl border-2 p-3 space-y-2 transition-colors duration-300",
-            visitVoice.isRecording
-              ? (visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5
-                  ? "border-orange-400/60 bg-orange-50 dark:bg-orange-950/20"
-                  : "border-red-400/60 bg-red-50 dark:bg-red-950/20")
-              : isParsingVisitVoice
-                ? "border-primary/40 bg-primary/10"
-                : "border-primary/30 bg-primary/5"
-          )}>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
-                  <VoiceHelpDialog mode="record" />
-                </div>
-                {visitVoice.transcriptionStatus === "recording" || visitVoice.isRecording ? (
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <p className={cn(
-                      "text-xs font-medium",
-                      visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5
-                        ? "text-orange-600 dark:text-orange-400"
-                        : "text-red-600 dark:text-red-400 animate-pulse"
+          {/* 訪問前と訪問中 */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">訪問前・訪問中</p>
+            <div className="space-y-2">
+              {visitTasksBefore.map((task) => (
+                <label
+                  key={task.id}
+                  className={cn(
+                    "flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors select-none",
+                    task.checked
+                      ? "bg-primary/5 border-primary/30"
+                      : "bg-background border-border hover:bg-muted/50"
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={task.checked}
+                    onChange={() => toggleVisitTaskBefore(task.id)}
+                    className="mt-0.5 w-4 h-4 accent-primary flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <span className={cn(
+                      "text-sm leading-snug",
+                      task.checked ? "line-through text-muted-foreground" : "text-foreground"
                     )}>
-                      {visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5
-                        ? `あと${visitVoice.silenceCountdown}秒で自動停止`
-                        : "🎤 話してください..."}
-                    </p>
-                    {visitVoice.isRecording && !(visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5) && (
-                      <span className="text-xs font-mono font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">
-                        {formatElapsedTime(visitVoice.elapsedSeconds)}
+                      {task.label}
+                    </span>
+                    {task.optional && (
+                      <span className="ml-2 text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-1.5 py-0.5 rounded-full">
+                        必要時
                       </span>
                     )}
                   </div>
-                ) : visitVoice.transcriptionStatus === "uploading" ? (
-                  <p className="text-xs text-blue-600 dark:text-blue-400 font-medium animate-pulse mt-0.5">⬆️ 音声を受信中...</p>
-                ) : visitVoice.transcriptionStatus === "analyzing" || isParsingVisitVoice ? (
-                  <p className="text-xs text-primary font-medium animate-pulse mt-0.5">🔬 医療用語を解析中...</p>
-                ) : visitVoice.transcriptionStatus === "done" ? (
-                  <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">✅ 転記完了</p>
-                ) : visitVoice.transcriptionStatus === "error" ? (
-                  <p className="text-xs text-red-600 dark:text-red-400 font-medium mt-0.5">❌ 認識エラー</p>
-                ) : (
-                  <p className="text-xs text-muted-foreground mt-0.5 whitespace-nowrap">マイクをタップして話すと各項目に転記</p>
-                )}
-              </div>
-              <span className="relative inline-flex flex-col items-center justify-center flex-shrink-0 gap-0.5">
-              {visitVoice.isRecording && !(visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5) && (
-                <>
-                  <span className="absolute pointer-events-none rounded-full" style={{ inset: 0, animation: "voiceRing 1.4s ease-out infinite", backgroundColor: "rgba(239, 68, 68, 0.35)" }} />
-                  <span className="absolute pointer-events-none rounded-full" style={{ inset: 0, animation: "voiceRing2 1.4s ease-out 0.5s infinite", backgroundColor: "rgba(239, 68, 68, 0.25)" }} />
-                </>
-              )}
-              <button
-                id="visit-voice-mic-btn"
-                type="button"
-                onClick={(e) => { e.preventDefault(); visitVoice.toggleVoice(); }}
-                className={cn(
-                  "relative inline-flex items-center justify-center flex-shrink-0 h-14 w-14 rounded-full",
-                  "border-2 transition-all duration-200 select-none touch-manipulation",
-                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                  visitVoice.isRecording
-                    ? (visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5
-                        ? "bg-orange-500 border-orange-400 text-white shadow-lg shadow-orange-500/40"
-                        : "bg-red-500 border-red-400 text-white shadow-lg shadow-red-500/40")
-                    : "bg-primary border-primary text-primary-foreground hover:bg-primary/90 active:scale-95 shadow-md"
-                )}
-                aria-label={visitVoice.isRecording ? "録音停止" : "音声入力開始"}
-                disabled={isParsingVisitVoice}
-              >
-                {visitVoice.isRecording && (
-                  <span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
-                    <span className={cn("absolute inset-0 animate-ping rounded-full opacity-30", visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5 ? "bg-orange-400" : "bg-red-400")} />
-                  </span>
-                )}
-                {isParsingVisitVoice ? (
-                  <span className="inline-block w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                ) : visitVoice.isRecording && visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5 ? (
-                  <span className="text-sm font-bold leading-none">{visitVoice.silenceCountdown}</span>
-                ) : visitVoice.isRecording ? (
-                  <span className="flex items-end justify-center gap-0.5 h-4">
-                    {[0,1,2,3].map((i) => (
-                      <span key={i} className="w-1 bg-white rounded-full" style={{ height: "60%", animation: "voiceBar 0.5s ease-in-out infinite alternate", animationDelay: `${i * 0.12}s` }} />
-                    ))}
-                  </span>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
-                )}
-              </button>
-              {/* 録音中経過時間バッジ */}
-              {visitVoice.isRecording && !(visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5) && (
-                <span className="text-xs font-mono font-semibold tabular-nums leading-none px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300">
-                  {formatElapsedTime(visitVoice.elapsedSeconds)}
-                </span>
-              )}
-              </span>
-            </div>
-
-            {/* 録音中の暫定テキストプレビュー（録音終了後も残す） */}
-            {(visitVoice.isRecording || visitVoiceText) && (
-              <div className={cn(
-                "px-3 py-2 rounded-lg border min-h-[36px] transition-colors duration-300",
-                visitVoice.isRecording
-                  ? (visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5
-                      ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
-                      : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800")
-                  : "bg-muted/40 border-border"
-              )}>
-                {visitVoice.isRecording ? (
-                  visitVoice.interimText ? (
-                    <p className="text-xs text-red-600 dark:text-red-400 italic leading-relaxed">
-                      🎤 {visitVoice.interimText}
-                    </p>
-                  ) : visitVoice.silenceCountdown !== null && visitVoice.silenceCountdown <= 5 ? (
-                    <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
-                      あと{visitVoice.silenceCountdown}秒で自動停止します
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground italic">話しかけてください...</p>
-                  )
-                ) : visitVoiceText ? (
-                  <div className="space-y-1.5">
-                    <div className="flex items-start gap-1.5">
-                      <p className="text-xs text-muted-foreground leading-relaxed flex-1">
-                        🎤 {visitVoiceText}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => setVisitVoiceText("")}
-                        className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors mt-0.5"
-                        title="クリア"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      </button>
-                    </div>
-                    {/* 誤変換フィードバックボタン */}
-                    <button
-                      type="button"
-                      onClick={() => openFeedbackDialog(visitVoiceText, "visitVoice")}
-                      className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                      誤変換を報告して次回から改善
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-            )}
-
-            {/* チーム未選択時のヒント */}
-            {!team && !visitVoice.isRecording && !isParsingVisitVoice && (
-              <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-600 dark:text-amber-400 flex-shrink-0"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                <p className="text-xs text-amber-700 dark:text-amber-300">チームを先に選ぶと利用者名の認識精度が上がります</p>
-              </div>
-            )}
-
-            {/* AI解析中 */}
-            {isParsingVisitVoice && (
-              <div className="flex items-center gap-2 text-xs text-primary">
-                <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                <span>AIが音声内容を解析して各項目に転記中...</span>
-              </div>
-            )}
-
-            {/* 例文（常時表示） */}
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">話しかけの例</p>
-              <div className="rounded-lg bg-background/70 border border-border px-3 py-2 space-y-1.5">
-                <p className="text-xs text-muted-foreground leading-snug">○○チームの○○さん、次回訪問は来週火曜の14時、本人に口頭で伝えた。</p>
-                <p className="text-xs text-muted-foreground/70 leading-snug border-t border-border pt-1.5">日時の言い方の例：「明日の14時」「来週火曜の午後3時」「再来週月曜の午前10時半」「今週金曜の午後」</p>
-              </div>
-            </div>
-
-            {/* AI解析失敗時 */}
-            {visitVoiceError && !isParsingVisitVoice && (
-              <div className="flex items-start gap-3 p-2 bg-destructive/10 border border-destructive/30 rounded-lg">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-destructive">⚠️ AI解析に失敗しました</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{visitVoiceError}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => { setVisitVoiceError(null); if (visitVoiceText) handleVisitVoiceResult(visitVoiceText); }}
-                  className="text-xs text-primary hover:underline whitespace-nowrap"
-                >
-                  再試行
-                </button>
-              </div>
-            )}
-
-
-          </div>
-
-          {/* 音声転記確認・修正パネル */}
-          {voicePreview && editingPreview && (() => {
-            // 未検出項目の判定
-            const missingPatient = !editingPreview.patientName;
-            const missingDate = !editingPreview.visitDate;
-            const missingTime = !editingPreview.visitTime;
-            const missingNotifiedTo = !editingPreview.notifiedTo;
-            const missingNotifyMethod = !editingPreview.notifyMethod;
-            const missingCount = [missingPatient, missingDate, missingTime, missingNotifiedTo, missingNotifyMethod].filter(Boolean).length;
-            const hasMissing = missingCount > 0;
-            return (
-              <div className={cn(
-                "rounded-xl border-2 p-3 space-y-3",
-                hasMissing
-                  ? "border-amber-400/70 bg-amber-50 dark:bg-amber-950/20"
-                  : "border-emerald-400/60 bg-emerald-50 dark:bg-emerald-950/30"
-              )}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <p className={cn(
-                      "text-xs font-semibold",
-                      hasMissing ? "text-amber-700 dark:text-amber-300" : "text-emerald-700 dark:text-emerald-300"
-                    )}>
-                      {hasMissing ? `⚠️ AI転記結果（未検出 ${missingCount}項目）` : "✅ AI転記結果を確認・修正"}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => { setVoicePreview(null); setEditingPreview(null); setVisitVoiceText(""); }}
-                    className="text-xs text-muted-foreground hover:text-destructive"
-                  >
-                    ✕ 閉じる
-                  </button>
-                </div>
-                <p className="text-xs text-muted-foreground -mt-1">
-                  {hasMissing
-                    ? <><span className="text-red-500 font-medium">赤字の項目</span>は未検出です。入力してから「確定」をタップしてください。</>
-                    : "内容を確認して「確定」をタップしてください。修正したい場合は各項目を直接編集できます。"
-                  }
-                </p>
-
-                {/* 認識された音声テキスト表示 */}
-                {visitVoiceText && (
-                  <div className="rounded-lg bg-background/60 border border-border/50 px-3 py-2">
-                    <p className="text-xs font-medium text-muted-foreground mb-0.5">🎤 認識された音声</p>
-                    <p className="text-xs text-foreground/80 leading-snug">{visitVoiceText}</p>
-                  </div>
-                )}
-
-                {/* チーム */}
-                {editingPreview.team && (
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground">チーム</label>
-                    <Select
-                      value={editingPreview.team ?? ""}
-                      onValueChange={(v) => setEditingPreview((p) => p ? { ...p, team: v } : p)}
-                    >
-                      <SelectTrigger className="h-8 text-sm">
-                        <SelectValue placeholder="チームを選択" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TEAMS.map((t) => (
-                          <SelectItem key={t} value={t}>{t}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                {/* 利用者名 */}
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <label className={cn("text-xs font-medium", missingPatient ? "text-red-500" : "text-muted-foreground")}>利用者名</label>
-                    {missingPatient && <span className="text-xs font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
-                    <span className="ml-auto">
-                      {isParsingReInput && reInputField === "patientName" ? (
-                        <span className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />解析中...</span>
-                      ) : (
-                        <VoiceMicButton
-                          size="sm"
-                          onResult={(text) => { setReInputField("patientName"); setIsParsingReInput(true); reInputTargetFieldRef.current = "patientName"; const src2 = allPatientsRef.current.length > 0 ? allPatientsRef.current : patientsRef.current; parseReInputMutation.mutate({ text, patientNamesWithKana: src2.map((p) => ({ name: p.name, kana: p.nameKana ?? '' })) }); }}
-                          previewMode="tooltip"
-                          className="rounded-full"
-                          context="clinical_notes"
-                        />
-                      )}
-                    </span>
-                  </div>
-                  {/* 利用者名が入力済みの場合：名前を表示し、削除すると検索フィールドに切り替わる */}
-                  {editingPreview.patientName && !showPreviewPatientList ? (
-                    <div className="flex items-center gap-2">
-                      <div className={cn(
-                        "flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-sm",
-                        editingPreview.patientId
-                          ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300"
-                          : "bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300"
-                      )}>
-                        <User className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate">{editingPreview.patientName}</span>
-                        {!editingPreview.patientId && <span className="text-xs text-amber-500 ml-1">（未登録の可能性）</span>}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingPreview((p) => p ? { ...p, patientName: "", patientId: null } : p);
-                          setPreviewPatientSearch("");
-                          setShowPreviewPatientList(true);
-                        }}
-                        className="text-xs text-red-500 hover:text-red-700 whitespace-nowrap border border-red-300 rounded px-1.5 py-1 hover:bg-red-50 dark:hover:bg-red-950/20"
-                      >
-                        × 削除して再検索
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      <div className="relative">
-                        <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-muted-foreground" />
-                        <Input
-                          className={cn("pl-8 text-sm h-8", missingPatient && "border-red-400 focus-visible:ring-red-400")}
-                          value={previewPatientSearch}
-                          onChange={(e) => { setPreviewPatientSearch(e.target.value); setShowPreviewPatientList(true); }}
-                          onFocus={() => setShowPreviewPatientList(true)}
-                          placeholder={missingPatient ? "利用者名を検索...「未検出」" : "利用者名を検索..."}
-                          autoFocus={showPreviewPatientList}
-                        />
-                      </div>
-                      {showPreviewPatientList && (
-                        <div className="border rounded-md bg-background shadow-sm max-h-40 overflow-y-auto">
-                          {previewPatientsLoading ? (
-                            <div className="flex items-center justify-center p-3">
-                              <Loader2 className="w-3 h-3 animate-spin mr-1.5" />
-                              <span className="text-xs text-muted-foreground">検索中...</span>
-                            </div>
-                          ) : previewPatients.length === 0 ? (
-                            <div className="p-2.5 text-xs text-muted-foreground text-center">
-                              {previewPatientSearch ? "該当する利用者が見つかりません" : "利用者名を入力して検索"}
-                            </div>
-                          ) : (
-                            previewPatients.map((p) => (
-                              <button
-                                key={p.id}
-                                type="button"
-                                className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted flex items-center justify-between border-b last:border-b-0"
-                                onClick={() => {
-                                  setEditingPreview((prev) => prev ? { ...prev, patientName: p.name, patientId: p.id } : prev);
-                                  setPreviewPatientSearch("");
-                                  setShowPreviewPatientList(false);
-                                }}
-                              >
-                                <span>{p.name}</span>
-                                <span className="text-xs text-muted-foreground">{p.team}チーム</span>
-                              </button>
-                            ))
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* 次回訪問日時 */}
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <label className={cn("text-xs font-medium", (missingDate || missingTime) ? "text-red-500" : "text-muted-foreground")}>次回訪問日時</label>
-                    {(missingDate || missingTime) && <span className="text-xs font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
-                    <span className="ml-auto">
-                      {isParsingReInput && reInputField === "visitDateTime" ? (
-                        <span className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />解析中...</span>
-                      ) : (
-                        <VoiceMicButton
-                          size="sm"
-                          onResult={(text) => { setReInputField("visitDateTime"); setIsParsingReInput(true); reInputTargetFieldRef.current = "visitDateTime"; parseReInputMutation.mutate({ text, patientNames: [] }); }}
-                          previewMode="tooltip"
-                          className="rounded-full"
-                          context="clinical_notes"
-                        />
-                      )}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1 flex-wrap">
-                        <label className={cn("text-xs text-muted-foreground", missingDate && "text-red-400")}>日付</label>
-                        {missingDate && <span className="text-xs font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
-                        {!missingDate && editingPreview.visitDateConfidence === 'medium' && (
-                          <span className="text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded px-1 py-0.5 leading-none">推測</span>
-                        )}
-                        {!missingDate && editingPreview.visitDateConfidence === 'low' && (
-                          <span className="text-xs font-medium text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-950/40 border border-orange-300 dark:border-orange-700 rounded px-1 py-0.5 leading-none">要確認</span>
-                        )}
-                      </div>
-                      <Input
-                        type="date"
-                        className={cn("text-xs h-8 px-2 w-full", missingDate && "border-red-400 focus-visible:ring-red-400", !missingDate && editingPreview.visitDateConfidence === 'medium' && "border-amber-400", !missingDate && editingPreview.visitDateConfidence === 'low' && "border-orange-400")}
-                        value={editingPreview.visitDate ?? ""}
-                        onChange={(e) => setEditingPreview((p) => p ? { ...p, visitDate: e.target.value } : p)}
-                      />
-                      {/* 日付のクイック修正ボタン */}
-                      {editingPreview.visitDate && (
-                        <div className="flex gap-1">
-                          {[-1, 1].map((delta) => (
-                            <button
-                              key={delta}
-                              type="button"
-                              className="flex-1 text-xs h-6 rounded border border-border bg-background/70 hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                              onClick={() => {
-                                setEditingPreview((p) => {
-                                  if (!p?.visitDate) return p;
-                                  const d = new Date(p.visitDate + 'T00:00:00');
-                                  d.setDate(d.getDate() + delta);
-                                  const y = d.getFullYear();
-                                  const m = String(d.getMonth() + 1).padStart(2, '0');
-                                  const day = String(d.getDate()).padStart(2, '0');
-                                  return { ...p, visitDate: `${y}-${m}-${day}`, visitDateConfidence: 'high' };
-                                });
-                              }}
-                            >
-                              {delta === -1 ? '− 1日' : '+ 1日'}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1 flex-wrap">
-                        <label className={cn("text-xs text-muted-foreground", missingTime && "text-red-400")}>時刻</label>
-                        {missingTime && <span className="text-xs font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
-                        {!missingTime && editingPreview.visitTimeConfidence === 'medium' && (
-                          <span className="text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded px-1 py-0.5 leading-none">推測</span>
-                        )}
-                        {!missingTime && editingPreview.visitTimeConfidence === 'low' && (
-                          <span className="text-xs font-medium text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-950/40 border border-orange-300 dark:border-orange-700 rounded px-1 py-0.5 leading-none">要確認</span>
-                        )}
-                      </div>
-                      <Input
-                        type="time"
-                        className={cn("text-xs h-8 px-2 w-full", missingTime && "border-red-400 focus-visible:ring-red-400", !missingTime && editingPreview.visitTimeConfidence === 'medium' && "border-amber-400", !missingTime && editingPreview.visitTimeConfidence === 'low' && "border-orange-400")}
-                        value={editingPreview.visitTime ?? ""}
-                        onChange={(e) => setEditingPreview((p) => p ? { ...p, visitTime: e.target.value } : p)}
-                      />
-                      {/* 時刻のクイック修正ボタン */}
-                      {editingPreview.visitTime && (
-                        <div className="flex gap-1">
-                          {[-30, 30].map((delta) => (
-                            <button
-                              key={delta}
-                              type="button"
-                              className="flex-1 text-xs h-6 rounded border border-border bg-background/70 hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                              onClick={() => {
-                                setEditingPreview((p) => {
-                                  if (!p?.visitTime) return p;
-                                  const [h, m] = p.visitTime.split(':').map(Number);
-                                  const totalMin = h * 60 + m + delta;
-                                  const clampedMin = Math.max(0, Math.min(23 * 60 + 59, totalMin));
-                                  const nh = Math.floor(clampedMin / 60);
-                                  const nm = clampedMin % 60;
-                                  return { ...p, visitTime: `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`, visitTimeConfidence: 'high' };
-                                });
-                              }}
-                            >
-                              {delta === -30 ? '−30分' : '+30分'}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 伝達先 */}
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <label className={cn("text-xs font-medium", missingNotifiedTo ? "text-red-500" : "text-muted-foreground")}>伝達先</label>
-                    {missingNotifiedTo && <span className="text-xs font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
-                    <span className="ml-auto">
-                      {isParsingReInput && reInputField === "notifiedTo" ? (
-                        <span className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />解析中...</span>
-                      ) : (
-                        <VoiceMicButton
-                          size="sm"
-                          onResult={(text) => { setReInputField("notifiedTo"); setIsParsingReInput(true); reInputTargetFieldRef.current = "notifiedTo"; parseReInputMutation.mutate({ text, patientNames: [] }); }}
-                          previewMode="tooltip"
-                          className="rounded-full"
-                          context="clinical_notes"
-                        />
-                      )}
-                    </span>
-                  </div>
-                  <div className={cn("flex flex-wrap gap-1.5 p-1.5 rounded-lg border", missingNotifiedTo ? "border-red-400 bg-red-50/50 dark:bg-red-950/10" : "border-transparent")}>
-                    {NOTIFY_TO_OPTIONS.map((opt) => (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() => setEditingPreview((p) => p ? { ...p, notifiedTo: opt } : p)}
-                        className={cn(
-                          "px-3 py-1 rounded-full text-xs border transition-all",
-                          editingPreview.notifiedTo === opt
-                            ? "bg-emerald-600 text-white border-emerald-600"
-                            : "bg-background border-border hover:border-emerald-400"
-                        )}
-                      >{opt}</button>
-                    ))}
-                  </div>
-                  {editingPreview.notifiedTo === "その他" && (
-                    <Input
-                      className="text-sm h-8 mt-1"
-                      value={editingPreview.notifiedToOther ?? ""}
-                      onChange={(e) => setEditingPreview((p) => p ? { ...p, notifiedToOther: e.target.value } : p)}
-                      placeholder="具体的に入力..."
-                    />
-                  )}
-                </div>
-
-                {/* 伝達方法 */}
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <label className={cn("text-xs font-medium", missingNotifyMethod ? "text-red-500" : "text-muted-foreground")}>伝達方法</label>
-                    {missingNotifyMethod && <span className="text-xs font-bold text-red-500 bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded px-1 py-0.5 leading-none">未検出</span>}
-                    <span className="ml-auto">
-                      {isParsingReInput && reInputField === "notifyMethod" ? (
-                        <span className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />解析中...</span>
-                      ) : (
-                        <VoiceMicButton
-                          size="sm"
-                          onResult={(text) => { setReInputField("notifyMethod"); setIsParsingReInput(true); reInputTargetFieldRef.current = "notifyMethod"; parseReInputMutation.mutate({ text, patientNames: [] }); }}
-                          previewMode="tooltip"
-                          className="rounded-full"
-                          context="clinical_notes"
-                        />
-                      )}
-                    </span>
-                  </div>
-                  <div className={cn("flex flex-wrap gap-1.5 p-1.5 rounded-lg border", missingNotifyMethod ? "border-red-400 bg-red-50/50 dark:bg-red-950/10" : "border-transparent")}>
-                    {NOTIFY_METHOD_OPTIONS.map((opt) => (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() => setEditingPreview((p) => p ? { ...p, notifyMethod: opt } : p)}
-                        className={cn(
-                          "px-3 py-1 rounded-full text-xs border transition-all",
-                          editingPreview.notifyMethod === opt
-                            ? "bg-emerald-600 text-white border-emerald-600"
-                            : "bg-background border-border hover:border-emerald-400"
-                        )}
-                      >{opt}</button>
-                    ))}
-                  </div>
-                  {editingPreview.notifyMethod === "その他" && (
-                    <Input
-                      className="text-sm h-8 mt-1"
-                      value={editingPreview.notifyMethodOther ?? ""}
-                      onChange={(e) => setEditingPreview((p) => p ? { ...p, notifyMethodOther: e.target.value } : p)}
-                      placeholder="具体的に入力..."
-                    />
-                  )}
-                </div>
-
-                {/* ボタン行 */}
-                <div className="flex gap-2 pt-1">
-                  <Button
-                    size="sm"
-                    className={cn(
-                      "flex-1 text-white text-xs h-9",
-                      hasMissing
-                        ? "bg-amber-500 hover:bg-amber-600"
-                        : "bg-emerald-600 hover:bg-emerald-700"
-                    )}
-                    onClick={() => {
-                      if (!editingPreview) return;
-                      // 音声確定ボタンからの自動転送フラグを立てる
-                      autoExportRef.current = true;
-                      // フォームに転記（UI表示用）
-                      applyVoicePreview(editingPreview);
-                      // ReactのstateはsetState後すぐに反映されないため、
-                      // editingPreviewのデータを直接使ってcreateRecord.mutateを呼ぶ
-                      const p = editingPreview;
-                      // 利用者名の解決（patientIdがない場合はリストから検索）
-                      let resolvedPatientId: number | undefined = p.patientId ?? undefined;
-                      let resolvedPatientName: string = p.patientName || patientName || "未選択";
-                      if (!resolvedPatientId && p.patientName) {
-                        const src = allPatientsRef.current.length > 0 ? allPatientsRef.current : patientsRef.current;
-                        const exact = src.find((pt) => pt.name === p.patientName);
-                        if (exact) { resolvedPatientId = exact.id; resolvedPatientName = exact.name; }
-                      }
-                      // チームの解決（previewにあればそれを使い、なければ現在のstate）
-                      const resolvedTeam = (p.team && ["身体","天理","郡山北部","郡山南部"].includes(p.team) ? p.team : team) as Team;
-                      if (!resolvedTeam) {
-                        toast.error("チームを選択してください");
-                        autoExportRef.current = false;
-                        return;
-                      }
-                      // 次回訪問日時の解決
-                      let resolvedNextVisitAt: Date | undefined;
-                      const vDate = p.visitDate || nextVisitDate;
-                      const vTime = p.visitTime || nextVisitTime;
-                      if (vDate) {
-                        const dt = vTime ? `${vDate}T${vTime}` : `${vDate}T00:00`;
-                        resolvedNextVisitAt = new Date(dt);
-                      }
-                      // 伝達先・伝達方法の解決
-                      const resolvedNotifiedTo = (p.notifiedTo || notifiedTo) as "本人" | "家族" | "その他" | undefined || undefined;
-                      const resolvedNotifyMethod = (p.notifyMethod || notifyMethod) as "口頭" | "カレンダー記入" | "付箋" | "電話" | "その他" | undefined || undefined;
-                      createRecord.mutate({
-                        patientId: resolvedPatientId,
-                        patientName: resolvedPatientName,
-                        team: resolvedTeam,
-                        clinicalNotes: clinicalNotes || undefined,
-                        nextVisitAt: resolvedNextVisitAt,
-                        notifiedTo: resolvedNotifiedTo,
-                        notifiedToOther: p.notifiedToOther || notifiedToOther || undefined,
-                        notifyMethod: resolvedNotifyMethod,
-                        notifyMethodOther: p.notifyMethodOther || notifyMethodOther || undefined,
-                      });
-                    }}
-                  >
-                    {hasMissing ? `未入力項目あり・そのまま確定・転送` : "✓　この内容で確定・転送"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-xs h-9 px-3 flex items-center gap-1.5"
-                    onClick={() => {
-                      setVoicePreview(null);
-                      setEditingPreview(null);
-                      setVisitVoiceText("");
-                      setVisitVoiceError(null);
-                      // 少し遅延してマイクボタンを自動クリック
-                      setTimeout(() => {
-                        const micBtn = document.getElementById("visit-voice-mic-btn");
-                        if (micBtn) micBtn.click();
-                      }, 150);
-                    }}
-                  >
-                    <span className="text-sm">🎤</span>
-                    もう一度録音
-                  </Button>
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* チーム選択 */}
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">チーム</label>
-            <div className="flex gap-1.5">
-              {(["身体", "天理", "郡山北部", "郡山南部"] as Team[]).map((teamId) => (
-                <button
-                  key={teamId}
-                  type="button"
-                  onClick={() => { setTeam(teamId); setPatientId(null); setPatientName(""); setSearchQuery(""); }}
-                  className={cn(
-                    "flex-1 text-xs py-1.5 rounded-lg font-medium transition-all",
-                    getTeamButtonClass(teamId, team === teamId)
-                  )}
-                  style={getTeamButtonStyle(teamId, team === teamId)}
-                >
-                  {teamId}
-                </button>
+                </label>
               ))}
             </div>
           </div>
 
-          {/* 利用者選択・検索 */}
+          {/* 訪問後 */}
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">利用者を選択または検索 *</label>
-            {patientId ? (
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-sm px-3 py-1">
-                  <User className="w-3 h-3 mr-1" />
-                  {patientName}
-                </Badge>
-                <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => { setPatientId(null); setPatientName(""); setSearchQuery(""); setShowPatientList(false); }}>
-                  変更
-                </Button>
-              </div>
-            ) : patientName && !patientId ? (
-              // 音声入力で利用者名が入力されたがリストに一致しなかった場合
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-sm px-3 py-1 border-amber-400 text-amber-700 dark:text-amber-400">
-                    <User className="w-3 h-3 mr-1" />
-                    {patientName}
-                    <span className="ml-1 text-xs text-amber-500">（未登録）</span>
-                  </Badge>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs h-7 text-red-500 hover:text-red-700"
-                    onClick={() => { setPatientName(""); setSearchQuery(""); setShowPatientList(true); }}
-                  >
-                    × 削除して再検索
-                  </Button>
-                </div>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="record-patient-search"
-                      className="pl-8 text-sm"
-                      placeholder="名前で検索..."
-                      value={searchQuery}
-                      onChange={(e) => { setSearchQuery(e.target.value); setShowPatientList(true); }}
-                      onFocus={() => setShowPatientList(true)}
-                      autoFocus
-                    />
-                  </div>
-                  <VoiceMicButton
-                    onResult={voicePatient.onResult}
-                    size="sm"
-                    previewMode="tooltip"
-                    context="clinical_notes"
-                  />
-                </div>
-                {showPatientList && (
-                  <div className="border rounded-md bg-background shadow-sm max-h-48 overflow-y-auto">
-                    {patientsLoading ? (
-                      <div className="flex items-center justify-center p-4">
-                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                        <span className="text-sm text-muted-foreground">検索中...</span>
-                      </div>
-                    ) : patients.length === 0 ? (
-                      <div className="p-3 text-sm text-muted-foreground text-center">
-                        {searchQuery ? "該当する利用者が見つかりません" : "利用者が登録されていません"}
-                      </div>
-                    ) : (
-                      patients.map((p) => (
-                        <button
-                          key={p.id}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center justify-between border-b last:border-b-0"
-                          onClick={() => handleSelectPatient(p.id, p.name)}
-                        >
-                          <span>{p.name}</span>
-                          <span className="text-xs text-muted-foreground">{p.team}チーム</span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="record-patient-search"
-                      className="pl-8 text-sm"
-                      placeholder="名前で検索..."
-                      value={searchQuery}
-                      onChange={(e) => { setSearchQuery(e.target.value); setShowPatientList(true); }}
-                      onFocus={() => setShowPatientList(true)}
-                    />
-                  </div>
-                  <VoiceMicButton
-                    onResult={voicePatient.onResult}
-                    size="sm"
-                    previewMode="tooltip"
-                    context="clinical_notes"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowPatientList(!showPatientList)}
-                  >
-                    <ChevronDown className="w-4 h-4" />
-                  </Button>
-                </div>
-                {showPatientList && (
-                  <div className="border rounded-md bg-background shadow-sm max-h-48 overflow-y-auto">
-                    {patientsLoading ? (
-                      <div className="flex items-center justify-center p-4">
-                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                        <span className="text-sm text-muted-foreground">検索中...</span>
-                      </div>
-                    ) : patients.length === 0 ? (
-                      <div className="p-3 text-sm text-muted-foreground text-center">
-                        {searchQuery ? "該当する利用者が見つかりません" : "利用者が登録されていません"}
-                        <p className="text-xs mt-1">管理画面から利用者を登録してください</p>
-                      </div>
-                    ) : (
-                      patients.map((p) => (
-                        <button
-                          key={p.id}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center justify-between border-b last:border-b-0"
-                          onClick={() => handleSelectPatient(p.id, p.name)}
-                        >
-                          <span>{p.name}</span>
-                          <span className="text-xs text-muted-foreground">{p.team}チーム</span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* 次回訪問日時 */}
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">
-              <Calendar className="w-3 h-3 inline mr-1" />
-              次回訪問日時
-            </label>
-
-            {/* 日付・時刻入力 */}
-            <div className="flex gap-2">
-              <Input
-                id="record-next-visit-date"
-                type="date"
-                className="text-sm flex-1"
-                value={nextVisitDate}
-                onChange={(e) => setNextVisitDate(e.target.value)}
-              />
-              <div className="relative w-28">
-                <button
-                  type="button"
-                  className="w-full flex items-center justify-between border rounded-md px-3 py-2 text-sm bg-background hover:bg-muted transition-colors"
-                  onClick={() => setTimeDropdownOpen((o) => !o)}
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">訪問後</p>
+            <div className="space-y-2">
+              {visitTasksAfter.map((task) => (
+                <label
+                  key={task.id}
+                  className={cn(
+                    "flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors select-none",
+                    task.checked
+                      ? "bg-primary/5 border-primary/30"
+                      : "bg-background border-border hover:bg-muted/50"
+                  )}
                 >
-                  <span className={nextVisitTime ? "" : "text-muted-foreground"}>{nextVisitTime || "時刻"}</span>
-                  <ChevronDown className="w-3 h-3 ml-1 text-muted-foreground" />
-                </button>
-                {timeDropdownOpen && (
-                  <div
-                    ref={timeListRef}
-                    className="absolute z-50 top-full mt-1 w-full border rounded-md bg-background shadow-md max-h-60 overflow-y-auto"
-                  >
-                    {timeSlots.map((val) => (
-                      <button
-                        key={val}
-                        data-val={val}
-                        type="button"
-                        className={`w-full text-left px-3 py-1.5 text-sm hover:bg-muted transition-colors ${
-                          nextVisitTime === val ? "bg-primary text-primary-foreground hover:bg-primary" : ""
-                        }`}
-                        onClick={() => { setNextVisitTime(val); setTimeDropdownOpen(false); }}
-                      >
-                        {val}
-                      </button>
-                    ))}
+                  <input
+                    type="checkbox"
+                    checked={task.checked}
+                    onChange={() => toggleVisitTaskAfter(task.id)}
+                    className="mt-0.5 w-4 h-4 accent-primary flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <span className={cn(
+                      "text-sm leading-snug",
+                      task.checked ? "line-through text-muted-foreground" : "text-foreground"
+                    )}>
+                      {task.label}
+                    </span>
                   </div>
-                )}
-              </div>
+                </label>
+              ))}
             </div>
           </div>
 
-          {/* 伝達先・伝達方法（常時表示） */}
-          <div className="space-y-3 border-t pt-3">
-            <p className="text-xs font-medium text-muted-foreground">次回訪問日時の伝達</p>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">伝達先</label>
-              <div id="record-notified-to" className="flex gap-2 flex-wrap">
-                {NOTIFY_TO_OPTIONS.map((opt) => (
-                  <button
-                    key={opt}
-                    className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${notifiedTo === opt ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"}`}
-                    onClick={() => setNotifiedTo(opt)}
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-              {notifiedTo === "その他" && (
-                <Input
-                  className="mt-2 text-sm"
-                  placeholder="伝達先を記入..."
-                  value={notifiedToOther}
-                  onChange={(e) => setNotifiedToOther(e.target.value)}
-                />
-              )}
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">伝達方法</label>
-              <div id="record-notify-method" className="flex gap-2 flex-wrap">
-                {NOTIFY_METHOD_OPTIONS.map((opt) => (
-                  <button
-                    key={opt}
-                    className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${notifyMethod === opt ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"}`}
-                    onClick={() => setNotifyMethod(opt)}
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-              {notifyMethod === "その他" && (
-                <Input
-                  className="mt-2 text-sm"
-                  placeholder="伝達方法を記入..."
-                  value={notifyMethodOther}
-                  onChange={(e) => setNotifyMethodOther(e.target.value)}
-                />
-              )}
-            </div>
-          </div>
-          {/* リセットボタン（①カード内の末尾） */}
+          {/* リセットボタン */}
           <div className="flex justify-end pt-1">
             <button
               type="button"
               onClick={() => {
-                if (window.confirm("入力内容をリセットしますか？")) {
-                  handleReset();
-                }
+                setVisitTasksBefore(VISIT_TASKS_BEFORE_DEFAULT.map(t => ({ ...t })));
+                setVisitTasksAfter(VISIT_TASKS_AFTER_DEFAULT.map(t => ({ ...t })));
               }}
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-colors"
             >
