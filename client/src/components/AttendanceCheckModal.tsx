@@ -1770,7 +1770,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
               onClick={handleClockOnly}
               className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all disabled:cursor-not-allowed shadow-md active:scale-95 ${
                 clockInDone
-                  ? "bg-green-500 opacity-80"
+                  ? "bg-green-500 clock-done-animate"
                   : "bg-red-500 hover:bg-red-600 disabled:opacity-50"
               }`}
             >
@@ -1780,10 +1780,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                   打刻中...
                 </>
               ) : clockInDone ? (
-                <>
-                  <CheckCircle2 className="w-4 h-4" />
-                  出勤打刻済み
-                </>
+                <span className="flex items-center gap-2 clock-done-content-animate">
+                  <CheckCircle2 className="w-5 h-5" />
+                  出勤打刻完了
+                </span>
               ) : (
                 <>
                   <LogIn className="w-4 h-4" />
