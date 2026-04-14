@@ -6,7 +6,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Calendar, ChevronDown, CheckSquare, X } from "lucide-react";
+import { Loader2, Calendar, ChevronDown, CheckSquare, X, Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -24,11 +24,6 @@ const VISIT_TASKS_BEFORE_DEFAULT = [
   { id: "insurance", label: "月初めは保険証、マイナンバーカード確認と読み込み", checked: false, optional: true },
 ];
 
-const VISIT_TASKS_AFTER_DEFAULT = [
-  { id: "record_voice", label: "処置内容を録音", checked: false, optional: false },
-  { id: "notebooklm", label: "ボイスメモをNotebookLMにソースとして追加し、指定のプロンプトで文章を作成", checked: false, optional: false },
-];
-
 type Team = "身体" | "天理" | "郡山北部" | "郡山南部";
 
 type VisitSlotData = {
@@ -41,18 +36,23 @@ type Props = {
   slotIndex: number; // 0-7
   slotData: VisitSlotData;
   onSlotChange: (index: number, data: Partial<VisitSlotData>) => void;
+  /** 管理者が選択したプロンプト本文（nullなら未選択） */
+  selectedPromptBody: string | null;
 };
 
-export function VisitSlotCard({ slotIndex, slotData, onSlotChange }: Props) {
+export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromptBody }: Props) {
   const utils = trpc.useUtils();
 
   // チェックリスト状態
   const [tasksBefore, setTasksBefore] = useState(
     () => VISIT_TASKS_BEFORE_DEFAULT.map(t => ({ ...t }))
   );
-  const [tasksAfter, setTasksAfter] = useState(
-    () => VISIT_TASKS_AFTER_DEFAULT.map(t => ({ ...t }))
-  );
+
+  // 特記事項
+  const [specialNote, setSpecialNote] = useState("");
+
+  // コピー完了フラグ
+  const [copied, setCopied] = useState(false);
 
   // 次回訪問日時
   const [nextVisitDate, setNextVisitDate] = useState("");
@@ -149,6 +149,22 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange }: Props) {
 
   const handleClearPatient = () => {
     onSlotChange(slotIndex, { patientId: null, patientName: "" });
+  };
+
+  // プロンプトをコピーする
+  const handleCopyPrompt = async () => {
+    if (!selectedPromptBody) {
+      toast.error("管理者がプロンプトを選択していません");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(selectedPromptBody);
+      setCopied(true);
+      toast.success("プロンプトをコピーしました");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("コピーに失敗しました");
+    }
   };
 
   const isPatientSelected = !!slotData.patientName;
@@ -301,37 +317,53 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange }: Props) {
             </div>
           </div>
 
-          {/* 訪問後 固定チェックリスト */}
+          {/* 訪問後 - チェックボックスなしのテキスト表示 */}
           <div>
             <p className="text-xs text-muted-foreground mb-1.5">訪問後</p>
             <div className="space-y-1.5">
-              {tasksAfter.map((task) => (
-                <label
-                  key={task.id}
+              {/* 処置内容を録音 */}
+              <div className="flex items-center gap-3 p-2.5 rounded-lg border border-border bg-background">
+                <span className="text-sm text-foreground">処置内容を録音</span>
+              </div>
+
+              {/* ボイスメモをNotebookLMに... + コピーボタン */}
+              <div className="flex items-start gap-3 p-2.5 rounded-lg border border-border bg-background">
+                <span className="text-sm text-foreground flex-1 leading-snug">
+                  ボイスメモをNotebookLMにソースとして追加し、指定のプロンプトで文章を作成
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyPrompt}
+                  title={selectedPromptBody ? "プロンプトをコピー" : "管理者がプロンプトを選択していません"}
                   className={cn(
-                    "flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors select-none",
-                    task.checked
-                      ? "bg-primary/5 border-primary/30"
-                      : "bg-background border-border hover:bg-muted/50"
+                    "flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border transition-colors",
+                    selectedPromptBody
+                      ? copied
+                        ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400"
+                        : "bg-background border-border hover:bg-primary/10 hover:border-primary/40 text-foreground"
+                      : "bg-muted border-border text-muted-foreground cursor-not-allowed opacity-60"
                   )}
                 >
-                  <input
-                    type="checkbox"
-                    checked={task.checked}
-                    onChange={() => setTasksAfter(prev => prev.map(t => t.id === task.id ? { ...t, checked: !t.checked } : t))}
-                    className="mt-0.5 w-4 h-4 accent-primary flex-shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <span className={cn(
-                      "text-sm leading-snug",
-                      task.checked ? "line-through text-muted-foreground" : "text-foreground"
-                    )}>
-                      {task.label}
-                    </span>
-                  </div>
-                </label>
-              ))}
+                  {copied ? (
+                    <><Check className="w-3 h-3" />コピー済み</>
+                  ) : (
+                    <><Copy className="w-3 h-3" />コピー</>
+                  )}
+                </button>
+              </div>
             </div>
+          </div>
+
+          {/* 特記事項 */}
+          <div>
+            <p className="text-xs text-muted-foreground mb-1.5">特記事項</p>
+            <textarea
+              className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-colors placeholder:text-muted-foreground"
+              rows={2}
+              placeholder="例：支援者・家族に連絡"
+              value={specialNote}
+              onChange={(e) => setSpecialNote(e.target.value)}
+            />
           </div>
 
           {/* チェックリストリセットボタン */}
@@ -340,7 +372,7 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange }: Props) {
               type="button"
               onClick={() => {
                 setTasksBefore(VISIT_TASKS_BEFORE_DEFAULT.map(t => ({ ...t })));
-                setTasksAfter(VISIT_TASKS_AFTER_DEFAULT.map(t => ({ ...t })));
+                setSpecialNote("");
               }}
               className="flex items-center gap-1 px-2 py-1 rounded-lg border border-border text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-colors"
             >

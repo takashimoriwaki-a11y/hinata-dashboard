@@ -36,6 +36,7 @@ const SLOTS_STORAGE_KEY = "hinata_visit_slots";
 
 export default function RecordInput() {
   const { user } = useAuth();
+  const utils = trpc.useUtils();
 
   // 8枠分の訪問予定データ
   const [slots, setSlots] = useState<VisitSlotData[]>(() => {
@@ -92,6 +93,25 @@ export default function RecordInput() {
 
   // 各枠の利用者検索クエリ
   const slotPatientQueries = useMemo(() => slotSearchQueries, [slotSearchQueries]);
+
+  // 管理者が選択したプロンプトを取得
+  const { data: selectedPromptIdData } = trpc.sharedPrompts.getSelectedId.useQuery();
+  const { data: allPrompts = [] } = trpc.sharedPrompts.getAll.useQuery();
+  const setSelectedPromptIdMutation = trpc.sharedPrompts.setSelectedId.useMutation({
+    onSuccess: () => {
+      utils.sharedPrompts.getSelectedId.invalidate();
+      toast.success("プロンプトを設定しました");
+    },
+    onError: (err) => toast.error(`設定エラー: ${err.message}`),
+  });
+
+  const selectedPromptBody = useMemo(() => {
+    if (!selectedPromptIdData?.promptId) return null;
+    const found = allPrompts.find(p => p.id === selectedPromptIdData.promptId);
+    return found?.body ?? null;
+  }, [selectedPromptIdData, allPrompts]);
+
+  const isAdmin = user?.role === "admin";
 
   // 全枠リセット
   const handleResetAll = () => {
@@ -170,6 +190,58 @@ export default function RecordInput() {
         </CardContent>
       </Card>
 
+      {/* ===== 管理者向け：プロンプト選択UI ===== */}
+      {isAdmin && (
+        <Card className="shadow-sm border-amber-200 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-900/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              管理者設定：NotebookLMプロンプト選択
+            </CardTitle>
+            <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
+              選択したプロンプトが「ボイスメモをNotebookLMに...」のコピーボタンで取得できます
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1.5">
+              <button
+                type="button"
+                className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors ${
+                  !selectedPromptIdData?.promptId
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "border-border hover:bg-muted"
+                }`}
+                onClick={() => setSelectedPromptIdMutation.mutate({ promptId: null })}
+              >
+                選択なし
+              </button>
+              {allPrompts.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors ${
+                    selectedPromptIdData?.promptId === p.id
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border hover:bg-muted"
+                  }`}
+                  onClick={() => setSelectedPromptIdMutation.mutate({ promptId: p.id })}
+                >
+                  <span className="font-medium">{p.title}</span>
+                  {p.aiTool && (
+                    <span className="ml-2 text-[10px] opacity-70">[{p.aiTool}]</span>
+                  )}
+                </button>
+              ))}
+              {allPrompts.length === 0 && (
+                <p className="text-xs text-muted-foreground py-2 text-center">
+                  AI共有プロンプトが登録されていません
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* ===== 8つの訪問チェック項目カード ===== */}
       {slots.map((slot, index) => (
         <VisitSlotCard
@@ -177,6 +249,7 @@ export default function RecordInput() {
           slotIndex={index}
           slotData={slot}
           onSlotChange={handleSlotChange}
+          selectedPromptBody={selectedPromptBody}
         />
       ))}
     </div>

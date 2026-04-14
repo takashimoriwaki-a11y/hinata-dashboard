@@ -5433,6 +5433,26 @@ export const appRouter = router({
         await deleteSharedPrompt(input.id);
         return { success: true };
       }),
+    /** 管理者が選択した訪問チェック用プロンプトIDを取得する */
+    getSelectedId: protectedProcedure
+      .query(async () => {
+        const val = await getSetting("visit_selected_prompt_id", "");
+        return { promptId: val ? parseInt(val, 10) : null };
+      }),
+    /** 管理者が訪問チェック用プロンプトを選択する（管理者のみ） */
+    setSelectedId: protectedProcedure
+      .input(z.object({ promptId: z.number().nullable() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ操作できます" });
+        }
+        if (input.promptId === null) {
+          await setSetting("visit_selected_prompt_id", "");
+        } else {
+          await setSetting("visit_selected_prompt_id", String(input.promptId));
+        }
+        return { success: true };
+      }),
   }),
 
   // ============================================================
