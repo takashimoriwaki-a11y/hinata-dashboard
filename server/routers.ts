@@ -315,30 +315,31 @@ export async function autoCreateTimesheetSpreadsheet(year: number, month: number
   }
 }
 
-/** 出退勤打刻記録を月別スプレッドシートの職員タブに転記する */
+/**
+ * 出退勤打刻記録を月別スプレッドシートの職員タブに転記する（1日1行形式）
+ *
+ * 列構成:
+ * A: 日付 | B: 出勤打刻時間 | C: 退勤打刻時間 | D: 総労働時間(分)
+ * E: 残業開始 | F: 残業終了 | G: 残業時間(分) | H: 残業理由
+ * I: 残業詳細（連絡先・件数） | J: 残業申請承認状況 | K: 氏名 | L: 登録日時
+ *
+ * 出勤打刻時: 新しい行を追加（退勤・残業列は空欄）
+ * 退勤打刻時: 同日の行を検索して退勤時間・残業情報を上書き
+ */
 async function appendTimesheetToSheet(record: {
   clockedAt: number;
   type: string;
   userName: string;
   numberPlate?: string | null;
   locationAddress?: string | null;
-  /** 緊急打刻時の備考（緊急訪問の理由など） */
   emergencyNote?: string | null;
-  /** 運転目的 */
   drivingPurpose?: string | null;
-  /** アルコール測定値 */
   alcoholMeasuredValue?: string | null;
-  /** 残業開始時刻（UNIX ms） */
   overtimeStartAt?: number | null;
-  /** 残業終了時刻（UNIX ms） */
   overtimeEndAt?: number | null;
-  /** 残業理由 */
   overtimeReason?: string | null;
-  /** 残業連絡先 */
   overtimeContact?: string | null;
-  /** 残業件数 */
   overtimeCount?: number | null;
-  /** 総労働時間（分）: 退勤打刻時に出勤打刻時刻との差分 */
   totalWorkMinutes?: number | null;
 }, spreadsheetId: string): Promise<void> {
   try {
@@ -350,45 +351,45 @@ async function appendTimesheetToSheet(record: {
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
     const sheets = google.sheets({ version: "v4", auth });
-    const toJSTStr = (ms: number) =>
-      new Date(ms).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
-    const toJSTStrOpt = (ms: number | null | undefined) =>
-      ms ? new Date(ms).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
-    const typeLabel = record.type === "clock_in" ? "出勤" : "退勤";
-    const dateStr = new Date(record.clockedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" });
-    const timeStr = toJSTStr(record.clockedAt);
+
+    const toTimeStr = (ms: number) =>
+      new Date(ms).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit" });
+    const toTimeStrOpt = (ms: number | null | undefined) =>
+      ms ? new Date(ms).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit" }) : "";
+    // 日付文字列（例: 2026/04/14）
+    const dateStr = new Date(record.clockedAt).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" });
+    const clockTimeStr = toTimeStr(record.clockedAt);
     const timestampStr = new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" });
-    // 緊急打刻の場合は区分に「緊急」プレフィックスを付ける
-    const isEmergency = !!record.emergencyNote;
-    const displayTypeLabel = isEmergency ? `緊急${typeLabel}` : typeLabel;
-    const noteStr = record.emergencyNote ?? "";
-    // 運転目的ラベル変換
-    const drivingPurposeLabel = (() => {
-      switch (record.drivingPurpose) {
-        case "commute": return "通勤";
-        case "visit": return "業務訪問";
-        case "transport": return "送迎";
-        case "errand": return "物品購入";
-        case "other": return "その他";
-        default: return record.drivingPurpose ?? "";
-      }
-    })();
+
+    // 残業情報
+    const overtimeStartStr = toTimeStrOpt(record.overtimeStartAt);
+    const overtimeEndStr = toTimeStrOpt(record.overtimeEndAt);
+    const overtimeMinutes = (record.overtimeStartAt && record.overtimeEndAt)
+      ? Math.round((record.overtimeEndAt - record.overtimeStartAt) / 60000)
+      : "";
+    const overtimeDetail = [
+      record.overtimeContact ? `連絡先: ${record.overtimeContact}` : "",
+      record.overtimeCount != null ? `件数: ${record.overtimeCount}件` : "",
+    ].filter(Boolean).join(" / ");
+
     // 職員名タブの確認・作成
     const tabName = record.userName;
     const spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId });
     const existingSheets = spreadsheetMeta.data.sheets ?? [];
     const tabExists = existingSheets.some((s) => s.properties?.title === tabName);
+    // ヘッダー列定義（12列）
+    const HEADERS = ["日付", "出勤打刻時間", "退勤打刻時間", "総労働時間(分)", "残業開始", "残業終了", "残業時間(分)", "残業理由", "残業詳細（連絡先・件数）", "残業申請承認状況", "氏名", "登録日時"];
+    const COL_COUNT = HEADERS.length;
     if (!tabExists) {
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId,
         requestBody: { requests: [{ addSheet: { properties: { title: tabName } } }] },
       });
-      // ヘッダー行を設定（出退勤情報 + 残業情報 + 集計列）
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `${tabName}!A1:Q1`,
+        range: `${tabName}!A1:L1`,
         valueInputOption: "USER_ENTERED",
-        requestBody: { values: [["日付", "打刻日時", "区分", "氏名", "ナンバープレート", "位置情報", "備考（緊急理由）", "運転目的", "アルコール測定値(mg/L)", "残業開始", "残業終了", "残業時間(分)", "残業理由", "連絡先", "件数", "総労働時間(分)", "登録日時"]] },
+        requestBody: { values: [HEADERS] },
       });
       // ヘッダー行を太字・背景色で書式設定
       const newSheetMeta = await sheets.spreadsheets.get({ spreadsheetId });
@@ -400,7 +401,7 @@ async function appendTimesheetToSheet(record: {
             requests: [
               {
                 repeatCell: {
-                  range: { sheetId: newSheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 17 },
+                  range: { sheetId: newSheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: COL_COUNT },
                   cell: {
                     userEnteredFormat: {
                       backgroundColor: { red: 0.18, green: 0.42, blue: 0.65 },
@@ -422,27 +423,161 @@ async function appendTimesheetToSheet(record: {
         });
       }
     }
-    const overtimeStartStr = toJSTStrOpt(record.overtimeStartAt);
-    const overtimeEndStr = toJSTStrOpt(record.overtimeEndAt);
-    // 残業時間（分）を計算
-    const overtimeMinutes = (record.overtimeStartAt && record.overtimeEndAt)
-      ? Math.round((record.overtimeEndAt - record.overtimeStartAt) / 60000)
-      : "";
-    // 総労働時間（分）: 退勤打刻時に同日の出勤打刻を参照するVLOOKUP数式を設定
-    // 出勤打刻時は同日の「出勤」行の打刻日時（B列）を参照
-    const totalWorkMinutesFormula = record.type === "clock_out"
-      ? `=IFERROR(ROUND((DATEVALUE(TEXT(B{ROW},"YYYY/MM/DD HH:MM"))+TIMEVALUE(TEXT(B{ROW},"YYYY/MM/DD HH:MM"))-IFERROR(VLOOKUP(A{ROW},FILTER(A:B,C:C="出勤"),2,0),"")-DATEVALUE(TEXT(IFERROR(VLOOKUP(A{ROW},FILTER(A:B,C:C="出勤"),2,0),""),"YYYY/MM/DD HH:MM")))*1440,0),"")`
-      : "";
-    await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: `${tabName}!A:Q`,
-      valueInputOption: "USER_ENTERED",
-      requestBody: {
-        values: [[dateStr, timeStr, displayTypeLabel, record.userName, record.numberPlate ?? "", record.locationAddress ?? "", noteStr, drivingPurposeLabel, record.alcoholMeasuredValue ?? "", overtimeStartStr, overtimeEndStr, overtimeMinutes, record.overtimeReason ?? "", record.overtimeContact ?? "", record.overtimeCount != null ? String(record.overtimeCount) : "", record.totalWorkMinutes != null ? String(record.totalWorkMinutes) : "", timestampStr]],
-      },
-    });
+
+    if (record.type === "clock_in") {
+      // ===== 出勤打刻: 新しい行を追加 =====
+      await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: `${tabName}!A:L`,
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: [[
+            dateStr,        // A: 日付
+            clockTimeStr,   // B: 出勤打刻時間
+            "",             // C: 退勤打刻時間（空欄）
+            "",             // D: 総労働時間(分)（空欄）
+            "",             // E: 残業開始（空欄）
+            "",             // F: 残業終了（空欄）
+            "",             // G: 残業時間(分)（空欄）
+            "",             // H: 残業理由（空欄）
+            "",             // I: 残業詳細（空欄）
+            "",             // J: 残業申請承認状況（空欄）
+            record.userName, // K: 氏名
+            timestampStr,   // L: 登録日時
+          ]],
+        },
+      });
+    } else {
+      // ===== 退勤打刻: 同日の行を検索して上書き =====
+      const existingData = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: `${tabName}!A:L`,
+      });
+      const rows = existingData.data.values ?? [];
+      // 同日・同氏名の行を検索（最後に一致した行を使用）
+      let targetRowIndex = -1;
+      for (let i = 1; i < rows.length; i++) {
+        if (rows[i][0] === dateStr && rows[i][10] === record.userName) {
+          targetRowIndex = i + 1; // 1-indexed
+        }
+      }
+      const totalWorkStr = record.totalWorkMinutes != null ? String(record.totalWorkMinutes) : "";
+      if (targetRowIndex > 0) {
+        // 既存行の退勤・残業列を上書き（A列の日付・B列の出勤時間・K列の氏名は保持）
+        await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `${tabName}!C${targetRowIndex}:L${targetRowIndex}`,
+          valueInputOption: "USER_ENTERED",
+          requestBody: {
+            values: [[
+              clockTimeStr,    // C: 退勤打刻時間
+              totalWorkStr,    // D: 総労働時間(分)
+              overtimeStartStr, // E: 残業開始
+              overtimeEndStr,  // F: 残業終了
+              overtimeMinutes, // G: 残業時間(分)
+              record.overtimeReason ?? "", // H: 残業理由
+              overtimeDetail,  // I: 残業詳細
+              "",              // J: 残業申請承認状況（承認処理で更新）
+              record.userName, // K: 氏名
+              timestampStr,    // L: 登録日時
+            ]],
+          },
+        });
+        console.log(`[Timesheet] Updated clock_out for ${record.userName} on ${dateStr} at row ${targetRowIndex}`);
+      } else {
+        // 同日の出勤行が見つからない場合は新規追加
+        console.warn(`[Timesheet] No clock_in row found for ${record.userName} on ${dateStr}, appending new row`);
+        await sheets.spreadsheets.values.append({
+          spreadsheetId,
+          range: `${tabName}!A:L`,
+          valueInputOption: "USER_ENTERED",
+          requestBody: {
+            values: [[
+              dateStr,
+              "",              // B: 出勤打刻時間（不明）
+              clockTimeStr,    // C: 退勤打刻時間
+              totalWorkStr,
+              overtimeStartStr,
+              overtimeEndStr,
+              overtimeMinutes,
+              record.overtimeReason ?? "",
+              overtimeDetail,
+              "",
+              record.userName,
+              timestampStr,
+            ]],
+          },
+        });
+      }
+    }
   } catch (err) {
     console.error("[Timesheet] Failed to append to sheet:", err);
+    throw err;
+  }
+}
+
+/**
+ * 残業申請の承認状況を出退勤スプレッドシートの職員タブに反映する
+ * 対象日・対象者の行のJ列（残業申請承認状況）を更新する
+ */
+async function updateTimesheetOvertimeApproval(record: {
+  applicationDate: string; // "YYYY-MM-DD"
+  applicantName: string;
+  status: string; // "approved" | "rejected" | "pending"
+  approverName?: string | null;
+  approverComment?: string | null;
+}, spreadsheetId: string): Promise<void> {
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        private_key: (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ?? "").replace(/\\n/g, "\n"),
+      },
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+    const sheets = google.sheets({ version: "v4", auth });
+    const tabName = record.applicantName;
+    // 日付文字列を「YYYY/MM/DD」形式に変換（スプレッドシートのA列と一致させる）
+    const [y, m, d] = record.applicationDate.split("-").map(Number);
+    const dateStr = `${y}/${String(m).padStart(2, "0")}/${String(d).padStart(2, "0")}`;
+    const statusLabel = record.status === "approved"
+      ? `承認済み${record.approverName ? ` (${record.approverName})` : ""}`
+      : record.status === "rejected"
+      ? `却下${record.approverComment ? `: ${record.approverComment}` : ""}`
+      : "承認待ち";
+    // タブの存在確認
+    const spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId });
+    const tabExists = (spreadsheetMeta.data.sheets ?? []).some((s) => s.properties?.title === tabName);
+    if (!tabExists) {
+      console.warn(`[Timesheet] Tab not found for ${tabName}, skipping approval update`);
+      return;
+    }
+    // 対象行を検索
+    const existingData = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${tabName}!A:K`,
+    });
+    const rows = existingData.data.values ?? [];
+    let targetRowIndex = -1;
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][0] === dateStr && rows[i][10] === record.applicantName) {
+        targetRowIndex = i + 1;
+      }
+    }
+    if (targetRowIndex < 0) {
+      console.warn(`[Timesheet] No row found for ${record.applicantName} on ${dateStr}, skipping approval update`);
+      return;
+    }
+    // J列（10列目、0-indexed）を更新
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${tabName}!J${targetRowIndex}`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values: [[statusLabel]] },
+    });
+    console.log(`[Timesheet] Updated approval status for ${record.applicantName} on ${dateStr}: ${statusLabel}`);
+  } catch (err) {
+    console.error("[Timesheet] Failed to update approval status:", err);
     throw err;
   }
 }
@@ -4968,6 +5103,7 @@ export const appRouter = router({
             return;
           }
           for (const sheet of sheets) {
+            // 残業申請専用タブ（月別）を更新
             await appendOvertimeToSheet({
               applicationDate: appDate,
               applicantName: record.applicantName,
@@ -4983,6 +5119,16 @@ export const appRouter = router({
               updateExisting: true, // 承認・却下時は既存行を上書き更新
             }, sheet.spreadsheetId).catch((err) => {
               console.error("[Overtime] Sheet sync failed:", err);
+            });
+            // 出退勤記録タブ（職員名タブ）のJ列（残業申請承認状況）も更新
+            await updateTimesheetOvertimeApproval({
+              applicationDate: appDate,
+              applicantName: record.applicantName,
+              status: input.status,
+              approverName: ctx.user.name ?? "不明",
+              approverComment: input.approverComment ?? null,
+            }, sheet.spreadsheetId).catch((err) => {
+              console.error("[Timesheet] Approval status update failed:", err);
             });
           }
         }).catch((err) => {
