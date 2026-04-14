@@ -2246,4 +2246,12 @@
 - [x] アルコールチェック記録エラー修正：DBのdrivingPurpose enumに"commute"を追加（ALTER TABLE直接適用）
 - [x] 残業申請エラー修正：overtimeApprovals.alcoholCheckIdをNOT NULL→NULL許容に変更（ALTER TABLE直接適用）
 - [x] DB直接SQLで両方の修正を適用完了
+- [x] チェックポイント保存
+
+## アルコールチェックスプレッドシート自動作成（2026-04-14）
+- [x] サーバー：autoCreateAlcoholCheckSpreadsheet関数を実装（Google Drive APIで新規スプレッドシート作成＋DBに登録）
+- [x] サーバー：アルコールチェック記録時に当月スプレッドシートが未登録の場合、自動作成してから転記する
+- [x] サーバー：翔月分スプレッドシートを手動作成するtRPCプロシージャを追加（attendance.createSpreadsheet）
+- [x] 毎月25日に翔月分スプレッドシートを自動作成するスケジューラー（scheduleNextMonthAlcoholSheet）
+- [x] 管理画面に「✨ Googleが自動作成」ボタンを追加
 - [ ] チェックポイント保存

@@ -139,6 +139,84 @@ async function appendAlcoholCheckToSheet(record: {
     throw err;
   }
 }
+/**
+ * 指定年月のアルコールチェック用スプレッドシートをGoogle Driveに自動作成し、DBに登録する。
+ * 既に登録済みの場合は何もしない。
+ */
+async function autoCreateAlcoholCheckSpreadsheet(year: number, month: number): Promise<string | null> {
+  try {
+    // 既に登録済みならスキップ
+    const existing = await getAlcoholCheckSpreadsheet(year, month);
+    if (existing) return existing.spreadsheetId;
+
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        private_key: (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ?? "").replace(/\\n/g, "\n"),
+      },
+      scopes: [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
+      ],
+    });
+    const sheets = google.sheets({ version: "v4", auth });
+    const drive = google.drive({ version: "v3", auth });
+
+    const title = `アルコールチェック記録_${year}年${month}月`;
+
+    // 新規スプレッドシートを作成
+    const createRes = await sheets.spreadsheets.create({
+      requestBody: {
+        properties: { title },
+        sheets: [{ properties: { title: "概要" } }],
+      },
+    });
+    const spreadsheetId = createRes.data.spreadsheetId!;
+
+    // 概要シートに説明を記入
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: "概要!A1:B3",
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [
+          ["アルコールチェック記録", `${year}年${month}月`],
+          ["作成日時", new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })],
+          ["備考", "職員名タブに各職員の記録が自動転記されます"],
+        ],
+      },
+    });
+
+    // サービスアカウントからオーナーのGoogleアカウントへ編集共有
+    const ownerEmail = process.env.OWNER_EMAIL;
+    if (ownerEmail) {
+      await drive.permissions.create({
+        fileId: spreadsheetId,
+        requestBody: {
+          type: "user",
+          role: "writer",
+          emailAddress: ownerEmail,
+        },
+        sendNotificationEmail: false,
+      }).catch((e: unknown) => console.warn("[AutoSheet] Share failed:", e));
+    }
+
+    // DBに登録
+    await upsertAlcoholCheckSpreadsheet({
+      year,
+      month,
+      spreadsheetId,
+      label: title,
+    });
+
+    console.log(`[AutoSheet] Created spreadsheet for ${year}/${month}: ${spreadsheetId}`);
+    return spreadsheetId;
+  } catch (err) {
+    console.error("[AutoSheet] Failed to create spreadsheet:", err);
+    return null;
+  }
+}
+
 /** 出退勤打刻記録を月別スプレッドシートに転記する */
 async function appendTimesheetToSheet(record: {
   clockedAt: number;
@@ -4092,9 +4170,24 @@ export const appRouter = router({
         const jstDate = new Date(checkedDate.getTime() + jstOffset);
         const year = jstDate.getUTCFullYear();
         const month = jstDate.getUTCMonth() + 1;
-        getAlcoholCheckSpreadsheet(year, month).then(async (sheetReg) => {
+        // 当月スプレッドシートが未登録の場合は自動作成する
+        autoCreateAlcoholCheckSpreadsheet(year, month).then(async (autoSpreadsheetId) => {
+          if (autoSpreadsheetId) {
+            console.log(`[AlcoholCheck] Using spreadsheet ${autoSpreadsheetId} for ${year}/${month}`);
+          }
+        }).catch((e) => console.warn("[AlcoholCheck] Auto-create spreadsheet failed:", e));
+
+        getAlcoholCheckSpreadsheet(year, month).then(async (initialSheetReg) => {
+          // スプレッドシートが未登録の場合、自動作成を試みてから再取得
+          let sheetReg = initialSheetReg;
           if (!sheetReg) {
-            console.warn(`[AlcoholCheck] No spreadsheet registered for ${year}/${month}`);
+            const newId = await autoCreateAlcoholCheckSpreadsheet(year, month);
+            if (newId) {
+              sheetReg = await getAlcoholCheckSpreadsheet(year, month);
+            }
+          }
+          if (!sheetReg) {
+            console.warn(`[AlcoholCheck] No spreadsheet available for ${year}/${month}`);
             return;
           }
           await appendAlcoholCheckToSheet({
@@ -4156,6 +4249,19 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         await deleteAlcoholCheckSpreadsheet(input.id);
         return { success: true };
+      }),
+    /** 指定年月のアルコールチェック用スプレッドシートを手動で自動作成する（管理者用） */
+    createSpreadsheet: protectedProcedure
+      .input(z.object({
+        year: z.number().min(2020).max(2100),
+        month: z.number().min(1).max(12),
+      }))
+      .mutation(async ({ input }) => {
+        const spreadsheetId = await autoCreateAlcoholCheckSpreadsheet(input.year, input.month);
+        if (!spreadsheetId) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "スプレッドシートの作成に失敗しました" });
+        }
+        return { success: true, spreadsheetId };
       }),
     /** アルコールチェック記録を期間指定でCSV形式にエクスポートする（管理者用） */
     exportCsv: protectedProcedure

@@ -2885,6 +2885,14 @@ function AlcoholCheckSpreadsheetsPanel() {
     },
     onError: (e) => toast.error(`削除に失敗しました: ${e.message}`),
   });
+  const createSpreadsheetMutation = trpc.attendance.createSpreadsheet.useMutation({
+    onSuccess: () => {
+      utils.attendance.getSpreadsheets.invalidate();
+      toast.success("スプレッドシートを自動作成しました");
+      setShowAddForm(false);
+    },
+    onError: (e) => toast.error(`自動作成に失敗しました: ${e.message}`),
+  });
 
   /** スプレッドシートURLまたはIDからIDを抽出する */
   const extractSheetId = (input: string): string => {
@@ -2993,7 +3001,7 @@ function AlcoholCheckSpreadsheetsPanel() {
               />
             </div>
 
-            <div className="flex gap-2 pt-1">
+            <div className="flex flex-wrap gap-2 pt-1">
               <Button
                 size="sm"
                 className="h-8 text-xs"
@@ -3001,6 +3009,15 @@ function AlcoholCheckSpreadsheetsPanel() {
                 disabled={upsertMutation.isPending || !newSpreadsheetId.trim()}
               >
                 {upsertMutation.isPending ? "登録中..." : "登録する"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs gap-1.5 border-emerald-500 text-emerald-600 hover:bg-emerald-50"
+                onClick={() => createSpreadsheetMutation.mutate({ year: newYear, month: newMonth })}
+                disabled={createSpreadsheetMutation.isPending}
+              >
+                {createSpreadsheetMutation.isPending ? "作成中..." : "✨ Googleが自動作成"}
               </Button>
               <Button
                 variant="outline"
@@ -3141,10 +3158,9 @@ function AlcoholCheckSpreadsheetsPanel() {
           <div className="flex gap-2 text-xs text-amber-700 dark:text-amber-400">
             <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <p className="font-semibold">月末前に翌月のスプレッドシートを登録してください</p>
+              <p className="font-semibold">スプレッドシートの自動作成について</p>
               <p className="text-amber-600/80 dark:text-amber-400/70">
-                登録されていない月のアルコールチェックは記録（DB）には保存されますが、スプレッドシートへの自動転記はされません。
-                月が変わる前に翌月分のスプレッドシートを作成して登録しておくことをお勧めします。
+                アルコールチェック記録時に当月分のスプレッドシートが未登録の場合、自動で新規作成します。また、毎月25日に翔月分のスプレッドシートを自動作成します。「新規登録」から「✨ Googleが自動作成」ボタンで手動作成も可能です。
               </p>
             </div>
           </div>
