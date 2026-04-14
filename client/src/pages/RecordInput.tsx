@@ -897,10 +897,413 @@ export default function RecordInput() {
         </div>
       )}
 
-      {/* ① 利用者・次回訪問日時 */}
+      {/* ① 確認項目・バイタル＋病状の経過（統合カード） */}
+      <Card id="record-condition" className="shadow-sm">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold">① 観察・記録</CardTitle>
+            <div className="flex items-center gap-2">
+              {/* 録音経過時間表示 */}
+              {notesVoice.isRecording && (
+                <span className="text-xs font-mono font-medium text-red-600 dark:text-red-400 tabular-nums">
+                  {formatElapsedTime(notesVoice.elapsedSeconds)} / 3:00
+                </span>
+              )}
+              {/* 病状の経過リセットボタン */}
+              {clinicalNotes.trim() && !notesVoice.isRecording && (
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm("入力内容を全て削除します。よろしいですか？")) {
+                            setClinicalNotes("");
+                            notesVoice.clearLastTranscribedText();
+                            // タイムスタンプ表示もリセット
+                            setLastSavedAt(null);
+                            setSavedAgoText("");
+                            // localStorageからも削除
+                            try {
+                              const raw = localStorage.getItem(DRAFT_KEY);
+                              if (raw) {
+                                const draft = JSON.parse(raw);
+                                draft.clinicalNotes = "";
+                                localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+                              }
+                            } catch { /* ignore */ }
+                            toast.success("病状の経過をリセットしました");
+                          }
+                        }}
+                        className="text-xs px-2 py-0.5 rounded-full border font-medium transition-all bg-muted text-muted-foreground border-border hover:bg-red-50 hover:text-red-600 hover:border-red-300 dark:hover:bg-red-950/30 dark:hover:text-red-400 dark:hover:border-red-700"
+                      >
+                        リセット
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="text-xs">
+                      入力内容を全て削除します
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* 確認項目 */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-2">確認項目</p>
+            <div className="grid grid-cols-2 gap-2">
+              {/* 睡眠 */}
+              <div>
+                <label className="text-xs font-bold text-foreground mb-1 block">睡眠</label>
+                <Input
+                  className="text-sm h-9"
+                  placeholder="睡眠の状態を入力..."
+                  value={checkItems.睡眠}
+                  onChange={(e) => setCheckItems(prev => ({ ...prev, 睡眠: e.target.value }))}
+                />
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {["良眠", "中途覚醒", "不眠"].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setCheckItems(prev => ({ ...prev, 睡眠: preset }))}
+                      className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                        checkItems.睡眠 === preset
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-muted-foreground border-border hover:border-primary hover:text-primary"
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* 食事 */}
+              <div>
+                <label className="text-xs font-bold text-foreground mb-1 block">食事</label>
+                <Input
+                  className="text-sm h-9"
+                  placeholder="食事の状態を入力..."
+                  value={checkItems.食事}
+                  onChange={(e) => setCheckItems(prev => ({ ...prev, 食事: e.target.value }))}
+                />
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {["全量", "半量", "摂取不十分", "拒否"].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setCheckItems(prev => ({ ...prev, 食事: preset }))}
+                      className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                        checkItems.食事 === preset
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-muted-foreground border-border hover:border-primary hover:text-primary"
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* 排泄 */}
+              <div>
+                <label className="text-xs font-bold text-foreground mb-1 block">排泄</label>
+                <Input
+                  className="text-sm h-9"
+                  placeholder="排泄の状態を入力..."
+                  value={checkItems.排泄}
+                  onChange={(e) => setCheckItems(prev => ({ ...prev, 排泄: e.target.value }))}
+                />
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {["自然", "便秘", "下痢"].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setCheckItems(prev => ({ ...prev, 排泄: preset }))}
+                      className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                        checkItems.排泄 === preset
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-muted-foreground border-border hover:border-primary hover:text-primary"
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* 服薬 */}
+              <div>
+                <label className="text-xs font-bold text-foreground mb-1 block">服薬</label>
+                <Input
+                  className="text-sm h-9"
+                  placeholder="服薬の状態を入力..."
+                  value={checkItems.服薬}
+                  onChange={(e) => setCheckItems(prev => ({ ...prev, 服薬: e.target.value }))}
+                />
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {["良好", "拒薬", "不明"].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setCheckItems(prev => ({ ...prev, 服薬: preset }))}
+                      className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                        checkItems.服薬 === preset
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-muted-foreground border-border hover:border-primary hover:text-primary"
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* バイタルサイン */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-2">バイタルサイン</p>
+            <div className="grid grid-cols-2 gap-2">
+              {/* 体温 */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">体温 (℃)</label>
+                <Select value={vitals.体温} onValueChange={(v) => setVitals(prev => ({ ...prev, 体温: v }))}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: Math.round((42.0 - 35.0) / 0.1) + 1 }, (_, i) => +(35.0 + i * 0.1).toFixed(1)).map(v => (
+                      <SelectItem key={v} value={String(v)}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* 脈拍 */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">脈拍 (回/分)</label>
+                <Select value={vitals.脈拍} onValueChange={(v) => setVitals(prev => ({ ...prev, 脈拍: v }))}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 130 - 50 + 1 }, (_, i) => 50 + i).map(v => (
+                      <SelectItem key={v} value={String(v)}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* SpO2 */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">SpO2 (%)</label>
+                <Select value={vitals.SpO2} onValueChange={(v) => setVitals(prev => ({ ...prev, SpO2: v }))}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 99 - 90 + 1 }, (_, i) => 99 - i).map(v => (
+                      <SelectItem key={v} value={String(v)}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* 血圧（収縮期） */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">血圧・収縮期 (mmHg)</label>
+                <Select value={vitals.収縮期} onValueChange={(v) => setVitals(prev => ({ ...prev, 収縮期: v }))}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: (190 - 96) / 2 + 1 }, (_, i) => 96 + i * 2).map(v => (
+                      <SelectItem key={v} value={String(v)}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* 血圧（拡張期） */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">血圧・拡張期 (mmHg)</label>
+                <Select value={vitals.拡張期} onValueChange={(v) => setVitals(prev => ({ ...prev, 拡張期: v }))}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: (100 - 50) + 1 }, (_, i) => 50 + i).map(v => (
+                      <SelectItem key={v} value={String(v)}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* 区切り線 */}
+          <div className="border-t border-border" />
+
+          {/* 病状の経過 */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex-1 min-w-0">
+                <label className="text-xs font-medium text-muted-foreground">病状の経過（本日観察・収集した情報）</label>
+                {/* リアルタイムステータス表示 */}
+                {notesVoice.transcriptionStatus === "recording" || notesVoice.isRecording ? (
+                  <p className={cn(
+                    "text-xs font-medium mt-0.5",
+                    notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
+                      ? "text-orange-600 dark:text-orange-400"
+                      : "text-red-600 dark:text-red-400 animate-pulse"
+                  )}>
+                    {notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
+                      ? `あと${notesVoice.silenceCountdown}秒で自動停止`
+                      : "🎤 話してください..."}
+                  </p>
+                ) : notesVoice.transcriptionStatus === "uploading" ? (
+                  <p className="text-xs text-blue-600 dark:text-blue-400 font-medium animate-pulse mt-0.5">⬆️ 音声を受信中...</p>
+                ) : notesVoice.transcriptionStatus === "analyzing" ? (
+                  <p className="text-xs text-primary font-medium animate-pulse mt-0.5">🔬 医療用語を解析中...</p>
+                ) : notesVoice.transcriptionStatus === "done" ? (
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">✅ 転記完了</p>
+                ) : notesVoice.transcriptionStatus === "error" ? (
+                  <p className="text-xs text-red-600 dark:text-red-400 font-medium mt-0.5">❌ 認識エラー</p>
+                ) : null}
+              </div>
+              {/* VoiceMicButton共通コンポーネントを使用（他の音声入力ボタンと統一） */}
+              <VoiceMicButton
+                externalState={{
+                  isRecording: notesVoice.isRecording,
+                  isProcessing: notesVoice.isProcessing,
+                  toggleVoice: notesVoice.toggleVoice,
+                  interimText: notesVoice.interimText,
+                  silenceCountdown: notesVoice.silenceCountdown,
+                  elapsedSeconds: notesVoice.elapsedSeconds,
+                }}
+                size="lg"
+                previewMode="tooltip"
+              />
+            </div>
+            {/* テキストエリア（オーバーレイなし） */}
+            <Textarea
+              ref={clinicalNotesTextareaRef}
+              placeholder="本日訪問で観察した症状・状態・利用者の言葉・環境の変化などをメモしてください..."
+              value={clinicalNotes}
+              onChange={(e) => {
+                setClinicalNotes(e.target.value);
+                adjustTextareaHeight(e.target);
+              }}
+              className="min-h-[200px] text-sm resize-none overflow-hidden"
+            />
+            {/* 最終保存タイムスタンプ + 文字数カウンター */}
+            <div className="flex items-center justify-between mt-1">
+              <div>
+                {lastSavedAt && clinicalNotes.trim() && (
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                    ✓ 自動保存済み · {savedAgoText}
+                  </p>
+                )}
+              </div>
+              {clinicalNotes.length > 0 && (
+                <p className="text-xs text-muted-foreground tabular-nums">
+                  {clinicalNotes.length.toLocaleString()}文字
+                </p>
+              )}
+            </div>
+            {/* テキストエリア下: 録音中のinterimTextリアルタイム表示 */}
+            {notesVoice.isRecording && (
+              <div className={cn(
+                "mt-1.5 px-3 py-2 rounded-md border min-h-[36px] transition-colors",
+                notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
+                  ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
+                  : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
+              )}>
+                {notesVoice.interimText ? (
+                  <p className={cn(
+                    "text-sm italic leading-relaxed",
+                    notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
+                      ? "text-orange-700 dark:text-orange-300"
+                      : "text-red-700 dark:text-red-300"
+                  )}>
+                    {notesVoice.interimText}
+                  </p>
+                ) : (
+                  <p className={cn(
+                    "text-xs font-medium",
+                    notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
+                      ? "text-orange-600 dark:text-orange-400"
+                      : "text-red-500 dark:text-red-400"
+                  )}>
+                    {notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
+                      ? `⏱ あと${notesVoice.silenceCountdown}秒で自動停止します`
+                      : "🎤 話してください..."}
+                  </p>
+                )}
+              </div>
+            )}
+            {/* 録音完了後: 最後の転記テキスト + 誤変換フィードバック */}
+            {!notesVoice.isRecording && notesVoice.lastTranscribedText && (
+              <div className="mt-1.5 px-2 py-1.5 rounded-md border bg-muted/40 border-border">
+                <div className="space-y-1.5">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    🎤 {notesVoice.lastTranscribedText}
+                  </p>
+                  {/* 誤変換フィードバックボタン */}
+                  <button
+                    type="button"
+                    onClick={() => openFeedbackDialog(notesVoice.lastTranscribedText, "notesVoice")}
+                    className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    誤変換を報告して次回から改善
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          {/* /病状の経過 */}
+
+          {/* コピー内容プレビュー */}
+          {(() => {
+            const previewParts: string[] = [];
+            const checkParts: string[] = [];
+            if (checkItems.睡眠.trim()) checkParts.push(`睡眠：${checkItems.睡眠.trim()}`);
+            if (checkItems.食事.trim()) checkParts.push(`食事：${checkItems.食事.trim()}`);
+            if (checkItems.排泄.trim()) checkParts.push(`排泄：${checkItems.排泄.trim()}`);
+            if (checkItems.服薬.trim()) checkParts.push(`服薬：${checkItems.服薬.trim()}`);
+            if (checkParts.length > 0) previewParts.push(checkParts.join("、"));
+            const vitalParts: string[] = [];
+            if (vitals.体温.trim()) vitalParts.push(`体温：${vitals.体温.trim()}℃`);
+            if (vitals.脈拍.trim()) vitalParts.push(`脈拍：${vitals.脈拍.trim()}回/分`);
+            if (vitals.SpO2.trim()) vitalParts.push(`SpO2：${vitals.SpO2.trim()}%`);
+            if (vitals.収縮期.trim() || vitals.拡張期.trim()) {
+              const bp = [vitals.収縮期.trim(), vitals.拡張期.trim()].filter(Boolean).join("/");
+              vitalParts.push(`血圧：${bp}mmHg`);
+            }
+            if (vitalParts.length > 0) previewParts.push(vitalParts.join("、"));
+            if (clinicalNotes.trim()) previewParts.push(clinicalNotes.trim());
+            const previewText = previewParts.join("\n");
+            if (!previewText) return null;
+            return (
+              <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
+                <p className="text-xs font-medium text-muted-foreground mb-1">コピーされる内容</p>
+                <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap break-words line-clamp-6">{previewText}</p>
+              </div>
+            );
+          })()}
+          <Button
+            className="w-full"
+            onClick={handleCopyAndOpenGem}
+            disabled={!clinicalNotes.trim() && !Object.values(checkItems).some(v => v.trim()) && !Object.values(vitals).some(v => v.trim())}
+          >
+            <><Send className="w-4 h-4 mr-2" />記録をコピーしてGemへ</>
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* ② 利用者・次回訪問日時 */}
       <Card className="shadow-sm">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">① 次回訪問日時</CardTitle>
+          <CardTitle className="text-sm font-semibold">② 次回訪問日時</CardTitle>
           {/* ZESTボタン */}
           <a
             href="https://homecare.zest.jp/login"
@@ -1920,409 +2323,6 @@ export default function RecordInput() {
           )}
         </Button>
       )}
-
-      {/* ② 確認項目・バイタル＋病状の経過（統合カード） */}
-      <Card id="record-condition" className="shadow-sm">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold">② 観察・記録</CardTitle>
-            <div className="flex items-center gap-2">
-              {/* 録音経過時間表示 */}
-              {notesVoice.isRecording && (
-                <span className="text-xs font-mono font-medium text-red-600 dark:text-red-400 tabular-nums">
-                  {formatElapsedTime(notesVoice.elapsedSeconds)} / 3:00
-                </span>
-              )}
-              {/* 病状の経過リセットボタン */}
-              {clinicalNotes.trim() && !notesVoice.isRecording && (
-                <TooltipProvider delayDuration={300}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (confirm("入力内容を全て削除します。よろしいですか？")) {
-                            setClinicalNotes("");
-                            notesVoice.clearLastTranscribedText();
-                            // タイムスタンプ表示もリセット
-                            setLastSavedAt(null);
-                            setSavedAgoText("");
-                            // localStorageからも削除
-                            try {
-                              const raw = localStorage.getItem(DRAFT_KEY);
-                              if (raw) {
-                                const draft = JSON.parse(raw);
-                                draft.clinicalNotes = "";
-                                localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-                              }
-                            } catch { /* ignore */ }
-                            toast.success("病状の経過をリセットしました");
-                          }
-                        }}
-                        className="text-xs px-2 py-0.5 rounded-full border font-medium transition-all bg-muted text-muted-foreground border-border hover:bg-red-50 hover:text-red-600 hover:border-red-300 dark:hover:bg-red-950/30 dark:hover:text-red-400 dark:hover:border-red-700"
-                      >
-                        リセット
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="text-xs">
-                      入力内容を全て削除します
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* 確認項目 */}
-          <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2">確認項目</p>
-            <div className="grid grid-cols-2 gap-2">
-              {/* 睡眠 */}
-              <div>
-                <label className="text-xs font-bold text-foreground mb-1 block">睡眠</label>
-                <Input
-                  className="text-sm h-9"
-                  placeholder="睡眠の状態を入力..."
-                  value={checkItems.睡眠}
-                  onChange={(e) => setCheckItems(prev => ({ ...prev, 睡眠: e.target.value }))}
-                />
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {["良眠", "中途覚醒", "不眠"].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setCheckItems(prev => ({ ...prev, 睡眠: preset }))}
-                      className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
-                        checkItems.睡眠 === preset
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background text-muted-foreground border-border hover:border-primary hover:text-primary"
-                      }`}
-                    >
-                      {preset}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {/* 食事 */}
-              <div>
-                <label className="text-xs font-bold text-foreground mb-1 block">食事</label>
-                <Input
-                  className="text-sm h-9"
-                  placeholder="食事の状態を入力..."
-                  value={checkItems.食事}
-                  onChange={(e) => setCheckItems(prev => ({ ...prev, 食事: e.target.value }))}
-                />
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {["全量", "半量", "摂取不十分", "拒否"].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setCheckItems(prev => ({ ...prev, 食事: preset }))}
-                      className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
-                        checkItems.食事 === preset
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background text-muted-foreground border-border hover:border-primary hover:text-primary"
-                      }`}
-                    >
-                      {preset}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {/* 排泄 */}
-              <div>
-                <label className="text-xs font-bold text-foreground mb-1 block">排泄</label>
-                <Input
-                  className="text-sm h-9"
-                  placeholder="排泄の状態を入力..."
-                  value={checkItems.排泄}
-                  onChange={(e) => setCheckItems(prev => ({ ...prev, 排泄: e.target.value }))}
-                />
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {["自然", "便秘", "下痢"].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setCheckItems(prev => ({ ...prev, 排泄: preset }))}
-                      className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
-                        checkItems.排泄 === preset
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background text-muted-foreground border-border hover:border-primary hover:text-primary"
-                      }`}
-                    >
-                      {preset}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {/* 服薬 */}
-              <div>
-                <label className="text-xs font-bold text-foreground mb-1 block">服薬</label>
-                <Input
-                  className="text-sm h-9"
-                  placeholder="服薬の状態を入力..."
-                  value={checkItems.服薬}
-                  onChange={(e) => setCheckItems(prev => ({ ...prev, 服薬: e.target.value }))}
-                />
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {["良好", "拒薬", "不明"].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setCheckItems(prev => ({ ...prev, 服薬: preset }))}
-                      className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
-                        checkItems.服薬 === preset
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background text-muted-foreground border-border hover:border-primary hover:text-primary"
-                      }`}
-                    >
-                      {preset}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* バイタルサイン */}
-          <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2">バイタルサイン</p>
-            <div className="grid grid-cols-2 gap-2">
-              {/* 体温 */}
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">体温 (℃)</label>
-                <Select value={vitals.体温} onValueChange={(v) => setVitals(prev => ({ ...prev, 体温: v }))}>
-                  <SelectTrigger className="h-9 text-sm">
-                    <SelectValue placeholder="選択" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: Math.round((42.0 - 35.0) / 0.1) + 1 }, (_, i) => +(35.0 + i * 0.1).toFixed(1)).map(v => (
-                      <SelectItem key={v} value={String(v)}>{v}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {/* 脈拍 */}
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">脈拍 (回/分)</label>
-                <Select value={vitals.脈拍} onValueChange={(v) => setVitals(prev => ({ ...prev, 脈拍: v }))}>
-                  <SelectTrigger className="h-9 text-sm">
-                    <SelectValue placeholder="選択" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: 130 - 50 + 1 }, (_, i) => 50 + i).map(v => (
-                      <SelectItem key={v} value={String(v)}>{v}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {/* SpO2 */}
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">SpO2 (%)</label>
-                <Select value={vitals.SpO2} onValueChange={(v) => setVitals(prev => ({ ...prev, SpO2: v }))}>
-                  <SelectTrigger className="h-9 text-sm">
-                    <SelectValue placeholder="選択" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: 99 - 90 + 1 }, (_, i) => 99 - i).map(v => (
-                      <SelectItem key={v} value={String(v)}>{v}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {/* 血圧（収縮期） */}
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">血圧・収縮期 (mmHg)</label>
-                <Select value={vitals.収縮期} onValueChange={(v) => setVitals(prev => ({ ...prev, 収縮期: v }))}>
-                  <SelectTrigger className="h-9 text-sm">
-                    <SelectValue placeholder="選択" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: (190 - 96) / 2 + 1 }, (_, i) => 96 + i * 2).map(v => (
-                      <SelectItem key={v} value={String(v)}>{v}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {/* 血圧（拡張期） */}
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">血圧・拡張期 (mmHg)</label>
-                <Select value={vitals.拡張期} onValueChange={(v) => setVitals(prev => ({ ...prev, 拡張期: v }))}>
-                  <SelectTrigger className="h-9 text-sm">
-                    <SelectValue placeholder="選択" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: (100 - 50) + 1 }, (_, i) => 50 + i).map(v => (
-                      <SelectItem key={v} value={String(v)}>{v}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-
-          {/* 区切り線 */}
-          <div className="border-t border-border" />
-
-          {/* 病状の経過 */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex-1 min-w-0">
-                <label className="text-xs font-medium text-muted-foreground">病状の経過（本日観察・収集した情報）</label>
-                {/* リアルタイムステータス表示 */}
-                {notesVoice.transcriptionStatus === "recording" || notesVoice.isRecording ? (
-                  <p className={cn(
-                    "text-xs font-medium mt-0.5",
-                    notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
-                      ? "text-orange-600 dark:text-orange-400"
-                      : "text-red-600 dark:text-red-400 animate-pulse"
-                  )}>
-                    {notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
-                      ? `あと${notesVoice.silenceCountdown}秒で自動停止`
-                      : "🎤 話してください..."}
-                  </p>
-                ) : notesVoice.transcriptionStatus === "uploading" ? (
-                  <p className="text-xs text-blue-600 dark:text-blue-400 font-medium animate-pulse mt-0.5">⬆️ 音声を受信中...</p>
-                ) : notesVoice.transcriptionStatus === "analyzing" ? (
-                  <p className="text-xs text-primary font-medium animate-pulse mt-0.5">🔬 医療用語を解析中...</p>
-                ) : notesVoice.transcriptionStatus === "done" ? (
-                  <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">✅ 転記完了</p>
-                ) : notesVoice.transcriptionStatus === "error" ? (
-                  <p className="text-xs text-red-600 dark:text-red-400 font-medium mt-0.5">❌ 認識エラー</p>
-                ) : null}
-              </div>
-              {/* VoiceMicButton共通コンポーネントを使用（他の音声入力ボタンと統一） */}
-              <VoiceMicButton
-                externalState={{
-                  isRecording: notesVoice.isRecording,
-                  isProcessing: notesVoice.isProcessing,
-                  toggleVoice: notesVoice.toggleVoice,
-                  interimText: notesVoice.interimText,
-                  silenceCountdown: notesVoice.silenceCountdown,
-                  elapsedSeconds: notesVoice.elapsedSeconds,
-                }}
-                size="lg"
-                previewMode="tooltip"
-              />
-            </div>
-            {/* テキストエリア（オーバーレイなし） */}
-            <Textarea
-              ref={clinicalNotesTextareaRef}
-              placeholder="本日訪問で観察した症状・状態・利用者の言葉・環境の変化などをメモしてください..."
-              value={clinicalNotes}
-              onChange={(e) => {
-                setClinicalNotes(e.target.value);
-                adjustTextareaHeight(e.target);
-              }}
-              className="min-h-[200px] text-sm resize-none overflow-hidden"
-            />
-            {/* 最終保存タイムスタンプ + 文字数カウンター */}
-            <div className="flex items-center justify-between mt-1">
-              <div>
-                {lastSavedAt && clinicalNotes.trim() && (
-                  <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                    ✓ 自動保存済み · {savedAgoText}
-                  </p>
-                )}
-              </div>
-              {clinicalNotes.length > 0 && (
-                <p className="text-xs text-muted-foreground tabular-nums">
-                  {clinicalNotes.length.toLocaleString()}文字
-                </p>
-              )}
-            </div>
-            {/* テキストエリア下: 録音中のinterimTextリアルタイム表示 */}
-            {notesVoice.isRecording && (
-              <div className={cn(
-                "mt-1.5 px-3 py-2 rounded-md border min-h-[36px] transition-colors",
-                notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
-                  ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
-                  : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
-              )}>
-                {notesVoice.interimText ? (
-                  <p className={cn(
-                    "text-sm italic leading-relaxed",
-                    notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
-                      ? "text-orange-700 dark:text-orange-300"
-                      : "text-red-700 dark:text-red-300"
-                  )}>
-                    {notesVoice.interimText}
-                  </p>
-                ) : (
-                  <p className={cn(
-                    "text-xs font-medium",
-                    notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
-                      ? "text-orange-600 dark:text-orange-400"
-                      : "text-red-500 dark:text-red-400"
-                  )}>
-                    {notesVoice.silenceCountdown !== null && notesVoice.silenceCountdown <= 5
-                      ? `⏱ あと${notesVoice.silenceCountdown}秒で自動停止します`
-                      : "🎤 話してください..."}
-                  </p>
-                )}
-              </div>
-            )}
-            {/* 録音完了後: 最後の転記テキスト + 誤変換フィードバック */}
-            {!notesVoice.isRecording && notesVoice.lastTranscribedText && (
-              <div className="mt-1.5 px-2 py-1.5 rounded-md border bg-muted/40 border-border">
-                <div className="space-y-1.5">
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    🎤 {notesVoice.lastTranscribedText}
-                  </p>
-                  {/* 誤変換フィードバックボタン */}
-                  <button
-                    type="button"
-                    onClick={() => openFeedbackDialog(notesVoice.lastTranscribedText, "notesVoice")}
-                    className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    誤変換を報告して次回から改善
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-          {/* /病状の経過 */}
-
-          {/* コピー内容プレビュー */}
-          {(() => {
-            const previewParts: string[] = [];
-            const checkParts: string[] = [];
-            if (checkItems.睡眠.trim()) checkParts.push(`睡眠：${checkItems.睡眠.trim()}`);
-            if (checkItems.食事.trim()) checkParts.push(`食事：${checkItems.食事.trim()}`);
-            if (checkItems.排泄.trim()) checkParts.push(`排泄：${checkItems.排泄.trim()}`);
-            if (checkItems.服薬.trim()) checkParts.push(`服薬：${checkItems.服薬.trim()}`);
-            if (checkParts.length > 0) previewParts.push(checkParts.join("、"));
-            const vitalParts: string[] = [];
-            if (vitals.体温.trim()) vitalParts.push(`体温：${vitals.体温.trim()}℃`);
-            if (vitals.脈拍.trim()) vitalParts.push(`脈拍：${vitals.脈拍.trim()}回/分`);
-            if (vitals.SpO2.trim()) vitalParts.push(`SpO2：${vitals.SpO2.trim()}%`);
-            if (vitals.収縮期.trim() || vitals.拡張期.trim()) {
-              const bp = [vitals.収縮期.trim(), vitals.拡張期.trim()].filter(Boolean).join("/");
-              vitalParts.push(`血圧：${bp}mmHg`);
-            }
-            if (vitalParts.length > 0) previewParts.push(vitalParts.join("、"));
-            if (clinicalNotes.trim()) previewParts.push(clinicalNotes.trim());
-            const previewText = previewParts.join("\n");
-            if (!previewText) return null;
-            return (
-              <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
-                <p className="text-xs font-medium text-muted-foreground mb-1">コピーされる内容</p>
-                <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap break-words line-clamp-6">{previewText}</p>
-              </div>
-            );
-          })()}
-          <Button
-            className="w-full"
-            onClick={handleCopyAndOpenGem}
-            disabled={!clinicalNotes.trim() && !Object.values(checkItems).some(v => v.trim()) && !Object.values(vitals).some(v => v.trim())}
-          >
-            <><Send className="w-4 h-4 mr-2" />記録をコピーしてGemへ</>
-          </Button>
-        </CardContent>
-      </Card>
     </div>
 
     {/* 誤変換フィードバックダイアログ */}
