@@ -429,7 +429,6 @@ async function appendOvertimeToSheet(record: {
   }
 }
 
-import { autoCreateTimesheetSpreadsheet } from "./timesheetUtils";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { GoogleAuth } from "google-auth-library";
@@ -4674,11 +4673,77 @@ export const appRouter = router({
       .input(z.object({ year: z.number().int(), month: z.number().int().min(1).max(12) }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
-        const { autoCreateTimesheetSpreadsheet } = await import("./timesheetUtils");
-        const spreadsheetId = await autoCreateTimesheetSpreadsheet(input.year, input.month);
-        if (!spreadsheetId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "スプレッドシートの作成に失敗しました" });
+        const { year, month } = input;
+        let spreadsheetId: string | null = null;
+        try {
+          // 既に登録済みならスキップ
+          const { getTimesheetSpreadsheets, upsertTimesheetSpreadsheet, getSetting } = await import("./db");
+          const existing = await getTimesheetSpreadsheets(year, month);
+          if (existing && existing.length > 0) {
+            spreadsheetId = existing[0].spreadsheetId;
+          } else {
+            const auth = new google.auth.GoogleAuth({
+              credentials: {
+                client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+                private_key: (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ?? "").replace(/\\n/g, "\n"),
+              },
+              scopes: [
+                "https://www.googleapis.com/auth/spreadsheets",
+                "https://www.googleapis.com/auth/drive",
+              ],
+            });
+            const sheets = google.sheets({ version: "v4", auth });
+            const drive = google.drive({ version: "v3", auth });
+            const title = `出退勤記録_${year}年${month}月`;
+            const createRes = await sheets.spreadsheets.create({
+              requestBody: {
+                properties: { title },
+                sheets: [{ properties: { title: "概要" } }],
+              },
+            });
+            spreadsheetId = createRes.data.spreadsheetId!;
+            const spreadsheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
+            // 概要シートに説明を記入
+            await sheets.spreadsheets.values.update({
+              spreadsheetId,
+              range: "概要!A1:B4",
+              valueInputOption: "USER_ENTERED",
+              requestBody: {
+                values: [
+                  ["出退勤記録", `${year}年${month}月`],
+                  ["作成日時", new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })],
+                  ["内容", "職員名タブに各職員の出退勤打刻・残業情報が自動転記されます"],
+                  ["記載項目", "日付 / 打刻日時 / 区分(出勤・退勤) / 氏名 / ナンバープレート / 位置情報 / 備考 / 運転目的 / アルコール測定値 / 残業開始 / 残業終了 / 残業理由 / 連絡先 / 件数"],
+                ],
+              },
+            });
+            // 共有先メールアドレスに自動共有
+            const shareEmailsValue = await getSetting("sheet_share_emails", "");
+            const shareEmails = shareEmailsValue ? shareEmailsValue.split(",").map((e: string) => e.trim()).filter(Boolean) : [];
+            for (const email of shareEmails) {
+              await drive.permissions.create({
+                fileId: spreadsheetId,
+                requestBody: { type: "user", role: "writer", emailAddress: email },
+                sendNotificationEmail: false,
+              }).catch((e: unknown) => console.warn(`[TimesheetAutoSheet] Share to ${email} failed:`, e));
+            }
+            // DBに登録
+            await upsertTimesheetSpreadsheet({
+              year,
+              month,
+              spreadsheetId,
+              label: title,
+              spreadsheetUrl,
+            });
+            console.log(`[TimesheetAutoSheet] Created spreadsheet for ${year}/${month}: ${spreadsheetId}`);
+          }
+        } catch (err) {
+          console.error("[Timesheet.autoCreate] Exception:", err);
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `スプレッドシートの作成に失敗しました: ${err instanceof Error ? err.message : String(err)}` });
+        }
+        if (!spreadsheetId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "スプレッドシートの作成に失敗しました（spreadsheetId が null）" });
         const { getTimesheetSpreadsheets } = await import("./db");
-        const sheets = await getTimesheetSpreadsheets(input.year, input.month);
+        const sheets = await getTimesheetSpreadsheets(year, month);
         return { success: true, spreadsheetId, spreadsheetUrl: sheets[0]?.spreadsheetUrl ?? `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit` };
       }),
     /** 全出退勤スプレッドシート一覧を取得する */
