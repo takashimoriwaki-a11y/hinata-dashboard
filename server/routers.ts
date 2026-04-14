@@ -258,6 +258,18 @@ export async function autoCreateTimesheetSpreadsheet(year: number, month: number
     const spreadsheetId = createRes.data.id!;
     console.log(`[TimesheetAutoSheet] Created spreadsheet in folder: ${TIMESHEET_FOLDER_ID}`);
 
+    // デフォルトシート（Sheet1等）を「概要」にリネーム
+    const metaForRename = await sheets.spreadsheets.get({ spreadsheetId });
+    const defaultSheetId = metaForRename.data.sheets?.[0]?.properties?.sheetId;
+    if (defaultSheetId !== undefined) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [{ updateSheetProperties: { properties: { sheetId: defaultSheetId, title: "概要" }, fields: "title" } }],
+        },
+      });
+    }
+
     // 概要シートに説明を記入
     await sheets.spreadsheets.values.update({
       spreadsheetId,
@@ -4821,6 +4833,17 @@ export const appRouter = router({
             spreadsheetId = createRes.data.id!;
             const spreadsheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
             console.log(`[TimesheetAutoSheet] Created spreadsheet in folder: ${TIMESHEET_FOLDER_ID}`);
+            // デフォルトシート（Sheet1等）を「概要」にリネーム
+            const metaForRename = await sheets.spreadsheets.get({ spreadsheetId });
+            const defaultSheetId = metaForRename.data.sheets?.[0]?.properties?.sheetId;
+            if (defaultSheetId !== undefined) {
+              await sheets.spreadsheets.batchUpdate({
+                spreadsheetId,
+                requestBody: {
+                  requests: [{ updateSheetProperties: { properties: { sheetId: defaultSheetId, title: "概要" }, fields: "title" } }],
+                },
+              });
+            }
             // 概要シートに説明を記入
             await sheets.spreadsheets.values.update({
               spreadsheetId,
