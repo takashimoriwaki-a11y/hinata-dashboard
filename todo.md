@@ -2274,4 +2274,15 @@
 
 ## 出退勤モーダル・スクロール位置修正（2026-04-14）
 - [x] モーダルが画面上部に寄りすぎて最初から下スクロールが必要になる問題を修正（items-stretch + h-fullで画面全体を使用、スマホではモーダルが常に画面全面を占有）
+- [x] チェックポイント保存
+
+## 出退勤スプレッドシート自動転記機能（2026-04-14）
+- [x] appendTimesheetToSheet 修正：spreadsheetUrl→spreadsheetId を使用、残業申請情報（開始・終了・理由・連絡先・件数）を転記カラムに追加
+- [x] 出退勤打刻時の転記ロジック修正：残業情報を渡すよう修正
+- [x] autoCreateTimesheetSpreadsheet 関数実装（server/timesheetUtils.tsに分離、Google Sheets API でスプレッドシート作成・全職員タブ作成・ヘッダー設定）
+- [x] clockプロシージャーで打刻時に自動作成を呼び出すよう修正
+- [x] _core/index.tsに毎月25日9:05の月次自動作成スケジューラーを追加
+- [x] timesheet.autoCreate プロシージャ追加（管理者用手動作成ボタン）
+- [x] timesheet.shareSpreadsheet プロシージャ追加（URLコピー）
+- [x] 管理画面のTimesheetSpreadsheetsPanelに自動作成ボタン・URLコピーボタンを追加
 - [ ] チェックポイント保存

@@ -217,7 +217,7 @@ async function autoCreateAlcoholCheckSpreadsheet(year: number, month: number): P
   }
 }
 
-/** 出退勤打刻記録を月別スプレッドシートに転記する */
+/** 出退勤打刻記録を月別スプレッドシートの職員タブに転記する */
 async function appendTimesheetToSheet(record: {
   clockedAt: number;
   type: string;
@@ -230,6 +230,16 @@ async function appendTimesheetToSheet(record: {
   drivingPurpose?: string | null;
   /** アルコール測定値 */
   alcoholMeasuredValue?: string | null;
+  /** 残業開始時刻（UNIX ms） */
+  overtimeStartAt?: number | null;
+  /** 残業終了時刻（UNIX ms） */
+  overtimeEndAt?: number | null;
+  /** 残業理由 */
+  overtimeReason?: string | null;
+  /** 残業連絡先 */
+  overtimeContact?: string | null;
+  /** 残業件数 */
+  overtimeCount?: number | null;
 }, spreadsheetId: string): Promise<void> {
   try {
     const auth = new google.auth.GoogleAuth({
@@ -242,6 +252,8 @@ async function appendTimesheetToSheet(record: {
     const sheets = google.sheets({ version: "v4", auth });
     const toJSTStr = (ms: number) =>
       new Date(ms).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+    const toJSTStrOpt = (ms: number | null | undefined) =>
+      ms ? new Date(ms).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
     const typeLabel = record.type === "clock_in" ? "出勤" : "退勤";
     const dateStr = new Date(record.clockedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" });
     const timeStr = toJSTStr(record.clockedAt);
@@ -271,19 +283,53 @@ async function appendTimesheetToSheet(record: {
         spreadsheetId,
         requestBody: { requests: [{ addSheet: { properties: { title: tabName } } }] },
       });
+      // ヘッダー行を設定（出退勤情報 + 残業情報）
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `${tabName}!A1:J1`,
+        range: `${tabName}!A1:O1`,
         valueInputOption: "USER_ENTERED",
-        requestBody: { values: [["日付", "打刻日時", "区分", "氏名", "ナンバープレート", "位置情報", "備考（緊急理由）", "運転目的", "アルコール測定値(mg/L)", "登録日時"]] },
+        requestBody: { values: [["日付", "打刻日時", "区分", "氏名", "ナンバープレート", "位置情報", "備考（緊急理由）", "運転目的", "アルコール測定値(mg/L)", "残業開始", "残業終了", "残業理由", "連絡先", "件数", "登録日時"]] },
       });
+      // ヘッダー行を太字・背景色で書式設定
+      const newSheetMeta = await sheets.spreadsheets.get({ spreadsheetId });
+      const newSheetId = newSheetMeta.data.sheets?.find((s) => s.properties?.title === tabName)?.properties?.sheetId;
+      if (newSheetId !== undefined) {
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: {
+            requests: [
+              {
+                repeatCell: {
+                  range: { sheetId: newSheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 15 },
+                  cell: {
+                    userEnteredFormat: {
+                      backgroundColor: { red: 0.18, green: 0.42, blue: 0.65 },
+                      textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } },
+                      horizontalAlignment: "CENTER",
+                    },
+                  },
+                  fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
+                },
+              },
+              {
+                updateSheetProperties: {
+                  properties: { sheetId: newSheetId, gridProperties: { frozenRowCount: 1 } },
+                  fields: "gridProperties.frozenRowCount",
+                },
+              },
+            ],
+          },
+        });
+      }
     }
+    const overtimeStartStr = toJSTStrOpt(record.overtimeStartAt);
+    const overtimeEndStr = toJSTStrOpt(record.overtimeEndAt);
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: `${tabName}!A:J`,
+      range: `${tabName}!A:O`,
       valueInputOption: "USER_ENTERED",
       requestBody: {
-        values: [[dateStr, timeStr, displayTypeLabel, record.userName, record.numberPlate ?? "", record.locationAddress ?? "", noteStr, drivingPurposeLabel, record.alcoholMeasuredValue ?? "", timestampStr]],
+        values: [[dateStr, timeStr, displayTypeLabel, record.userName, record.numberPlate ?? "", record.locationAddress ?? "", noteStr, drivingPurposeLabel, record.alcoholMeasuredValue ?? "", overtimeStartStr, overtimeEndStr, record.overtimeReason ?? "", record.overtimeContact ?? "", record.overtimeCount != null ? String(record.overtimeCount) : "", timestampStr]],
       },
     });
   } catch (err) {
@@ -383,6 +429,7 @@ async function appendOvertimeToSheet(record: {
   }
 }
 
+import { autoCreateTimesheetSpreadsheet } from "./timesheetUtils";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { GoogleAuth } from "google-auth-library";
@@ -4059,6 +4106,16 @@ export const appRouter = router({
         drivingPurpose: z.enum(["commute", "visit", "transport", "errand", "other"]).optional(),
         /** アルコール測定値 */
         alcoholMeasuredValue: z.string().max(10).optional(),
+        /** 残業開始時刻（UNIX ms） */
+        overtimeStartAt: z.number().optional(),
+        /** 残業終了時刻（UNIX ms） */
+        overtimeEndAt: z.number().optional(),
+        /** 残業理由 */
+        overtimeReason: z.string().max(500).optional(),
+        /** 残業連絡先 */
+        overtimeContact: z.string().max(200).optional(),
+        /** 残業件数 */
+        overtimeCount: z.number().int().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const now = Date.now();
@@ -4073,10 +4130,40 @@ export const appRouter = router({
         const jstDate = new Date(now + 9 * 60 * 60 * 1000);
         const year = jstDate.getUTCFullYear();
         const month = jstDate.getUTCMonth() + 1;
+        // 当月スプレッドシートが未登録の場合は自動作成する
+        autoCreateTimesheetSpreadsheet(year, month).catch((e) => console.warn("[Timesheet] Auto-create failed:", e));
         const { getTimesheetSpreadsheets } = await import("./db");
         getTimesheetSpreadsheets(year, month).then(async (sheets) => {
+          // 自動作成後に再取得する（初回打刻時はスプレッドシートがまだ作成中の場合があるため、失敗しても打刻は成功扱い）
           if (!sheets || sheets.length === 0) {
-            console.warn(`[Timesheet] No spreadsheet registered for ${year}/${month}`);
+            // 自動作成を待って再試行
+            const newSheetId = await autoCreateTimesheetSpreadsheet(year, month).catch(() => null);
+            if (!newSheetId) {
+              console.warn(`[Timesheet] No spreadsheet available for ${year}/${month}`);
+              return;
+            }
+            const { getTimesheetSpreadsheets: refetch } = await import("./db");
+            const newSheets = await refetch(year, month);
+            if (!newSheets || newSheets.length === 0) return;
+            for (const sheet of newSheets) {
+              await appendTimesheetToSheet({
+                clockedAt: now,
+                type: input.type,
+                userName: ctx.user.name ?? "不明",
+                numberPlate: input.numberPlate ?? null,
+                locationAddress: input.locationAddress ?? null,
+                emergencyNote: input.emergencyNote ?? null,
+                drivingPurpose: input.drivingPurpose ?? null,
+                alcoholMeasuredValue: input.alcoholMeasuredValue ?? null,
+                overtimeStartAt: input.overtimeStartAt ?? null,
+                overtimeEndAt: input.overtimeEndAt ?? null,
+                overtimeReason: input.overtimeReason ?? null,
+                overtimeContact: input.overtimeContact ?? null,
+                overtimeCount: input.overtimeCount ?? null,
+              }, sheet.spreadsheetId).catch((err) => {
+                console.error("[Timesheet] Sheet sync failed:", err);
+              });
+            }
             return;
           }
           for (const sheet of sheets) {
@@ -4089,7 +4176,12 @@ export const appRouter = router({
               emergencyNote: input.emergencyNote ?? null,
               drivingPurpose: input.drivingPurpose ?? null,
               alcoholMeasuredValue: input.alcoholMeasuredValue ?? null,
-            }, sheet.spreadsheetUrl).catch((err) => {
+              overtimeStartAt: input.overtimeStartAt ?? null,
+              overtimeEndAt: input.overtimeEndAt ?? null,
+              overtimeReason: input.overtimeReason ?? null,
+              overtimeContact: input.overtimeContact ?? null,
+              overtimeCount: input.overtimeCount ?? null,
+            }, sheet.spreadsheetId).catch((err) => {
               console.error("[Timesheet] Sheet sync failed:", err);
             });
           }
@@ -4552,7 +4644,7 @@ export const appRouter = router({
         await createTimesheetSpreadsheet(input);
         return { success: true };
       }),
-    /** スプレッドシートを削除する */
+     /** スプレッドシートを削除する */
     delete: protectedProcedure
       .input(z.object({ id: z.number().int() }))
       .mutation(async ({ ctx, input }) => {
@@ -4561,8 +4653,37 @@ export const appRouter = router({
         await deleteTimesheetSpreadsheet(input.id);
         return { success: true };
       }),
+    /** 指定年月の出退勤スプレッドシートを自動作成する */
+    autoCreate: protectedProcedure
+      .input(z.object({ year: z.number().int(), month: z.number().int().min(1).max(12) }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const { autoCreateTimesheetSpreadsheet } = await import("./timesheetUtils");
+        const spreadsheetId = await autoCreateTimesheetSpreadsheet(input.year, input.month);
+        if (!spreadsheetId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "スプレッドシートの作成に失敗しました" });
+        const { getTimesheetSpreadsheets } = await import("./db");
+        const sheets = await getTimesheetSpreadsheets(input.year, input.month);
+        return { success: true, spreadsheetId, spreadsheetUrl: sheets[0]?.spreadsheetUrl ?? `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit` };
+      }),
+    /** 全出退勤スプレッドシート一覧を取得する */
+    getAll: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const { getAllTimesheetSpreadsheets } = await import("./db");
+        return getAllTimesheetSpreadsheets();
+      }),
+    /** 出退勤スプレッドシートのURLをコピーする（共有URLを返す） */
+    shareSpreadsheet: protectedProcedure
+      .input(z.object({ id: z.number().int() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const { getAllTimesheetSpreadsheets } = await import("./db");
+        const all = await getAllTimesheetSpreadsheets();
+        const sheet = all.find((s) => s.id === input.id);
+        if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
+        return { url: sheet.spreadsheetUrl };
+      }),
   }),
-
   /** ====== 残業申請・承認 ====== */
   overtime: router({
     /** 残業申請一覧を取得する（管理者用） */

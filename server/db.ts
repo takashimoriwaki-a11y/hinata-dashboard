@@ -1945,6 +1945,33 @@ export async function createTimesheetSpreadsheet(input: {
   });
 }
 
+/** タイムシートスプレッドシートを新規登録または更新する（年月が同じ場合は上書き） */
+export async function upsertTimesheetSpreadsheet(input: {
+  year: number;
+  month: number;
+  label: string;
+  spreadsheetId: string;
+  spreadsheetUrl: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const existing = await db.select().from(timesheetSpreadsheets)
+    .where(and(eq(timesheetSpreadsheets.year, input.year), eq(timesheetSpreadsheets.month, input.month)))
+    .limit(1);
+  if (existing.length > 0) {
+    await db.update(timesheetSpreadsheets)
+      .set({ spreadsheetId: input.spreadsheetId, spreadsheetUrl: input.spreadsheetUrl, label: input.label, updatedAt: new Date() })
+      .where(eq(timesheetSpreadsheets.id, existing[0].id));
+  } else {
+    await db.insert(timesheetSpreadsheets).values({
+      year: input.year,
+      month: input.month,
+      label: input.label,
+      spreadsheetId: input.spreadsheetId,
+      spreadsheetUrl: input.spreadsheetUrl,
+    });
+  }
+}
 /** タイムシートスプレッドシートを削除する */
 export async function deleteTimesheetSpreadsheet(id: number) {
   const db = await getDb();

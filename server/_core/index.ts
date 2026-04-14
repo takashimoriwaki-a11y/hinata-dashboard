@@ -1227,3 +1227,57 @@ function scheduleNextMonthAlcoholSheet() {
   console.log("[AlcoholSheetAuto] 毎月25日9:00の翌月スプレッドシート自動作成スケジューラーを開始しました");
 }
 scheduleNextMonthAlcoholSheet();
+
+// ========== 毎月末25日（JST）に翌月分出退勤スプレッドシートを自動作成・DB登録 ==========
+function scheduleNextMonthTimesheetSheet() {
+  const checkInterval = 60 * 1000; // 1分ごとにチェック
+  let lastCreatedMonth = "";
+  setInterval(async () => {
+    const now = new Date();
+    const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000); // UTC+9（JST）
+    const h = jstNow.getUTCHours();
+    const m = jstNow.getUTCMinutes();
+    const d = jstNow.getUTCDate();
+    const currentYear = jstNow.getUTCFullYear();
+    const currentMonth = jstNow.getUTCMonth() + 1;
+    const monthKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+    // 毎月25日 9:05（JST）に1回だけ実行（アルコールチェックシートと5分ずらす）
+    if (d === 25 && h === 9 && m === 5 && lastCreatedMonth !== monthKey) {
+      lastCreatedMonth = monthKey;
+      try {
+        // 翌月の年・月を計算
+        const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+        const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
+        const nextMonthLabel = `${nextYear}年${nextMonth}月`;
+
+        // 既に登録済みかチェック
+        const { getTimesheetSpreadsheets } = await import("../db");
+        const existing = await getTimesheetSpreadsheets(nextYear, nextMonth);
+        if (existing && existing.length > 0) {
+          console.log(`[TimesheetSheetAuto] ${nextMonthLabel}分は既に登録済みのためスキップ`);
+          return;
+        }
+
+        // 累月スプレッドシートを自動作成
+        const { autoCreateTimesheetSpreadsheet } = await import("../timesheetUtils");
+        const newSpreadsheetId = await autoCreateTimesheetSpreadsheet(nextYear, nextMonth);
+        if (!newSpreadsheetId) {
+          console.error(`[TimesheetSheetAuto] ${nextMonthLabel}分のスプレッドシート作成に失敗しました`);
+          return;
+        }
+
+        console.log(`[TimesheetSheetAuto] ${nextMonthLabel}分のスプレッドシートを作成しました: ${newSpreadsheetId}`);
+        // 管理者に通知
+        await notifyOwner({
+          title: `📊 ${nextMonthLabel}出退勤シート自動作成完了`,
+          content: `${nextMonthLabel}分の出退勤記録スプレッドシートを自動作成しました。\nスプレッドシートID: ${newSpreadsheetId}\nhttps://docs.google.com/spreadsheets/d/${newSpreadsheetId}`,
+        });
+      } catch (e) {
+        console.error(`[TimesheetSheetAuto] エラー:`, e);
+      }
+    }
+  }, checkInterval);
+
+  console.log("[TimesheetSheetAuto] 毎月25日9:05の翌月出退勤スプレッドシート自動作成スケジューラーを開始しました");
+}
+scheduleNextMonthTimesheetSheet();

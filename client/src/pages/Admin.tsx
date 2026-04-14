@@ -3622,6 +3622,7 @@ function TimesheetSpreadsheetsPanel() {
   const [labelInput, setLabelInput] = useState("");
   const [urlInput, setUrlInput] = useState("");
   const [previewId, setPreviewId] = useState<number | null>(null);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
 
   const { data: sheets = [], isLoading } = trpc.timesheet.getAll.useQuery();
 
@@ -3635,9 +3636,21 @@ function TimesheetSpreadsheetsPanel() {
   const deleteMut = trpc.timesheet.delete.useMutation({
     onSuccess: () => utils.timesheet.getAll.invalidate(),
   });
+  const autoCreateMut = trpc.timesheet.autoCreate.useMutation({
+    onSuccess: () => utils.timesheet.getAll.invalidate(),
+  });
+  const shareMut = trpc.timesheet.shareSpreadsheet.useMutation({
+    onSuccess: (data, variables) => {
+      if (data.url) {
+        navigator.clipboard.writeText(data.url).then(() => {
+          setCopiedId(variables.id);
+          setTimeout(() => setCopiedId(null), 2000);
+        });
+      }
+    },
+  });
 
   const filtered = sheets.filter((s) => s.year === year && s.month === month);
-  const previewSheet = filtered.find((s) => s.id === previewId);
 
   const toEmbedUrl = (url: string) => {
     const m = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
@@ -3649,10 +3662,10 @@ function TimesheetSpreadsheetsPanel() {
     <div className="space-y-4">
       <h2 className="text-lg font-bold">出退勤スプレッドシート管理</h2>
       <p className="text-sm text-muted-foreground">
-        出勤・退勤打刻の記録が転記されるスプレッドシートを月ごとに登録します。
+        出勤・退勤打刻・残業申請の記録が職員別タブに自動転記されるスプレッドシートを月ごとに管理します。毎月25日に翌月分が自動作成されます。
       </p>
 
-      {/* 月選択 */}
+      {/* 月選択・自動作成 */}
       <div className="flex items-center gap-2 flex-wrap">
         <select
           value={year}
@@ -3672,11 +3685,26 @@ function TimesheetSpreadsheetsPanel() {
             <option key={m} value={m}>{m}月</option>
           ))}
         </select>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={autoCreateMut.isPending}
+          onClick={() => autoCreateMut.mutate({ year, month })}
+          className="flex items-center gap-1"
+        >
+          {autoCreateMut.isPending ? "作成中..." : "✨ 自動作成"}
+        </Button>
+        {autoCreateMut.isSuccess && (
+          <span className="text-xs text-green-600">スプレッドシートを作成しました</span>
+        )}
+        {autoCreateMut.isError && (
+          <span className="text-xs text-red-500">作成失敗: {autoCreateMut.error?.message}</span>
+        )}
       </div>
 
       {/* 登録フォーム */}
       <Card>
-        <CardHeader><CardTitle className="text-sm">スプレッドシートを登録</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-sm">手動でスプレッドシートを登録</CardTitle></CardHeader>
         <CardContent className="space-y-2">
           <Input
             placeholder="ラベル（例: 2026年4月 出退勤記録）"
@@ -3702,7 +3730,19 @@ function TimesheetSpreadsheetsPanel() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">読み込み中...</p>
       ) : filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{year}年{month}月のスプレッドシートは未登録です。</p>
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">{year}年{month}月のスプレッドシートは未登録です。「✨ 自動作成」ボタンで作成できます。</p>
+          {sheets.length > 0 && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">登録済みの全月分:</p>
+              <div className="flex flex-wrap gap-1">
+                {sheets.map((s) => (
+                  <span key={s.id} className="text-xs bg-muted px-2 py-0.5 rounded">{s.year}年{s.month}月</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       ) : (
         <div className="space-y-2">
           {filtered.map((s) => (
@@ -3714,6 +3754,14 @@ function TimesheetSpreadsheetsPanel() {
                     <p className="text-xs text-muted-foreground">{s.year}年{s.month}月</p>
                   </div>
                   <div className="flex gap-2 flex-wrap">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => shareMut.mutate({ id: s.id })}
+                      disabled={shareMut.isPending}
+                    >
+                      {copiedId === s.id ? "✓ コピー完了" : "📋 URLをコピー"}
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => window.open(s.spreadsheetUrl, "_blank")}>
                       外部で開く
                     </Button>
