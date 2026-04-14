@@ -10,14 +10,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  ClipboardEdit, Search, Loader2, ChevronDown, X, Users, Mic, MicOff
+  ClipboardEdit, Search, Loader2, ChevronDown, X, Users, Mic, MicOff, ExternalLink
 } from "lucide-react";
+import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getTeamButtonClass, getTeamButtonStyle } from "@shared/teamColors";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { VisitSlotCard } from "@/components/VisitSlotCard";
+
+// Web Speech API の型定義
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SpeechRecognitionType = any;
+declare global {
+  interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    SpeechRecognition: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    webkitSpeechRecognition: any;
+  }
+}
 
 const TEAMS = ["身体", "天理", "郡山北部", "郡山南部"] as const;
 type Team = typeof TEAMS[number];
@@ -142,6 +155,63 @@ export default function RecordInput() {
 
   const filledSlots = slots.filter(s => s.patientName).length;
 
+  // ===== 一括音声入力 =====
+  const [isBulkListening, setIsBulkListening] = useState(false);
+  const bulkRecognitionRef = useRef<SpeechRecognitionType | null>(null);
+
+  const startBulkVoiceInput = useCallback(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error("このブラウザは音声入力に対応していません");
+      return;
+    }
+    if (isBulkListening) {
+      bulkRecognitionRef.current?.stop();
+      setIsBulkListening(false);
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = "ja-JP";
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    bulkRecognitionRef.current = recognition;
+
+    recognition.onstart = () => setIsBulkListening(true);
+    recognition.onend = () => setIsBulkListening(false);
+    recognition.onerror = () => {
+      setIsBulkListening(false);
+      toast.error("音声認識に失敗しました");
+    };
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[event.results.length - 1][0].transcript.trim();
+      // 空き枠を探して利用者を自動入力
+      const emptySlotIndex = slots.findIndex(s => !s.patientName);
+      if (emptySlotIndex === -1) {
+        toast.warning("全ての枠が埋まっています");
+        return;
+      }
+      const matched = allPatients.filter(p => {
+        const lastName = p.name.split(/\s+/)[0];
+        return lastName.includes(transcript) || p.name.includes(transcript) ||
+          (p.nameKana && p.nameKana.includes(transcript));
+      });
+      if (matched.length === 1) {
+        handleSlotChange(emptySlotIndex, {
+          team: (matched[0].team as Team) || "",
+          patientId: matched[0].id,
+          patientName: matched[0].name,
+        });
+        setSlotSearch(emptySlotIndex, matched[0].name);
+        toast.success(`枠${emptySlotIndex + 1}に「${matched[0].name}」を入力しました`);
+      } else if (matched.length > 1) {
+        toast.info(`「${transcript}」の候補が${matched.length}件あります。個別入力で選択してください`);
+      } else {
+        toast.warning(`「${transcript}」に一致する利用者が見つかりません`);
+      }
+    };
+    recognition.start();
+  }, [isBulkListening, allPatients, slots, handleSlotChange, setSlotSearch]);
+
   return (
     <div className="p-4 max-w-2xl mx-auto space-y-4 pb-20">
       <div className="flex items-center gap-2 mb-2">
@@ -162,14 +232,31 @@ export default function RecordInput() {
                 </Badge>
               )}
             </CardTitle>
-            <button
-              type="button"
-              onClick={handleResetAll}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg border border-border text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-              全リセット
-            </button>
+            <div className="flex items-center gap-1.5">
+              {/* 一括音声入力ボタン */}
+              <button
+                type="button"
+                onClick={startBulkVoiceInput}
+                className={cn(
+                  "flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-medium transition-colors",
+                  isBulkListening
+                    ? "bg-red-500 border-red-500 text-white animate-pulse"
+                    : "border-primary/40 text-primary hover:bg-primary/10"
+                )}
+                title={isBulkListening ? "録音停止（連続音声入力中）" : "音声で利用者を連続入力"}
+              >
+                {isBulkListening ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
+                {isBulkListening ? "停止" : "一括音声入力"}
+              </button>
+              <button
+                type="button"
+                onClick={handleResetAll}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg border border-border text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                全リセット
+              </button>
+            </div>
           </div>
           <p className="text-xs text-muted-foreground mt-1">訪問する順番に利用者を選択してください（最大8名）</p>
         </CardHeader>
@@ -190,57 +277,7 @@ export default function RecordInput() {
         </CardContent>
       </Card>
 
-      {/* ===== 管理者向け：プロンプト選択UI ===== */}
-      {isAdmin && (
-        <Card className="shadow-sm border-amber-200 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-900/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2 text-amber-700 dark:text-amber-400">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-              管理者設定：NotebookLMプロンプト選択
-            </CardTitle>
-            <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
-              選択したプロンプトが「ボイスメモをNotebookLMに...」のコピーボタンで取得できます
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1.5">
-              <button
-                type="button"
-                className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors ${
-                  !selectedPromptIdData?.promptId
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "border-border hover:bg-muted"
-                }`}
-                onClick={() => setSelectedPromptIdMutation.mutate({ promptId: null })}
-              >
-                選択なし
-              </button>
-              {allPrompts.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors ${
-                    selectedPromptIdData?.promptId === p.id
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "border-border hover:bg-muted"
-                  }`}
-                  onClick={() => setSelectedPromptIdMutation.mutate({ promptId: p.id })}
-                >
-                  <span className="font-medium">{p.title}</span>
-                  {p.aiTool && (
-                    <span className="ml-2 text-[10px] opacity-70">[{p.aiTool}]</span>
-                  )}
-                </button>
-              ))}
-              {allPrompts.length === 0 && (
-                <p className="text-xs text-muted-foreground py-2 text-center">
-                  AI共有プロンプトが登録されていません
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* プロンプト選択UIはAI共有モーダルに移動 */}
 
       {/* ===== 8つの訪問チェック項目カード ===== */}
       {slots.map((slot, index) => (
@@ -268,22 +305,15 @@ type SlotSelectorProps = {
   onSlotChange: (data: Partial<VisitSlotData>) => void;
 };
 
-// Web Speech API の型定義
-declare global {
-  interface Window {
-    SpeechRecognition: typeof SpeechRecognition;
-    webkitSpeechRecognition: typeof SpeechRecognition;
-  }
-}
-
 function SlotSelector({
   index, slot, allPatients, searchQuery, showList,
   onSearchChange, onShowListChange, onSlotChange
 }: SlotSelectorProps) {
+  const [, navigate] = useLocation();
   const slotNumber = index + 1;
   const [isListening, setIsListening] = useState(false);
   const [voiceCandidates, setVoiceCandidates] = useState<Array<{ id: number; name: string; team: string | null }>>([]);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionType | null>(null);
 
   // チームでフィルタリングした利用者リスト
   const filteredPatients = useMemo(() => {
@@ -322,7 +352,7 @@ function SlotSelector({
       setIsListening(false);
       toast.error("音声認識に失敗しました");
     };
-    recognition.onresult = (event) => {
+    recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript.trim();
       // 苗字で候補を検索（チームフィルタあり）
       const searchBase = slot.team
@@ -391,6 +421,15 @@ function SlotSelector({
             <span className="text-sm font-medium text-foreground truncate flex-1">
               {slot.patientName}
             </span>
+            {/* 利用者カードへのリンクボタン */}
+            <button
+              type="button"
+              onClick={() => navigate(`/patients?search=${encodeURIComponent(slot.patientName)}`)}
+              className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors p-1 rounded"
+              title={`${slot.patientName}の利用者カードを開く`}
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+            </button>
             <button
               type="button"
               onClick={() => {

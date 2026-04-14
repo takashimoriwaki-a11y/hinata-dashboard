@@ -2395,3 +2395,9 @@
 - [x] routers.ts：spreadsheetLinks.getDailyReportUrl エンドポイントを追加（linkKey='daily_report'の当月URLを返す）
 - [x] AttendanceCheckModal.tsx：業務日報ボタンのURL取得を timesheet.getCurrentMonthUrl から spreadsheetLinks.getDailyReportUrl に変更
 - [x] 退勤時確認画面の業務日報ボタンも同様に当月URLを使うよう修正（出勤画面のみ業務日報ボタンあり）
+
+## 訪問時チェック項目 改修（2026-04-15）
+- [x] 今日の利用者を音声入力で一括入力できるボタンを追加
+- [x] 今日の利用者の名前横に該当利用者カードへ飛ぶボタンを追加
+- [x] スクショのプロンプト指定をAI共有画面に移動（訪問時チェック項目画面から削除）
+- [x] 訪問タスクのチェックボックスON時にタスク管理・今日のタスクの該当タスクも完了にする（既実装済み確認）

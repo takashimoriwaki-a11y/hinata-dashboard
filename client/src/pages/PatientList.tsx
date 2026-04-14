@@ -1,7 +1,8 @@
 /**
  * PatientList - 利用者一覧ページ
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearch } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, Search } from "lucide-react";
@@ -23,7 +24,18 @@ const teamColors: Record<string, string> = {
 };
 
 export default function PatientList() {
-  const [search, setSearch] = useState("");
+  const searchString = useSearch();
+  const [search, setSearch] = useState(() => {
+    const params = new URLSearchParams(searchString);
+    return params.get("search") ?? "";
+  });
+
+  // URLの?searchパラメータが変わったら検索欄を更新
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    const q = params.get("search") ?? "";
+    setSearch(q);
+  }, [searchString]);
   const filtered = patients.filter((p) =>
     p.name.includes(search) || p.team.includes(search)
   );
