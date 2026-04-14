@@ -2497,6 +2497,23 @@ export const appRouter = router({
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AIの応答を解析できませんでした" });
         }
       }),
+
+    // 利用者名でタスクを取得する（訪問チェック項目用）
+    getByPatientName: protectedProcedure
+      .input(z.object({ patientName: z.string() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        const { isNull, eq, and } = await import("drizzle-orm");
+        const { tasks } = await import("../drizzle/schema");
+        return db.select().from(tasks).where(
+          and(
+            isNull(tasks.deletedAt),
+            eq(tasks.done, 0),
+            eq(tasks.patientName, input.patientName)
+          )
+        ).orderBy(tasks.createdAt);
+      }),
   }),
   // ========== メッセージ ===========
   messages: router({
