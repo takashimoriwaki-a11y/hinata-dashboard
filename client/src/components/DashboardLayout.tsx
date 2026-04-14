@@ -155,6 +155,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [notifDialogOpen, setNotifDialogOpen] = useState(false);
   const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>("all");
   const [showAIPromptsModal, setShowAIPromptsModal] = useState(false);
+  const [showMonthlyOvertimeModal, setShowMonthlyOvertimeModal] = useState(false);
 
   // 月次署名の未署名バッジ用クエリ（今月分）
   const { signatureYear, signatureMonth } = useMemo(() => {
@@ -335,53 +336,29 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           {(!collapsed || mobile) && <span className="truncate">AI共有</span>}
         </button>
 
-        {(!collapsed || mobile) && (
-          <p className="px-4 text-xs font-semibold text-sidebar-foreground/65 uppercase tracking-wider mt-4 mb-1">
-            外部ツール
-          </p>
-        )}
-        {externalTools.map((tool) => (
-          <a
-            key={tool.label}
-            href={tool.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={(collapsed && !mobile) ? tool.label : undefined}
-            className={cn(
-              "flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
-              "text-sm font-medium text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-              (collapsed && !mobile) ? "justify-center px-0" : "px-3"
+        {/* 月次残業確認・署名（他のナビアイテムと統一感のあるボタン形式） */}
+        <button
+          onClick={() => setShowMonthlyOvertimeModal(true)}
+          title={(collapsed && !mobile) ? "月次残業確認・署名" : undefined}
+          className={cn(
+            "relative flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
+            "text-sm font-medium text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+            (collapsed && !mobile) ? "justify-center px-0" : "px-3 w-[calc(100%-1rem)]"
+          )}
+        >
+          <span className="relative inline-flex flex-shrink-0">
+            <FileCheck className="w-5 h-5" />
+            {isMonthlySignatureUnsigned && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-sidebar" />
             )}
-          >
-            <tool.icon className="w-5 h-5 flex-shrink-0" />
-             {(!collapsed || mobile) && <span className="truncate">{tool.label}</span>}
-          </a>
-        ))}
-        {/* 月次残業確認・署名（折りたたみ時はアイコン+未署名バッジ、展開時はパネル表示） */}
-        {(collapsed && !mobile) ? (
-          <button
-            onClick={toggleCollapsed}
-            title="月次残業確認・署名"
-            className={cn(
-              "relative flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
-              "text-sm font-medium text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-              "justify-center px-0"
-            )}
-          >
-            <span className="relative inline-flex">
-              <FileCheck className="w-5 h-5 flex-shrink-0" />
-              {isMonthlySignatureUnsigned && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-sidebar" />
-              )}
-            </span>
-          </button>
-        ) : (
-          (!collapsed || mobile) && (
-            <div className="mx-2 mt-2 mb-1">
-              <MonthlyOvertimeSignature />
-            </div>
-          )
-        )}
+          </span>
+          {(!collapsed || mobile) && (
+            <span className="truncate flex-1 text-left">月次残業確認・署名</span>
+          )}
+          {(!collapsed || mobile) && isMonthlySignatureUnsigned && (
+            <span className="flex-shrink-0 w-2 h-2 bg-red-500 rounded-full" />
+          )}
+        </button>
       </nav>
 
       {/* ボトムアクション */}
@@ -625,6 +602,22 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           open={showAIPromptsModal}
           onClose={() => setShowAIPromptsModal(false)}
         />
+
+        {/* 月次残業確認・署名モーダル */}
+        <Dialog open={showMonthlyOvertimeModal} onOpenChange={setShowMonthlyOvertimeModal}>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileCheck className="w-5 h-5 text-primary" />
+                月次残業確認・署名
+              </DialogTitle>
+              <DialogDescription>
+                今月の残業時間を確認し、署名してください。
+              </DialogDescription>
+            </DialogHeader>
+            <MonthlyOvertimeSignature />
+          </DialogContent>
+        </Dialog>
 
         {/* ========== ボトムナビゲーションバー（モバイル・ PC共通） ========== */}        <nav className={cn(
           "fixed bottom-0 left-0 right-0 z-50 border-t border-sidebar-border bottom-nav-safe bg-sidebar",

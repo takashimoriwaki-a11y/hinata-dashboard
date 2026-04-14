@@ -4074,13 +4074,15 @@ function MonthlySignaturesPanel() {
   const [filterYear, setFilterYear] = useState(now.getFullYear());
   const [filterMonth, setFilterMonth] = useState(now.getMonth() + 1);
 
-  const { data: signatures = [], isLoading } = trpc.monthlySignature.adminList.useQuery(
+  const { data, isLoading } = trpc.monthlySignature.adminListWithUnsigned.useQuery(
     { targetYear: filterYear, targetMonth: filterMonth },
     { enabled: true }
   );
+  const signatures = data?.signatures ?? [];
+  const unsignedStaff = data?.unsignedStaff ?? [];
 
   const confirmMut = trpc.monthlySignature.adminConfirm.useMutation({
-    onSuccess: () => utils.monthlySignature.adminList.invalidate(),
+    onSuccess: () => utils.monthlySignature.adminListWithUnsigned.invalidate(),
   });
 
   const yearOptions = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1];
@@ -4113,48 +4115,76 @@ function MonthlySignaturesPanel() {
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">読み込み中...</p>
-      ) : signatures.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{filterYear}年{filterMonth}月の署名はまだありません。</p>
       ) : (
-        <div className="space-y-3">
-          {signatures.map((sig) => (
-            <Card key={sig.id} className="shadow-sm">
-              <CardContent className="pt-4 pb-3 px-4">
-                <div className="flex items-start justify-between gap-2 flex-wrap">
-                  <div className="space-y-1">
-                    <div className="font-semibold text-sm">{sig.userName}</div>
-                    <div className="text-xs text-muted-foreground">
-                      署名日時：{new Date(sig.signedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}
-                    </div>
-                    {sig.comment && (
-                      <div className="text-xs text-blue-600">コメント：{sig.comment}</div>
-                    )}
-                    {sig.adminConfirmed ? (
-                      <div className="text-xs text-green-600 font-medium">
-                        ✓ 管理者確認済み（{sig.adminConfirmerName}）
-                        {sig.adminConfirmedAt && (
-                          <span className="ml-1 text-gray-400">
-                            {new Date(sig.adminConfirmedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}
-                          </span>
+        <div className="space-y-6">
+          {/* 未署名スタッフ一覧 */}
+          <div>
+            <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-100 text-red-600 text-xs font-bold">{unsignedStaff.length}</span>
+              未署名スタッフ
+            </h3>
+            {unsignedStaff.length === 0 ? (
+              <p className="text-sm text-green-600 font-medium">✓ {filterYear}年{filterMonth}月は全員署名済みです</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {unsignedStaff.map((s: { id: number; name: string; team: string }) => (
+                  <span key={s.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">
+                    {s.name}
+                    <span className="text-red-400">({s.team})</span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 署名済みスタッフ一覧 */}
+          <div>
+            <h3 className="text-sm font-semibold mb-2">署名済みスタッフ</h3>
+            {signatures.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{filterYear}年{filterMonth}月の署名はまだありません。</p>
+            ) : (
+              <div className="space-y-3">
+                {signatures.map((sig: any) => (
+                  <Card key={sig.id} className="shadow-sm">
+                    <CardContent className="pt-4 pb-3 px-4">
+                      <div className="flex items-start justify-between gap-2 flex-wrap">
+                        <div className="space-y-1">
+                          <div className="font-semibold text-sm">{sig.userName}</div>
+                          <div className="text-xs text-muted-foreground">
+                            署名日時：{new Date(sig.signedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}
+                          </div>
+                          {sig.comment && (
+                            <div className="text-xs text-blue-600">コメント：{sig.comment}</div>
+                          )}
+                          {sig.adminConfirmed ? (
+                            <div className="text-xs text-green-600 font-medium">
+                              ✓ 管理者確認済み（{sig.adminConfirmerName}）
+                              {sig.adminConfirmedAt && (
+                                <span className="ml-1 text-gray-400">
+                                  {new Date(sig.adminConfirmedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-amber-600">管理者確認待ち</div>
+                          )}
+                        </div>
+                        {!sig.adminConfirmed && (
+                          <Button
+                            size="sm"
+                            disabled={confirmMut.isPending}
+                            onClick={() => confirmMut.mutate({ id: sig.id })}
+                          >
+                            確認済みにする
+                          </Button>
                         )}
                       </div>
-                    ) : (
-                      <div className="text-xs text-amber-600">管理者確認待ち</div>
-                    )}
-                  </div>
-                  {!sig.adminConfirmed && (
-                    <Button
-                      size="sm"
-                      disabled={confirmMut.isPending}
-                      onClick={() => confirmMut.mutate({ id: sig.id })}
-                    >
-                      確認済みにする
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -5755,6 +5755,29 @@ export const appRouter = router({
         });
         return result;
       }),
+    /** 管理者：未署名スタッフを含む月次署名一覧を取得する */
+    adminListWithUnsigned: protectedProcedure
+      .input(z.object({
+        targetYear: z.number().int().optional(),
+        targetMonth: z.number().int().optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const { getAllMonthlySignatures, getAllStaff } = await import("./db");
+        const now = new Date();
+        const year = input?.targetYear ?? now.getFullYear();
+        const month = input?.targetMonth ?? (now.getMonth() + 1);
+        const [signatures, allStaff] = await Promise.all([
+          getAllMonthlySignatures(year, month),
+          getAllStaff(),
+        ]);
+        const signedUserIds = new Set(signatures.map((s: any) => s.userId));
+        const unsignedStaff = allStaff
+          .filter((s: any) => !signedUserIds.has(s.id))
+          .map((s: any) => ({ id: s.id, name: s.name, team: s.team }));
+        return { signatures, unsignedStaff, year, month };
+      }),
+
     /** 管理者：全職員の月次署名一覧を取得する */
     adminList: protectedProcedure
       .input(z.object({
