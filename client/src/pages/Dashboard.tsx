@@ -2422,10 +2422,13 @@ function LinkRow({ href, label, color, colorStyle, emoji, onAddToMyLinks, isInMy
     e.preventDefault();
     setIsOpening(true);
     try {
-      const result = await utils.spreadsheetLinks.getDailyReportSheetGid.fetch();
+      // hrefからスプレッドシートIDを抽出（当月URLが差し替えられている場合はそちらを優先）
+      const spreadsheetIdMatch = href.match(/\/spreadsheets\/d\/([^/?#]+)/);
+      const spreadsheetId = spreadsheetIdMatch ? spreadsheetIdMatch[1] : DAILY_REPORT_SPREADSHEET_ID;
+      const result = await utils.spreadsheetLinks.getDailyReportSheetGid.fetch({ spreadsheetId });
       if (result.gid !== null) {
         window.open(
-          `https://docs.google.com/spreadsheets/d/${DAILY_REPORT_SPREADSHEET_ID}/edit#gid=${result.gid}`,
+          `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${result.gid}`,
           "_blank",
           "noopener,noreferrer"
         );

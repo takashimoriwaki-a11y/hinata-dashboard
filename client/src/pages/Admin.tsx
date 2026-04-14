@@ -3007,6 +3007,16 @@ function AlcoholCheckSpreadsheetsPanel() {
     },
     onError: (e) => toast.error(`共有設定に失敗しました: ${e.message}`),
   });
+  const retrySyncMutation = trpc.attendance.retrySync.useMutation({
+    onSuccess: (data) => {
+      if (data.total === 0) {
+        toast.success("未同期の記録はありませんでした");
+      } else {
+        toast.success(`再転記完了: 成功 ${data.successCount}件 / 失敗 ${data.failCount}件 (合計 ${data.total}件)`);
+      }
+    },
+    onError: (e) => toast.error(`再転記に失敗しました: ${e.message}`),
+  });
 
   /** スプレッドシートURLまたはIDからIDを抽出する */
   const extractSheetId = (input: string): string => {
@@ -3033,16 +3043,27 @@ function AlcoholCheckSpreadsheetsPanel() {
       {/* ヘッダー */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold">アルコールチェックスプレッドシート管理</h2>
-        <a
-          href="https://drive.google.com/drive/folders/1M1po6_l4AAqqygD9xoQU8jQPF9XXX7_4"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5">
-            <ExternalLink className="w-3.5 h-3.5" />
-            Driveで開く
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs gap-1.5 border-amber-400 text-amber-700 hover:bg-amber-50"
+            disabled={retrySyncMutation.isPending}
+            onClick={() => retrySyncMutation.mutate()}
+          >
+            {retrySyncMutation.isPending ? "転記中..." : "⚠️ 未同期を再転記"}
           </Button>
-        </a>
+          <a
+            href="https://drive.google.com/drive/folders/1M1po6_l4AAqqygD9xoQU8jQPF9XXX7_4"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5">
+              <ExternalLink className="w-3.5 h-3.5" />
+              Driveで開く
+            </Button>
+          </a>
+        </div>
       </div>
       <p className="text-sm text-muted-foreground">
         アルコールチェックの記録が職員別タブに自動転記されるスプレッドシートを月ごとに管理します。毎月25日に翌月分が自動作成されます。

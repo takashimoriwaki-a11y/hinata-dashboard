@@ -1320,6 +1320,7 @@ import {
   markAlcoholCheckSynced,
   updateUserNumberPlate,
   getAlcoholChecksByRange,
+  getUnsyncedAlcoholChecks,
   getAlcoholCheckSpreadsheet,
   getAllAlcoholCheckSpreadsheets,
   upsertAlcoholCheckSpreadsheet,
@@ -1955,16 +1956,19 @@ export const appRouter = router({
         broadcastEvent("spreadsheetLinks");
         return { success: true };
       }),
-    // 業務日報の本日の日付タブのgidを取得
-    getDailyReportSheetGid: publicProcedure.query(async () => {
-      const DAILY_REPORT_SPREADSHEET_ID = "10Leb7UR6ARVlCGbf5pBa5yxsgm5WAV9m-ETyYrzfBCs";
+     // 業務日報の本日の日付タブのgidを取得
+     getDailyReportSheetGid: publicProcedure
+      .input(z.object({ spreadsheetId: z.string().optional() }).optional())
+      .query(async ({ input }) => {
+      const DEFAULT_SPREADSHEET_ID = "10Leb7UR6ARVlCGbf5pBa5yxsgm5WAV9m-ETyYrzfBCs";
+      const targetSpreadsheetId = input?.spreadsheetId || DEFAULT_SPREADSHEET_ID;
       const auth = getAuth();
       const client = await auth.getClient();
       const token = await client.getAccessToken();
       if (!token.token) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "アクセストークンの取得に失敗しました" });
 
       const metaRes = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${DAILY_REPORT_SPREADSHEET_ID}?fields=sheets.properties`,
+        `https://sheets.googleapis.com/v4/spreadsheets/${targetSpreadsheetId}?fields=sheets.properties`,
         { headers: { Authorization: `Bearer ${token.token}` } }
       );
       if (!metaRes.ok) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "シート情報の取得に失敗しました" });
@@ -1981,7 +1985,7 @@ export const appRouter = router({
         `${String(month).padStart(2, "0")}月${String(day).padStart(2, "0")}日`,
       ];
       const sheet = meta.sheets.find((s) => candidates.includes(s.properties.title));
-      return { gid: sheet?.properties.sheetId ?? null, title: sheet?.properties.title ?? null };
+      return { gid: sheet?.properties.sheetId ?? null, title: sheet?.properties.title ?? null, spreadsheetId: targetSpreadsheetId };
     }),
 
     // 一括登録（管理者のみ）
@@ -5166,8 +5170,29 @@ export const appRouter = router({
         const checkedDate = new Date(now);
         const jstOffset = 9 * 60 * 60 * 1000;
         const jstDate = new Date(checkedDate.getTime() + jstOffset);
-        const year = jstDate.getUTCFullYear();
-        const month = jstDate.getUTCMonth() + 1;
+        // 日付またぎ・月またぎ退勤の判定（アルコールチェック用）
+        let isOvernightAlcohol = false;
+        let isMonthCrossAlcohol = false;
+        if (input.clockType === "clock_out" && input.clockInAt) {
+          const clockInJst = new Date(input.clockInAt + jstOffset);
+          const clockOutJst = jstDate;
+          const clockInDay = clockInJst.getUTCDate();
+          const clockOutDay = clockOutJst.getUTCDate();
+          if (clockInDay !== clockOutDay) {
+            isOvernightAlcohol = true;
+            const clockInMonth = clockInJst.getUTCMonth();
+            const clockOutMonth = clockOutJst.getUTCMonth();
+            if (clockInMonth !== clockOutMonth) {
+              isMonthCrossAlcohol = true;
+            }
+          }
+        }
+        // 月またぎの場合は出勤月のスプレッドシートを使用する
+        const targetJstDate = (isMonthCrossAlcohol && input.clockInAt)
+          ? new Date(input.clockInAt + jstOffset)
+          : jstDate;
+        const year = targetJstDate.getUTCFullYear();
+        const month = targetJstDate.getUTCMonth() + 1;
         // 当月スプレッドシートが未登録の場合は自動作成する
         autoCreateAlcoholCheckSpreadsheet(year, month).then(async (autoSpreadsheetId) => {
           if (autoSpreadsheetId) {
@@ -5340,6 +5365,43 @@ export const appRouter = router({
         }
         const url = `https://docs.google.com/spreadsheets/d/${input.spreadsheetId}/edit`;
         return { success: true, url, alreadyShared };
+      }),
+    /** 未同期のアルコールチェック記録をスプレッドシートに再転記する（管理者用） */
+    retrySync: protectedProcedure
+      .mutation(async () => {
+        const records = await getUnsyncedAlcoholChecks();
+        let successCount = 0;
+        let failCount = 0;
+        const jstOffset = 9 * 60 * 60 * 1000;
+        for (const record of records) {
+          try {
+            const checkedJst = new Date(record.checkedAt + jstOffset);
+            const year = checkedJst.getUTCFullYear();
+            const month = checkedJst.getUTCMonth() + 1;
+            let sheetReg = await getAlcoholCheckSpreadsheet(year, month);
+            if (!sheetReg) {
+              const newId = await autoCreateAlcoholCheckSpreadsheet(year, month);
+              if (newId) sheetReg = await getAlcoholCheckSpreadsheet(year, month);
+            }
+            if (!sheetReg) {
+              console.warn(`[AlcoholCheck retrySync] No spreadsheet for ${year}/${month}, id=${record.id}`);
+              failCount++;
+              continue;
+            }
+            await appendAlcoholCheckToSheet({
+              ...record,
+              hasPassenger: record.hasPassenger != null ? record.hasPassenger !== 0 : null,
+              isOvernightClockOut: false,
+              isMonthCrossClockOut: false,
+            }, sheetReg.spreadsheetId);
+            await markAlcoholCheckSynced(record.id);
+            successCount++;
+          } catch (err) {
+            console.error(`[AlcoholCheck retrySync] Failed for id=${record.id}:`, err);
+            failCount++;
+          }
+        }
+        return { success: true, successCount, failCount, total: records.length };
       }),
     /** 今日の自分の打刻履歴を取得する */
     today: protectedProcedure

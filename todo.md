@@ -2384,3 +2384,9 @@
 - [x] ホーム画面から「残業申請承認」カードを削除する
 - [x] 管理画面の残業申請承認管理：承認待ちのみ表示（承認済み・却下済みは非表示）
 - [x] 管理画面の残業申請承認管理：「一括承認」ボタンを追加する
+
+## アルコールチェック転記バグ修正（2026-04-15）
+- [x] バグ修正：saveAlcoholCheckエンドポイントでisOvernightAlcohol/isMonthCrossAlcohol変数が未定義でReferenceErrorが発生していた問題を修正（isOvernightClockOut/isMonthCrossClockOutに修正）
+- [x] db.ts：getUnsyncedAlcoholChecks関数を追加（sheetSynced=0のレコードを取得）
+- [x] routers.ts：retrySync エンドポイントを追加（未同期レコードをスプレッドシートに再転記）
+- [x] Admin.tsx：「⚠️ 未同期を再転記」ボタンをアルコールチェックスプレッドシート管理パネルに追加

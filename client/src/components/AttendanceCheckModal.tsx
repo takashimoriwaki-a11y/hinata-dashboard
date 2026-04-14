@@ -496,21 +496,22 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     setDone((prev) => ({ ...prev, [step.id]: true }));
     setOpeningStepId(step.id);
     try {
+      // 当月URLからスプレッドシートIDを抽出（当月URLが設定されている場合はそちらを優先）
+      const spreadsheetIdMatch = targetUrl.match(/\/spreadsheets\/d\/([^/]+)/);
+      const spreadsheetId = spreadsheetIdMatch ? spreadsheetIdMatch[1] : DAILY_REPORT_SPREADSHEET_ID;
       // バックグラウンドでgidを取得し、取得できたら既存ウィンドウのURLを更新
-      const result = await utils.spreadsheetLinks.getDailyReportSheetGid.fetch();
+      const result = await utils.spreadsheetLinks.getDailyReportSheetGid.fetch({ spreadsheetId });
       if (result.gid !== null && newWindow && !newWindow.closed) {
-        const gidUrl = `https://docs.google.com/spreadsheets/d/${DAILY_REPORT_SPREADSHEET_ID}/edit#gid=${result.gid}`;
+        const gidUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${result.gid}`;
         newWindow.location.href = gidUrl;
       } else if (newWindow && !newWindow.closed) {
         // gidが取得できない場合、今日の日付をシート名として検索するURLを構築
-        // Googleスプレッドシートはシート名でURLを指定できないため、デフォルトURLのまま
-        // ただし、URLにrangeparamを付与して今日の日付シートを示すヒントを追加
         const now = new Date();
         const month = now.getMonth() + 1;
         const day = now.getDate();
         const sheetName = `${month}/${day}`;
         const encodedSheet = encodeURIComponent(sheetName);
-        const rangeUrl = `https://docs.google.com/spreadsheets/d/${DAILY_REPORT_SPREADSHEET_ID}/edit#rangeid=${encodedSheet}`;
+        const rangeUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#rangeid=${encodedSheet}`;
         newWindow.location.href = rangeUrl;
       }
     } catch {
