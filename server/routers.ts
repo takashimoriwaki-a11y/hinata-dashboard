@@ -4950,16 +4950,38 @@ export const appRouter = router({
             console.warn("[Timesheet] Failed to get today attendance for totalWorkMinutes:", e);
           }
         }
-        getTimesheetSpreadsheets(year, month).then(async (sheets) => {
+        // 月またぎ退勤の場合（出勤月≠退勤月）は前月のスプレッドシートを使用する
+        // isOvernightClockOut=true かつ clockInAt が前月の場合に月またぎと判定
+        let targetYear = year;
+        let targetMonth = month;
+        let isMonthCrossClockOut = false;
+        if (isOvernightClockOut && clockInAt) {
+          const clockInJstDate = new Date(clockInAt + 9 * 60 * 60 * 1000);
+          const clockInYear = clockInJstDate.getUTCFullYear();
+          const clockInMonth = clockInJstDate.getUTCMonth() + 1;
+          if (clockInYear !== year || clockInMonth !== month) {
+            // 月またぎ: 出勤月のスプレッドシートを使用
+            targetYear = clockInYear;
+            targetMonth = clockInMonth;
+            isMonthCrossClockOut = true;
+            console.log(`[Timesheet] Month-cross clock_out detected for ${ctx.user.name}: clockIn=${clockInYear}/${clockInMonth}, clockOut=${year}/${month}`);
+          }
+        }
+        getTimesheetSpreadsheets(targetYear, targetMonth).then(async (sheets) => {
           // 自動作成後に再取得する（初回打刻時はスプレッドシートがまだ作成中の場合があるため、失敗しても打刻は成功扱い）
           if (!sheets || sheets.length === 0) {
-            // 自動作成を待って再試行
-            const newSheetId = await autoCreateTimesheetSpreadsheet(year, month).catch(() => null);
-            if (!newSheetId) {
-              console.warn(`[Timesheet] No spreadsheet available for ${year}/${month}`);
+            if (isMonthCrossClockOut) {
+              // 月またぎの場合、前月スプレッドシートが未登録なら警告のみ（自動作成しない）
+              console.warn(`[Timesheet] No spreadsheet for previous month ${targetYear}/${targetMonth} (month-cross clock_out)`);
               return;
             }
-            const newSheets = await getTimesheetSpreadsheets(year, month);
+            // 自動作成を待って再試行
+            const newSheetId = await autoCreateTimesheetSpreadsheet(targetYear, targetMonth).catch(() => null);
+            if (!newSheetId) {
+              console.warn(`[Timesheet] No spreadsheet available for ${targetYear}/${targetMonth}`);
+              return;
+            }
+            const newSheets = await getTimesheetSpreadsheets(targetYear, targetMonth);
             if (!newSheets || newSheets.length === 0) return;
             for (const sheet of newSheets) {
               await appendTimesheetToSheet({
