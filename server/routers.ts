@@ -171,8 +171,22 @@ async function autoCreateAlcoholCheckSpreadsheet(year: number, month: number): P
         sheets: [{ properties: { title: "概要" } }],
       },
     });
-    const spreadsheetId = createRes.data.spreadsheetId!;
-
+     const spreadsheetId = createRes.data.spreadsheetId!;
+    // 指定のGoogle Driveフォルダに移動
+    const ALCOHOL_FOLDER_ID = "1M1po6_l4AAqqygD9xoQU8jQPF9XXX7_4";
+    try {
+      const fileRes = await drive.files.get({ fileId: spreadsheetId, fields: "parents" });
+      const prevParents = (fileRes.data.parents ?? []).join(",");
+      await drive.files.update({
+        fileId: spreadsheetId,
+        addParents: ALCOHOL_FOLDER_ID,
+        removeParents: prevParents,
+        fields: "id, parents",
+      });
+      console.log(`[AutoSheet] Moved to folder: ${ALCOHOL_FOLDER_ID}`);
+    } catch (e) {
+      console.warn("[AutoSheet] Failed to move to folder:", e);
+    }
     // 概要シートに説明を記入
     await sheets.spreadsheets.values.update({
       spreadsheetId,
