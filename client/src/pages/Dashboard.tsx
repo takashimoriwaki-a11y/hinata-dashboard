@@ -5126,9 +5126,12 @@ export default function Dashboard() {
   // 当日の打刻履歴数（複数回打刻判定用）
   const clockInCount = todayAttendance?.filter((r) => r.type === "clock_in").length ?? 0;
   const clockOutCount = todayAttendance?.filter((r) => r.type === "clock_out").length ?? 0;
+  // 毎朝8時以降は緊急出退勤ボタンを非表示にする
+  const currentHour = new Date().getHours();
+  const isAfter8AM = currentHour >= 8;
   // 緊急訪問看護の追加打刻が必要か（退勤後または出勤前の再出勤）
-  const needsEmergencyClockIn = clockInAllDone && clockOutAllDone;
-  const needsEmergencyClockOut = clockInCount > clockOutCount;
+  const needsEmergencyClockIn = clockInAllDone && clockOutAllDone && !isAfter8AM;
+  const needsEmergencyClockOut = clockInCount > clockOutCount && clockInAllDone && clockOutAllDone && !isAfter8AM;
   // ログインユーザーの名前（姓名の場合は名前部分のみ表示）
   const userName = dashboardUser?.name
     ? (dashboardUser.name.includes(' ') || dashboardUser.name.includes('　')
@@ -5291,14 +5294,14 @@ export default function Dashboard() {
               <CalendarDays className="w-3.5 h-3.5 md:w-4 md:h-4" />
               日程管理
             </Link>
-            {/* 6. 記録Ⅱ */}
+            {/* 6. 訪問 */}
             <Link
               href="/record#record-condition"
               onTouchStart={() => {}}
               className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#b06a1a', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#9a5c14')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#b06a1a')}
             >
               <ClipboardEdit className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              記録Ⅱ
+              訪問
             </Link>
           </div>
 

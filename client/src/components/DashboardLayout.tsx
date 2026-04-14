@@ -87,9 +87,9 @@ const externalTools = [
 
 // ボトムナビゲーション
 const bottomNavItems = [
-  { type: "internal", href: "/", icon: LayoutDashboard, label: "ホーム", monthlySignatureBadge: true },
   { type: "internal", href: "/traffic-accident", icon: ShieldAlert, label: "事故" },
   { type: "internal", href: "/minutes", icon: BookOpen, label: "議事録", badge: true },
+  { type: "internal", href: "/", icon: LayoutDashboard, label: "ホーム", monthlySignatureBadge: true },
   { type: "internal", href: "/record", icon: MapPin, label: "訪問" },
   { type: "internal", href: "/schedule-change", icon: CalendarClock, label: "変更連絡" },
 ];
