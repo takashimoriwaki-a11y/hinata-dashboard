@@ -221,7 +221,7 @@ async function autoCreateAlcoholCheckSpreadsheet(year: number, month: number): P
  * 指定年月の出退勤用スプレッドシートをGoogle Driveに自動作成し、DBに登録する。
  * 既に登録済みの場合は何もしない。
  */
-async function autoCreateTimesheetSpreadsheet(year: number, month: number): Promise<string | null> {
+export async function autoCreateTimesheetSpreadsheet(year: number, month: number): Promise<string | null> {
   try {
     // 既に登録済みならスキップ
     const existing = await getTimesheetSpreadsheets(year, month);
@@ -285,6 +285,7 @@ async function autoCreateTimesheetSpreadsheet(year: number, month: number): Prom
       month,
       spreadsheetId,
       label: title,
+      spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
     });
 
     console.log(`[TimesheetAutoSheet] Created spreadsheet for ${year}/${month}: ${spreadsheetId}`);
@@ -4849,13 +4850,6 @@ export const appRouter = router({
         const { getTimesheetSpreadsheets } = await import("./db");
         const sheets = await getTimesheetSpreadsheets(year, month);
         return { success: true, spreadsheetId, spreadsheetUrl: sheets[0]?.spreadsheetUrl ?? `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit` };
-      }),
-    /** 全出退勤スプレッドシート一覧を取得する */
-    getAll: protectedProcedure
-      .query(async ({ ctx }) => {
-        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
-        const { getAllTimesheetSpreadsheets } = await import("./db");
-        return getAllTimesheetSpreadsheets();
       }),
     /** 出退勤スプレッドシートのURLをコピーする（共有URLを返す） */
     shareSpreadsheet: protectedProcedure

@@ -55,6 +55,10 @@ export default function RecordInput() {
   const { user } = useAuth();
 
   // ① 訪問タスク チェックリスト
+  const DRAFT_VISIT_NOTE_KEY = "hinata_visit_special_note";
+  const [visitSpecialNote, setVisitSpecialNote] = useState<string>(() => {
+    try { return localStorage.getItem(DRAFT_VISIT_NOTE_KEY) ?? ""; } catch { return ""; }
+  });
   const [visitTasksBefore, setVisitTasksBefore] = useState(
     () => VISIT_TASKS_BEFORE_DEFAULT.map(t => ({ ...t }))
   );
@@ -892,7 +896,9 @@ export default function RecordInput() {
     setEditingPreview(null);
     setVisitVoiceText("");
     setVisitVoiceError(null);
+    setVisitSpecialNote("");
     // 下書きを削除
+    try { localStorage.removeItem("hinata_visit_special_note"); } catch {}
     localStorage.removeItem(DRAFT_KEY);
     localStorage.removeItem(DRAFT_CHECK_ITEMS_KEY);
     localStorage.removeItem(DRAFT_VITALS_KEY);
@@ -1006,6 +1012,21 @@ export default function RecordInput() {
             </div>
           </div>
 
+          {/* 特記事項メモ */}
+          <div className="pt-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">特記事項</p>
+            <Textarea
+              placeholder="訪問中に気になったこと・申し送り事項などをメモ…"
+              value={visitSpecialNote}
+              onChange={(e) => {
+                setVisitSpecialNote(e.target.value);
+                try { localStorage.setItem(DRAFT_VISIT_NOTE_KEY, e.target.value); } catch {}
+              }}
+              className="text-sm min-h-[80px] resize-none"
+              rows={3}
+            />
+          </div>
+
           {/* リセットボタン */}
           <div className="flex justify-end pt-1">
             <button
@@ -1013,6 +1034,8 @@ export default function RecordInput() {
               onClick={() => {
                 setVisitTasksBefore(VISIT_TASKS_BEFORE_DEFAULT.map(t => ({ ...t })));
                 setVisitTasksAfter(VISIT_TASKS_AFTER_DEFAULT.map(t => ({ ...t })));
+                setVisitSpecialNote("");
+                try { localStorage.removeItem(DRAFT_VISIT_NOTE_KEY); } catch {};
               }}
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-colors"
             >
