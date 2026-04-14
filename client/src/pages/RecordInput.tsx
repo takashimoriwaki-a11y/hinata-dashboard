@@ -173,6 +173,7 @@ const findBestMatches = (
 };
 
 const MAX_SLOTS = 8;
+const CONTINUOUS_SILENCE_TIMEOUT_MS = 2200; // 無音2.2秒で自動停止
 
 type VisitSlotData = {
   team: Team | "";
@@ -347,6 +348,10 @@ export default function RecordInput() {
   // ===== 一括音声入力 =====
   const [isBulkListening, setIsBulkListening] = useState(false);
   const bulkRecognitionRef = useRef<SpeechRecognitionType | null>(null);
+  const bulkSilenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [bulkRecognizedCount, setBulkRecognizedCount] = useState(0); // 連続モードで認識した名前数
+  // スロットのrefリスト（次の空き枠へのスクロール用）
+  const slotRefs = useRef<Array<HTMLDivElement | null>>(Array.from({ length: MAX_SLOTS }, () => null));
   // 一括音声入力で複数候補が出た場合のモーダル
   const [bulkCandidates, setBulkCandidates] = useState<PatientEntry[]>([]);
   const [bulkCandidateSlotIndex, setBulkCandidateSlotIndex] = useState<number>(-1);
@@ -373,13 +378,36 @@ export default function RecordInput() {
     recognition.maxAlternatives = 5;
     bulkRecognitionRef.current = recognition;
 
-    recognition.onstart = () => setIsBulkListening(true);
-    recognition.onend = () => setIsBulkListening(false);
+    recognition.onstart = () => {
+      setIsBulkListening(true);
+      setBulkRecognizedCount(0);
+      // 最初の無音タイムアウトをセット（発話が始まらない場合の保険）
+      bulkSilenceTimerRef.current = setTimeout(() => {
+        recognition.stop();
+      }, CONTINUOUS_SILENCE_TIMEOUT_MS * 2);
+    };
+    recognition.onend = () => {
+      setIsBulkListening(false);
+      if (bulkSilenceTimerRef.current) {
+        clearTimeout(bulkSilenceTimerRef.current);
+        bulkSilenceTimerRef.current = null;
+      }
+    };
     recognition.onerror = (e: any) => {
       setIsBulkListening(false);
+      if (bulkSilenceTimerRef.current) {
+        clearTimeout(bulkSilenceTimerRef.current);
+        bulkSilenceTimerRef.current = null;
+      }
       if (e.error !== "no-speech") toast.error("音声認識に失敗しました");
     };
     recognition.onresult = (event: any) => {
+      // 無音タイマーをリセット（発話が来たので延長）
+      if (bulkSilenceTimerRef.current) clearTimeout(bulkSilenceTimerRef.current);
+      bulkSilenceTimerRef.current = setTimeout(() => {
+        recognition.stop();
+      }, CONTINUOUS_SILENCE_TIMEOUT_MS);
+
       const resultSet = event.results[event.results.length - 1];
       // 全認識候補を収集
       const alternatives: Array<{ transcript: string; confidence: number }> = [];
@@ -414,6 +442,14 @@ export default function RecordInput() {
             // 仮想的にスロットを埋めたとしてマーク
             currentSlots[emptyIdx] = { ...currentSlots[emptyIdx], patientName: matches[0].name };
             successCount++;
+            setBulkRecognizedCount(c => c + 1);
+            // 次の空き枠にスクロール
+            const nextEmptyIdx = currentSlots.findIndex((s, i) => i > emptyIdx && !s.patientName);
+            if (nextEmptyIdx >= 0) {
+              setTimeout(() => {
+                slotRefs.current[nextEmptyIdx]?.scrollIntoView({ behavior: "smooth", block: "center" });
+              }, 300);
+            }
           } else if (matches.length > 1) {
             // 複数候補 → 最初の複数候補のみモーダル表示
             setBulkCandidates(matches);
@@ -441,7 +477,15 @@ export default function RecordInput() {
           patientName: matches[0].name,
         });
         setSlotSearch(emptySlotIndex, matches[0].name);
+        setBulkRecognizedCount(c => c + 1);
         toast.success(`枠${emptySlotIndex + 1}に「${matches[0].name}」を入力しました`);
+        // 次の空き枠にスクロール
+        const nextEmptyIdxSingle = slots.findIndex((s, i) => i > emptySlotIndex && !s.patientName);
+        if (nextEmptyIdxSingle >= 0) {
+          setTimeout(() => {
+            slotRefs.current[nextEmptyIdxSingle]?.scrollIntoView({ behavior: "smooth", block: "center" });
+          }, 300);
+        }
       } else if (matches.length > 1) {
         // 複数候補 → モーダルで選択
         setBulkCandidates(matches);
@@ -546,7 +590,7 @@ export default function RecordInput() {
                 title={isBulkListening ? "録音停止（連続音声入力中）" : "音声で利用者を連続入力"}
               >
                 {isBulkListening ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
-                {isBulkListening ? "停止" : "音声入力"}
+                {isBulkListening ? `停止${bulkRecognizedCount > 0 ? ` (${bulkRecognizedCount}名)` : ""}` : "音声入力"}
               </button>
               <button
                 type="button"
@@ -572,6 +616,16 @@ export default function RecordInput() {
               onSearchChange={(q) => setSlotSearch(index, q)}
               onShowListChange={(show) => setSlotShowList(index, show)}
               onSlotChange={(data) => handleSlotChange(index, data)}
+              slotRef={(el) => { slotRefs.current[index] = el; }}
+              onCandidateSelected={() => {
+                // 次の空き枠にスクロール
+                const nextIdx = slots.findIndex((s, i) => i > index && !s.patientName);
+                if (nextIdx >= 0) {
+                  setTimeout(() => {
+                    slotRefs.current[nextIdx]?.scrollIntoView({ behavior: "smooth", block: "center" });
+                  }, 300);
+                }
+              }}
             />
           ))}
         </CardContent>
@@ -602,7 +656,15 @@ export default function RecordInput() {
                     setSlotSearch(bulkCandidateSlotIndex, p.name);
                     setBulkCandidates([]);
                     setBulkCandidateSlotIndex(-1);
-                    toast.success(`枠${bulkCandidateSlotIndex + 1}に「${p.name}」を入力しました`);
+                    setBulkRecognizedCount(c => c + 1);
+              toast.success(`枠${bulkCandidateSlotIndex + 1}に「${p.name}」を入力しました`);
+              // 次の空き枠にスクロール
+              const nextEmptyIdxModal = slots.findIndex((s, i) => i > bulkCandidateSlotIndex && !s.patientName);
+              if (nextEmptyIdxModal >= 0) {
+                setTimeout(() => {
+                  slotRefs.current[nextEmptyIdxModal]?.scrollIntoView({ behavior: "smooth", block: "center" });
+                }, 300);
+              }
                   }}
                 >
                   <span className="text-sm font-medium">{p.name}</span>
@@ -648,7 +710,15 @@ export default function RecordInput() {
                     setBulkSuggestCandidates([]);
                     setBulkSuggestSlotIndex(-1);
                     setBulkSuggestQuery("");
-                    toast.success(`枠${bulkSuggestSlotIndex + 1}に「${p.name}」を入力しました`);
+                    setBulkRecognizedCount(c => c + 1);
+              toast.success(`枠${bulkSuggestSlotIndex + 1}に「${p.name}」を入力しました`);
+              // 次の空き枠にスクロール
+              const nextEmptyIdxSuggest = slots.findIndex((s, i) => i > bulkSuggestSlotIndex && !s.patientName);
+              if (nextEmptyIdxSuggest >= 0) {
+                setTimeout(() => {
+                  slotRefs.current[nextEmptyIdxSuggest]?.scrollIntoView({ behavior: "smooth", block: "center" });
+                }, 300);
+              }
                   }}
                 >
                   <span className="text-sm font-medium">{p.name}</span>
@@ -691,11 +761,14 @@ type SlotSelectorProps = {
   onSearchChange: (q: string) => void;
   onShowListChange: (show: boolean) => void;
   onSlotChange: (data: Partial<VisitSlotData>) => void;
+  slotRef?: (el: HTMLDivElement | null) => void;
+  onCandidateSelected?: () => void;
 };
 
 function SlotSelector({
   index, slot, allPatients, searchQuery, showList,
-  onSearchChange, onShowListChange, onSlotChange
+  onSearchChange, onShowListChange, onSlotChange,
+  slotRef, onCandidateSelected
 }: SlotSelectorProps) {
   const [, navigate] = useLocation();
   const slotNumber = index + 1;
@@ -820,10 +893,13 @@ function SlotSelector({
   const isSelected = !!slot.patientName;
 
   return (
-    <div className={cn(
-      "rounded-lg border p-2.5 transition-colors",
-      isSelected ? "border-primary/40 bg-primary/5" : "border-border bg-background"
-    )}>
+    <div
+      ref={slotRef}
+      className={cn(
+        "rounded-lg border p-2.5 transition-colors",
+        isSelected ? "border-primary/40 bg-primary/5" : "border-border bg-background"
+      )}
+    >
       <div className="flex items-center gap-2">
         {/* 番号 */}
         <span className={cn(
@@ -957,6 +1033,7 @@ function SlotSelector({
                         onShowListChange(false);
                         setVoiceCandidates([]);
                         setSuggestCandidates([]);
+                        onCandidateSelected?.();
                       }}
                     >
                       <span className="font-medium">{p.name}</span>
