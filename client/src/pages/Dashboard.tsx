@@ -10,7 +10,6 @@ import { Confetti } from "@/components/Confetti";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { AttendanceCheckModal } from "@/components/AttendanceCheckModal";
-import { MonthlyOvertimeSignature } from "@/components/MonthlyOvertimeSignature";
 import { AlcoholCheckModal } from "@/components/AlcoholCheckModal";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5366,10 +5365,6 @@ export default function Dashboard() {
           <div data-scroll-reveal data-delay="200"><VisitCountCard /></div>
           {/* 曜日別件数（モバイル: 7番目、PC: 左カラム4番目） */}
           <div data-scroll-reveal data-delay="300"><DailyByTeamCard /></div>
-          {/* 月次残業確認・署名（モバイル: 8番目、PC: 左カラム5番目） */}
-          <div data-scroll-reveal data-delay="350">
-            <MonthlyOvertimeSignature />
-          </div>
           {/* 残業申請承認（管理者のみ・モバイル: 9番目、PC: 左カラム6番目） */}
           {dashboardUser?.role === "admin" && (
             <div data-scroll-reveal data-delay="375">

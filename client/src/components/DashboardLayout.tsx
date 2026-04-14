@@ -58,6 +58,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import TeamGoalsTicker from "./TeamGoalsTicker";
+import { MonthlyOvertimeSignature } from "./MonthlyOvertimeSignature";
 import AISharedPromptsModal from "./AISharedPromptsModal";
 import { TeamSetupModal } from "./TeamSetupModal";
 import { WelcomeModal } from "./WelcomeModal";
@@ -341,9 +342,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             )}
           >
             <tool.icon className="w-5 h-5 flex-shrink-0" />
-            {(!collapsed || mobile) && <span className="truncate">{tool.label}</span>}
+             {(!collapsed || mobile) && <span className="truncate">{tool.label}</span>}
           </a>
         ))}
+        {/* 月次残業確認・署名パネル（サイドバー内・展開時のみ表示） */}
+        {(!collapsed || mobile) && (
+          <div className="mx-2 mt-2 mb-1">
+            <MonthlyOvertimeSignature />
+          </div>
+        )}
       </nav>
 
       {/* ボトムアクション */}
