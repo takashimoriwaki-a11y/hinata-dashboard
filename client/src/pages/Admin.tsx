@@ -773,7 +773,13 @@ export default function Admin() {
 
   const registeredMonths = useMemo(() => {
     if (!allLinks) return [];
-    return Array.from(new Set(allLinks.map((l) => l.yearMonth))).sort().reverse();
+    // 前月までは表示、先月以降も表示、、2ヶ月前以前は自動非表示
+    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevYearMonth = toYearMonth(prevMonth.getFullYear(), prevMonth.getMonth() + 1);
+    return Array.from(new Set(allLinks.map((l) => l.yearMonth)))
+      .filter((ym) => ym >= prevYearMonth)
+      .sort()
+      .reverse();
   }, [allLinks]);
 
   const handleSave = (linkKey: string, label: string, color: string) => {

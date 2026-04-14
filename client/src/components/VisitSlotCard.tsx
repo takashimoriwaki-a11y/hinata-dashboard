@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Loader2, Calendar, ChevronDown, CheckSquare, X, Copy, Check,
-  CheckCircle2, Circle, Mic, MicOff
+  CheckCircle2, Circle, Mic, MicOff, ExternalLink
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
@@ -503,10 +503,21 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
 
           {/* ===== ② 次回訪問日時 ===== */}
           <div className="space-y-3 border-t pt-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5" />
-              ② 次回訪問日時
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5" />
+                ② 次回訪問日時
+              </p>
+              <a
+                href="https://homecare.zest.jp/login"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-800/60 transition-colors"
+              >
+                <ExternalLink className="w-3 h-3" />
+                ZEST
+              </a>
+            </div>
 
             {/* 日付・時刻 */}
             <div className="flex gap-2">
