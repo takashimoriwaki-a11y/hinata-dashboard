@@ -175,7 +175,44 @@ async function autoCreateAlcoholCheckSpreadsheet(year: number, month: number): P
       supportsAllDrives: true,
     });
     const spreadsheetId = createRes.data.id!;
-    console.log(`[AutoSheet] Created spreadsheet in folder: ${ALCOHOL_FOLDER_ID}`);
+    console.log(`[AutoSheet] Created spreadsheet: ${spreadsheetId}`);
+    // フォルダへ明示的に移動（parentsが反映されない場合の保険）
+    try {
+      const fileInfo = await drive.files.get({
+        fileId: spreadsheetId,
+        fields: "parents",
+        supportsAllDrives: true,
+      });
+      const currentParents = (fileInfo.data.parents ?? []).join(",");
+      await drive.files.update({
+        fileId: spreadsheetId,
+        addParents: ALCOHOL_FOLDER_ID,
+        removeParents: currentParents,
+        supportsAllDrives: true,
+        fields: "id, parents",
+      });
+      console.log(`[AutoSheet] Moved spreadsheet to folder: ${ALCOHOL_FOLDER_ID}`);
+    } catch (moveErr) {
+      console.warn(`[AutoSheet] Failed to move to folder (will continue):`, moveErr);
+    }
+    // デフォルトシート（Sheet1等）を「概要」にリネーム
+    const spreadsheetInfo = await sheets.spreadsheets.get({ spreadsheetId });
+    const defaultSheetId = spreadsheetInfo.data.sheets?.[0]?.properties?.sheetId;
+    const defaultSheetName = spreadsheetInfo.data.sheets?.[0]?.properties?.title ?? "Sheet1";
+    if (defaultSheetName !== "概要" && defaultSheetId !== undefined) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [{
+            updateSheetProperties: {
+              properties: { sheetId: defaultSheetId, title: "概要" },
+              fields: "title",
+            },
+          }],
+        },
+      });
+      console.log(`[AutoSheet] Renamed default sheet "${defaultSheetName}" to "概要"`);
+    }
     // 概要シートに説明を記入
     await sheets.spreadsheets.values.update({
       spreadsheetId,
@@ -256,7 +293,26 @@ export async function autoCreateTimesheetSpreadsheet(year: number, month: number
       supportsAllDrives: true,
     });
     const spreadsheetId = createRes.data.id!;
-    console.log(`[TimesheetAutoSheet] Created spreadsheet in folder: ${TIMESHEET_FOLDER_ID}`);
+    console.log(`[TimesheetAutoSheet] Created spreadsheet: ${spreadsheetId}`);
+    // フォルダへ明示的に移動（parentsが反映されない場合の保険）
+    try {
+      const fileInfo = await drive.files.get({
+        fileId: spreadsheetId,
+        fields: "parents",
+        supportsAllDrives: true,
+      });
+      const currentParents = (fileInfo.data.parents ?? []).join(",");
+      await drive.files.update({
+        fileId: spreadsheetId,
+        addParents: TIMESHEET_FOLDER_ID,
+        removeParents: currentParents,
+        supportsAllDrives: true,
+        fields: "id, parents",
+      });
+      console.log(`[TimesheetAutoSheet] Moved spreadsheet to folder: ${TIMESHEET_FOLDER_ID}`);
+    } catch (moveErr) {
+      console.warn(`[TimesheetAutoSheet] Failed to move to folder (will continue):`, moveErr);
+    }
 
     // デフォルトシート（Sheet1等）を「概要」にリネーム
     const metaForRename = await sheets.spreadsheets.get({ spreadsheetId });
