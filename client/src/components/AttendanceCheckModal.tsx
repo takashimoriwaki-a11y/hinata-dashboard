@@ -257,6 +257,9 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   const [physicalCondition, setPhysicalCondition] = useState<"good" | "poor">("good");
   const [physicalConditionNote, setPhysicalConditionNote] = useState("");
 
+  // アルコールチェックフォームの折りたたみ状態（記録済みなら折りたたむ）
+  const [alcoholOpen, setAlcoholOpen] = useState(!savedState?.alcoholRecorded);
+
   // 残業入力（退勤時のみ）
   const openedAt = useMemo(() => new Date(), []);
   const [hasOvertime, setHasOvertime] = useState(savedState?.hasOvertime ?? false);
@@ -665,6 +668,11 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   const alcoholDoneForBanner = alcoholRecorded || (isOfficeStaff && alcoholSkipped);
   const allClockInTasksDone = isClockIn && allClockInStepsDone && alcoholDoneForBanner && clockInDone;
 
+  // アルコール記録済みになったら自動で折りたたむ
+  useEffect(() => {
+    if (alcoholRecorded) setAlcoholOpen(false);
+  }, [alcoholRecorded]);
+
   // ── アルコールチェックフォームのJSX（共通） ──
   const alcoholCheckForm = (
     <div className={`mx-3 mt-2 mb-0 rounded-xl border-2 overflow-hidden ${
@@ -672,52 +680,72 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         ? "border-orange-200 dark:border-orange-800"
         : "border-cyan-200 dark:border-cyan-800"
     }`}>
-      {/* セクションヘッダー */}
-      <div className={`px-4 py-3 flex items-center justify-between gap-2 ${
+      {/* セクションヘッダー（タップで展開/折りたたみ） */}
+      <div
+        onClick={() => setAlcoholOpen(v => !v)}
+        className={`px-4 py-3 flex items-center justify-between gap-2 cursor-pointer select-none ${
         isClockIn
           ? "bg-orange-100 dark:bg-orange-900/30"
           : "bg-cyan-100 dark:bg-cyan-900/30"
       }`}>
-        <div className="flex items-center gap-2">
-          <Shield className={`w-4 h-4 ${isClockIn ? "text-orange-600 dark:text-orange-400" : "text-cyan-600 dark:text-cyan-400"}`} />
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <Shield className={`w-4 h-4 flex-shrink-0 ${isClockIn ? "text-orange-600 dark:text-orange-400" : "text-cyan-600 dark:text-cyan-400"}`} />
           <span className={`text-sm font-bold ${isClockIn ? "text-orange-700 dark:text-orange-300" : "text-cyan-700 dark:text-cyan-300"}`}>
             アルコールチェック
           </span>
           {isOfficeStaff && (
             <span className="text-xs text-gray-500 dark:text-gray-400 font-normal">(任意)</span>
           )}
+          {alcoholRecorded && (
+            <span className="text-xs text-green-600 dark:text-green-400 font-semibold">✓ 記録済み</span>
+          )}
+          {alcoholSkipped && !alcoholRecorded && (
+            <span className="text-xs text-gray-500 dark:text-gray-400 font-semibold">スキップ済み</span>
+          )}
         </div>
-        {/* 全リセットボタン（未記録時のみ表示） */}
-        {!alcoholRecorded && !alcoholSkipped && (
-          <button
-            type="button"
-            onClick={() => setShowAlcoholResetConfirm(true)}
-            className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
-              isClockIn
-                ? "bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 hover:bg-orange-200 dark:hover:bg-orange-800/50"
-                : "bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-200 dark:hover:bg-cyan-800/50"
-            }`}
-          >
-            <RefreshCw className="w-3 h-3" />
-            全リセット
-          </button>
-        )}
-        {/* 事務員向けスキップボタン */}
-        {isOfficeStaff && !alcoholRecorded && (
-          <button
-            type="button"
-            onClick={() => setAlcoholSkipped((v) => !v)}
-            className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
-              alcoholSkipped
-                ? "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
-                : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
-            }`}
-          >
-            {alcoholSkipped ? "✓ スキップ済み" : "スキップ"}
-          </button>
-        )}
+        <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
+          {/* 全リセットボタン（未記録時のみ表示） */}
+          {!alcoholRecorded && !alcoholSkipped && (
+            <button
+              type="button"
+              onClick={() => setShowAlcoholResetConfirm(true)}
+              className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
+                isClockIn
+                  ? "bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 hover:bg-orange-200 dark:hover:bg-orange-800/50"
+                  : "bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-200 dark:hover:bg-cyan-800/50"
+              }`}
+            >
+              <RefreshCw className="w-3 h-3" />
+              全リセット
+            </button>
+          )}
+          {/* 事務員向けスキップボタン */}
+          {isOfficeStaff && !alcoholRecorded && (
+            <button
+              type="button"
+              onClick={() => setAlcoholSkipped((v) => !v)}
+              className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
+                alcoholSkipped
+                  ? "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+              }`}
+            >
+              {alcoholSkipped ? "✓ スキップ済み" : "スキップ"}
+            </button>
+          )}
+          <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isClockIn ? "text-orange-500" : "text-cyan-500"} ${alcoholOpen ? "rotate-180" : "rotate-0"}`} />
+        </div>
       </div>
 
+      {/* アコーディオンコンテンツ */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateRows: alcoholOpen ? '1fr' : '0fr',
+          transition: 'grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+      >
+      <div className="overflow-hidden">
       {/* スキップ済みの場合はフォームを非表示 */}
       {alcoholSkipped && !alcoholRecorded ? (
         <div className="px-4 py-3 bg-white dark:bg-gray-900">
@@ -1066,11 +1094,13 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         </div>
       </div>
       )}
+      </div>
+      </div>
     </div>
   );
 
   // ── 残業カードのJSX（退勤時のみ） ──
-  // NOTE: 上記の `)}` は `{alcoholSkipped && !alcoholRecorded ? (…) : (…)}` の閉じタグ
+  // NOTE: 上記の `)}` は `{alcoholSkipped && !alcoholRecorded}` の閉じタグ
   const overtimeCard = (
     <div className="mx-3 my-2 rounded-xl border-2 border-purple-200 dark:border-purple-800 overflow-hidden">
       <div className={`flex items-center ${hasOvertime ? "bg-purple-50 dark:bg-purple-950/30" : "bg-gray-50 dark:bg-gray-800"}`}>
@@ -1654,6 +1684,44 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 : (isClockIn ? "出勤時確認" : "退勤時確認")}
             </span>
           </div>
+          {/* 進捗インジケーター */}
+          {(() => {
+            if (isClockIn) {
+              // 出勤時：手順ステップ数 + アルコール + 打刻
+              const total = steps.length + 2; // 手順ステップ + アルコール + 打刻
+              const completedSteps = steps.filter(s => done[s.id]).length;
+              const completedAlcohol = alcoholDoneForBanner ? 1 : 0;
+              const completedClockIn = clockInDone ? 1 : 0;
+              const completed = completedSteps + completedAlcohol + completedClockIn;
+              return (
+                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
+                  completed === total
+                    ? 'bg-white/30 text-white'
+                    : 'bg-white/20 text-white/90'
+                }`}>
+                  {completed === total ? <CheckCircle2 className="w-3.5 h-3.5" /> : null}
+                  <span>{completed}/{total}</span>
+                </div>
+              );
+            } else {
+              // 退勤時：打刻 + アルコール + 手順ステップ
+              const total = 1 + 1 + steps.length; // 退勤打刻 + アルコール + みまもドライブ
+              const completedClockOut = clockOutDone ? 1 : 0;
+              const completedAlcohol = alcoholDoneForBanner ? 1 : 0;
+              const completedSteps = steps.filter(s => done[s.id]).length;
+              const completed = completedClockOut + completedAlcohol + completedSteps;
+              return (
+                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
+                  completed === total
+                    ? 'bg-white/30 text-white'
+                    : 'bg-white/20 text-white/90'
+                }`}>
+                  {completed === total ? <CheckCircle2 className="w-3.5 h-3.5" /> : null}
+                  <span>{completed}/{total}</span>
+                </div>
+              );
+            }
+          })()}
           <button
             type="button"
             onClick={handleCloseRequest}
