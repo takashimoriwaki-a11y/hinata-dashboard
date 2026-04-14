@@ -49,6 +49,8 @@ export const scheduleScreenshots = mysqlTable("schedule_screenshots", {
   team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部"]).notNull(),
   /** 今日 or 明日 or 3日後 or 4日後 */
   day: mysqlEnum("day", ["今日", "明日", "2日後", "3日後", "4日後"]).notNull(),
+  /** 実際の日付（YYYY-MM-DD形式）。アップロード時に計算して保存。日付をまたいでも正しい日付に表示される */
+  scheduleDate: varchar("scheduleDate", { length: 10 }),
   /** 画像のURL（S3またはdata:URL） */
   imageUrl: text("imageUrl").notNull(),
   /** S3のキー（削除に使用）またはDB保存の場合は空 */

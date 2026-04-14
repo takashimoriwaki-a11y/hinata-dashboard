@@ -2025,10 +2025,26 @@ export const appRouter = router({
     // 全チーム・全日程のスクショ一覧を取得
     getAll: publicProcedure.query(async () => {
       const screenshots = await getAllScreenshots();
+
+      // 今日の日付（日本時間でYYYY-MM-DD形式）
+      const todayJST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Tokyo" }));
+      const todayStr = `${todayJST.getFullYear()}-${String(todayJST.getMonth() + 1).padStart(2, "0")}-${String(todayJST.getDate()).padStart(2, "0")}`;
+
+      // 日付文字列から相対的な日付ラベルを計算する関数
+      const dayLabels = ["今日", "明日", "2日後", "3日後", "4日後"] as const;
+      function computeRelativeDay(scheduleDate: string | null | undefined, fallbackDay: string): string {
+        if (!scheduleDate) return fallbackDay; // scheduleDateがない古いレコードはdayをそのまま使用
+        const diffMs = new Date(scheduleDate).getTime() - new Date(todayStr).getTime();
+        const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+        if (diffDays < 0 || diffDays >= dayLabels.length) return fallbackDay; // 範囲外は元のdayを使用
+        return dayLabels[diffDays];
+      }
+
       return screenshots.map((s) => ({
         id: s.id,
         team: s.team,
-        day: s.day,
+        day: computeRelativeDay(s.scheduleDate, s.day),
+        scheduleDate: s.scheduleDate,
         // imageUrlがdata:URLの場合は専用エンドポイントのURLに変換（Base64データをレスポンスに含めない）
         imageUrl: s.imageUrl?.startsWith("data:") ? `/api/screenshot/${s.id}` : s.imageUrl,
         uploadedByName: s.uploadedByName,
@@ -2078,10 +2094,21 @@ export const appRouter = router({
           imageUrl = `__db__`; // upsert後にIDで上書き
         }
 
+        // 実際の日付を計算（日本時間でYYYY-MM-DD形式）
+        const todayJST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Tokyo" }));
+        const dayOffsets: Record<string, number> = {
+          "今日": 0, "明日": 1, "2日後": 2, "3日後": 3, "4日後": 4,
+        };
+        const offset = dayOffsets[input.day] ?? 0;
+        const targetDate = new Date(todayJST);
+        targetDate.setDate(targetDate.getDate() + offset);
+        const scheduleDate = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, "0")}-${String(targetDate.getDate()).padStart(2, "0")}`;
+
         // DBにアップサート
         const recordId = await upsertScreenshot({
           team: input.team,
           day: input.day,
+          scheduleDate,
           imageUrl,
           imageKey,
           imageData,

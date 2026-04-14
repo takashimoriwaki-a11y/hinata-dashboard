@@ -1,0 +1,1 @@
+ALTER TABLE `schedule_screenshots` ADD `scheduleDate` varchar(10);
