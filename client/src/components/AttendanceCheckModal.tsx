@@ -1054,7 +1054,14 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         )}
       </div>
 
-      {hasOvertime && (
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateRows: hasOvertime ? '1fr' : '0fr',
+          transition: 'grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+      >
+        <div className="overflow-hidden">
         <div className="px-4 pb-4 pt-3 space-y-3 bg-white dark:bg-gray-900">
           {/* 残業開始時刻 */}
           <div>
@@ -1263,7 +1270,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             )}
           </button>
         </div>
-      )}
+        </div>
+      </div>
     </div>
   );
 
