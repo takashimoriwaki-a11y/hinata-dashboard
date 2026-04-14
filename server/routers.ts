@@ -1,7 +1,7 @@
 import { getSessionCookieOptions } from "./_core/cookies";
 import { google } from "googleapis";
 
-/** アルコールチェック記録を月別スプレッドシートの職員タブに転記する */
+/** アルコールチェック記録を月別スプレッドシートの職員タブに転記する（1日2行形式・色付け対応） */
 async function appendAlcoholCheckToSheet(record: {
   checkedAt: number;
   type: string;
@@ -40,47 +40,16 @@ async function appendAlcoholCheckToSheet(record: {
     });
     const sheets = google.sheets({ version: "v4", auth });
 
-    const toJST = (ms: number | null | undefined) =>
-      ms ? new Date(ms).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit" }) : "";
     const checkedDate = new Date(record.checkedAt);
     const dateStr = checkedDate.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+    // 日付部分のみ（YYYY/MM/DD形式）を同日検索に使用
+    const dateOnlyStr = checkedDate.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" });
     const typeLabel = record.type === "clock_in" ? "出勤" : "退勤";
     const confirmMethodLabel = record.confirmMethod === "online" ? "オンライン画面" : "対面";
     const detectorLabel = record.detectorUsed ? "使用" : "未使用";
     const alcoholLabel = record.alcoholDetected ? "有" : "無";
     const timestampStr = new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" });
-    const clockInStr = toJST(record.clockInAt);
-    const clockOutStr = toJST(record.clockOutAt);
-    const overtimeStr = record.overtimeStartAt && record.overtimeEndAt
-      ? `${toJST(record.overtimeStartAt)}～${toJST(record.overtimeEndAt)}`
-      : "";
 
-    // 職員名でタブを取得、存在しなければ作成
-    const tabName = record.userName;
-    const spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId });
-    const existingSheets = spreadsheetMeta.data.sheets ?? [];
-    const tabExists = existingSheets.some((s) => s.properties?.title === tabName);
-
-    if (!tabExists) {
-      // 新規タブを作成してヘッダー行を設定
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId,
-        requestBody: {
-          requests: [{ addSheet: { properties: { title: tabName } } }],
-        },
-      });
-      // ヘッダー行を設定
-      await sheets.spreadsheets.values.update({
-        spreadsheetId,
-        range: `${tabName}!A1:R1`,
-        valueInputOption: "USER_ENTERED",
-        requestBody: {
-          values: [["実施日時", "区分", "氏名", "ナンバープレート", "確認方法", "検知器使用", "測定値(mg/L)", "検知器種類・型番", "酒気帯有無", "確認者", "運転目的", "同乗者", "同乗者人数", "体調確認", "体調詳細", "備考", "位置情報", "登録日時"]],
-        },
-      });
-    }
-
-    // データ行を追加
     // 運転目的ラベル変換
     const drivingPurposeLabel = (() => {
       switch (record.drivingPurpose) {
@@ -101,33 +70,384 @@ async function appendAlcoholCheckToSheet(record: {
       }
     })();
 
-    await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: `${tabName}!A:R`,
-      valueInputOption: "USER_ENTERED",
-      requestBody: {
-        values: [[
-          dateStr,
-          typeLabel,
-          record.userName,
-          record.numberPlate,
-          confirmMethodLabel,
-          detectorLabel,
-          record.alcoholMeasuredValue ?? "",
-          record.detectorType ?? "",
-          alcoholLabel,
-          record.confirmerName,
-          drivingPurposeLabel,
-          hasPassengerLabel,
-          record.passengerCount != null ? String(record.passengerCount) : "",
-          physicalConditionLabel,
-          record.physicalConditionNote ?? "",
-          record.notes ?? "",
-          record.locationAddress ?? "",
-          timestampStr,
-        ]],
-      },
-    });
+    const newRow = [
+      dateStr,
+      typeLabel,
+      record.userName,
+      record.numberPlate,
+      confirmMethodLabel,
+      detectorLabel,
+      record.alcoholMeasuredValue ?? "",
+      record.detectorType ?? "",
+      alcoholLabel,
+      record.confirmerName,
+      drivingPurposeLabel,
+      hasPassengerLabel,
+      record.passengerCount != null ? String(record.passengerCount) : "",
+      physicalConditionLabel,
+      record.physicalConditionNote ?? "",
+      record.notes ?? "",
+      record.locationAddress ?? "",
+      timestampStr,
+    ];
+
+    // 職員名でタブを取得、存在しなければ作成
+    const tabName = record.userName;
+    const spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId });
+    const existingSheets = spreadsheetMeta.data.sheets ?? [];
+    let sheetInfo = existingSheets.find((s) => s.properties?.title === tabName);
+
+    if (!sheetInfo) {
+      // 新規タブを作成
+      const addRes = await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [{ addSheet: { properties: { title: tabName } } }],
+        },
+      });
+      // 作成後のシート情報を取得
+      const updatedMeta = await sheets.spreadsheets.get({ spreadsheetId });
+      sheetInfo = (updatedMeta.data.sheets ?? []).find((s) => s.properties?.title === tabName) ?? null;
+      const newSheetId = sheetInfo?.properties?.sheetId ?? 0;
+
+      // ヘッダー行を設定
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${tabName}!A1:R1`,
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: [["実施日時", "区分", "氏名", "ナンバープレート", "確認方法", "検知器使用", "測定値(mg/L)", "検知器種類・型番", "酒気帯有無", "確認者", "運転目的", "同乗者", "同乗者人数", "体調確認", "体調詳細", "備考", "位置情報", "登録日時"]],
+        },
+      });
+
+      // ヘッダー行に書式設定（緑系背景・白文字・太字・列幅調整）
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [
+            // ヘッダー行の書式設定
+            {
+              repeatCell: {
+                range: { sheetId: newSheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 18 },
+                cell: {
+                  userEnteredFormat: {
+                    backgroundColor: { red: 0.18, green: 0.49, blue: 0.31 },
+                    textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 }, fontSize: 10 },
+                    horizontalAlignment: "CENTER",
+                    verticalAlignment: "MIDDLE",
+                    wrapStrategy: "CLIP",
+                  },
+                },
+                fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)",
+              },
+            },
+            // ヘッダー行の高さを設定
+            {
+              updateDimensionProperties: {
+                range: { sheetId: newSheetId, dimension: "ROWS", startIndex: 0, endIndex: 1 },
+                properties: { pixelSize: 30 },
+                fields: "pixelSize",
+              },
+            },
+            // 列幅を設定（A列:実施日時を広く）
+            {
+              updateDimensionProperties: {
+                range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 0, endIndex: 1 },
+                properties: { pixelSize: 140 },
+                fields: "pixelSize",
+              },
+            },
+            // B列:区分
+            {
+              updateDimensionProperties: {
+                range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 1, endIndex: 2 },
+                properties: { pixelSize: 60 },
+                fields: "pixelSize",
+              },
+            },
+            // C列:氏名
+            {
+              updateDimensionProperties: {
+                range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 2, endIndex: 3 },
+                properties: { pixelSize: 80 },
+                fields: "pixelSize",
+              },
+            },
+            // D列:ナンバープレート
+            {
+              updateDimensionProperties: {
+                range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 3, endIndex: 4 },
+                properties: { pixelSize: 110 },
+                fields: "pixelSize",
+              },
+            },
+            // E列:確認方法
+            {
+              updateDimensionProperties: {
+                range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 4, endIndex: 5 },
+                properties: { pixelSize: 110 },
+                fields: "pixelSize",
+              },
+            },
+            // F列:検知器使用
+            {
+              updateDimensionProperties: {
+                range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 5, endIndex: 6 },
+                properties: { pixelSize: 80 },
+                fields: "pixelSize",
+              },
+            },
+            // G列:測定値
+            {
+              updateDimensionProperties: {
+                range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 6, endIndex: 7 },
+                properties: { pixelSize: 90 },
+                fields: "pixelSize",
+              },
+            },
+            // H列:検知器種類・型番
+            {
+              updateDimensionProperties: {
+                range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 7, endIndex: 8 },
+                properties: { pixelSize: 130 },
+                fields: "pixelSize",
+              },
+            },
+            // I列:酒気帯有無
+            {
+              updateDimensionProperties: {
+                range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 8, endIndex: 9 },
+                properties: { pixelSize: 80 },
+                fields: "pixelSize",
+              },
+            },
+            // J列:確認者
+            {
+              updateDimensionProperties: {
+                range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 9, endIndex: 10 },
+                properties: { pixelSize: 80 },
+                fields: "pixelSize",
+              },
+            },
+            // K列:運転目的
+            {
+              updateDimensionProperties: {
+                range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 10, endIndex: 11 },
+                properties: { pixelSize: 90 },
+                fields: "pixelSize",
+              },
+            },
+            // L列:同乗者
+            {
+              updateDimensionProperties: {
+                range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 11, endIndex: 12 },
+                properties: { pixelSize: 60 },
+                fields: "pixelSize",
+              },
+            },
+            // M列:同乗者人数
+            {
+              updateDimensionProperties: {
+                range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 12, endIndex: 13 },
+                properties: { pixelSize: 80 },
+                fields: "pixelSize",
+              },
+            },
+            // N列:体調確認
+            {
+              updateDimensionProperties: {
+                range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 13, endIndex: 14 },
+                properties: { pixelSize: 80 },
+                fields: "pixelSize",
+              },
+            },
+            // O列:体調詳細
+            {
+              updateDimensionProperties: {
+                range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 14, endIndex: 15 },
+                properties: { pixelSize: 120 },
+                fields: "pixelSize",
+              },
+            },
+            // P列:備考
+            {
+              updateDimensionProperties: {
+                range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 15, endIndex: 16 },
+                properties: { pixelSize: 120 },
+                fields: "pixelSize",
+              },
+            },
+            // Q列:位置情報
+            {
+              updateDimensionProperties: {
+                range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 16, endIndex: 17 },
+                properties: { pixelSize: 150 },
+                fields: "pixelSize",
+              },
+            },
+            // R列:登録日時
+            {
+              updateDimensionProperties: {
+                range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 17, endIndex: 18 },
+                properties: { pixelSize: 140 },
+                fields: "pixelSize",
+              },
+            },
+            // 先頭行を固定
+            {
+              updateSheetProperties: {
+                properties: {
+                  sheetId: newSheetId,
+                  gridProperties: { frozenRowCount: 1 },
+                },
+                fields: "gridProperties.frozenRowCount",
+              },
+            },
+          ],
+        },
+      });
+    }
+
+    // シートIDを取得
+    const currentMeta = await sheets.spreadsheets.get({ spreadsheetId });
+    const currentSheetInfo = (currentMeta.data.sheets ?? []).find((s) => s.properties?.title === tabName);
+    const sheetId = currentSheetInfo?.properties?.sheetId ?? 0;
+
+    if (record.type === "clock_out") {
+      // 退勤の場合：同日の出勤行を検索し、その直下に行を挿入
+      const allValues = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: `${tabName}!A:B`,
+      });
+      const rows = allValues.data.values ?? [];
+      // 同日かつ「出勤」の最後の行インデックスを探す（0-indexed、ヘッダーは0行目）
+      let clockInRowIndex = -1;
+      for (let i = rows.length - 1; i >= 1; i--) {
+        const cellDate = (rows[i][0] ?? "") as string;
+        const cellType = (rows[i][1] ?? "") as string;
+        // 日付部分が一致し、かつ「出勤」の行を探す
+        if (cellDate.startsWith(dateOnlyStr) && cellType === "出勤") {
+          clockInRowIndex = i;
+          break;
+        }
+      }
+
+      if (clockInRowIndex >= 0) {
+        // 出勤行の直下（clockInRowIndex + 1）に新しい行を挿入
+        const insertAfterIndex = clockInRowIndex + 1; // 0-indexed
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: {
+            requests: [
+              {
+                insertDimension: {
+                  range: {
+                    sheetId,
+                    dimension: "ROWS",
+                    startIndex: insertAfterIndex,
+                    endIndex: insertAfterIndex + 1,
+                  },
+                  inheritFromBefore: false,
+                },
+              },
+            ],
+          },
+        });
+        // 挿入した行にデータを書き込む（1-indexed: insertAfterIndex + 1）
+        const targetRange = `${tabName}!A${insertAfterIndex + 1}:R${insertAfterIndex + 1}`;
+        await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: targetRange,
+          valueInputOption: "USER_ENTERED",
+          requestBody: { values: [newRow] },
+        });
+        // 退勤行に薄いオレンジ色を適用
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: {
+            requests: [
+              {
+                repeatCell: {
+                  range: { sheetId, startRowIndex: insertAfterIndex, endRowIndex: insertAfterIndex + 1, startColumnIndex: 0, endColumnIndex: 18 },
+                  cell: {
+                    userEnteredFormat: {
+                      backgroundColor: { red: 1.0, green: 0.94, blue: 0.84 },
+                    },
+                  },
+                  fields: "userEnteredFormat.backgroundColor",
+                },
+              },
+            ],
+          },
+        });
+      } else {
+        // 同日の出勤行が見つからない場合は末尾に追加
+        const appendRes = await sheets.spreadsheets.values.append({
+          spreadsheetId,
+          range: `${tabName}!A:R`,
+          valueInputOption: "USER_ENTERED",
+          includeValuesInResponse: true,
+          requestBody: { values: [newRow] },
+        });
+        // 追加した行に退勤色を適用
+        const updatedRange = appendRes.data.updates?.updatedRange ?? "";
+        const rowMatch = updatedRange.match(/!(\d+):(\d+)$/) ?? updatedRange.match(/!(\d+)$/);
+        if (rowMatch) {
+          const appendedRowIndex = parseInt(rowMatch[1], 10) - 1; // 0-indexed
+          await sheets.spreadsheets.batchUpdate({
+            spreadsheetId,
+            requestBody: {
+              requests: [
+                {
+                  repeatCell: {
+                    range: { sheetId, startRowIndex: appendedRowIndex, endRowIndex: appendedRowIndex + 1, startColumnIndex: 0, endColumnIndex: 18 },
+                    cell: {
+                      userEnteredFormat: {
+                        backgroundColor: { red: 1.0, green: 0.94, blue: 0.84 },
+                      },
+                    },
+                    fields: "userEnteredFormat.backgroundColor",
+                  },
+                },
+              ],
+            },
+          });
+        }
+      }
+    } else {
+      // 出勤の場合：末尾に追加
+      const appendRes = await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: `${tabName}!A:R`,
+        valueInputOption: "USER_ENTERED",
+        includeValuesInResponse: true,
+        requestBody: { values: [newRow] },
+      });
+      // 追加した行に出勤色（薄い青）を適用
+      const updatedRange = appendRes.data.updates?.updatedRange ?? "";
+      const rowMatch = updatedRange.match(/!(\d+):(\d+)$/) ?? updatedRange.match(/!(\d+)$/);
+      if (rowMatch) {
+        const appendedRowIndex = parseInt(rowMatch[1], 10) - 1; // 0-indexed
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: {
+            requests: [
+              {
+                repeatCell: {
+                  range: { sheetId, startRowIndex: appendedRowIndex, endRowIndex: appendedRowIndex + 1, startColumnIndex: 0, endColumnIndex: 18 },
+                  cell: {
+                    userEnteredFormat: {
+                      backgroundColor: { red: 0.84, green: 0.93, blue: 1.0 },
+                    },
+                  },
+                  fields: "userEnteredFormat.backgroundColor",
+                },
+              },
+            ],
+          },
+        });
+      }
+    }
   } catch (err) {
     console.error("[AlcoholCheck] Failed to append to sheet:", err);
     throw err;
