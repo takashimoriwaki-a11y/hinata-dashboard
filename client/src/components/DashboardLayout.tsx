@@ -5,7 +5,7 @@
  * iPhone: サイドバー非表示 + ボトムナビ固定
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { usePushNotification } from "@/hooks/usePushNotification";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Link, useLocation } from "wouter";
@@ -36,6 +36,7 @@ import {
   Moon,
   Sparkles,
   MapPin,
+  FileCheck,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
@@ -154,6 +155,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [notifDialogOpen, setNotifDialogOpen] = useState(false);
   const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>("all");
   const [showAIPromptsModal, setShowAIPromptsModal] = useState(false);
+
+  // 月次署名の未署名バッジ用クエリ（今月分）
+  const { signatureYear, signatureMonth } = useMemo(() => {
+    const d = new Date();
+    return { signatureYear: d.getFullYear(), signatureMonth: d.getMonth() + 1 };
+  }, []);
+  const { data: currentMonthSignature } = trpc.monthlySignature.get.useQuery(
+    { targetYear: signatureYear, targetMonth: signatureMonth },
+    { enabled: !!user, refetchInterval: 60000 }
+  );
+  const isMonthlySignatureUnsigned = !!user && !currentMonthSignature;
 
   // 初回チーム設定モーダル
   const { data: myProfile } = trpc.userSettings.getMyProfile.useQuery(undefined, {
@@ -345,11 +357,30 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
              {(!collapsed || mobile) && <span className="truncate">{tool.label}</span>}
           </a>
         ))}
-        {/* 月次残業確認・署名パネル（サイドバー内・展開時のみ表示） */}
-        {(!collapsed || mobile) && (
-          <div className="mx-2 mt-2 mb-1">
-            <MonthlyOvertimeSignature />
-          </div>
+        {/* 月次残業確認・署名（折りたたみ時はアイコン+未署名バッジ、展開時はパネル表示） */}
+        {(collapsed && !mobile) ? (
+          <button
+            onClick={toggleCollapsed}
+            title="月次残業確認・署名"
+            className={cn(
+              "relative flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
+              "text-sm font-medium text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+              "justify-center px-0"
+            )}
+          >
+            <span className="relative inline-flex">
+              <FileCheck className="w-5 h-5 flex-shrink-0" />
+              {isMonthlySignatureUnsigned && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-sidebar" />
+              )}
+            </span>
+          </button>
+        ) : (
+          (!collapsed || mobile) && (
+            <div className="mx-2 mt-2 mb-1">
+              <MonthlyOvertimeSignature />
+            </div>
+          )
         )}
       </nav>
 
