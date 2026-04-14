@@ -202,22 +202,22 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     return () => clearInterval(timer);
   }, []);
 
-  // ページ遷移時にスクロール位置を記憶・復元する
+  // ページ遷移時にスクロール位置を記憶・復元する（localStorageで永続化 - アプリ再起動後も復元）
   const mainRef = useRef<HTMLElement>(null);
   const prevLocationRef = useRef<string>(location);
   useEffect(() => {
     const el = mainRef.current;
     if (!el) return;
 
-    // 前のページのスクロール位置を保存
+    // 前のページのスクロール位置を保存（localStorageに永続化）
     const prevPath = prevLocationRef.current;
     if (prevPath !== location) {
-      sessionStorage.setItem(`scroll:${prevPath}`, String(el.scrollTop));
+      try { localStorage.setItem(`scroll:${prevPath}`, String(el.scrollTop)); } catch {}
       prevLocationRef.current = location;
     }
 
-    // 新しいページの保存済みスクロール位置を復元（なければ先頭）
-    const saved = sessionStorage.getItem(`scroll:${location}`);
+    // 新しいページの保存済スクロール位置を復元（なければ先頭）
+    const saved = localStorage.getItem(`scroll:${location}`);
     // DOMが描画された後に復元するため遅延させる（RouteTransitionWrapperのアニメーション40ms + 余裕分）
     const timer = setTimeout(() => {
       if (mainRef.current) {
@@ -638,7 +638,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", WebkitTouchCallout: "none" }}
-                    onPointerDown={() => {}}
+                    onPointerDown={() => { try { navigator.vibrate?.(8); } catch {} }}
                     className={cn(
                       "flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors select-none",
                       isNight ? "text-slate-200 active:text-primary active:scale-95" : "text-muted-foreground active:text-primary active:scale-95"
@@ -657,7 +657,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   key={item.label}
                   href={item.href}
                   style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", WebkitTouchCallout: "none" }}
-                  onPointerDown={() => {}}
+                  onPointerDown={() => { try { navigator.vibrate?.(8); } catch {} }}
                   className={cn(
                     "flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors relative select-none active:scale-95",
                     isActive ? "text-primary" : isNight ? "text-slate-200 active:text-primary" : "text-muted-foreground active:text-primary"

@@ -6,7 +6,7 @@
  * 出勤画面レイアウト：手順チェック → アルコールチェック → フッター（アルコールチェック記録 / 出勤打刻）
  * 退勤画面レイアウト：残業カード → 退勤打刻ボタン → アルコールチェック → アルコール記録 → みまもドライブ停止
  */
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   CheckCircle2,
   ClipboardList,
@@ -201,6 +201,39 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   const [clockInDone, setClockInDone] = useState(savedState?.clockInDone ?? false);
   // 退勤打刻済みフラグ
   const [clockOutDone, setClockOutDone] = useState(savedState?.clockOutDone ?? false);
+
+  // ===== 下スワイプで閉じるジェスチャー =====
+  const swipeStartY = useRef<number | null>(null);
+  const swipeDeltaY = useRef<number>(0);
+  const [dragY, setDragY] = useState(0);
+
+  const handleSwipeStart = useCallback((e: React.TouchEvent | React.PointerEvent) => {
+    const y = "touches" in e ? (e as React.TouchEvent).touches[0].clientY : (e as React.PointerEvent).clientY;
+    swipeStartY.current = y;
+    swipeDeltaY.current = 0;
+  }, []);
+
+  const handleSwipeMove = useCallback((e: React.TouchEvent | React.PointerEvent) => {
+    if (swipeStartY.current === null) return;
+    const y = "touches" in e ? (e as React.TouchEvent).touches[0].clientY : (e as React.PointerEvent).clientY;
+    const delta = y - swipeStartY.current;
+    if (delta > 0) {
+      swipeDeltaY.current = delta;
+      setDragY(Math.min(delta, 200));
+    }
+  }, []);
+
+  const handleSwipeEnd = useCallback(() => {
+    if (swipeDeltaY.current > 80) {
+      setDragY(0);
+      swipeStartY.current = null;
+      handleCloseRequest();
+    } else {
+      setDragY(0);
+      swipeStartY.current = null;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 緊急打刻時の備考
   const [emergencyNote, setEmergencyNote] = useState("");
@@ -1580,7 +1613,19 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       {/* モーダル本体 */}
       <div
         className="relative w-full sm:max-w-md mx-0 sm:mx-4 bg-white dark:bg-gray-900 rounded-b-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[100dvh] sm:max-h-[calc(100dvh-2rem)] overflow-hidden"
+        style={{
+          transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
+          transition: dragY === 0 ? "transform 0.25s cubic-bezier(0.25,0.46,0.45,0.94)" : "none",
+          opacity: dragY > 0 ? Math.max(0.5, 1 - dragY / 300) : 1,
+        }}
+        onTouchStart={handleSwipeStart}
+        onTouchMove={handleSwipeMove}
+        onTouchEnd={handleSwipeEnd}
       >
+        {/* 下スワイプインジケーター */}
+        <div className="flex justify-center pt-2 pb-0 flex-shrink-0">
+          <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-gray-600" />
+        </div>
         {/* ヘッダー */}
         <div
           className={`sticky top-0 z-10 px-5 py-4 flex items-center justify-between flex-shrink-0 rounded-t-none sm:rounded-t-2xl ${
