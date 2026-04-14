@@ -257,8 +257,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   const [physicalCondition, setPhysicalCondition] = useState<"good" | "poor">("good");
   const [physicalConditionNote, setPhysicalConditionNote] = useState("");
 
-  // アルコールチェックフォームの折りたたみ状態（記録済みなら折りたたむ）
-  const [alcoholOpen, setAlcoholOpen] = useState(!savedState?.alcoholRecorded);
+  // アルコールチェックフォームの折りたたみ状態（デフォルトは折りたたみ、記録済みも折りたたむ）
+  const [alcoholOpen, setAlcoholOpen] = useState(false);
 
   // 残業入力（退勤時のみ）
   const openedAt = useMemo(() => new Date(), []);
@@ -1650,7 +1650,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       />
       {/* モーダル本体 */}
       <div
-        className="relative w-full sm:max-w-md mx-0 sm:mx-4 bg-white dark:bg-gray-900 rounded-b-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[100dvh] sm:max-h-[calc(100dvh-2rem)] overflow-hidden"
+        className="relative w-full sm:max-w-md mx-0 sm:mx-4 bg-white dark:bg-gray-900 rounded-b-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[100dvh] sm:max-h-[calc(100dvh-2rem)]"
         style={{
           transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
           transition: dragY === 0 ? "transform 0.25s cubic-bezier(0.25,0.46,0.45,0.94)" : "none",
@@ -1666,7 +1666,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         </div>
         {/* ヘッダー */}
         <div
-          className={`sticky top-0 z-10 px-4 py-3.5 flex items-center gap-2 flex-shrink-0 rounded-t-none sm:rounded-t-2xl ${
+          className={`px-4 py-3.5 flex items-center gap-2 flex-shrink-0 rounded-t-none sm:rounded-t-2xl ${
             isClockIn
               ? "bg-gradient-to-r from-red-500 to-rose-600"
               : "bg-gradient-to-r from-blue-500 to-indigo-600"
