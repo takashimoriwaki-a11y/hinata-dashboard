@@ -967,6 +967,8 @@ async function updateTimesheetOvertimeApproval(record: {
   adjustedEndAt?: number | null;
   requestedStartAt?: number | null;
   requestedEndAt?: number | null;
+  requestedReason?: string | null;
+  requestedDetail?: string | null;
 }, spreadsheetId: string): Promise<void> {
   try {
     const auth = new google.auth.GoogleAuth({
@@ -1026,6 +1028,37 @@ async function updateTimesheetOvertimeApproval(record: {
     if (targetRowIndex < 0) {
       console.warn(`[Timesheet] No row found for ${record.applicantName} on ${dateStr}, skipping approval update`);
       return;
+    }
+    // 承認・却下時：D〜H列（残業情報）も更新する
+    if (record.status === "approved" || record.status === "rejected") {
+      const toHHMM = (ms: number | null | undefined) =>
+        ms ? new Date(ms).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit" }) : "";
+      // 承認時は adjustedStartAt/adjustedEndAt を優先、なければ requestedStartAt/requestedEndAt
+      const startMs = record.adjustedStartAt ?? record.requestedStartAt;
+      const endMs = record.adjustedEndAt ?? record.requestedEndAt;
+      const overtimeStartStr = toHHMM(startMs);
+      const overtimeEndStr = toHHMM(endMs);
+      let overtimeMinutes = "";
+      if (startMs && endMs) {
+        const mins = Math.max(0, Math.round((endMs - startMs) / 60000));
+        overtimeMinutes = String(mins);
+      }
+      const overtimeReason = record.requestedReason ?? "";
+      const overtimeDetail = record.requestedDetail ?? "";
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${tabName}!D${targetRowIndex}:H${targetRowIndex}`,
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: [[
+            overtimeStartStr,  // D: 残業開始
+            overtimeEndStr,    // E: 残業終了
+            overtimeMinutes,   // F: 残業時間(分)
+            overtimeReason,    // G: 残業理由
+            overtimeDetail,    // H: 残業詳細
+          ]],
+        },
+      });
     }
     // I列（9列目）を更新
     await sheets.spreadsheets.values.update({
@@ -5619,6 +5652,8 @@ export const appRouter = router({
               adjustedEndAt: input.adjustedEndAt ?? null,
               requestedStartAt: record.requestedStartAt,
               requestedEndAt: record.requestedEndAt,
+              requestedReason: record.requestedReason ?? null,
+              requestedDetail: null, // 残業詳細（連絡先・件数）は別途設定なし
             }, sheet.spreadsheetId).catch((err) => {
               console.error("[Timesheet] Approval status update failed:", err);
             });

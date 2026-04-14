@@ -955,7 +955,10 @@ export default function Admin() {
             出退勤管理
           </button>
         )}
-        {currentUser?.role === "admin" && (
+        {currentUser?.role === "admin" && [
+          "takashimoriwaki@kokoronohinata.com",
+          "hidekimoriwaki@kokoronohinata.com",
+        ].includes((currentUser as any)?.email ?? "") && (
           <button
             onClick={() => setActiveSection("overtimeApprovals")}
             className={cn(
@@ -3029,131 +3032,86 @@ function AlcoholCheckSpreadsheetsPanel() {
     <div className="space-y-4">
       {/* ヘッダー */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-base font-bold text-foreground">アルコールチェック月別スプレッドシート</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            月ごとにスプレッドシートを登録します。打刻時に日付に応じたシートへ自動転記されます。
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <a
-            href="https://drive.google.com/drive/folders/1M1po6_l4AAqqygD9xoQU8jQPF9XXX7_4"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5">
-              <ExternalLink className="w-3.5 h-3.5" />
-              Driveで開く
-            </Button>
-          </a>
-          <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => setShowAddForm((v) => !v)}>
-            <Plus className="w-3.5 h-3.5" />
-            新規登録
+        <h2 className="text-lg font-bold">アルコールチェックスプレッドシート管理</h2>
+        <a
+          href="https://drive.google.com/drive/folders/1M1po6_l4AAqqygD9xoQU8jQPF9XXX7_4"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5">
+            <ExternalLink className="w-3.5 h-3.5" />
+            Driveで開く
           </Button>
-        </div>
+        </a>
+      </div>
+      <p className="text-sm text-muted-foreground">
+        アルコールチェックの記録が職員別タブに自動転記されるスプレッドシートを月ごとに管理します。毎月25日に翌月分が自動作成されます。
+      </p>
+
+      {/* 年月選択・自動作成 */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <select
+          value={newYear}
+          onChange={(e) => setNewYear(Number(e.target.value))}
+          className="border rounded px-2 py-1 text-sm"
+        >
+          {yearOptions.map((y) => (
+            <option key={y} value={y}>{y}年</option>
+          ))}
+        </select>
+        <select
+          value={newMonth}
+          onChange={(e) => setNewMonth(Number(e.target.value))}
+          className="border rounded px-2 py-1 text-sm"
+        >
+          {monthOptions.map((m) => (
+            <option key={m} value={m}>{m}月</option>
+          ))}
+        </select>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={createSpreadsheetMutation.isPending}
+          onClick={() => createSpreadsheetMutation.mutate({ year: newYear, month: newMonth })}
+          className="flex items-center gap-1"
+        >
+          {createSpreadsheetMutation.isPending ? "作成中..." : "✨ 自動作成"}
+        </Button>
+        {createSpreadsheetMutation.isSuccess && (
+          <span className="text-xs text-green-600">スプレッドシートを作成しました</span>
+        )}
+        {createSpreadsheetMutation.isError && (
+          <span className="text-xs text-red-500">作成失敗: {createSpreadsheetMutation.error?.message}</span>
+        )}
       </div>
 
-      {/* 新規登録フォーム */}
-      {showAddForm && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="pt-4 pb-4 space-y-3">
-            <p className="text-sm font-semibold text-foreground">新規スプレッドシート登録</p>
-
-            {/* 年月選択 */}
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <label className="block text-xs font-medium text-muted-foreground mb-1">年</label>
-                <div className="relative">
-                  <select
-                    value={newYear}
-                    onChange={(e) => setNewYear(Number(e.target.value))}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary appearance-none pr-7"
-                  >
-                    {yearOptions.map((y) => (
-                      <option key={y} value={y}>{y}年</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-                </div>
-              </div>
-              <div className="flex-1">
-                <label className="block text-xs font-medium text-muted-foreground mb-1">月</label>
-                <div className="relative">
-                  <select
-                    value={newMonth}
-                    onChange={(e) => setNewMonth(Number(e.target.value))}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary appearance-none pr-7"
-                  >
-                    {monthOptions.map((m) => (
-                      <option key={m} value={m}>{m}月</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-                </div>
-              </div>
-            </div>
-
-            {/* スプレッドシートURL/ID */}
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">
-                スプレッドシートURL または ID
-              </label>
-              <input
-                type="text"
-                value={newSpreadsheetId}
-                onChange={(e) => setNewSpreadsheetId(e.target.value)}
-                placeholder="https://docs.google.com/spreadsheets/d/... または シートID"
-                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                URLを貼り付けると自動的にIDを抽出します
-              </p>
-            </div>
-
-            {/* メモ（任意） */}
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">
-                メモ（任意）
-              </label>
-              <input
-                type="text"
-                value={newLabel}
-                onChange={(e) => setNewLabel(e.target.value)}
-                placeholder="例: アルコールチェック記録 2026年5月"
-                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-
-            <div className="flex flex-wrap gap-2 pt-1">
-              <Button
-                size="sm"
-                className="h-8 text-xs"
-                onClick={handleAdd}
-                disabled={upsertMutation.isPending || !newSpreadsheetId.trim()}
-              >
-                {upsertMutation.isPending ? "登録中..." : "登録する"}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 text-xs gap-1.5 border-emerald-500 text-emerald-600 hover:bg-emerald-50"
-                onClick={() => createSpreadsheetMutation.mutate({ year: newYear, month: newMonth })}
-                disabled={createSpreadsheetMutation.isPending}
-              >
-                {createSpreadsheetMutation.isPending ? "作成中..." : "✨ Googleが自動作成"}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs"
-                onClick={() => { setShowAddForm(false); setNewSpreadsheetId(""); setNewLabel(""); }}
-              >
-                キャンセル
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* 登録フォーム */}
+      <Card>
+        <CardHeader><CardTitle className="text-sm">手動でスプレッドシートを登録</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          <input
+            type="text"
+            value={newLabel}
+            onChange={(e) => setNewLabel(e.target.value)}
+            placeholder="ラベル（例: 2026年4月 アルコールチェック記録）"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+          <input
+            type="text"
+            value={newSpreadsheetId}
+            onChange={(e) => setNewSpreadsheetId(e.target.value)}
+            placeholder="Google スプレッドシートのURL"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+          <Button
+            size="sm"
+            onClick={handleAdd}
+            disabled={upsertMutation.isPending || !newSpreadsheetId.trim()}
+          >
+            {upsertMutation.isPending ? "登録中..." : "登録"}
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* 登録済みスプレッドシート一覧 */}
       {isLoading ? (
