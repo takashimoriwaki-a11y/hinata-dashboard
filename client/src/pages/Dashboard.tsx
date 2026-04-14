@@ -92,6 +92,9 @@ import {
   AlertTriangle,
   LogIn,
   LogOut,
+  Bell,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, openLink } from "@/lib/utils";
@@ -207,6 +210,136 @@ const TEAM_BADGE_COLORS: Record<string, string> = {
   "郡山南部": "bg-orange-500/20 text-orange-200 border-orange-400/40 dark:bg-orange-500/20 dark:text-orange-200 dark:border-orange-400/40",
   "全チーム": "bg-muted/60 text-foreground border-border",
 };
+
+// ============================
+// 残業申請承認カード（管理者専用）
+// ============================
+function OvertimeApprovalCard() {
+  const utils = trpc.useUtils();
+  const { data: approvals = [], isLoading } = trpc.overtime.getAll.useQuery({ status: "pending" });
+  const [commentInputs, setCommentInputs] = useState<Record<number, string>>({});
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  const approveMut = trpc.overtime.approve.useMutation({
+    onSuccess: () => {
+      utils.overtime.getAll.invalidate();
+      toast.success("残業申請を処理しました");
+    },
+    onError: (e) => toast.error(`処理に失敗しました: ${e.message}`),
+  });
+
+  const toJST = (ms: number) =>
+    new Date(ms).toLocaleString("ja-JP", {
+      timeZone: "Asia/Tokyo",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+  const pendingCount = approvals.filter((a) => a.status === "pending").length;
+
+  return (
+    <Card className="shadow-sm border-l-4 border-l-amber-400">
+      <CardHeader className="pb-2 pt-3 px-4">
+        <CardTitle className="text-base font-semibold flex items-center gap-2 text-foreground">
+          <Bell className="w-4 h-4 text-amber-500" />
+          <span>残業申請 承認</span>
+          {pendingCount > 0 && (
+            <Badge className="ml-1 bg-amber-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+              {pendingCount}
+            </Badge>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-4 pb-3">
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">読み込み中...</p>
+        ) : approvals.length === 0 ? (
+          <div className="flex items-center gap-2 py-2">
+            <CheckCircle2 className="w-4 h-4 text-green-500" />
+            <p className="text-sm text-muted-foreground">承認待ちの残業申請はありません</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {approvals.map((a) => (
+              <div
+                key={a.id}
+                className="rounded-lg border border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-800/40 p-3 space-y-2"
+              >
+                {/* 申請者・日付・時間 */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-semibold text-sm text-foreground">{a.applicantName}</span>
+                      <span className="text-xs text-muted-foreground">{a.applicationDate}</span>
+                    </div>
+                    <p className="text-sm text-foreground mt-0.5">
+                      {toJST(a.requestedStartAt)} ～ {toJST(a.requestedEndAt)}
+                    </p>
+                    {a.requestedReason && (
+                      <p className="text-xs text-muted-foreground mt-0.5">理由: {a.requestedReason}</p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground underline shrink-0 mt-0.5"
+                    onClick={() => setExpandedId(expandedId === a.id ? null : a.id)}
+                  >
+                    {expandedId === a.id ? "閉じる" : "コメント"}
+                  </button>
+                </div>
+
+                {/* コメント入力（展開時のみ） */}
+                {expandedId === a.id && (
+                  <input
+                    type="text"
+                    placeholder="コメント（任意）"
+                    value={commentInputs[a.id] ?? ""}
+                    onChange={(e) => setCommentInputs((prev) => ({ ...prev, [a.id]: e.target.value }))}
+                    className="w-full border rounded px-3 py-1.5 text-sm bg-background text-foreground"
+                  />
+                )}
+
+                {/* 承認・却下ボタン */}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={approveMut.isPending}
+                    onClick={() => approveMut.mutate({
+                      id: a.id,
+                      status: "approved",
+                      approverComment: commentInputs[a.id] || undefined,
+                    })}
+                    className="flex-1 flex items-center justify-center gap-1.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50 select-none"
+                    style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
+                  >
+                    <ThumbsUp className="w-4 h-4" />
+                    承認
+                  </button>
+                  <button
+                    type="button"
+                    disabled={approveMut.isPending}
+                    onClick={() => approveMut.mutate({
+                      id: a.id,
+                      status: "rejected",
+                      approverComment: commentInputs[a.id] || undefined,
+                    })}
+                    className="flex-1 flex items-center justify-center gap-1.5 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50 select-none"
+                    style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
+                  >
+                    <ThumbsDown className="w-4 h-4" />
+                    却下
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function TeamGoalsCard() {
   const { data: goals = [], isLoading } = trpc.teamGoals.getActive.useQuery();
@@ -5160,7 +5293,13 @@ export default function Dashboard() {
           <div data-scroll-reveal data-delay="350">
             <MonthlyOvertimeSignature />
           </div>
-          {/* 新規契約（モバイル: 9番目、PC: 左カラム6番目） */}
+          {/* 残業申請承認（管理者のみ・モバイル: 9番目、PC: 左カラム6番目） */}
+          {dashboardUser?.role === "admin" && (
+            <div data-scroll-reveal data-delay="375">
+              <OvertimeApprovalCard />
+            </div>
+          )}
+          {/* 新規契約（モバイル: 10番目、PC: 左カラム7番目） */}
           <Card data-scroll-reveal data-delay="400" className="shadow-sm">
             <CardHeader className="pb-2 pt-3 px-4">
               <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
