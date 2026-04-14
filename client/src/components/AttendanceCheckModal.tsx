@@ -205,6 +205,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   // ===== 下スワイプで閉じるジェスチャー =====
   const swipeStartY = useRef<number | null>(null);
   const swipeDeltaY = useRef<number>(0);
+  const swipeStartScrollTop = useRef<number>(0); // スワイプ開始時のスクロール位置
   const [dragY, setDragY] = useState(0);
 
   // スクロールコンテナと次のアクションターゲットの ref
@@ -240,12 +241,16 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     const y = "touches" in e ? (e as React.TouchEvent).touches[0].clientY : (e as React.PointerEvent).clientY;
     swipeStartY.current = y;
     swipeDeltaY.current = 0;
+    // スワイプ開始時のスクロール位置を記録
+    swipeStartScrollTop.current = scrollContainerRef.current?.scrollTop ?? 0;
   }, []);
 
   const handleSwipeMove = useCallback((e: React.TouchEvent | React.PointerEvent) => {
     if (swipeStartY.current === null) return;
     const y = "touches" in e ? (e as React.TouchEvent).touches[0].clientY : (e as React.PointerEvent).clientY;
     const delta = y - swipeStartY.current;
+    // コンテンツエリアが先頭以外にスクロールされている場合、または上方向スワイプの場合はドラッグしない
+    if (swipeStartScrollTop.current > 0 || delta <= 0) return;
     if (delta > 0) {
       swipeDeltaY.current = delta;
       setDragY(Math.min(delta, 200));
