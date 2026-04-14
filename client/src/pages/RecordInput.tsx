@@ -183,7 +183,10 @@ export default function RecordInput() {
       toast.error("音声認識に失敗しました");
     };
     recognition.onresult = (event: any) => {
-      const transcript = event.results[event.results.length - 1][0].transcript.trim();
+      const rawTranscript = event.results[event.results.length - 1][0].transcript.trim();
+      // 正規化：全角→半角、スペース除去、小文字化
+      const normalize = (s: string) => s.normalize("NFKC").replace(/\s+/g, "").toLowerCase();
+      const transcript = normalize(rawTranscript);
       // 空き枠を探して利用者を自動入力
       const emptySlotIndex = slots.findIndex(s => !s.patientName);
       if (emptySlotIndex === -1) {
@@ -191,9 +194,12 @@ export default function RecordInput() {
         return;
       }
       const matched = allPatients.filter(p => {
-        const lastName = p.name.split(/\s+/)[0];
-        return lastName.includes(transcript) || p.name.includes(transcript) ||
-          (p.nameKana && p.nameKana.includes(transcript));
+        const normName = normalize(p.name);
+        const normKana = p.nameKana ? normalize(p.nameKana) : "";
+        const lastName = normalize(p.name.split(/\s+/)[0]);
+        return normName.includes(transcript) || lastName.includes(transcript) ||
+          normKana.includes(transcript) ||
+          transcript.includes(normName) || transcript.includes(lastName);
       });
       if (matched.length === 1) {
         handleSlotChange(emptySlotIndex, {
@@ -353,15 +359,21 @@ function SlotSelector({
       toast.error("音声認識に失敗しました");
     };
     recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript.trim();
-      // 苗字で候補を検索（チームフィルタあり）
+      const rawTranscript = event.results[0][0].transcript.trim();
+      // 正規化：全角→半角、スペース除去、小文字化
+      const normalize = (s: string) => s.normalize("NFKC").replace(/\s+/g, "").toLowerCase();
+      const transcript = normalize(rawTranscript);
+      // 苗字・フルネームで候補を検索（チームフィルタあり）
       const searchBase = slot.team
         ? allPatients.filter(p => p.team === slot.team)
         : allPatients;
       const matched = searchBase.filter(p => {
-        const lastName = p.name.split(/\s+/)[0];
-        return lastName.includes(transcript) || p.name.includes(transcript) ||
-          (p.nameKana && p.nameKana.includes(transcript));
+        const normName = normalize(p.name);
+        const normKana = p.nameKana ? normalize(p.nameKana) : "";
+        const lastName = normalize(p.name.split(/\s+/)[0]);
+        return normName.includes(transcript) || lastName.includes(transcript) ||
+          normKana.includes(transcript) ||
+          transcript.includes(normName) || transcript.includes(lastName);
       });
       if (matched.length === 1) {
         // 1件のみ → 自動選択

@@ -14,7 +14,7 @@ import { trpc } from "@/lib/trpc";
 // キーはサーバー側の broadcastEvent(eventName) と一致させること
 const EVENT_QUERY_MAP: Record<string, string[][]> = {
   // タスク
-  tasks: [["tasks", "getMine"], ["tasks", "getAll"]],
+  tasks: [["tasks", "getMine"], ["tasks", "getAll"], ["tasks", "getByPatientName"]],
   // 申し送りメッセージ
   messages: [["messages", "getActive"], ["messages", "getPending"]],
   // スケジュールコメント
