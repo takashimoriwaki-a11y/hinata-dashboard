@@ -536,11 +536,9 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     onSuccess: () => {
       toast.success(isClockIn ? "出勤アルコールチェックを記録しました" : "退勤アルコールチェックを記録しました");
       void utils.attendance.today.invalidate();
-      if (isClockIn) {
-        setAlcoholRecorded(true);
-      } else {
-        setAlcoholRecorded(true);
-      }
+      setAlcoholRecorded(true);
+      // 記録完了後は即座にアコーディオンを折りたたむ
+      setAlcoholOpen(false);
     },
     onError: (e) => {
       toast.error(`アルコールチェック記録に失敗しました: ${e.message}`);
