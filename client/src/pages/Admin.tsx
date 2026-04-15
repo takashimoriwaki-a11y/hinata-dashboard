@@ -3927,6 +3927,12 @@ function OvertimeApprovalsPanel() {
     onSuccess: () => utils.overtime.getAll.invalidate(),
   });
 
+  const statusBadge = (status: string) => {
+    if (status === "pending") return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">承認待ち</Badge>;
+    if (status === "approved") return <Badge className="bg-green-100 text-green-800 border-green-300">承認済み</Badge>;
+    if (status === "rejected") return <Badge className="bg-red-100 text-red-800 border-red-300">却下</Badge>;
+    return <Badge variant="outline">{status}</Badge>;
+  };
   const toJST = (ms: number) =>
     new Date(ms).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
 
