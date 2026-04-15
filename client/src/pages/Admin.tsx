@@ -2193,15 +2193,15 @@ function TeamGoalsPanel() {
     <div className="space-y-4">
       <Card className="shadow-sm">
         <CardHeader className="pb-2 pt-4">
-          <div className="flex items-center justify-between">
-            <div>
+          <div>
+            <div className="flex items-center gap-3">
               <CardTitle className="text-base font-semibold">チーム目標管理</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">各チームの目標を登録・編集できます。期間を指定すると自動的に表示・非表示が切り替わります。</p>
+              <Button size="sm" onClick={() => { setShowForm(!showForm); setEditingId(null); resetForm(); }} className="flex items-center gap-1">
+                <Plus className="w-4 h-4" />
+                新規登録
+              </Button>
             </div>
-            <Button size="sm" onClick={() => { setShowForm(!showForm); setEditingId(null); resetForm(); }} className="flex items-center gap-1">
-              <Plus className="w-4 h-4" />
-              新規登録
-            </Button>
+            <p className="text-sm text-muted-foreground mt-1">各チームの目標を登録・編集できます。期間を指定すると自動的に表示・非表示が切り替わります。</p>
           </div>
         </CardHeader>
       </Card>
