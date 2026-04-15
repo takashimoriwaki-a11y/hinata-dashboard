@@ -3923,8 +3923,19 @@ function OvertimeApprovalsPanel() {
   // 承認待ちのみ取得
   const { data: approvals = [], isLoading } = trpc.overtime.getAll.useQuery({ status: "pending" });
 
+  const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
+
   const approveMut = trpc.overtime.approve.useMutation({
-    onSuccess: () => utils.overtime.getAll.invalidate(),
+    onSuccess: (_data, variables) => {
+      const label = variables.status === "approved" ? "承認" : "却下";
+      toast.success(`残業申請を${label}しました`);
+      utils.overtime.getAll.invalidate();
+      setPendingIds((prev) => { const next = new Set(prev); next.delete(variables.id); return next; });
+    },
+    onError: (err, variables) => {
+      toast.error(`処理に失敗しました: ${err.message}`);
+      setPendingIds((prev) => { const next = new Set(prev); next.delete(variables.id); return next; });
+    },
   });
 
   const statusBadge = (status: string) => {
@@ -4053,7 +4064,7 @@ function OvertimeApprovalsPanel() {
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        disabled={approveMut.isPending}
+                        disabled={pendingIds.has(a.id)}
                         onClick={() => {
                           // 時刻入力がある場合は申請日をベースにUTCタイムスタンプに変換
                           const toMs = (timeStr: string | undefined, dateStr: string) => {
@@ -4062,6 +4073,7 @@ function OvertimeApprovalsPanel() {
                             const d = new Date(`${dateStr}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00+09:00`);
                             return d.getTime();
                           };
+                          setPendingIds((prev) => new Set(prev).add(a.id));
                           approveMut.mutate({
                             id: a.id,
                             status: "approved",
@@ -4071,19 +4083,22 @@ function OvertimeApprovalsPanel() {
                           });
                         }}
                       >
-                        承認
+                        {pendingIds.has(a.id) ? "処理中..." : "承認"}
                       </Button>
                       <Button
                         size="sm"
                         variant="destructive"
-                        disabled={approveMut.isPending}
-                        onClick={() => approveMut.mutate({
-                          id: a.id,
-                          status: "rejected",
-                          approverComment: commentInputs[a.id] || undefined,
-                        })}
+                        disabled={pendingIds.has(a.id)}
+                        onClick={() => {
+                          setPendingIds((prev) => new Set(prev).add(a.id));
+                          approveMut.mutate({
+                            id: a.id,
+                            status: "rejected",
+                            approverComment: commentInputs[a.id] || undefined,
+                          });
+                        }}
                       >
-                        却下
+                        {pendingIds.has(a.id) ? "処理中..." : "却下"}
                       </Button>
                     </div>
                   </div>
