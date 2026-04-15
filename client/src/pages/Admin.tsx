@@ -803,7 +803,7 @@ export default function Admin() {
   }, []);
 
   // セクション切り替え
-  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "teamGoals" | "toolLogs" | "alcoholSheets" | "alcoholCsv" | "detectorSettings" | "timesheetSheets" | "overtimeApprovals" | "monthlySignatures">("sheets");
+  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "teamGoals" | "toolLogs" | "alcoholSheets" | "detectorSettings" | "timesheetSheets" | "overtimeApprovals" | "monthlySignatures">("sheets");
   const { user: currentUser } = useAuth();
 
   return (
@@ -922,19 +922,7 @@ export default function Admin() {
             アルコールチェック管理
           </button>
         )}
-        {currentUser?.role === "admin" && (
-          <button
-            onClick={() => setActiveSection("alcoholCsv")}
-            className={cn(
-            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
-            activeSection === "alcoholCsv"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            記録CSV出力
-          </button>
-        )}
+
         {currentUser?.role === "admin" && (
           <button
             onClick={() => setActiveSection("detectorSettings")}
@@ -1196,7 +1184,7 @@ export default function Admin() {
       {/* アルコールチェック月別スプレッドシート管理 */}
       {activeSection === "alcoholSheets" && <AlcoholCheckSpreadsheetsPanel />}
       {/* アルコールチェック記録CSVエクスポート */}
-      {activeSection === "alcoholCsv" && <AlcoholCheckCsvExportPanel />}
+
       {/* 検知器設定 */}
       {activeSection === "detectorSettings" && <AlcoholDetectorSettingsPanel />}
       {/* 出退勤管理 */}
@@ -3437,7 +3425,7 @@ function AlcoholCheckSpreadsheetsPanel() {
             <div className="space-y-1">
               <p className="font-semibold">スプレッドシートの自動作成について</p>
               <p className="text-amber-600/80 dark:text-amber-400/70">
-                アルコールチェック記録時に当月分のスプレッドシートが未登録の場合、自動で新規作成します。また、毎月25日に翔月分のスプレッドシートを自動作成します。「新規登録」から「✨ Googleが自動作成」ボタンで手動作成も可能です。
+                アルコールチェック記録時に当月分のスプレッドシートが未登録の場合、自動で新規作成します。また、毎月25日に翌月分のスプレッドシートを自動作成します。「新規登録」から「✨ Googleが自動作成」ボタンで手動作成も可能です。
               </p>
             </div>
           </div>

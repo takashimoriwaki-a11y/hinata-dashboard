@@ -1,0 +1,1 @@
+ALTER TABLE `accident_links` MODIFY COLUMN `category` enum('医療事故・虐待','ヒヤリハット・アクシデント') NOT NULL;

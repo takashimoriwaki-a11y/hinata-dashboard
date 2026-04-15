@@ -57,22 +57,17 @@ export function MonthlyOvertimeSignature({ defaultYear, defaultMonth }: MonthlyO
   const { user } = useAuth();
   const now = new Date();
 
-  // デフォルトは前月（月が変わってから前月分を署名する仕様）
-  const prevMonthDate = useMemo(() => {
-    const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    return { year: d.getFullYear(), month: d.getMonth() + 1 };
-  }, []);
-
-  const [year, setYear] = useState(defaultYear ?? prevMonthDate.year);
-  const [month, setMonth] = useState(defaultMonth ?? prevMonthDate.month);
+  // デフォルトは今月
+  const [year, setYear] = useState(defaultYear ?? now.getFullYear());
+  const [month, setMonth] = useState(defaultMonth ?? (now.getMonth() + 1));
   const [confirmed, setConfirmed] = useState(false);
   const [comment, setComment] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // 当月以降は署名不可（月が変わってから前月分のみ署名できる）
+  // 翌月以降は署名不可
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
-  const isCurrentOrFuture = year > currentYear || (year === currentYear && month >= currentMonth);
+  const isCurrentOrFuture = year > currentYear || (year === currentYear && month > currentMonth);
 
   // 残業申請一覧（当月分）
   const { data: overtimeList = [], isLoading: overtimeLoading } = trpc.overtime.getMineByMonth.useQuery(

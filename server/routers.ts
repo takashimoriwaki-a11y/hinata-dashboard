@@ -5769,7 +5769,7 @@ export const appRouter = router({
     /** 事故リンクを追加する（管理者のみ） */
     create: protectedProcedure
       .input(z.object({
-        category: z.enum(["医療事故・虚待", "ヒヤリハット・アクシデント"]),
+        category: z.enum(["医療事故・虐待", "ヒヤリハット・アクシデント"]),
         label: z.string().min(1).max(200),
         href: z.string().url(),
         description: z.string().max(500).optional().default(""),

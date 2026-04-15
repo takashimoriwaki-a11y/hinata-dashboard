@@ -11,10 +11,10 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
 
-type Category = "医療事故・虚待" | "ヒヤリハット・アクシデント";
+type Category = "医療事故・虐待" | "ヒヤリハット・アクシデント";
 
 const CATEGORIES: { id: Category; label: string; icon: typeof AlertTriangle; color: string }[] = [
-  { id: "医療事故・虚待" as Category, label: "医療事故・虚待", icon: AlertTriangle, color: "#f59e0b" },
+  { id: "医療事故・虐待" as Category, label: "医療事故・虐待", icon: AlertTriangle, color: "#f59e0b" },
   { id: "ヒヤリハット・アクシデント", label: "ヒヤリハット・アクシデント", icon: ClipboardList, color: "#8b5cf6" },
 ];
 

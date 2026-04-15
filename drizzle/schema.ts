@@ -818,7 +818,7 @@ export type InsertAlcoholCheckSpreadsheet = typeof alcoholCheckSpreadsheets.$inf
 export const accidentLinks = mysqlTable("accident_links", {
   id: int("id").autoincrement().primaryKey(),
   /** カテゴリ：医療事故・虚待 or ヒヤリハット */
-  category: mysqlEnum("category", ["医療事故・虚待", "ヒヤリハット・アクシデント"]).notNull(),
+  category: mysqlEnum("category", ["医療事故・虐待", "ヒヤリハット・アクシデント"]).notNull(),
   /** 表示ラベル */
   label: varchar("label", { length: 200 }).notNull(),
   /** URL */
