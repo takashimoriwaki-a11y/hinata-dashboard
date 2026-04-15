@@ -3845,6 +3845,88 @@ export const appRouter = router({
               body: JSON.stringify({ values: [headerRow] }),
             }
           );
+
+          // 新規作成したシートのIDを取得してフィルター・書式を設定
+          const metaAfterCreate = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}?fields=sheets.properties`,
+            { headers: { Authorization: `Bearer ${token.token}` } }
+          );
+          if (metaAfterCreate.ok) {
+            const metaJson = await metaAfterCreate.json() as { sheets?: { properties: { title: string; sheetId: number } }[] };
+            const newSheet = metaJson.sheets?.find(s => s.properties.title === SHEET_NAME);
+            if (newSheet) {
+              const newSheetId = newSheet.properties.sheetId;
+              await fetch(
+                `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}:batchUpdate`,
+                {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    requests: [
+                      // 1行目にオートフィルターを設定（A〜L列）
+                      {
+                        setBasicFilter: {
+                          filter: {
+                            range: {
+                              sheetId: newSheetId,
+                              startRowIndex: 0,
+                              endRowIndex: 1,
+                              startColumnIndex: 0,
+                              endColumnIndex: 12,
+                            }
+                          }
+                        }
+                      },
+                      // ヘッダー行の書式設定（背景色・太字・テキスト折り返しなし）
+                      {
+                        repeatCell: {
+                          range: {
+                            sheetId: newSheetId,
+                            startRowIndex: 0,
+                            endRowIndex: 1,
+                            startColumnIndex: 0,
+                            endColumnIndex: 12,
+                          },
+                          cell: {
+                            userEnteredFormat: {
+                              backgroundColor: { red: 0.267, green: 0.447, blue: 0.769 },
+                              textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 }, fontSize: 10 },
+                              horizontalAlignment: "CENTER",
+                              wrapStrategy: "CLIP",
+                            }
+                          },
+                          fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,wrapStrategy)",
+                        }
+                      },
+                      // 列幅の設定（各列を内容に合わせて調整）
+                      { updateDimensionProperties: { range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 140 }, fields: "pixelSize" } }, // A: 入力日時
+                      { updateDimensionProperties: { range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 1, endIndex: 2 }, properties: { pixelSize: 90 }, fields: "pixelSize" } },  // B: 入力者
+                      { updateDimensionProperties: { range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 2, endIndex: 3 }, properties: { pixelSize: 110 }, fields: "pixelSize" } }, // C: 変更種別
+                      { updateDimensionProperties: { range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 3, endIndex: 4 }, properties: { pixelSize: 80 }, fields: "pixelSize" } },  // D: チーム
+                      { updateDimensionProperties: { range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 4, endIndex: 5 }, properties: { pixelSize: 100 }, fields: "pixelSize" } }, // E: 利用者名
+                      { updateDimensionProperties: { range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 5, endIndex: 6 }, properties: { pixelSize: 140 }, fields: "pixelSize" } }, // F: 変更前日時
+                      { updateDimensionProperties: { range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 6, endIndex: 7 }, properties: { pixelSize: 140 }, fields: "pixelSize" } }, // G: 変更後日時
+                      { updateDimensionProperties: { range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 7, endIndex: 8 }, properties: { pixelSize: 130 }, fields: "pixelSize" } }, // H: 変更前担当
+                      { updateDimensionProperties: { range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 8, endIndex: 9 }, properties: { pixelSize: 130 }, fields: "pixelSize" } }, // I: 変更後担当
+                      { updateDimensionProperties: { range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 9, endIndex: 10 }, properties: { pixelSize: 120 }, fields: "pixelSize" } }, // J: 会議名
+                      { updateDimensionProperties: { range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 10, endIndex: 11 }, properties: { pixelSize: 130 }, fields: "pixelSize" } }, // K: 会議参加スタッフ
+                      { updateDimensionProperties: { range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 11, endIndex: 12 }, properties: { pixelSize: 200 }, fields: "pixelSize" } }, // L: 変更理由
+                      // 1行目を固定（スクロール時もヘッダーが見えるように）
+                      {
+                        updateSheetProperties: {
+                          properties: {
+                            sheetId: newSheetId,
+                            gridProperties: { frozenRowCount: 1 }
+                          },
+                          fields: "gridProperties.frozenRowCount"
+                        }
+                      }
+                    ]
+                  }),
+                }
+              );
+            }
+          }
         }
 
         // データ行を追記
@@ -4249,6 +4331,137 @@ export const appRouter = router({
           console.error("[ScheduleChange] スプレッドシート転記エラー:", e);
           return { success: true, id, exported: false };
         }
+      }),
+
+    /** 既存シートにフィルター・書式を後付け適用する（管理者のみ） */
+    applySheetFilter: protectedProcedure
+      .input(z.object({
+        spreadsheetId: z.string().optional(),
+        sheetName: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ実行できます" });
+        }
+
+        const CHANGE_SHEET_ID = input.spreadsheetId ?? "1ki462aQRaNTj5FrI_1MJ1OyATFGqODz6HCtmuriIDEU";
+        const TARGET_SHEET_NAMES = input.sheetName
+          ? [input.sheetName]
+          : ["身体", "天理", "郡山北部", "郡山南部", "スケジュール変更連絡"];
+
+        const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+        const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+        if (!email || !privateKey) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "サービスアカウント設定がありません" });
+
+        const { GoogleAuth: GA } = await import("google-auth-library");
+        const auth = new GA({
+          credentials: { client_email: email, private_key: privateKey.replace(/\\n/g, "\n") },
+          scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+        });
+        const client = await auth.getClient();
+        const token = await client.getAccessToken();
+        if (!token.token) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "認証トークン取得失敗" });
+
+        // スプレッドシートのシート一覧を取得
+        const metaRes = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}?fields=sheets.properties`,
+          { headers: { Authorization: `Bearer ${token.token}` } }
+        );
+        if (!metaRes.ok) {
+          const text = await metaRes.text();
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `スプレッドシートのメタデータ取得失敗: ${text}` });
+        }
+        const metaJson = await metaRes.json() as { sheets?: { properties: { title: string; sheetId: number } }[] };
+        const allSheets = metaJson.sheets ?? [];
+
+        const results: { sheetName: string; success: boolean; message: string }[] = [];
+
+        for (const targetName of TARGET_SHEET_NAMES) {
+          const sheet = allSheets.find(s => s.properties.title === targetName);
+          if (!sheet) {
+            results.push({ sheetName: targetName, success: false, message: "シートが見つかりません" });
+            continue;
+          }
+          const sheetId = sheet.properties.sheetId;
+
+          const batchRes = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}:batchUpdate`,
+            {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                requests: [
+                  // オートフィルターを設定（A〜L列）
+                  {
+                    setBasicFilter: {
+                      filter: {
+                        range: {
+                          sheetId,
+                          startRowIndex: 0,
+                          endRowIndex: 1,
+                          startColumnIndex: 0,
+                          endColumnIndex: 12,
+                        }
+                      }
+                    }
+                  },
+                  // ヘッダー行の書式設定（背景色・太字・テキスト折り返しなし）
+                  {
+                    repeatCell: {
+                      range: {
+                        sheetId,
+                        startRowIndex: 0,
+                        endRowIndex: 1,
+                        startColumnIndex: 0,
+                        endColumnIndex: 12,
+                      },
+                      cell: {
+                        userEnteredFormat: {
+                          backgroundColor: { red: 0.267, green: 0.447, blue: 0.769 },
+                          textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 }, fontSize: 10 },
+                          horizontalAlignment: "CENTER",
+                          wrapStrategy: "CLIP",
+                        }
+                      },
+                      fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,wrapStrategy)",
+                    }
+                  },
+                  // 列幅の設定
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 140 }, fields: "pixelSize" } },
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 1, endIndex: 2 }, properties: { pixelSize: 90 }, fields: "pixelSize" } },
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 2, endIndex: 3 }, properties: { pixelSize: 110 }, fields: "pixelSize" } },
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 3, endIndex: 4 }, properties: { pixelSize: 80 }, fields: "pixelSize" } },
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 4, endIndex: 5 }, properties: { pixelSize: 100 }, fields: "pixelSize" } },
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 5, endIndex: 6 }, properties: { pixelSize: 140 }, fields: "pixelSize" } },
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 6, endIndex: 7 }, properties: { pixelSize: 140 }, fields: "pixelSize" } },
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 7, endIndex: 8 }, properties: { pixelSize: 130 }, fields: "pixelSize" } },
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 8, endIndex: 9 }, properties: { pixelSize: 130 }, fields: "pixelSize" } },
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 9, endIndex: 10 }, properties: { pixelSize: 120 }, fields: "pixelSize" } },
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 10, endIndex: 11 }, properties: { pixelSize: 130 }, fields: "pixelSize" } },
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 11, endIndex: 12 }, properties: { pixelSize: 200 }, fields: "pixelSize" } },
+                  // 1行目を固定
+                  {
+                    updateSheetProperties: {
+                      properties: {
+                        sheetId,
+                        gridProperties: { frozenRowCount: 1 }
+                      },
+                      fields: "gridProperties.frozenRowCount"
+                    }
+                  }
+                ]
+              }),
+            }
+          );
+          if (batchRes.ok) {
+            results.push({ sheetName: targetName, success: true, message: "フィルター・書式を適用しました" });
+          } else {
+            const errText = await batchRes.text();
+            results.push({ sheetName: targetName, success: false, message: `適用失敗: ${errText.slice(0, 200)}` });
+          }
+        }
+
+        return { results };
       }),
   }),
 
