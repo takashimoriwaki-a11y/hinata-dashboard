@@ -518,70 +518,24 @@ export default function RecordInput() {
       {/* ===== 今日の訪問予定セクション ===== */}
       <Card className="shadow-sm">
         <CardHeader className="pb-2">
+          {/* 1行目：タイトル + 音声入力 + 全リセット */}
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2 flex-shrink-0">
-              <Users className="w-4 h-4 text-primary" />
-              今日の訪問予定
+            <CardTitle className="text-sm font-semibold flex items-center gap-2 min-w-0">
+              <Users className="w-4 h-4 text-primary flex-shrink-0" />
+              <span className="truncate">今日の訪問予定</span>
               {filledSlots > 0 && (
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="secondary" className="text-xs flex-shrink-0">
                   {filledSlots}名
                 </Badge>
               )}
             </CardTitle>
-            <div className="flex items-center gap-1.5 flex-1 justify-end">
-              {/* ===== ヘッダー手動検索フィールド ===== */}
-              <div className="relative flex-1 max-w-[180px]" ref={headerSearchRef}>
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
-                <Input
-                  className="pl-6 pr-2 text-xs h-7 w-full"
-                  placeholder="名前で検索して追加..."
-                  value={headerSearchQuery}
-                  onChange={(e) => setHeaderSearchQuery(e.target.value)}
-                  onFocus={() => {
-                    if (headerSearchResults.length > 0) setShowHeaderSearchResults(true);
-                  }}
-                />
-                {headerSearchQuery && (
-                  <button
-                    type="button"
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    onClick={() => {
-                      setHeaderSearchQuery("");
-                      setHeaderSearchResults([]);
-                      setShowHeaderSearchResults(false);
-                    }}
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
-                {/* 検索結果ドロップダウン */}
-                {showHeaderSearchResults && headerSearchResults.length > 0 && (
-                  <div className="absolute z-50 top-full mt-1 left-0 right-0 border rounded-md bg-background shadow-lg max-h-52 overflow-y-auto">
-                    {headerSearchResults.map((p) => (
-                      <button
-                        key={p.id}
-                        className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center justify-between border-b last:border-b-0 transition-colors"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          handleHeaderSearchSelect(p);
-                        }}
-                      >
-                        <span className="font-medium">{p.name}</span>
-                        {p.team && (
-                          <span className="text-muted-foreground bg-muted px-1.5 py-0.5 rounded text-[10px]">{p.team}</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               {/* 一括音声入力ボタン */}
               <button
                 type="button"
                 onClick={startBulkVoiceInput}
                 className={cn(
-                  "flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-medium transition-colors flex-shrink-0",
+                  "flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-medium transition-colors",
                   isBulkListening
                     ? "bg-red-500 border-red-500 text-white animate-pulse"
                     : "border-primary/40 text-primary hover:bg-primary/10"
@@ -594,12 +548,58 @@ export default function RecordInput() {
               <button
                 type="button"
                 onClick={handleResetAll}
-                className="flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg border border-border text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded-lg border border-border text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                 全リセット
               </button>
             </div>
+          </div>
+          {/* 2行目：検索フィールド */}
+          <div className="relative mt-1.5" ref={headerSearchRef}>
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
+            <Input
+              className="pl-6 pr-2 text-xs h-7 w-full"
+              placeholder="名前で検索して追加..."
+              value={headerSearchQuery}
+              onChange={(e) => setHeaderSearchQuery(e.target.value)}
+              onFocus={() => {
+                if (headerSearchResults.length > 0) setShowHeaderSearchResults(true);
+              }}
+            />
+            {headerSearchQuery && (
+              <button
+                type="button"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  setHeaderSearchQuery("");
+                  setHeaderSearchResults([]);
+                  setShowHeaderSearchResults(false);
+                }}
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+            {/* 検索結果ドロップダウン */}
+            {showHeaderSearchResults && headerSearchResults.length > 0 && (
+              <div className="absolute z-50 top-full mt-1 left-0 right-0 border rounded-md bg-background shadow-lg max-h-52 overflow-y-auto">
+                {headerSearchResults.map((p) => (
+                  <button
+                    key={p.id}
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center justify-between border-b last:border-b-0 transition-colors"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      handleHeaderSearchSelect(p);
+                    }}
+                  >
+                    <span className="font-medium">{p.name}</span>
+                    {p.team && (
+                      <span className="text-muted-foreground bg-muted px-1.5 py-0.5 rounded text-[10px]">{p.team}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <p className="text-xs text-muted-foreground mt-1">訪問する順番に利用者を選択してください（最大8名）</p>
         </CardHeader>
