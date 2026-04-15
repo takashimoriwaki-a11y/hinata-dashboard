@@ -487,11 +487,10 @@ export default function Minutes() {
           <div className="text-xs text-amber-800 dark:text-amber-300 space-y-1">
             <p className="font-semibold">確認の手順</p>
             <ol className="list-decimal list-inside space-y-0.5 text-amber-700 dark:text-amber-400">
-              <li>左の <span className="inline-flex items-center gap-0.5 font-medium">○ チェックボタン</span> を押す（チェックマークがつく）</li>
-              <li>添付のドキュメントリンクを開いて内容を確認する</li>
-              <li>ドキュメントを開いた時点で「確認済み」タブに移動</li>
+              <li>添付のドキュメントリンクを開く</li>
+              <li>開いた時点で自動的に「確認済み」タブに移動される</li>
             </ol>
-            <p className="text-amber-600 dark:text-amber-500 text-xs">※ 確認済みボタンを再度押すと確認を解除できます</p>
+            <p className="text-amber-600 dark:text-amber-500 text-xs">※ 確認済みタブの「未確認に戻す」ボタンで元に戻せます</p>
           </div>
         </div>
       )}
@@ -546,38 +545,6 @@ export default function Minutes() {
               >
                 <CardHeader className="pb-3 pt-4 px-4">
                   <div className="flex items-start gap-3">
-                    {/* チェックボタン（トグル式、リスト移動なし） */}
-                    <button
-                      onClick={() => {
-                        const locallyPreChecked = localPreCheckedIds.has(m.id);
-                        const locallyConfirmed = localCheckedIds.has(m.id);
-                        if (m.checkedByMe || locallyConfirmed) {
-                          // 確認済み（添付を開いた状態）→解除
-                          uncheckMutation.mutate({ minutesId: m.id });
-                        } else if (locallyPreChecked) {
-                          // プレチェック済み→解除（ローカルのみ）
-                          setLocalPreCheckedIds((prev) => {
-                            const s = new Set(prev);
-                            s.delete(m.id);
-                            return s;
-                          });
-                        } else {
-                          // 未確認→プレチェック（ローカルのみ、リスト移動なし）
-                          setLocalPreCheckedIds((prev) => new Set(prev).add(m.id));
-                        }
-                      }}
-                      className={`mt-0.5 flex-shrink-0 transition-colors ${
-                        isChecked
-                          ? "text-emerald-500 hover:text-red-400"
-                          : "text-muted-foreground hover:text-emerald-500"
-                      }`}
-                      title={isChecked ? "クリックで確認を解除" : "チェックしてから添付を開いてください"}
-                    >
-                      {isChecked
-                        ? <CheckCircle2 className="w-5 h-5" />
-                        : <Circle className="w-5 h-5" />
-                      }
-                    </button>
                     {/* タイトル・メタ情報 */}
                     <div className="flex-1 min-w-0 space-y-2">
                       <div>
@@ -596,12 +563,6 @@ export default function Minutes() {
                       {/* 添付ドキュメントリンク */}
                       {m.documentUrl && (
                         <div className="space-y-1">
-                          {!isChecked && (
-                            <p className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
-                              <Info className="w-3 h-3" />
-                              先に左の ○ を押してから開いてください
-                            </p>
-                          )}
                           <a
                             href={m.documentUrl}
                             target="_blank"

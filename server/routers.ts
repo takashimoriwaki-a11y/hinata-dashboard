@@ -1269,6 +1269,7 @@ import {
   updatePatient,
   deactivatePatient,
   createVisitRecord,
+  upsertTodayVisitRecord,
   getVisitRecords,
   getVisitRecordById,
   markVisitRecordExported,
@@ -2880,7 +2881,7 @@ export const appRouter = router({
         notifyMethodOther: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const id = await createVisitRecord({
+        const id = await upsertTodayVisitRecord({
           ...input,
           createdBy: ctx.user.id,
           createdByName: ctx.user.name ?? "不明",

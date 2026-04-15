@@ -894,6 +894,50 @@ export async function getVisitRecords(userId?: number, patientId?: number) {
     .limit(50);
 }
 
+/** 当日分の訪問記録を上書きする（同一日・同一利用者・同一記録者の場合は更新、それ以外は新規作成） */
+export async function upsertTodayVisitRecord(data: InsertVisitRecord): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // 今日日本時間の開始・終了（UTCに変換）
+  const now = new Date();
+  const jstOffset = 9 * 60 * 60 * 1000;
+  const jstNow = new Date(now.getTime() + jstOffset);
+  const jstDateStr = `${jstNow.getUTCFullYear()}-${String(jstNow.getUTCMonth()+1).padStart(2,'0')}-${String(jstNow.getUTCDate()).padStart(2,'0')}`;
+  const todayStartUTC = new Date(new Date(jstDateStr + 'T00:00:00+09:00').getTime());
+  const todayEndUTC = new Date(new Date(jstDateStr + 'T23:59:59+09:00').getTime());
+  // 同一日・同一利用者・同一記録者のレコードを検索
+  const existing = await db
+    .select({ id: visitRecords.id })
+    .from(visitRecords)
+    .where(
+      and(
+        eq(visitRecords.createdBy, data.createdBy),
+        eq(visitRecords.patientName, data.patientName),
+        gte(visitRecords.createdAt, todayStartUTC),
+        lte(visitRecords.createdAt, todayEndUTC)
+      )
+    )
+    .limit(1);
+  if (existing.length > 0) {
+    // 当日分があれば更新
+    await db.update(visitRecords)
+      .set({
+        nextVisitAt: data.nextVisitAt,
+        notifiedTo: data.notifiedTo,
+        notifiedToOther: data.notifiedToOther,
+        notifyMethod: data.notifyMethod,
+        notifyMethodOther: data.notifyMethodOther,
+        exportedAt: null, // 再転送が必要なのでリセット
+      })
+      .where(eq(visitRecords.id, existing[0].id));
+    return existing[0].id;
+  } else {
+    // 新規作成
+    const result = await db.insert(visitRecords).values(data);
+    return (result as any)[0]?.insertId ?? 0;
+  }
+}
+
 /** 訪問記録をIDで取得する */
 export async function getVisitRecordById(id: number) {
   const db = await getDb();

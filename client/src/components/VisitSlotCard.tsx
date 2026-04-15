@@ -508,19 +508,33 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                 <Calendar className="w-3.5 h-3.5" />
                 ② 次回訪問日時
               </p>
-              <a
-                href="https://homecare.zest.jp/login"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-800/60 transition-colors"
-              >
-                <ExternalLink className="w-3 h-3" />
-                ZEST
-              </a>
+              <div className="flex items-center gap-1.5">
+                {/* 次回訪問日時スプレッドシートリンク */}
+                <a
+                  href="https://docs.google.com/spreadsheets/d/1WOZQ5rI0Fu57nWaiGwComPS_DdEwPgNR6zeOmyrqKpo/edit"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800/60 transition-colors"
+                  title="次回訪問日時スプレッドシートを開く"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  シート
+                </a>
+                {/* ZESTリンク */}
+                <a
+                  href="https://homecare.zest.jp/login"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-800/60 transition-colors"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  ZEST
+                </a>
+              </div>
             </div>
 
-            {/* 日付・時刻 */}
-            <div className="flex gap-2">
+            {/* 日付・時刻 + リセットボタン */}
+            <div className="flex gap-2 items-center">
               <Input
                 type="date"
                 className="text-sm flex-1"
@@ -561,6 +575,27 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                   </div>
                 )}
               </div>
+              {/* 次回訪問日時リセットボタン */}
+              {(nextVisitDate || nextVisitTime) && (
+                <button
+                  type="button"
+                  title="次回訪問日時をリセット"
+                  className="flex-shrink-0 p-2 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  onClick={() => {
+                    if (!window.confirm("次回訪問日時をリセットしますか？")) return;
+                    setNextVisitDate("");
+                    setNextVisitTime("");
+                    setNotifiedTo("");
+                    setNotifiedToOther("");
+                    setNotifyMethod("");
+                    setNotifyMethodOther("");
+                    setExported(false);
+                    setSavedRecordId(null);
+                  }}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
             {/* 伝達先・伝達方法 */}
