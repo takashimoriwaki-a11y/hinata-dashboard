@@ -906,7 +906,7 @@ export default function Admin() {
                 : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
-            ツール操作ログ
+            操作ログ
           </button>
         )}
         {currentUser?.role === "admin" && (
@@ -2836,14 +2836,61 @@ function QuickAccessLinksPanel() {
 }
 
 // ============================
-// ツール操作ログパネル
+// 操作ログパネル
 // ============================
 function ToolAuditLogsPanel() {
+  const today = new Date();
+  const jst = new Date(today.getTime() + 9 * 60 * 60 * 1000);
+  const defaultEnd = jst.toISOString().slice(0, 10);
+  const defaultStart = new Date(jst.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  const [activeTab, setActiveTab] = useState<"toolLogs" | "allLogs">("allLogs");
   const [toolTypeFilter, setToolTypeFilter] = useState<"all" | "team" | "common">("all");
+  const [csvStartDate, setCsvStartDate] = useState(defaultStart);
+  const [csvEndDate, setCsvEndDate] = useState(defaultEnd);
+  const [csvUserId, setCsvUserId] = useState<number | undefined>(undefined);
+  const [csvEnabled, setCsvEnabled] = useState(false);
+
   const { data: logs, isLoading, refetch } = trpc.toolAuditLogs.list.useQuery(
     { limit: 200, toolType: toolTypeFilter },
     { refetchOnWindowFocus: false }
   );
+
+  const { data: staffList } = trpc.toolAuditLogs.getStaffList.useQuery(undefined, {
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: allLogs, isLoading: allLogsLoading, refetch: refetchAll } = trpc.toolAuditLogs.exportAll.useQuery(
+    { startDate: csvStartDate, endDate: csvEndDate, userId: csvUserId },
+    { enabled: csvEnabled, refetchOnWindowFocus: false }
+  );
+
+  const handleLoadLogs = () => {
+    setCsvEnabled(true);
+    refetchAll();
+  };
+
+  const handleExportCsv = () => {
+    if (!allLogs || allLogs.length === 0) return;
+    const header = "日時,職員名,カテゴリ,操作,詳細";
+    const rows = allLogs.map((r) =>
+      [
+        `"${r.datetime}"`,
+        `"${r.userName}"`,
+        `"${r.category}"`,
+        `"${r.action}"`,
+        `"${r.detail.replace(/"/g, '""')}"`,
+      ].join(",")
+    );
+    const csv = "\uFEFF" + [header, ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `操作ログ_${csvStartDate}_${csvEndDate}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const actionLabel = (action: string) => {
     if (action === "create") return { label: "追加", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" };
@@ -2858,100 +2905,213 @@ function ToolAuditLogsPanel() {
     return type;
   };
 
+  const categoryColor = (cat: string) => {
+    if (cat === "出退勤") return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
+    if (cat === "残業申請") return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300";
+    if (cat === "アルコールチェック") return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300";
+    if (cat === "タスク") return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
+    if (cat === "メッセージ") return "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300";
+    if (cat === "スケジュール変更連絡") return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300";
+    if (cat === "ツール操作") return "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-300";
+    if (cat === "月次署名") return "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300";
+    return "bg-gray-100 text-gray-800";
+  };
+
   return (
     <Card className="shadow-sm">
       <CardHeader className="pb-2 pt-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-semibold">ツール操作ログ</CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => refetch()} className="text-xs">
-            <RotateCcw className="w-3.5 h-3.5 mr-1" />
-            更新
-          </Button>
+          <CardTitle className="text-base font-semibold">操作ログ</CardTitle>
         </div>
-        <p className="text-xs text-muted-foreground mt-1">ツールの追加・更新・削除の操作履歴（最新200件）</p>
+        {/* タブ切り替え */}
+        <div className="flex gap-1 mt-3 border-b border-border">
+          <button
+            onClick={() => setActiveTab("allLogs")}
+            className={cn(
+              "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
+              activeTab === "allLogs" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            全操作ログ（CSV出力）
+          </button>
+          <button
+            onClick={() => setActiveTab("toolLogs")}
+            className={cn(
+              "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
+              activeTab === "toolLogs" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            ツール操作履歴
+          </button>
+        </div>
       </CardHeader>
       <CardContent>
-        {/* フィルター */}
-        <div className="flex gap-2 mb-4">
-          {(["all", "team", "common"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setToolTypeFilter(t)}
-              className={cn(
-                "px-3 py-1 text-xs rounded-full border transition-colors",
-                toolTypeFilter === t
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "border-border text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {t === "all" ? "すべて" : t === "team" ? "チームツール" : "全チーム共通"}
-            </button>
-          ))}
-        </div>
+        {activeTab === "allLogs" && (
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground">全職員の全操作（出退勤・残業申請・アルコールチェック・タスク・メッセージ・スケジュール変更・ツール操作・月次署名）をCSV形式で出力できます。</p>
 
-        {isLoading ? (
-          <div className="text-center py-8 text-muted-foreground text-sm">読み込み中...</div>
-        ) : !logs || logs.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground text-sm">操作ログがありません</div>
-        ) : (
-          <div className="space-y-2">
-            {logs.map((log) => {
-              const { label, color } = actionLabel(log.action);
-              return (
-                <div
-                  key={log.id}
-                  className="flex items-start gap-3 p-3 rounded-lg border border-border bg-card hover:bg-accent/30 transition-colors"
+            {/* フィルター */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-lg bg-muted/40 border border-border">
+              <div>
+                <label className="text-xs font-medium text-foreground block mb-1">開始日</label>
+                <input
+                  type="date"
+                  value={csvStartDate}
+                  onChange={(e) => { setCsvStartDate(e.target.value); setCsvEnabled(false); }}
+                  className="w-full text-sm border border-border rounded-md px-2 py-1.5 bg-background text-foreground"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-foreground block mb-1">終了日</label>
+                <input
+                  type="date"
+                  value={csvEndDate}
+                  onChange={(e) => { setCsvEndDate(e.target.value); setCsvEnabled(false); }}
+                  className="w-full text-sm border border-border rounded-md px-2 py-1.5 bg-background text-foreground"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-foreground block mb-1">職員フィルター</label>
+                <select
+                  value={csvUserId ?? ""}
+                  onChange={(e) => { setCsvUserId(e.target.value ? Number(e.target.value) : undefined); setCsvEnabled(false); }}
+                  className="w-full text-sm border border-border rounded-md px-2 py-1.5 bg-background text-foreground"
                 >
-                  <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5", color)}>
-                    {label}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-foreground truncate">{log.toolLabel}</span>
-                      <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                        {toolTypeLabel(log.toolType)}
+                  <option value="">全員</option>
+                  {staffList?.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button size="sm" onClick={handleLoadLogs} disabled={allLogsLoading} className="text-xs">
+                {allLogsLoading ? "読み込み中..." : "ログを読み込む"}
+              </Button>
+              {allLogs && allLogs.length > 0 && (
+                <Button size="sm" variant="outline" onClick={handleExportCsv} className="text-xs">
+                  CSVダウンロード（{allLogs.length}件）
+                </Button>
+              )}
+            </div>
+
+            {csvEnabled && (
+              allLogsLoading ? (
+                <div className="text-center py-8 text-muted-foreground text-sm">読み込み中...</div>
+              ) : !allLogs || allLogs.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground text-sm">該当する操作ログがありません</div>
+              ) : (
+                <div className="space-y-1.5 max-h-96 overflow-y-auto">
+                  {allLogs.map((row, i) => (
+                    <div key={i} className="flex items-start gap-2 p-2.5 rounded-lg border border-border bg-card hover:bg-accent/20 transition-colors">
+                      <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5 whitespace-nowrap", categoryColor(row.category))}>
+                        {row.category}
                       </span>
-                      {log.team && (
-                        <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                          {log.team}
-                        </span>
-                      )}
-                      {log.category && (
-                        <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                          {log.category}
-                        </span>
-                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium text-foreground">{row.userName}</span>
+                          <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{row.action}</span>
+                        </div>
+                        {row.detail && <p className="text-xs text-muted-foreground mt-0.5 truncate">{row.detail}</p>}
+                        <p className="text-xs text-muted-foreground mt-0.5">{row.datetime}</p>
+                      </div>
                     </div>
-                    {log.action === "update" && log.previousLabel && log.previousLabel !== log.toolLabel && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        変更前: {log.previousLabel}
-                      </p>
-                    )}
-                    {log.toolHref && (
-                      <a
-                        href={log.toolHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-blue-500 hover:underline truncate block mt-0.5 max-w-xs"
-                      >
-                        {log.toolHref}
-                      </a>
-                    )}
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-muted-foreground">
-                        {log.operatedByName}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(log.createdAt).toLocaleString("ja-JP", {
-                          year: "numeric", month: "2-digit", day: "2-digit",
-                          hour: "2-digit", minute: "2-digit"
-                        })}
-                      </span>
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              );
-            })}
+              )
+            )}
+          </div>
+        )}
+
+        {activeTab === "toolLogs" && (
+          <div>
+            <p className="text-xs text-muted-foreground mb-3">ツールの追加・更新・削除の操作履歴（最新200件）</p>
+            {/* フィルター */}
+            <div className="flex gap-2 mb-4 items-center">
+              {(["all", "team", "common"] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setToolTypeFilter(t)}
+                  className={cn(
+                    "px-3 py-1 text-xs rounded-full border transition-colors",
+                    toolTypeFilter === t
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {t === "all" ? "すべて" : t === "team" ? "チームツール" : "全チーム共通"}
+                </button>
+              ))}
+              <Button variant="ghost" size="sm" onClick={() => refetch()} className="text-xs ml-auto">
+                <RotateCcw className="w-3.5 h-3.5 mr-1" />
+                更新
+              </Button>
+            </div>
+
+            {isLoading ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">読み込み中...</div>
+            ) : !logs || logs.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">操作ログがありません</div>
+            ) : (
+              <div className="space-y-2">
+                {logs.map((log) => {
+                  const { label, color } = actionLabel(log.action);
+                  return (
+                    <div
+                      key={log.id}
+                      className="flex items-start gap-3 p-3 rounded-lg border border-border bg-card hover:bg-accent/30 transition-colors"
+                    >
+                      <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5", color)}>
+                        {label}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium text-foreground truncate">{log.toolLabel}</span>
+                          <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                            {toolTypeLabel(log.toolType)}
+                          </span>
+                          {log.team && (
+                            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                              {log.team}
+                            </span>
+                          )}
+                          {log.category && (
+                            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                              {log.category}
+                            </span>
+                          )}
+                        </div>
+                        {log.action === "update" && log.previousLabel && log.previousLabel !== log.toolLabel && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            変更前: {log.previousLabel}
+                          </p>
+                        )}
+                        {log.toolHref && (
+                          <a
+                            href={log.toolHref}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-500 hover:underline truncate block mt-0.5 max-w-xs"
+                          >
+                            {log.toolHref}
+                          </a>
+                        )}
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-muted-foreground">{log.operatedByName}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(log.createdAt).toLocaleString("ja-JP", {
+                              year: "numeric", month: "2-digit", day: "2-digit",
+                              hour: "2-digit", minute: "2-digit"
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </CardContent>

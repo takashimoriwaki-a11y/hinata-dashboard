@@ -4874,7 +4874,7 @@ export const appRouter = router({
         return { events };
       }),
   }),
-  /** ツール操作ログ */
+  /** 操作ログ */
   toolAuditLogs: router({
     /** ツール操作ログ一覧を取得（管理者・事務員のみ） */
     list: protectedProcedure
@@ -4902,6 +4902,204 @@ export const appRouter = router({
           .orderBy(desc(toolAuditLogs.createdAt))
           .limit(input.limit);
       }),
+    /** 全操作ログを取得（CSV出力用） */
+    exportAll: protectedProcedure
+      .input(z.object({
+        startDate: z.string().optional(), // YYYY-MM-DD
+        endDate: z.string().optional(),   // YYYY-MM-DD
+        userId: z.number().int().optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        const canView = ctx.user.role === "admin" || (ctx.user as any).team === "事務員";
+        if (!canView) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者または事務員のみ閲覧できます" });
+        }
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) return [];
+
+        const schema = await import("../drizzle/schema");
+        const { desc, gte, lte, and, eq } = await import("drizzle-orm");
+
+        // 日付フィルターの準備（JST基準）
+        const toStartMs = (dateStr: string) => new Date(`${dateStr}T00:00:00+09:00`).getTime();
+        const toEndMs = (dateStr: string) => new Date(`${dateStr}T23:59:59+09:00`).getTime();
+        const startMs = input?.startDate ? toStartMs(input.startDate) : undefined;
+        const endMs = input?.endDate ? toEndMs(input.endDate) : undefined;
+        const filterUserId = input?.userId;
+
+        const rows: Array<{ datetime: string; userName: string; category: string; action: string; detail: string }> = [];
+
+        // 1. 出退勤ログ
+        const attendanceWhere = [];
+        if (startMs) attendanceWhere.push(gte(schema.attendanceLogs.clockedAt, startMs));
+        if (endMs) attendanceWhere.push(lte(schema.attendanceLogs.clockedAt, endMs));
+        if (filterUserId) attendanceWhere.push(eq(schema.attendanceLogs.userId, filterUserId));
+        const attendance = await db.select().from(schema.attendanceLogs)
+          .where(attendanceWhere.length ? and(...attendanceWhere) : undefined)
+          .orderBy(desc(schema.attendanceLogs.clockedAt))
+          .limit(2000);
+        for (const a of attendance) {
+          rows.push({
+            datetime: new Date(a.clockedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }),
+            userName: a.userName,
+            category: "出退勤",
+            action: a.type === "clock_in" ? "出勤" : "退勤",
+            detail: "",
+          });
+        }
+
+        // 2. 残業申請
+        const overtimeWhere = [];
+        if (startMs) overtimeWhere.push(gte(schema.overtimeApprovals.appliedAt, startMs));
+        if (endMs) overtimeWhere.push(lte(schema.overtimeApprovals.appliedAt, endMs));
+        if (filterUserId) overtimeWhere.push(eq(schema.overtimeApprovals.userId, filterUserId));
+        const overtime = await db.select().from(schema.overtimeApprovals)
+          .where(overtimeWhere.length ? and(...overtimeWhere) : undefined)
+          .orderBy(desc(schema.overtimeApprovals.appliedAt))
+          .limit(2000);
+        for (const o of overtime) {
+          const statusLabel = o.status === "approved" ? "承認済" : o.status === "rejected" ? "却下" : "承認待ち";
+          rows.push({
+            datetime: new Date(o.appliedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }),
+            userName: o.userName,
+            category: "残業申請",
+            action: `申請（${statusLabel}）`,
+            detail: `申請日: ${o.applicationDate} 理由: ${o.reason ?? ""}`,
+          });
+        }
+
+        // 3. アルコールチェック
+        const alcoholWhere = [];
+        if (startMs) alcoholWhere.push(gte(schema.alcoholChecks.checkedAt, startMs));
+        if (endMs) alcoholWhere.push(lte(schema.alcoholChecks.checkedAt, endMs));
+        if (filterUserId) alcoholWhere.push(eq(schema.alcoholChecks.userId, filterUserId));
+        const alcohol = await db.select().from(schema.alcoholChecks)
+          .where(alcoholWhere.length ? and(...alcoholWhere) : undefined)
+          .orderBy(desc(schema.alcoholChecks.checkedAt))
+          .limit(2000);
+        for (const a of alcohol) {
+          rows.push({
+            datetime: new Date(a.checkedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }),
+            userName: a.userName,
+            category: "アルコールチェック",
+            action: a.timing === "before" ? "勤務前" : "勤務後",
+            detail: `数値: ${a.alcoholValue ?? ""} 判定: ${a.result === "pass" ? "合格" : "不合格"}`,
+          });
+        }
+
+        // 4. タスク作成
+        const tasksWhere = [];
+        if (startMs) tasksWhere.push(gte(schema.tasks.createdAt, startMs));
+        if (endMs) tasksWhere.push(lte(schema.tasks.createdAt, endMs));
+        if (filterUserId) tasksWhere.push(eq(schema.tasks.createdBy, filterUserId));
+        const tasksList = await db.select().from(schema.tasks)
+          .where(tasksWhere.length ? and(...tasksWhere) : undefined)
+          .orderBy(desc(schema.tasks.createdAt))
+          .limit(2000);
+        for (const t of tasksList) {
+          rows.push({
+            datetime: new Date(t.createdAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }),
+            userName: t.createdByName ?? "",
+            category: "タスク",
+            action: "作成",
+            detail: `内容: ${t.text ?? ""} 指定先: ${t.assignTeam ?? t.assignUserName ?? "全員"}`,
+          });
+        }
+
+        // 5. メッセージ投稿
+        const messagesWhere = [];
+        if (startMs) messagesWhere.push(gte(schema.messages.createdAt, startMs));
+        if (endMs) messagesWhere.push(lte(schema.messages.createdAt, endMs));
+        if (filterUserId) messagesWhere.push(eq(schema.messages.createdBy, filterUserId));
+        const messagesList = await db.select().from(schema.messages)
+          .where(messagesWhere.length ? and(...messagesWhere) : undefined)
+          .orderBy(desc(schema.messages.createdAt))
+          .limit(2000);
+        for (const m of messagesList) {
+          rows.push({
+            datetime: new Date(m.createdAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }),
+            userName: m.createdByName ?? "",
+            category: "メッセージ",
+            action: "投稿",
+            detail: `内容: ${(m.text ?? "").slice(0, 100)}`,
+          });
+        }
+
+        // 6. スケジュール変更連絡
+        const scheduleWhere = [];
+        if (startMs) scheduleWhere.push(gte(schema.scheduleChanges.createdAt, startMs));
+        if (endMs) scheduleWhere.push(lte(schema.scheduleChanges.createdAt, endMs));
+        if (filterUserId) scheduleWhere.push(eq(schema.scheduleChanges.createdBy, filterUserId));
+        const scheduleChanges = await db.select().from(schema.scheduleChanges)
+          .where(scheduleWhere.length ? and(...scheduleWhere) : undefined)
+          .orderBy(desc(schema.scheduleChanges.createdAt))
+          .limit(2000);
+        for (const s of scheduleChanges) {
+          rows.push({
+            datetime: new Date(s.createdAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }),
+            userName: s.createdByName ?? "",
+            category: "スケジュール変更連絡",
+            action: "送信",
+            detail: `利用者: ${s.patientName ?? ""} 理由: ${(s.reason ?? "").slice(0, 100)}`,
+          });
+        }
+
+        // 7. ツール操作ログ
+        const toolWhere = [];
+        if (startMs) toolWhere.push(gte(schema.toolAuditLogs.createdAt, startMs));
+        if (endMs) toolWhere.push(lte(schema.toolAuditLogs.createdAt, endMs));
+        if (filterUserId) toolWhere.push(eq(schema.toolAuditLogs.operatedBy, filterUserId));
+        const toolLogs = await db.select().from(schema.toolAuditLogs)
+          .where(toolWhere.length ? and(...toolWhere) : undefined)
+          .orderBy(desc(schema.toolAuditLogs.createdAt))
+          .limit(2000);
+        for (const t of toolLogs) {
+          const actionLabel = t.action === "create" ? "追加" : t.action === "update" ? "更新" : "削除";
+          rows.push({
+            datetime: new Date(t.createdAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }),
+            userName: t.operatedByName,
+            category: "ツール操作",
+            action: actionLabel,
+            detail: `ツール名: ${t.toolLabel} 種別: ${t.toolType === "team" ? "チームツール" : "全チーム共通"} ${t.team ? `チーム: ${t.team}` : ""}`,
+          });
+        }
+
+        // 8. 月次署名
+        const sigWhere = [];
+        if (startMs) sigWhere.push(gte(schema.monthlySignatures.signedAt, startMs));
+        if (endMs) sigWhere.push(lte(schema.monthlySignatures.signedAt, endMs));
+        if (filterUserId) sigWhere.push(eq(schema.monthlySignatures.userId, filterUserId));
+        const sigs = await db.select().from(schema.monthlySignatures)
+          .where(sigWhere.length ? and(...sigWhere) : undefined)
+          .orderBy(desc(schema.monthlySignatures.signedAt))
+          .limit(2000);
+        for (const s of sigs) {
+          rows.push({
+            datetime: new Date(s.signedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }),
+            userName: s.userName,
+            category: "月次署名",
+            action: "署名",
+            detail: `対象年月: ${s.targetYear}年${s.targetMonth}月`,
+          });
+        }
+
+        // 日時順にソート
+        rows.sort((a, b) => new Date(b.datetime).getTime() - new Date(a.datetime).getTime());
+        return rows;
+      }),
+    /** 全スタッフ一覧を取得（CSVフィルター用） */
+    getStaffList: protectedProcedure.query(async ({ ctx }) => {
+      const canView = ctx.user.role === "admin" || (ctx.user as any).team === "事務員";
+      if (!canView) throw new TRPCError({ code: "FORBIDDEN" });
+      const { getDb } = await import("./db");
+      const db = await getDb();
+      if (!db) return [];
+      const { users } = await import("../drizzle/schema");
+      return db.select({ id: users.id, name: users.name })
+        .from(users)
+        .orderBy(users.name);
+    }),
   }),
 
   teamGoals: router({
