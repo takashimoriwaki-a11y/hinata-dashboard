@@ -40,6 +40,7 @@ import {
   Calendar as CalendarIcon,
   Clock,
   Sparkles,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getTeamButtonClass, getTeamButtonStyle } from "@shared/teamColors";
@@ -1673,6 +1674,19 @@ export default function ScheduleChange() {
               </div>
             </div>
           )}
+
+          {/* スプレッドシートリンクボタン */}
+          <div className="mb-2">
+            <a
+              href="https://docs.google.com/spreadsheets/d/1ki462aQRaNTj5FrI_1MJ1OyATFGqODz6HCtmuriIDEU/edit?gid=941601927#gid=941601927"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800/60 transition-colors"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              スケジュール変更連絡シートを開く
+            </a>
+          </div>
 
           <div className="flex items-center gap-3">
             <div className="flex-1 min-w-0">

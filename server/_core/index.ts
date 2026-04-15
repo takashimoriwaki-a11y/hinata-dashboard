@@ -1281,3 +1281,55 @@ function scheduleNextMonthTimesheetSheet() {
   console.log("[TimesheetSheetAuto] 毎月25日9:05の翌月出退勤スプレッドシート自動作成スケジューラーを開始しました");
 }
 scheduleNextMonthTimesheetSheet();
+
+// ========== 毎日0:05（JST）にスケジュール変更連絡をtoDatetimeから3日後に自動削除 ==========
+function scheduleScheduleChangeCleanup() {
+  const checkInterval = 60 * 1000; // 1分ごとにチェック
+  let lastCleanedDate = "";
+
+  setInterval(async () => {
+    const now = new Date();
+    const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    const h = jstNow.getUTCHours();
+    const m = jstNow.getUTCMinutes();
+    const dateStr = jstNow.toISOString().slice(0, 10);
+
+    // 毎日0:05（JST）に1回だけ実行
+    if (h === 0 && m === 5 && lastCleanedDate !== dateStr) {
+      lastCleanedDate = dateStr;
+      try {
+        console.log(`[ScheduleChangeCleanup] ${dateStr} 00:05 - toDatetimeから3日経過したスケジュール変更連絡を削除します`);
+        const db = await import("../db");
+        const { scheduleChanges } = await import("../../drizzle/schema");
+        const { drizzle } = await import("drizzle-orm/mysql2");
+        const mysql = await import("mysql2/promise");
+        const { lt, isNotNull } = await import("drizzle-orm");
+
+        const connection = await mysql.default.createConnection(process.env.DATABASE_URL!);
+        const drizzleDb = drizzle(connection);
+
+        // 3日前の日時（JST）
+        const threeDaysAgo = new Date(jstNow.getTime() - 3 * 24 * 60 * 60 * 1000);
+        const threeDaysAgoStr = threeDaysAgo.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:mm"
+
+        // toDatetime が設定されていて、3日以上前のレコードを削除
+        // toDatetime は "YYYY-MM-DDTHH:mm" 形式の文字列
+        const result = await drizzleDb
+          .delete(scheduleChanges)
+          .where(
+            lt(scheduleChanges.toDatetime, threeDaysAgoStr)
+          );
+
+        const deletedCount = (result as any)[0]?.affectedRows ?? 0;
+        console.log(`[ScheduleChangeCleanup] ${deletedCount}件のスケジュール変更連絡を削除しました`);
+
+        await connection.end();
+      } catch (e) {
+        console.error(`[ScheduleChangeCleanup] エラー:`, e);
+      }
+    }
+  }, checkInterval);
+
+  console.log("[ScheduleChangeCleanup] 毎日0:05のスケジュール変更連絡自動削除スケジューラーを開始しました");
+}
+scheduleScheduleChangeCleanup();
