@@ -215,6 +215,20 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   const alcoholHeaderRef = useRef<HTMLDivElement>(null); // アコーディオン展開時のスクロールターゲット
   const alcoholFormEndRef = useRef<HTMLDivElement>(null); // アルコールフォーム末尾のスクロールターゲット
   const overtimeCardRef = useRef<HTMLDivElement>(null); // 残業カード先頭のスクロールターゲット
+  const footerRef = useRef<HTMLDivElement>(null); // フッター（キャンセル/閉じるボタン）のref
+  const [footerHeight, setFooterHeight] = useState(0);
+
+  // フッター高さをResizeObserverで監視し、スクロールコンテナのpbに反映する
+  useEffect(() => {
+    const footer = footerRef.current;
+    if (!footer) return;
+    const observer = new ResizeObserver(() => {
+      setFooterHeight(footer.offsetHeight);
+    });
+    observer.observe(footer);
+    setFooterHeight(footer.offsetHeight);
+    return () => observer.disconnect();
+  }, [isClockIn]); // isClockIn切り替わり時に再計測
 
   // アルコールチェック完了後に次のアクションへスクロールするヘルパー
   const scrollToAfterAlcohol = useCallback(() => {
@@ -1855,7 +1869,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         </div>
 
         {/* コンテンツ */}
-        <div ref={scrollContainerRef} className="attendance-scroll-container pt-2 pb-6 overflow-y-auto flex-1 min-h-0 overscroll-contain" style={{WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain'}}>
+        <div ref={scrollContainerRef} className="attendance-scroll-container pt-2 overflow-y-auto flex-1 min-h-0 overscroll-contain" style={{WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain', paddingBottom: footerHeight > 0 ? `${footerHeight + 16}px` : '24px'}}>
 
           {isClockIn ? (
             // ── 出勤画面レイアウト：手順チェック → アルコールチェック ──
@@ -2003,7 +2017,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
         {/* フッター（出勤時のみ） */}
         {isClockIn && (
-          <div className="px-5 pt-2 pb-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 space-y-2 bg-white dark:bg-gray-900">
+          <div ref={footerRef} className="px-5 pt-2 pb-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 space-y-2 bg-white dark:bg-gray-900">
             {/* 全完了バナー */}
             {allClockInTasksDone && (
               <div className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
@@ -2087,7 +2101,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         )}
         {/* 退勤時フッター（閉じるのみ） */}
         {!isClockIn && (
-          <div className="px-5 pt-2 pb-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-900">
+          <div ref={footerRef} className="px-5 pt-2 pb-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-900">
             <button
               type="button"
               onClick={handleCloseRequest}
