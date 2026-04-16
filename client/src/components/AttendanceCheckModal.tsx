@@ -394,6 +394,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       } catch { /* ignore */ }
       // 少し待ってからホームへ戻る
       const timer = setTimeout(() => {
+        toast.success("出勤処理が完了しました", {
+          description: "今日もよろしくお願いします。",
+          duration: 4000,
+        });
         onClose();
         onConfirm?.();
       }, 800);
