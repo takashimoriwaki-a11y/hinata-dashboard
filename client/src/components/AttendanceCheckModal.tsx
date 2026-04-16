@@ -18,6 +18,7 @@ import {
   Car,
   Shield,
   ChevronDown,
+  ChevronUp,
   Clock,
   Users,
   FileText,
@@ -543,6 +544,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     onSuccess: () => {
       toast.success("残業申請を送信しました");
       setOvertimeSubmitted(true);
+      // 申請完了後に残業カードを折りたたむ
+      setHasOvertime(false);
       void utils.overtime.getMine.invalidate();
     },
     onError: (e) => {
@@ -1182,6 +1185,19 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         </div>
         {/* アルコールフォーム末尾のスクロールターゲット */}
         <div ref={alcoholFormEndRef} />
+        {/* 折りたたみボタン */}
+        <button
+          type="button"
+          onClick={() => setAlcoholOpen(false)}
+          className={`w-full flex items-center justify-center gap-1.5 py-2.5 mt-1 rounded-xl text-xs font-semibold transition-colors ${
+            isClockIn
+              ? "text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/30"
+              : "text-cyan-600 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-950/30"
+          }`}
+        >
+          <ChevronUp className="w-3.5 h-3.5" />
+          アルコールチェックを折りたたむ
+        </button>
       </div>
       )}
       </div>
@@ -1211,7 +1227,13 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             <Clock className="w-4 h-4 flex-shrink-0" />
             <span className="flex-shrink-0">残業申請</span>
             {/* トグルオフ時に入力内容プレビューを表示 */}
-            {!hasOvertime && overtimeReasonTypes.length > 0 && (
+            {!hasOvertime && overtimeSubmitted && (
+              <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-semibold ml-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                申請済み
+              </span>
+            )}
+            {!hasOvertime && !overtimeSubmitted && overtimeReasonTypes.length > 0 && (
               <span className="text-xs text-purple-600 dark:text-purple-400 font-normal truncate ml-1">
                 {String(overtimeStartHour).padStart(2, "0")}:{String(overtimeStartMinute).padStart(2, "0")}〜{String(overtimeEndHour).padStart(2, "0")}:{String(overtimeEndMinute).padStart(2, "0")} / {buildOvertimeReason()}
               </span>
