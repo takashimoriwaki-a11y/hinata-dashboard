@@ -842,21 +842,49 @@ export async function createPatient(data: InsertPatient) {
   return (result as any)[0]?.insertId ?? 0;
 }
 
-/** 利用者を一括登録する */
+/** 利用者を一括登録（同名氏名があれば上書き更新） */
 export async function batchCreatePatients(data: Array<{ name: string; team: string; nameKana?: string; active?: number; patientCode?: string }>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  if (data.length === 0) return 0;
-  await db.insert(patients).values(
-    data.map((d) => ({
-      name: d.name,
+  if (data.length === 0) return { created: 0, updated: 0 };
+
+  // 既存利用者を氏名で一括取得
+  const names = data.map((d) => d.name);
+  const existing = await db
+    .select({ id: patients.id, name: patients.name })
+    .from(patients)
+    .where(sql`${patients.name} IN (${sql.join(names.map((n) => sql`${n}`), sql`, `)})`);
+  const existingMap = new Map(existing.map((p) => [p.name, p.id]));
+
+  const toInsert = data.filter((d) => !existingMap.has(d.name));
+  const toUpdate = data.filter((d) => existingMap.has(d.name));
+
+  // 新規登録
+  if (toInsert.length > 0) {
+    await db.insert(patients).values(
+      toInsert.map((d) => ({
+        name: d.name,
+        team: d.team as any,
+        nameKana: d.nameKana ?? null,
+        active: d.active ?? 1,
+        patientCode: d.patientCode ?? null,
+      }))
+    );
+  }
+
+  // 上書き更新（名前一致の場合）
+  for (const d of toUpdate) {
+    const id = existingMap.get(d.name)!;
+    await db.update(patients).set({
       team: d.team as any,
       nameKana: d.nameKana ?? null,
       active: d.active ?? 1,
       patientCode: d.patientCode ?? null,
-    }))
-  );
-  return data.length;
+      updatedAt: new Date(),
+    }).where(eq(patients.id, id));
+  }
+
+  return { created: toInsert.length, updated: toUpdate.length };
 }
 
 /** 利用者を更新する */

@@ -224,7 +224,7 @@ function PatientMasterPanel() {
   // Excelインポート
   const patientExcelRef = useRef<HTMLInputElement>(null);
   const [importingPatients, setImportingPatients] = useState(false);
-  const [importResult, setImportResult] = useState<{ count: number; skipped: number; errors: string[] } | null>(null);
+  const [importResult, setImportResult] = useState<{ count: number; created: number; updated: number; skipped: number; errors: string[] } | null>(null);
   const handlePatientExcelImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -237,12 +237,12 @@ function PatientMasterPanel() {
       if (!res.ok) {
         toast.error(data.error ?? "インポートに失敗しました");
         if (data.errors?.length) {
-          setImportResult({ count: 0, skipped: data.skipped ?? 0, errors: data.errors });
+          setImportResult({ count: 0, created: 0, updated: 0, skipped: data.skipped ?? 0, errors: data.errors });
         }
         return;
       }
       utils.patients.listAll.invalidate();
-      setImportResult({ count: data.count ?? 0, skipped: data.skipped ?? 0, errors: data.errors ?? [] });
+      setImportResult({ count: data.count ?? 0, created: data.created ?? 0, updated: data.updated ?? 0, skipped: data.skipped ?? 0, errors: data.errors ?? [] });
     } catch {
       toast.error("インポート処理中にエラーが発生しました");
     } finally {
@@ -494,9 +494,16 @@ function PatientMasterPanel() {
               <button onClick={() => setImportResult(null)}><X className="w-4 h-4 text-muted-foreground" /></button>
             </div>
             <div className="flex flex-wrap gap-3 text-sm">
-              <span className="text-emerald-700 dark:text-emerald-400 font-medium">
-                登録成功：{importResult.count}名
-              </span>
+              {importResult.created > 0 && (
+                <span className="text-emerald-700 dark:text-emerald-400 font-medium">
+                  新規登録：{importResult.created}名
+                </span>
+              )}
+              {importResult.updated > 0 && (
+                <span className="text-blue-700 dark:text-blue-400 font-medium">
+                  上書き更新：{importResult.updated}名
+                </span>
+              )}
               {importResult.skipped > 0 && (
                 <span className="text-muted-foreground">
                   スキップ：{importResult.skipped}行（空行・記入例）

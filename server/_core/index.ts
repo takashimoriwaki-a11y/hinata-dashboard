@@ -503,10 +503,10 @@ ${medicalPrompt}${feedbackSection}`;
       if (patients.length === 0 && errors.length > 0) {
         res.status(400).json({ error: "インポートできる行がありませんでした", errors, skipped }); return;
       }
-      // DB登録
+      // DB登録（同名氏名は上書き更新）
       const { batchCreatePatients } = await import("../db");
-      const count = await batchCreatePatients(patients);
-      res.json({ success: true, count, skipped, errors });
+      const result = await batchCreatePatients(patients);
+      res.json({ success: true, created: result.created, updated: result.updated, count: result.created + result.updated, skipped, errors });
     } catch (e) {
       console.error("[import/patients] error:", e);
       res.status(500).json({ error: "インポート処理中にエラーが発生しました" });
