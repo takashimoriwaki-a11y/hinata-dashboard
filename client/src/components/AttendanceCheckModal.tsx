@@ -194,6 +194,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   // 手順チェック状態
   const [done, setDone] = useState<Record<string, boolean>>(savedState?.done ?? {});
   const [openingStepId, setOpeningStepId] = useState<string | null>(null);
+  // 直近に完了したステップID（完了アニメーション用・一時的）
+  const [justCompletedStepId, setJustCompletedStepId] = useState<string | null>(null);
 
   // アルコールチェック記録済みフラグ（出勤・退勤共通）
   const [alcoholRecorded, setAlcoholRecorded] = useState(savedState?.alcoholRecorded ?? false);
@@ -629,6 +631,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     const targetUrl = step.link.url;
     const newWindow = window.open(targetUrl, "_blank", "noopener,noreferrer");
     setDone((prev) => ({ ...prev, [step.id]: true }));
+    setJustCompletedStepId(step.id);
+    setTimeout(() => setJustCompletedStepId(null), 600);
     setOpeningStepId(step.id);
     try {
       // 当月URLからスプレッドシートIDを抽出（当月URLが設定されている場合はそちらを優先）
@@ -660,6 +664,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     if (!step.link) return;
     window.open(step.link.url, "_blank", "noopener,noreferrer");
     setDone((prev) => ({ ...prev, [step.id]: true }));
+    setJustCompletedStepId(step.id);
+    setTimeout(() => setJustCompletedStepId(null), 600);
     // 退勤時のみまもドライブを開いたら確認ダイアログをスキップして自動でモーダルを閉じる
     if (!isClockIn && step.id === "mimamodrive_out") {
       // 確認ダイアログが表示されていた場合は閉じる
@@ -1497,19 +1503,24 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   const renderStepItem = (step: ClockInStep) => {
     const isDone = done[step.id];
     const isOpening = openingStepId === step.id;
+    const isJustCompleted = justCompletedStepId === step.id;
     return (
       <div
         key={step.id}
-        className={`mx-3 my-2 rounded-xl border transition-all duration-200 ${
+        className={`mx-3 my-2 rounded-xl border transition-all duration-300 ${
           isDone
             ? "border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30"
             : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm"
-        }`}
+        } ${isJustCompleted ? "animate-step-card-complete" : ""}`}
       >
         <div className="flex items-start gap-3 px-4 py-3">
           <div className="flex-shrink-0 mt-0.5">
             {isDone ? (
-              <CheckCircle2 className="w-6 h-6 text-green-500" />
+              <CheckCircle2
+                className={`w-6 h-6 text-green-500 ${
+                  isJustCompleted ? "animate-check-icon-pop" : ""
+                }`}
+              />
             ) : (
               <div
                 className={`w-6 h-6 rounded-full ${
@@ -1524,7 +1535,9 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             <p
               className={`text-sm font-semibold leading-snug ${
                 isDone
-                  ? "text-green-700 dark:text-green-400 line-through"
+                  ? `text-green-700 dark:text-green-400 ${
+                      isJustCompleted ? "animate-strike-step" : "line-through"
+                    }`
                   : "text-gray-800 dark:text-gray-200"
               }`}
             >
@@ -1562,7 +1575,13 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         )}
         {isDone && (
           <div className="px-4 pb-3 pt-0">
-            <span className="text-xs text-green-600 dark:text-green-400 font-medium">✓ 完了</span>
+            <span
+              className={`text-xs text-green-600 dark:text-green-400 font-medium ${
+                isJustCompleted ? "animate-completed-text-in" : ""
+              }`}
+            >
+              ✓ 完了
+            </span>
           </div>
         )}
       </div>
