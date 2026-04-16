@@ -974,17 +974,17 @@ export default function Tasks() {
                     </div>
 
                     {/* 利用者名 */}
-                    <div className="relative">
+                    <div className="relative min-w-0 overflow-hidden">
                       <label className="text-xs font-medium text-muted-foreground mb-1 block">
                         <UserRound className="w-3 h-3 inline mr-0.5" />利用者名（任意）
                       </label>
                       {editAssignType === "team" ? (
                         /* チーム指定時：チームの利用者一覧から選択 */
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
                           <select
                             value={editPatientName}
                             onChange={(e) => setEditPatientName(e.target.value)}
-                            className="flex-1 text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-violet-500"
+                            className="flex-1 min-w-0 w-0 text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-violet-500"
                           >
                             <option value="">{editAssignTeam}チームの利用者を選択...</option>
                             {editTeamPatients.map((p) => (
