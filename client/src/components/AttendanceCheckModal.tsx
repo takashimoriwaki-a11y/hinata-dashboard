@@ -652,8 +652,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     if (!step.link) return;
     window.open(step.link.url, "_blank", "noopener,noreferrer");
     setDone((prev) => ({ ...prev, [step.id]: true }));
-    // 退勤時のみまもドライブを開いたら自動でモーダルを閉じる
+    // 退勤時のみまもドライブを開いたら確認ダイアログをスキップして自動でモーダルを閉じる
     if (!isClockIn && step.id === "mimamodrive_out") {
+      // 確認ダイアログが表示されていた場合は閉じる
+      setShowCloseConfirm(false);
       setTimeout(() => {
         try {
           const today = new Date();
