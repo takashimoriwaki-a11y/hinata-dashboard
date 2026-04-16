@@ -355,6 +355,8 @@ export default function RecordInput() {
   // 一括音声入力で複数候補が出た場合のモーダル
   const [bulkCandidates, setBulkCandidates] = useState<PatientEntry[]>([]);
   const [bulkCandidateSlotIndex, setBulkCandidateSlotIndex] = useState<number>(-1);
+  // 録音中に発生した複数候補をキューに保留（録音停止後にまとめて表示）
+  const pendingCandidateQueueRef = useRef<Array<{ candidates: PatientEntry[]; slotIndex: number; query: string }>>([]);
   // 一括音声入力で候補なし時のサジェスト
   const [bulkSuggestCandidates, setBulkSuggestCandidates] = useState<PatientEntry[]>([]);
   const [bulkSuggestQuery, setBulkSuggestQuery] = useState("");
@@ -381,6 +383,8 @@ export default function RecordInput() {
     recognition.onstart = () => {
       setIsBulkListening(true);
       setBulkRecognizedCount(0);
+      // 録音開始時に候補キューをリセット
+      pendingCandidateQueueRef.current = [];
       // 最初の無音タイムアウトをセット（発話が始まらない場合の保険）
       bulkSilenceTimerRef.current = setTimeout(() => {
         recognition.stop();
@@ -391,6 +395,14 @@ export default function RecordInput() {
       if (bulkSilenceTimerRef.current) {
         clearTimeout(bulkSilenceTimerRef.current);
         bulkSilenceTimerRef.current = null;
+      }
+      // 録音停止後にキューの先頭の候補モーダルを表示
+      const queue = pendingCandidateQueueRef.current;
+      if (queue.length > 0) {
+        const first = queue[0];
+        setBulkCandidates(first.candidates);
+        setBulkCandidateSlotIndex(first.slotIndex);
+        toast.info(`「${first.query}」の候補が${first.candidates.length}件あります。選択してください`);
       }
     };
     recognition.onerror = (e: any) => {
@@ -451,9 +463,8 @@ export default function RecordInput() {
               }, 300);
             }
           } else if (matches.length > 1) {
-            // 複数候補 → 最初の複数候補のみモーダル表示
-            setBulkCandidates(matches);
-            setBulkCandidateSlotIndex(emptyIdx);
+            // 複数候補 → 録音中はキューに保留（録音停止後にまとめて表示）
+            pendingCandidateQueueRef.current.push({ candidates: matches, slotIndex: emptyIdx, query: namePart });
             currentSlots[emptyIdx] = { ...currentSlots[emptyIdx], patientName: "__pending__" };
           }
         }
@@ -487,10 +498,14 @@ export default function RecordInput() {
           }, 300);
         }
       } else if (matches.length > 1) {
-        // 複数候補 → モーダルで選択
-        setBulkCandidates(matches);
-        setBulkCandidateSlotIndex(emptySlotIndex);
-        toast.info(`「${usedTranscript}」の候補が${matches.length}件あります。選択してください`);
+        // 複数候補 → 録音中はキューに保留（録音停止後にまとめて表示）
+        pendingCandidateQueueRef.current.push({ candidates: matches, slotIndex: emptySlotIndex, query: usedTranscript });
+        // 仮押さえ（__pending__）としてマーク
+        setSlots(prev => {
+          const next = [...prev];
+          next[emptySlotIndex] = { ...next[emptySlotIndex], patientName: "__pending__" };
+          return next;
+        });
       } else {
         // 候補なし → 近似候補をサジェスト
         const { team: detectedTeam, rest } = extractTeamFromVoice(alternatives[0]?.transcript || "");
@@ -631,40 +646,94 @@ export default function RecordInput() {
         </CardContent>
       </Card>
 
-      {/* 一括音声入力の複数候補選択モーダル */}
+      {/* 一括音声入力の複数候補選択モーダル（画面上部固定） */}
       {bulkCandidates.length > 0 && bulkCandidateSlotIndex >= 0 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setBulkCandidates([])}>
-          <div className="bg-background rounded-xl shadow-xl p-4 w-80 max-w-[90vw]" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold">候補を選択してください</h3>
-              <button onClick={() => setBulkCandidates([])} className="text-muted-foreground hover:text-foreground p-1">
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-4 px-4 bg-black/40" onClick={() => {
+          // 選択しない場合は__pending__をクリアしてキューを消化
+          setSlots(prev => {
+            const next = [...prev];
+            if (next[bulkCandidateSlotIndex]?.patientName === "__pending__") {
+              next[bulkCandidateSlotIndex] = { ...next[bulkCandidateSlotIndex], patientName: "", patientId: null };
+            }
+            return next;
+          });
+          setBulkCandidates([]);
+          setBulkCandidateSlotIndex(-1);
+          // 次のキューを表示
+          const queue = pendingCandidateQueueRef.current;
+          const remaining = queue.filter(q => q.slotIndex !== bulkCandidateSlotIndex);
+          pendingCandidateQueueRef.current = remaining;
+          if (remaining.length > 0) {
+            const next = remaining[0];
+            setTimeout(() => {
+              setBulkCandidates(next.candidates);
+              setBulkCandidateSlotIndex(next.slotIndex);
+              toast.info(`「${next.query}」の候補が${next.candidates.length}件あります。選択してください`);
+            }, 100);
+          }
+        }}>
+          <div className="bg-background rounded-xl shadow-2xl border border-border p-4 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h3 className="text-sm font-bold">候補を選択してください</h3>
+                {pendingCandidateQueueRef.current.length > 1 && (
+                  <p className="text-xs text-muted-foreground mt-0.5">残り{pendingCandidateQueueRef.current.length}件の候補確認があります</p>
+                )}
+              </div>
+              <button onClick={() => {
+                setSlots(prev => {
+                  const next = [...prev];
+                  if (next[bulkCandidateSlotIndex]?.patientName === "__pending__") {
+                    next[bulkCandidateSlotIndex] = { ...next[bulkCandidateSlotIndex], patientName: "", patientId: null };
+                  }
+                  return next;
+                });
+                setBulkCandidates([]);
+                setBulkCandidateSlotIndex(-1);
+                pendingCandidateQueueRef.current = [];
+              }} className="text-muted-foreground hover:text-foreground p-1">
                 <X className="w-4 h-4" />
               </button>
             </div>
             <p className="text-xs text-muted-foreground mb-3">枠{bulkCandidateSlotIndex + 1}に入力する利用者を選んでください</p>
-            <div className="space-y-1.5 max-h-60 overflow-y-auto">
+            <div className="space-y-1.5 max-h-64 overflow-y-auto">
               {bulkCandidates.map((p) => (
                 <button
                   key={p.id}
                   className="w-full text-left px-3 py-2.5 rounded-lg border hover:bg-primary/10 hover:border-primary/40 transition-colors flex items-center justify-between"
                   onClick={() => {
-                    handleSlotChange(bulkCandidateSlotIndex, {
+                    const selectedSlotIndex = bulkCandidateSlotIndex;
+                    handleSlotChange(selectedSlotIndex, {
                       team: (p.team as Team) || "",
                       patientId: p.id,
                       patientName: p.name,
                     });
-                    setSlotSearch(bulkCandidateSlotIndex, p.name);
+                    setSlotSearch(selectedSlotIndex, p.name);
+                    setBulkRecognizedCount(c => c + 1);
+                    toast.success(`枠${selectedSlotIndex + 1}に「${p.name}」を入力しました`);
+                    // 現在のキューから処理済みを削除
+                    const queue = pendingCandidateQueueRef.current;
+                    const remaining = queue.filter(q => q.slotIndex !== selectedSlotIndex);
+                    pendingCandidateQueueRef.current = remaining;
                     setBulkCandidates([]);
                     setBulkCandidateSlotIndex(-1);
-                    setBulkRecognizedCount(c => c + 1);
-              toast.success(`枠${bulkCandidateSlotIndex + 1}に「${p.name}」を入力しました`);
-              // 次の空き枠にスクロール
-              const nextEmptyIdxModal = slots.findIndex((s, i) => i > bulkCandidateSlotIndex && !s.patientName);
-              if (nextEmptyIdxModal >= 0) {
-                setTimeout(() => {
-                  slotRefs.current[nextEmptyIdxModal]?.scrollIntoView({ behavior: "smooth", block: "center" });
-                }, 300);
-              }
+                    // 次のキューを表示
+                    if (remaining.length > 0) {
+                      const nextQ = remaining[0];
+                      setTimeout(() => {
+                        setBulkCandidates(nextQ.candidates);
+                        setBulkCandidateSlotIndex(nextQ.slotIndex);
+                        toast.info(`「${nextQ.query}」の候補が${nextQ.candidates.length}件あります。選択してください`);
+                      }, 150);
+                    } else {
+                      // 全ての候補確認が完了
+                      const nextEmptyIdxModal = slots.findIndex((s, i) => i > selectedSlotIndex && !s.patientName && s.patientName !== "__pending__");
+                      if (nextEmptyIdxModal >= 0) {
+                        setTimeout(() => {
+                          slotRefs.current[nextEmptyIdxModal]?.scrollIntoView({ behavior: "smooth", block: "center" });
+                        }, 300);
+                      }
+                    }
                   }}
                 >
                   <span className="text-sm font-medium">{p.name}</span>
@@ -678,10 +747,10 @@ export default function RecordInput() {
         </div>
       )}
 
-      {/* 一括音声入力の近似候補サジェストモーダル */}
+      {/* 一括音声入力の近似候補サジェストモーダル（画面上部固定） */}
       {bulkSuggestCandidates.length > 0 && bulkSuggestSlotIndex >= 0 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setBulkSuggestCandidates([])}>
-          <div className="bg-background rounded-xl shadow-xl p-4 w-80 max-w-[90vw]" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-4 px-4 bg-black/40" onClick={() => setBulkSuggestCandidates([])}>
+          <div className="bg-background rounded-xl shadow-2xl border border-border p-4 w-full max-w-sm" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-bold flex items-center gap-1.5">
                 <Search className="w-4 h-4 text-amber-500" />
