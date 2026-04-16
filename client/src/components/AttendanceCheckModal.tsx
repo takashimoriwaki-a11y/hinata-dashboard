@@ -739,11 +739,11 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
   // ── アルコールチェックフォームのJSX（共通） ──
   const alcoholCheckForm = (
-    <div className={`mx-3 mt-2 mb-0 rounded-xl border-2 overflow-hidden ${
+    <div className={`mx-3 mt-2 mb-0 rounded-xl border-2 ${
       isClockIn
         ? "border-orange-200 dark:border-orange-800"
         : "border-cyan-200 dark:border-cyan-800"
-    }`}>
+    }`} style={{overflow: 'clip'}}>
       {/* セクションヘッダー（タップで展開/折りたたみ） */}
       <div
         ref={alcoholHeaderRef}
@@ -1208,7 +1208,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   // ── 残業カードのJSX（退勤時のみ） ──
   // NOTE: 上記の `)}` は `{alcoholSkipped && !alcoholRecorded}` の閉じタグ
   const overtimeCard = (
-    <div ref={overtimeCardRef} className="mx-3 my-2 rounded-xl border-2 border-purple-200 dark:border-purple-800 overflow-hidden">
+    <div ref={overtimeCardRef} className="mx-3 my-2 rounded-xl border-2 border-purple-200 dark:border-purple-800" style={{overflow: 'clip'}}>
       <div className={`flex items-center ${hasOvertime ? "bg-purple-50 dark:bg-purple-950/30" : "bg-gray-50 dark:bg-gray-800"}`}>
         <button
           type="button"
