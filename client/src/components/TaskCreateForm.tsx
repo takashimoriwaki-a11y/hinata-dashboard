@@ -793,17 +793,17 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
         </div>
 
         {/* 利用者名（任意） */}
-        <div id="task-patient-name" className="relative">
+        <div id="task-patient-name" className="relative min-w-0 overflow-hidden">
           <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
             <UserRound className="w-3.5 h-3.5" />利用者名（任意）
           </label>
           {newAssignType === "team" ? (
             /* チーム指定時：チームの利用者一覧から選択 */
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
               <select
                 value={patientName}
                 onChange={(e) => setPatientName(e.target.value)}
-                className="flex-1 text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="flex-1 min-w-0 w-0 text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 <option value="">{newAssignTeam}チームの利用者を選択...</option>
                 {/* AI転記でセットされた利用者名がteamPatientsにまだ含まれていない場合でも表示できるようオプションを追加 */}
@@ -826,7 +826,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
             </div>
           ) : (
             /* 全員・個人指定時：フリーテキスト検索 */
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
               <input
                 type="text"
                 placeholder="利用者名を入力または検索..."
@@ -838,7 +838,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
                 }}
                 onFocus={() => { if (patientQuery) setShowPatientDropdown(true); }}
                 onBlur={() => setTimeout(() => setShowPatientDropdown(false), 150)}
-                className="flex-1 text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="flex-1 min-w-0 w-0 text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               />
               {patientName && (
                 <button
