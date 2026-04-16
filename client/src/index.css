@@ -884,7 +884,7 @@ a[href] {
 }
 
 .team-goals-ticker-track {
-  animation: team-goals-ticker 50s linear infinite;
+  animation: team-goals-ticker 90s linear infinite;
   width: max-content;
   will-change: transform;
 }

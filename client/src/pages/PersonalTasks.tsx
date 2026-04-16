@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
-import DashboardLayout from "@/components/DashboardLayout";
 
 // ---- 型定義 ----
 type AssignType = "self" | "personal" | "team" | "all";
@@ -563,18 +562,15 @@ export default function PersonalTasks() {
   const pendingTasks = sortedTasks.filter((t: any) => t.done !== 1);
   const doneTasks = sortedTasks.filter((t: any) => t.done === 1);
 
-  if (authLoading) {
+   if (authLoading) {
     return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
-        </div>
-      </DashboardLayout>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+      </div>
     );
   }
-
   return (
-    <DashboardLayout>
+    <div>
       <div className="max-w-lg mx-auto px-3 py-4 pb-24">
         {/* ヘッダー */}
         <div className="flex items-center justify-between mb-4">
@@ -692,6 +688,6 @@ export default function PersonalTasks() {
           userTeam={user.team ?? null}
         />
       )}
-    </DashboardLayout>
+    </div>
   );
 }

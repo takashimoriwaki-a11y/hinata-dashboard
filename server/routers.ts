@@ -6583,8 +6583,8 @@ export const appRouter = router({
             const token = await client.getAccessToken();
             if (token.token) {
               const now = new Date();
-              const dateStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-              const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheet.spreadsheetId}/values/%E6%84%8F%E8%A6%8B%E7%AE%B1!A:E:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+              const dateStr = now.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+              const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheet.spreadsheetId}/values/%E3%82%B7%E3%83%BC%E3%83%881!A:E:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
               await fetch(appendUrl, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
