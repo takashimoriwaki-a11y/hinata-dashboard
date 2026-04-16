@@ -419,6 +419,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         localStorage.removeItem(getStorageKey(type));
       } catch { /* ignore */ }
       const timer = setTimeout(() => {
+        toast.success("退勤処理が完了しました", {
+          description: "お疲れさまでした。",
+          duration: 4000,
+        });
         onClose();
         onConfirm?.();
       }, 800);
@@ -663,6 +667,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           localStorage.setItem(`attendance_done_clock_out_${dateStr}`, "true");
           localStorage.removeItem(getStorageKey(type));
         } catch { /* ignore */ }
+        toast.success("退勤処理が完了しました", {
+          description: "お疲れさまでした。",
+          duration: 4000,
+        });
         onClose();
         onConfirm?.();
       }, 500);
