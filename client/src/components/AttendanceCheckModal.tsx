@@ -1821,7 +1821,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       </AlertDialogContent>
     </AlertDialog>
 
-    <div className="fixed inset-0 z-[60] flex items-start justify-center" style={{height: '100svh', overflow: 'hidden', maxHeight: '100svh'}}>
+    <div className="fixed inset-0 z-[60] flex items-start justify-center touch-none" style={{height: '100svh', overflow: 'hidden', maxHeight: '100svh', overscrollBehavior: 'none'}}>
       {/* 背景オーバーレイ */}
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm"
@@ -1901,7 +1901,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         </div>
 
         {/* コンテンツ */}
-        <div ref={scrollContainerRef} className="attendance-scroll-container pt-2 pb-6 overflow-y-auto flex-1 min-h-0 overscroll-contain" style={{WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain'}}>
+        <div ref={scrollContainerRef} className="attendance-scroll-container pt-2 pb-6 overflow-y-auto flex-1 min-h-0 overscroll-contain touch-auto" style={{WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain'}}>
 
           {isClockIn ? (
             // ── 出勤画面レイアウト：手順チェック → アルコールチェック ──

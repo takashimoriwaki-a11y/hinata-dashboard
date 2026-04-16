@@ -586,7 +586,7 @@ function PatientMasterPanel() {
         {/* 並び替えボタン */}
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs text-muted-foreground font-medium">並び替え:</span>
-          {([{ key: "id" as const, label: "ID順" }, { key: "kana" as const, label: "あいうえお順" }, { key: "team" as const, label: "チーム順" }]).map(({ key, label }) => (
+          {([{ key: "id" as const, label: "ID順" }, { key: "kana" as const, label: "あいうえお順" }]).map(({ key, label }) => (
             <button
               key={key}
               onClick={() => toggleSort(key)}
@@ -1045,19 +1045,7 @@ export default function Admin() {
             月次署名確認
           </button>
         )}
-        {currentUser?.role === "admin" && (
-          <button
-            onClick={() => setActiveSection("improvementSheet")}
-            className={cn(
-            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
-            activeSection === "improvementSheet"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            意見箱設定
-          </button>
-        )}
+
       </div>
 
       {/* スプレッドシートURLセクション */}
@@ -1273,7 +1261,7 @@ export default function Admin() {
       {/* 月次署名確認 */}
       {activeSection === "monthlySignatures" && <MonthlySignaturesPanel />}
       {/* 業務改善意見箱スプレッドシート設定 */}
-      {activeSection === "improvementSheet" && <ImprovementSheetPanel />}
+
     </div>
   );
 }

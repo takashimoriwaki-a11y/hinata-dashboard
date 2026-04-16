@@ -3710,6 +3710,159 @@ function TasksCard() {
   );
 }
 
+// 今日の利用者タスクカード（patientNameが設定されているタスクを表示）
+function PatientTasksCard() {
+  const utils = trpc.useUtils();
+  const { isNight } = useTheme();
+  const { user } = useAuth();
+
+  const { data: tasks = [] } = trpc.tasks.getMine.useQuery(undefined, {
+    refetchInterval: 15 * 1000,
+    staleTime: 0,
+  });
+
+  // 今日の利用者タスク（patientNameが設定されていて、今日が期日 or 期日なし）
+  const todayPatientTasks = useMemo(() => {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const todayEnd = todayStart + 24 * 60 * 60 * 1000 - 1;
+    return tasks
+      .filter((t) => {
+        if (t.done !== 0) return false;
+        if (!(t as any).patientName) return false; // 利用者名なしは除外
+        // assignTypeフィルター（自分宛て or 自分のチーム or 全員）
+        const userTeam = (user as any)?.team;
+        if (t.assignType === "personal" && t.assignUserId !== user?.id) return false;
+        if (t.assignType === "team" && t.assignTeam !== userTeam) return false;
+        if (!t.dueDate) return true; // 期日なしは表示
+        const due = new Date(t.dueDate).getTime();
+        return due >= todayStart && due <= todayEnd;
+      })
+      .sort((a, b) => {
+        if (!a.dueDate && !b.dueDate) return 0;
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      });
+  }, [tasks, user?.id, (user as any)?.team]);
+
+  const toggleTask = trpc.tasks.toggle.useMutation({
+    onMutate: async ({ id, done }) => {
+      await utils.tasks.getMine.cancel();
+      const prev = utils.tasks.getMine.getData();
+      utils.tasks.getMine.setData(undefined, (old) =>
+        old?.map((t) => t.id === id ? { ...t, done: done ? 1 : 0 } : t)
+      );
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) utils.tasks.getMine.setData(undefined, ctx.prev);
+    },
+    onSettled: () => utils.tasks.getMine.invalidate(),
+  });
+
+  return (
+    <Card id="today-patient-tasks" className="shadow-sm">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+            <UserRound className="w-5 h-5 text-violet-500" />
+            <span className="tracking-wide">今日の利用者タスク</span>
+          </CardTitle>
+          <Link href="/tasks">
+            <span className="text-xs text-primary hover:underline cursor-pointer">すべて見る</span>
+          </Link>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <div className="max-h-72 overflow-y-auto space-y-2 pr-0.5">
+          {todayPatientTasks.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-3">
+              今日の利用者タスクはありません ✓
+            </p>
+          ) : (
+            todayPatientTasks.map((task) => {
+              const taskKind = (task as any).taskKind as "at_time" | "by_deadline" | undefined;
+              return (
+                <div key={task.id} className={cn(
+                  "flex items-start gap-2 group animate-list-item-in rounded-lg p-2 -mx-1",
+                  taskKind === "at_time"
+                    ? "bg-orange-50/60 dark:bg-orange-950/20 border border-orange-200/60 dark:border-orange-800/40"
+                    : "bg-violet-50/40 dark:bg-violet-950/10 border border-violet-200/40 dark:border-violet-800/30"
+                )}>
+                  <button
+                    onClick={() => toggleTask.mutate({ id: task.id, done: task.done === 0 })}
+                    className="flex-shrink-0 mt-0.5"
+                  >
+                    {task.done ? (
+                      <CheckCircle2 className="w-4 h-4 text-primary animate-check-bounce" />
+                    ) : (
+                      <Circle className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    )}
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                      <span className="flex items-center gap-0.5 text-xs text-violet-600 dark:text-violet-400 font-semibold">
+                        <UserRound className="w-3 h-3" />{(task as any).patientName}
+                      </span>
+                      {taskKind === "at_time" ? (
+                        <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0 rounded-full bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 font-medium">
+                          📅この日時に
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 font-medium">
+                          ⏳この日時まで
+                        </span>
+                      )}
+                    </div>
+                    <span className={cn("text-sm block transition-colors duration-300", task.done ? "animate-strike text-muted-foreground" : "text-foreground")}>
+                      {task.text}
+                    </span>
+                    {task.dueDate && (
+                      <span className={cn(
+                        "flex items-center gap-0.5 text-xs mt-0.5",
+                        (() => {
+                          const d = new Date(task.dueDate);
+                          const now = new Date();
+                          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                          const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+                          const diff = Math.floor((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                          if (diff < 0) return isNight ? "text-red-400 font-semibold" : "text-red-600 font-semibold";
+                          if (diff === 0) return isNight ? "text-orange-400 font-semibold" : "text-orange-600 font-semibold";
+                          if (diff <= 2) return isNight ? "text-amber-400" : "text-amber-600";
+                          return "text-muted-foreground";
+                        })()
+                      )}>
+                        <Clock className="w-3 h-3" />
+                        {(() => {
+                          const WDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+                          const d = new Date(task.dueDate);
+                          const now = new Date();
+                          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                          const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+                          const diff = Math.floor((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                          const wday = WDAYS[d.getDay()];
+                          const timeStr = d.getHours() !== 0 || d.getMinutes() !== 0
+                            ? ` ${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`
+                            : "";
+                          if (diff < 0) return `${d.getMonth()+1}月${d.getDate()}日（${wday}）${timeStr}（期限切れ）`;
+                          if (diff === 0) return `今日（${wday}）${timeStr}`;
+                          if (diff === 1) return `明日（${wday}）${timeStr}`;
+                          return `${d.getMonth()+1}月${d.getDate()}日（${wday}）${timeStr}`;
+                        })()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 const REACTION_EMOJIS = ["❤️", "👍", "🙏", "✅", "👀"];
 
 function MessageBoard({ title }: { title: string }) {
@@ -5365,32 +5518,35 @@ export default function Dashboard() {
       <PhilosophyCard />
 
       {/* メインコンテンツ: PC版2カラム、モバイル1カラム */}
+      {/* 並び順（モバイル）: 理念→訪問スケジュール→メッセージ→今日の個人タスク→今日の利用者タスク→チームツール→全チーム共通ツール→訪問件数→曜日別件数→新規契約 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4 items-start">
-        {/* 左カラム（PC）: スケジュール・メッセージ・訪問件数・新規契約 */}
-        {/* モバイル: 訪問スケジュール→チームツール→全チーム共通ツール→タスク→メッセージ→訪問件数→新規契約 */}
+        {/* 左カラム */}
         <div className="space-y-3 md:space-y-4">
-          {/* 訪問スケジュール（モバイル・PC共通で最初） */}
+          {/* 1. 訪問スケジュール */}
           <ScheduleScreenshotCard />
-          {/* チームツール（モバイル: 2番目、PC: 右カラム） */}
-          <div className="lg:hidden">
-            <TeamToolsCard />
-          </div>
-          {/* 全チーム共通ツール（モバイル: 3番目、PC: 右カラム） */}
-          <div className="lg:hidden">
-            <ToolsCard />
-          </div>
-          {/* タスク（モバイル: 4番目、PC: 右カラム） */}
+          {/* 2. メッセージ */}
+          <div data-scroll-reveal data-delay="100"><MessageBoard title="メッセージ" /></div>
+          {/* 3. 今日の個人タスク（モバイルのみ） */}
           <div className="lg:hidden">
             <TasksCard />
           </div>
-          {/* メッセージ（モバイル: 5番目、PC: 左カラム2番目） */}
-          <div data-scroll-reveal data-delay="100"><MessageBoard title="メッセージ" /></div>
-          {/* 訪問件数（モバイル: 6番目、PC: 左カラム3番目） */}
+          {/* 4. 今日の利用者タスク（モバイルのみ） */}
+          <div className="lg:hidden">
+            <PatientTasksCard />
+          </div>
+          {/* 5. チームツール（モバイルのみ） */}
+          <div className="lg:hidden">
+            <TeamToolsCard />
+          </div>
+          {/* 6. 全チーム共通ツール（モバイルのみ） */}
+          <div className="lg:hidden">
+            <ToolsCard />
+          </div>
+          {/* 7. 訪問件数 */}
           <div data-scroll-reveal data-delay="200"><VisitCountCard /></div>
-          {/* 曜日別件数（モバイル: 7番目、PC: 左カラム4番目） */}
+          {/* 8. 曜日別件数 */}
           <div data-scroll-reveal data-delay="300"><DailyByTeamCard /></div>
-
-          {/* 新規契約（モバイル: 10番目、PC: 左カラム7番目） */}
+          {/* 9. 新規契約 */}
           <Card data-scroll-reveal data-delay="400" className="shadow-sm">
             <CardHeader className="pb-2 pt-3 px-4">
               <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
@@ -5408,17 +5564,17 @@ export default function Dashboard() {
               </Link>
             </CardContent>
           </Card>
-          {/* 業務改善意見箱 */}
+          {/* 業務改善意見笥 */}
           <div data-scroll-reveal data-delay="500">
             <ImprovementBox isNightMode={isNight} />
           </div>
         </div>
-
-          {/* 右カラム（PCのみ表示）: ツール・タスク */}
+        {/* 右カラム（PCのみ）: 個人タスク・利用者タスク・チームツール・全チーム共通ツール */}
         <div className="hidden lg:block space-y-3 md:space-y-4">
+          <TasksCard />
+          <PatientTasksCard />
           <TeamToolsCard />
           <ToolsCard />
-          <TasksCard />
         </div>
       </div>
 
