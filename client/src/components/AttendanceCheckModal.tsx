@@ -1821,7 +1821,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       </AlertDialogContent>
     </AlertDialog>
 
-    <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-hidden">
+    <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-hidden" style={{height: '100svh'}}>
       {/* 背景オーバーレイ */}
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm"
@@ -1829,7 +1829,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       />
       {/* モーダル本体 */}
       <div
-        className="relative w-full sm:max-w-md mx-0 sm:mx-4 bg-white dark:bg-gray-900 rounded-b-2xl sm:rounded-2xl shadow-2xl flex flex-col h-dvh sm:h-[calc(100dvh-2rem)] max-h-dvh sm:max-h-[calc(100dvh-2rem)] overflow-hidden"
+        className="relative w-full sm:max-w-md mx-0 sm:mx-4 bg-white dark:bg-gray-900 rounded-b-2xl sm:rounded-2xl shadow-2xl flex flex-col h-[100svh] sm:h-[calc(100svh-2rem)] max-h-[100svh] sm:max-h-[calc(100svh-2rem)] overflow-hidden"
       >
         {/* スワイプインジケーターは削除（誤操作防止） */}
         {/* ヘッダー */}
@@ -2049,7 +2049,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
         {/* フッター（出勤時のみ） */}
         {isClockIn && (
-          <div className="attendance-scroll-container px-5 pt-2 pb-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 space-y-2 bg-white dark:bg-gray-900">
+          <div className="attendance-scroll-container px-5 pt-2 pb-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 space-y-2 bg-white dark:bg-gray-900" style={{paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))'}}>
             {/* 全完了バナー */}
             {allClockInTasksDone && (
               <div className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
@@ -2133,7 +2133,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         )}
         {/* 退勤時フッター（閉じるのみ） */}
         {!isClockIn && (
-          <div className="px-5 pt-2 pb-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-900">
+          <div className="px-5 pt-2 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-900" style={{paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))'}}>
             <button
               type="button"
               onClick={handleCloseRequest}
