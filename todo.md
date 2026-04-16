@@ -2465,3 +2465,14 @@
 - [x] 利用者マスタ管理の並び替えから「チーム順」を削除
 - [x] 管理画面から「意見笥設定」タブ・コンテンツを削除
 - [x] ホーム画面のカード並び替え（理念→訪問スケジュール→メッセージ→今日の個人タスク→今日の利用者タスク→チームツール→全チーム共通ツール→訪問件数→曜日別件数→新規契約）
+
+## 個人タスク機能拡充（2026-04-16）
+
+- [x] DBスキーマ: personal_tasksテーブル新規作成（利用者と無関係・繰り返し設定対応）
+- [x] DBスキーマ: repeatType（none/daily/weekly/biweekly/monthly/nth_weekday）・repeatConfig（JSON）カラム追加
+- [x] DBスキーマ: assignType（self/personal/team/all）・assignedUserIds・assignedTeams カラム追加
+- [x] 直接SQLでpersonal_tasksテーブルをDBに作成（マイグレーション記録も挿入）
+- [x] routers.ts: personalTasks CRUD手続き実装（getMyPersonalTasks/create/update/delete/complete）
+- [x] server/db.ts: personalTask関連DB関数追加
+- [x] PersonalTasks.tsx 全面書き直し（繰り返し設定・UI・指定先選択・at_time/by_deadline区別・期日順表示）
+- [x] ホーム画面「今日の個人タスク」カードを新しいpersonalTasksルーターに対応させる

@@ -6637,6 +6637,95 @@ export const appRouter = router({
         return { success: true };
       }),
   }),
+
+  /** 個人タスク管理 */
+  personalTasks: router({
+    /** 自分のタスク一覧を取得（期日順） */
+    getMyTasks: protectedProcedure
+      .input(z.object({
+        showDone: z.boolean().optional().default(false),
+      }))
+      .query(async ({ ctx, input }) => {
+        const { getMyPersonalTasks } = await import("./db");
+        return await getMyPersonalTasks(ctx.user.id, ctx.user.team ?? null, input.showDone);
+      }),
+
+    /** 今日の個人タスク（ホーム画面用） */
+    getTodayTasks: protectedProcedure.query(async ({ ctx }) => {
+      const { getTodayPersonalTasks } = await import("./db");
+      return await getTodayPersonalTasks(ctx.user.id, ctx.user.team ?? null);
+    }),
+
+    /** タスクを作成する */
+    create: protectedProcedure
+      .input(z.object({
+        text: z.string().min(1),
+        taskKind: z.enum(["at_time", "by_deadline"]).default("by_deadline"),
+        dueDate: z.date().optional(),
+        assignType: z.enum(["self", "personal", "team", "all"]).default("self"),
+        assignTeam: z.enum(["身体", "天理", "郡山北部", "郡山南部"]).optional(),
+        assignUserId: z.number().optional(),
+        assignUserName: z.string().optional(),
+        repeatType: z.enum(["none", "daily", "weekly", "biweekly", "monthly", "nth_weekday"]).default("none"),
+        repeatDayOfWeek: z.number().min(0).max(6).optional(),
+        repeatDayOfMonth: z.number().min(1).max(31).optional(),
+        repeatMonthInterval: z.number().min(1).max(12).optional(),
+        repeatNthWeek: z.number().optional(),
+        repeatNthDayOfWeek: z.number().min(0).max(6).optional(),
+        repeatEndDate: z.date().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { createPersonalTask } = await import("./db");
+        return await createPersonalTask({
+          ...input,
+          createdBy: ctx.user.id,
+          createdByName: ctx.user.name ?? "不明",
+        });
+      }),
+
+    /** タスクを完了/未完了にする */
+    toggleDone: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        done: z.boolean(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { togglePersonalTaskDone } = await import("./db");
+        return await togglePersonalTaskDone(input.id, input.done, ctx.user.id);
+      }),
+
+    /** タスクを更新する */
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        text: z.string().min(1).optional(),
+        taskKind: z.enum(["at_time", "by_deadline"]).optional(),
+        dueDate: z.date().nullable().optional(),
+        assignType: z.enum(["self", "personal", "team", "all"]).optional(),
+        assignTeam: z.enum(["身体", "天理", "郡山北部", "郡山南部"]).nullable().optional(),
+        assignUserId: z.number().nullable().optional(),
+        assignUserName: z.string().nullable().optional(),
+        repeatType: z.enum(["none", "daily", "weekly", "biweekly", "monthly", "nth_weekday"]).optional(),
+        repeatDayOfWeek: z.number().nullable().optional(),
+        repeatDayOfMonth: z.number().nullable().optional(),
+        repeatMonthInterval: z.number().nullable().optional(),
+        repeatNthWeek: z.number().nullable().optional(),
+        repeatNthDayOfWeek: z.number().nullable().optional(),
+        repeatEndDate: z.date().nullable().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { updatePersonalTask } = await import("./db");
+        return await updatePersonalTask(input.id, input, ctx.user.id);
+      }),
+
+    /** タスクを削除する（ソフトデリート） */
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const { deletePersonalTask } = await import("./db");
+        return await deletePersonalTask(input.id, ctx.user.id);
+      }),
+  }),
 });
 export type AppRouter = typeof appRouter;
 

@@ -25,6 +25,7 @@ import {
   voiceFeedback,
   improvementSuggestions, InsertImprovementSuggestion,
   improvementSpreadsheets, InsertImprovementSpreadsheet,
+  personalTasks, PersonalTask,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -2352,4 +2353,288 @@ export async function upsertImprovementSpreadsheet(data: { spreadsheetId: string
   } else {
     await db.insert(improvementSpreadsheets).values({ ...data });
   }
+}
+
+// ========== 個人タスク ==========
+
+/**
+ * 繰り返しタスクが今日に該当するかチェックする
+ * @param task personalTasksのレコード
+ * @param today 今日の日付（JST）
+ */
+function isRepeatTaskDueToday(task: PersonalTask, today: Date): boolean {
+  if (task.repeatType === "none") return false;
+
+  const jstNow = new Date(today.getTime() + 9 * 60 * 60 * 1000);
+  const dayOfWeek = jstNow.getUTCDay(); // 0=日, 1=月, ..., 6=土
+  const dayOfMonth = jstNow.getUTCDate();
+  const month = jstNow.getUTCMonth() + 1;
+
+  // 繰り返し終了日チェック
+  if (task.repeatEndDate && today > task.repeatEndDate) return false;
+
+  // 繰り返し開始日チェック（dueDateが設定されている場合、それ以降のみ）
+  if (task.dueDate && today < task.dueDate) return false;
+
+  switch (task.repeatType) {
+    case "daily":
+      return true;
+
+    case "weekly":
+      return task.repeatDayOfWeek === dayOfWeek;
+
+    case "biweekly": {
+      if (task.repeatDayOfWeek !== dayOfWeek) return false;
+      if (!task.dueDate) return false;
+      // 基準日からの週数が偶数かどうかで判定
+      const baseDate = new Date(task.dueDate);
+      const diffMs = today.getTime() - baseDate.getTime();
+      const diffWeeks = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000));
+      return diffWeeks % 2 === 0;
+    }
+
+    case "monthly": {
+      const interval = task.repeatMonthInterval ?? 1;
+      if (task.repeatDayOfMonth !== dayOfMonth) return false;
+      if (!task.dueDate) return true;
+      const baseMonth = task.dueDate.getMonth() + 1;
+      const baseYear = task.dueDate.getFullYear();
+      const totalMonths = (jstNow.getUTCFullYear() - baseYear) * 12 + (month - baseMonth);
+      return totalMonths >= 0 && totalMonths % interval === 0;
+    }
+
+    case "nth_weekday": {
+      if (task.repeatNthDayOfWeek !== dayOfWeek) return false;
+      const nthWeek = task.repeatNthWeek ?? 1;
+      if (nthWeek === -1) {
+        // 最終週: 翌月の同曜日が来月になるかチェック
+        const nextWeek = new Date(jstNow);
+        nextWeek.setUTCDate(dayOfMonth + 7);
+        return nextWeek.getUTCMonth() !== jstNow.getUTCMonth();
+      } else {
+        // 第N週: dayOfMonth が (N-1)*7 < dayOfMonth <= N*7 の範囲
+        return dayOfMonth > (nthWeek - 1) * 7 && dayOfMonth <= nthWeek * 7;
+      }
+    }
+
+    default:
+      return false;
+  }
+}
+
+/**
+ * 自分の個人タスク一覧を取得する（期日順）
+ * - 自分宛て（assignType=self, createdBy=userId）
+ * - 個人指定（assignType=personal, assignUserId=userId）
+ * - チーム指定（assignType=team, assignTeam=userTeam）
+ * - 全職員（assignType=all）
+ */
+export async function getMyPersonalTasks(
+  userId: number,
+  userTeam: string | null,
+  showDone: boolean = false
+): Promise<PersonalTask[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const conditions = [
+    isNull(personalTasks.deletedAt),
+    or(
+      and(eq(personalTasks.assignType, "self"), eq(personalTasks.createdBy, userId)),
+      and(eq(personalTasks.assignType, "personal"), eq(personalTasks.assignUserId, userId)),
+      eq(personalTasks.assignType, "all"),
+      ...(userTeam && ["身体", "天理", "郡山北部", "郡山南部"].includes(userTeam)
+        ? [and(eq(personalTasks.assignType, "team"), eq(personalTasks.assignTeam, userTeam as any))]
+        : []),
+    ),
+  ];
+
+  if (!showDone) {
+    conditions.push(eq(personalTasks.done, 0));
+  }
+
+  const rows = await db
+    .select()
+    .from(personalTasks)
+    .where(and(...conditions))
+    .orderBy(personalTasks.dueDate, personalTasks.createdAt);
+
+  return rows;
+}
+
+/**
+ * 今日の個人タスクを取得する（ホーム画面用）
+ * - 今日が期日のタスク（taskKind=at_time or by_deadline, dueDate=今日）
+ * - 繰り返しタスクで今日が該当するもの
+ */
+export async function getTodayPersonalTasks(
+  userId: number,
+  userTeam: string | null
+): Promise<PersonalTask[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const jstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const todayStart = new Date(Date.UTC(jstNow.getUTCFullYear(), jstNow.getUTCMonth(), jstNow.getUTCDate(), -9, 0, 0)); // JST 00:00
+  const todayEnd = new Date(Date.UTC(jstNow.getUTCFullYear(), jstNow.getUTCMonth(), jstNow.getUTCDate(), 14, 59, 59)); // JST 23:59:59
+
+  const conditions = [
+    isNull(personalTasks.deletedAt),
+    eq(personalTasks.done, 0),
+    or(
+      and(eq(personalTasks.assignType, "self"), eq(personalTasks.createdBy, userId)),
+      and(eq(personalTasks.assignType, "personal"), eq(personalTasks.assignUserId, userId)),
+      eq(personalTasks.assignType, "all"),
+      ...(userTeam && ["身体", "天理", "郡山北部", "郡山南部"].includes(userTeam)
+        ? [and(eq(personalTasks.assignType, "team"), eq(personalTasks.assignTeam, userTeam as any))]
+        : []),
+    ),
+    or(
+      // 今日が期日のタスク
+      and(gte(personalTasks.dueDate, todayStart), lte(personalTasks.dueDate, todayEnd)),
+      // 期日が過ぎているタスク（未完了）
+      lt(personalTasks.dueDate, todayStart),
+    ),
+  ];
+
+  const rows = await db
+    .select()
+    .from(personalTasks)
+    .where(and(...conditions))
+    .orderBy(personalTasks.dueDate, personalTasks.createdAt);
+
+  // 繰り返しタスクのフィルタリング
+  const today = new Date(todayStart.getTime() + 9 * 60 * 60 * 1000);
+  const allTasks = await getMyPersonalTasks(userId, userTeam, false);
+  const repeatTasks = allTasks.filter(t =>
+    t.repeatType !== "none" && isRepeatTaskDueToday(t, today)
+  );
+
+  // 重複除去してマージ
+  const seen = new Set(rows.map(r => r.id));
+  const merged = [...rows, ...repeatTasks.filter(t => !seen.has(t.id))];
+  merged.sort((a, b) => {
+    const aTime = a.dueDate?.getTime() ?? 0;
+    const bTime = b.dueDate?.getTime() ?? 0;
+    return aTime - bTime;
+  });
+
+  return merged;
+}
+
+/** 個人タスクを作成する */
+export async function createPersonalTask(data: {
+  text: string;
+  taskKind: "at_time" | "by_deadline";
+  dueDate?: Date;
+  createdBy: number;
+  createdByName: string;
+  assignType: "self" | "personal" | "team" | "all";
+  assignTeam?: "身体" | "天理" | "郡山北部" | "郡山南部";
+  assignUserId?: number;
+  assignUserName?: string;
+  repeatType: "none" | "daily" | "weekly" | "biweekly" | "monthly" | "nth_weekday";
+  repeatDayOfWeek?: number;
+  repeatDayOfMonth?: number;
+  repeatMonthInterval?: number;
+  repeatNthWeek?: number;
+  repeatNthDayOfWeek?: number;
+  repeatEndDate?: Date;
+}): Promise<{ id: number }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(personalTasks).values({
+    text: data.text,
+    taskKind: data.taskKind,
+    dueDate: data.dueDate ?? null,
+    createdBy: data.createdBy,
+    createdByName: data.createdByName,
+    assignType: data.assignType,
+    assignTeam: data.assignTeam ?? null,
+    assignUserId: data.assignUserId ?? null,
+    assignUserName: data.assignUserName ?? null,
+    repeatType: data.repeatType,
+    repeatDayOfWeek: data.repeatDayOfWeek ?? null,
+    repeatDayOfMonth: data.repeatDayOfMonth ?? null,
+    repeatMonthInterval: data.repeatMonthInterval ?? 1,
+    repeatNthWeek: data.repeatNthWeek ?? null,
+    repeatNthDayOfWeek: data.repeatNthDayOfWeek ?? null,
+    repeatEndDate: data.repeatEndDate ?? null,
+    done: 0,
+  });
+
+  return { id: (result as any)[0]?.insertId ?? 0 };
+}
+
+/** 個人タスクの完了/未完了を切り替える */
+export async function togglePersonalTaskDone(
+  id: number,
+  done: boolean,
+  userId: number
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.update(personalTasks).set({
+    done: done ? 1 : 0,
+    completedBy: done ? userId : null,
+    completedAt: done ? new Date() : null,
+  }).where(eq(personalTasks.id, id));
+}
+
+/** 個人タスクを更新する */
+export async function updatePersonalTask(
+  id: number,
+  data: Partial<{
+    text: string;
+    taskKind: "at_time" | "by_deadline";
+    dueDate: Date | null;
+    assignType: "self" | "personal" | "team" | "all";
+    assignTeam: "身体" | "天理" | "郡山北部" | "郡山南部" | null;
+    assignUserId: number | null;
+    assignUserName: string | null;
+    repeatType: "none" | "daily" | "weekly" | "biweekly" | "monthly" | "nth_weekday";
+    repeatDayOfWeek: number | null;
+    repeatDayOfMonth: number | null;
+    repeatMonthInterval: number | null;
+    repeatNthWeek: number | null;
+    repeatNthDayOfWeek: number | null;
+    repeatEndDate: Date | null;
+  }>,
+  _userId: number
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  const updateData: Record<string, unknown> = {};
+  if (data.text !== undefined) updateData.text = data.text;
+  if (data.taskKind !== undefined) updateData.taskKind = data.taskKind;
+  if ("dueDate" in data) updateData.dueDate = data.dueDate;
+  if (data.assignType !== undefined) updateData.assignType = data.assignType;
+  if ("assignTeam" in data) updateData.assignTeam = data.assignTeam;
+  if ("assignUserId" in data) updateData.assignUserId = data.assignUserId;
+  if ("assignUserName" in data) updateData.assignUserName = data.assignUserName;
+  if (data.repeatType !== undefined) updateData.repeatType = data.repeatType;
+  if ("repeatDayOfWeek" in data) updateData.repeatDayOfWeek = data.repeatDayOfWeek;
+  if ("repeatDayOfMonth" in data) updateData.repeatDayOfMonth = data.repeatDayOfMonth;
+  if ("repeatMonthInterval" in data) updateData.repeatMonthInterval = data.repeatMonthInterval;
+  if ("repeatNthWeek" in data) updateData.repeatNthWeek = data.repeatNthWeek;
+  if ("repeatNthDayOfWeek" in data) updateData.repeatNthDayOfWeek = data.repeatNthDayOfWeek;
+  if ("repeatEndDate" in data) updateData.repeatEndDate = data.repeatEndDate;
+
+  if (Object.keys(updateData).length === 0) return;
+
+  await db.update(personalTasks).set(updateData as any).where(eq(personalTasks.id, id));
+}
+
+/** 個人タスクをソフトデリートする */
+export async function deletePersonalTask(id: number, userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.update(personalTasks).set({
+    deletedAt: new Date(),
+    deletedBy: userId,
+  }).where(eq(personalTasks.id, id));
 }

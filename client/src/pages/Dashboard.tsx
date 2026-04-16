@@ -3453,123 +3453,60 @@ function TeamToolsCard() {
 function TasksCard() {
   const utils = trpc.useUtils();
   const { isNight } = useTheme();
-  const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
 
-  // DBから未完了タスクを取得
-  const { data: tasks = [] } = trpc.tasks.getMine.useQuery(undefined, {
-    refetchInterval: 15 * 1000, // 15秒ごとに自動更新（他職員のタスクをリアルタイム反映）
-    staleTime: 0,
-  });
+  // 新しい personal_tasks テーブルから今日の個人タスクを取得
+  const { data: personalTasksData = [] } = trpc.personalTasks.getMyTasks.useQuery(
+    { includeCompleted: false },
+    { refetchInterval: 15 * 1000, staleTime: 0 }
+  );
 
-  // タスク管理画面のチームフィルター設定をlocalStorageから読み込む（複数選択対応）
-  type DashTeamFilterItem = "身体" | "天理" | "郡山北部" | "郡山南部" | "all_team" | "personal";
-  const VALID_DASH_FILTER_ITEMS: DashTeamFilterItem[] = ["身体", "天理", "郡山北部", "郡山南部", "all_team", "personal"];
-  const [dashTeamFilter, setDashTeamFilter] = useState<Set<DashTeamFilterItem>>(() => {
-    try {
-      const saved = localStorage.getItem("tasks_teamFilter_v2");
-      if (saved) {
-        const parsed: string[] = JSON.parse(saved);
-        const valid = parsed.filter((v) => VALID_DASH_FILTER_ITEMS.includes(v as DashTeamFilterItem)) as DashTeamFilterItem[];
-        return new Set(valid);
-      }
-    } catch {}
-    return new Set();
-  });
-  // タスク管理画面でフィルターが変更されたとき、カスタムイベントを受け取ってリアルタイム同期
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const items = (e as CustomEvent).detail as string[];
-      const valid = items.filter((v) => VALID_DASH_FILTER_ITEMS.includes(v as DashTeamFilterItem)) as DashTeamFilterItem[];
-      setDashTeamFilter(new Set(valid));
-    };
-    window.addEventListener("tasks_teamFilter_changed", handler);
-    return () => window.removeEventListener("tasks_teamFilter_changed", handler);
-  }, []);
-  // チームフィルターを適用するヘルパー（複数選択対応）
-  const matchesDashTeamFilter = (task: { assignType: string; assignTeam?: string | null; assignUserId?: number | null }): boolean => {
-    if (dashTeamFilter.size === 0) return true; // フィルターなし = 全件表示
-    for (const item of Array.from(dashTeamFilter)) {
-      if (item === "all_team" && task.assignType === "all") return true;
-      if (item === "personal" && task.assignType === "personal") return true;
-      if (task.assignType === "team" && task.assignTeam === item) return true;
-    }
-    return false;
-  };
-
-  // useMemoでフィルタリング・ソートをメモ化（tasksが変わらない限り再計算しない）
-  const incomplete = useMemo(() => {
+  // 今日の個人タスク（今日が期日のもの、または今日が指定日時のもの）
+  const todayPersonalTasks = useMemo(() => {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const todayEnd = todayStart + 24 * 60 * 60 * 1000 - 1;
-    return tasks
+    return personalTasksData
       .filter((t) => {
-        if (t.done !== 0) return false;
-        if (!matchesDashTeamFilter(t)) return false;
-        // 期日が今日 OR 期日なしのタスクを表示
-        if (!t.dueDate) return true;
+        if (t.isDone) return false;
+        if (!t.dueDate) return false;
         const due = new Date(t.dueDate).getTime();
         return due >= todayStart && due <= todayEnd;
       })
       .sort((a, b) => {
-        // 期日なしは末尾に
         if (!a.dueDate && !b.dueDate) return 0;
         if (!a.dueDate) return 1;
         if (!b.dueDate) return -1;
         return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
       });
-  }, [tasks, dashTeamFilter]);
+  }, [personalTasksData]);
 
   // 期限切れタスク（今日より前の期日で未完了）のカウント
   const overdueCount = useMemo(() => {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    return tasks.filter((t) => {
-      if (t.done !== 0) return false;
-      if (!matchesDashTeamFilter(t)) return false;
+    return personalTasksData.filter((t) => {
+      if (t.isDone) return false;
       if (!t.dueDate) return false;
       const due = new Date(t.dueDate).getTime();
       return due < todayStart;
     }).length;
-  }, [tasks, dashTeamFilter]);
+  }, [personalTasksData]);
 
-  // 今日の個人タスク（自分宛ての個人タスク + 期日が今日のタスク）
-  const todayPersonalTasks = useMemo(() => {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const todayEnd = todayStart + 24 * 60 * 60 * 1000 - 1;
-    return tasks
-      .filter((t) => {
-        if (t.done !== 0) return false;
-        if (!t.dueDate) {
-          // 期日なしは自分宛ての個人タスクのみ表示
-          return t.assignType === "personal" && t.assignUserId === user?.id;
-        }
-        const due = new Date(t.dueDate).getTime();
-        // 期日が今日のタスク（自分宛てか全員・チーム向け）
-        return due >= todayStart && due <= todayEnd;
-      })
-      .sort((a, b) => {
-        if (!a.dueDate && !b.dueDate) return 0;
-        if (!a.dueDate) return 1;
-        if (!b.dueDate) return -1;
-        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-      });
-  }, [tasks, user?.id]);
-
-  const toggleTask = trpc.tasks.toggle.useMutation({
-    onMutate: async ({ id, done }) => {
-      await utils.tasks.getMine.cancel();
-      const prev = utils.tasks.getMine.getData();
-      utils.tasks.getMine.setData(undefined, (old) =>
-        old?.map((t) => t.id === id ? { ...t, done: done ? 1 : 0 } : t)
+  const toggleTask = trpc.personalTasks.toggle.useMutation({
+    onMutate: async ({ id }) => {
+      await utils.personalTasks.getMyTasks.cancel();
+      const prev = utils.personalTasks.getMyTasks.getData({ includeCompleted: false });
+      utils.personalTasks.getMyTasks.setData(
+        { includeCompleted: false },
+        (old) => old?.map((t) => t.id === id ? { ...t, isDone: !t.isDone } : t)
       );
       return { prev };
     },
     onError: (_e, _v, ctx) => {
-      if (ctx?.prev) utils.tasks.getMine.setData(undefined, ctx.prev);
+      if (ctx?.prev) utils.personalTasks.getMyTasks.setData({ includeCompleted: false }, ctx.prev);
     },
-    onSettled: () => utils.tasks.getMine.invalidate(),
+    onSettled: () => utils.personalTasks.getMyTasks.invalidate(),
   });
 
   return (
@@ -3605,7 +3542,7 @@ function TasksCard() {
             </p>
           ) : (
             todayPersonalTasks.map((task) => {
-              const taskKind = (task as any).taskKind as "at_time" | "by_deadline" | undefined;
+              const taskKind = task.taskKind as "at_time" | "by_deadline";
               return (
               <div key={task.id} className={cn(
                 "flex items-start gap-2 group animate-list-item-in rounded-lg p-2 -mx-1",
@@ -3614,18 +3551,18 @@ function TasksCard() {
                   : "bg-blue-50/40 dark:bg-blue-950/10 border border-blue-200/40 dark:border-blue-800/30"
               )}>
                 <button
-                  onClick={() => toggleTask.mutate({ id: task.id, done: task.done === 0 })}
+                  onClick={() => toggleTask.mutate({ id: task.id })}
                   className="flex-shrink-0 mt-0.5"
                 >
-                  {task.done ? (
+                  {task.isDone ? (
                     <CheckCircle2 className="w-4 h-4 text-primary animate-check-bounce" />
                   ) : (
                     <Circle className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                   )}
                 </button>
                 <div className="flex-1 min-w-0">
-                  <span className={cn("text-sm block transition-colors duration-300", task.done ? "animate-strike text-muted-foreground" : "text-foreground")}>
-                    {task.text}
+                  <span className={cn("text-sm block transition-colors duration-300", task.isDone ? "animate-strike text-muted-foreground" : "text-foreground")}>
+                    {task.title}
                   </span>
                   <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                     {/* タスク種別バッジ */}
@@ -3636,11 +3573,6 @@ function TasksCard() {
                     ) : (
                       <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-medium">
                         ⏳この日時まで
-                      </span>
-                    )}
-                    {(task as any).patientName && (
-                      <span className="flex items-center gap-0.5 text-xs text-violet-600 dark:text-violet-400 font-medium">
-                        <UserRound className="w-3 h-3" />{(task as any).patientName}
                       </span>
                     )}
                     {task.dueDate && (
@@ -3701,7 +3633,7 @@ function TasksCard() {
           {showForm && (
             <TaskCreateForm
               onClose={() => setShowForm(false)}
-              onSuccess={() => utils.tasks.getMine.invalidate()}
+              onSuccess={() => utils.personalTasks.getMyTasks.invalidate()}
             />
           )}
         </CardContent>

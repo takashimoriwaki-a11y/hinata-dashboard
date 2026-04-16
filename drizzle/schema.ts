@@ -989,3 +989,68 @@ export const improvementSpreadsheets = mysqlTable("improvement_spreadsheets", {
 });
 export type ImprovementSpreadsheet = typeof improvementSpreadsheets.$inferSelect;
 export type InsertImprovementSpreadsheet = typeof improvementSpreadsheets.$inferInsert;
+
+/**
+ * 個人タスクテーブル
+ * 利用者と無関係の個人タスク管理
+ * - ログインユーザー自身のタスクのみ表示
+ * - 繰り返し設定（毎日・毎週・隔週・毎月・第N曜日）
+ * - 全職員/チーム/個人指定での他スタッフへのタスク追加
+ */
+export const personalTasks = mysqlTable("personal_tasks", {
+  id: int("id").autoincrement().primaryKey(),
+  /** タスク内容 */
+  text: text("text").notNull(),
+  /** 完了フラグ (0: 未完了, 1: 完了) */
+  done: int("done").default(0).notNull(),
+  /** タスク種別: at_time=この日時にする, by_deadline=この日時までにする */
+  taskKind: mysqlEnum("taskKind", ["at_time", "by_deadline"]).default("by_deadline").notNull(),
+  /** 期日・実施日時（UTC timestamp） */
+  dueDate: timestamp("dueDate"),
+  /** 作成者のユーザーID */
+  createdBy: int("createdBy").notNull(),
+  /** 作成者の名前（表示用キャッシュ） */
+  createdByName: text("createdByName").notNull(),
+  /**
+   * 指定先タイプ
+   * self=自分のみ, personal=個人指定, team=チーム指定, all=全職員
+   */
+  assignType: mysqlEnum("assignType", ["self", "personal", "team", "all"]).default("self").notNull(),
+  /** チーム指定の場合のチーム名 */
+  assignTeam: mysqlEnum("assignTeam", ["身体", "天理", "郡山北部", "郡山南部"]),
+  /** 個人指定の場合の対象ユーザーID */
+  assignUserId: int("assignUserId"),
+  /** 個人指定の場合の対象ユーザー名（表示用キャッシュ） */
+  assignUserName: text("assignUserName"),
+  /**
+   * 繰り返しタイプ
+   * none=なし, daily=毎日, weekly=毎週, biweekly=隔週,
+   * monthly=毎月(interval指定), nth_weekday=第N曜日
+   */
+  repeatType: mysqlEnum("repeatType", ["none", "daily", "weekly", "biweekly", "monthly", "nth_weekday"]).default("none").notNull(),
+  /** 毎週・隔週の場合の曜日（0=日, 1=月, ..., 6=土） */
+  repeatDayOfWeek: int("repeatDayOfWeek"),
+  /** 毎月の場合の日（1〜31） */
+  repeatDayOfMonth: int("repeatDayOfMonth"),
+  /** 毎月の繰り返し間隔（1=毎月, 2=2ヶ月毎, 3=3ヶ月毎...） */
+  repeatMonthInterval: int("repeatMonthInterval").default(1),
+  /** 第N曜日の場合のN（1〜5, -1=最終） */
+  repeatNthWeek: int("repeatNthWeek"),
+  /** 第N曜日の場合の曜日（0=日, 1=月, ..., 6=土） */
+  repeatNthDayOfWeek: int("repeatNthDayOfWeek"),
+  /** 繰り返し終了日（nullの場合は無期限） */
+  repeatEndDate: timestamp("repeatEndDate"),
+  /** 完了したユーザーID */
+  completedBy: int("completedBy"),
+  /** 完了日時 */
+  completedAt: timestamp("completedAt"),
+  /** ソフトデリート日時 */
+  deletedAt: timestamp("deletedAt"),
+  /** ソフトデリートしたユーザーID */
+  deletedBy: int("deletedBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type PersonalTask = typeof personalTasks.$inferSelect;
+export type InsertPersonalTask = typeof personalTasks.$inferInsert;
