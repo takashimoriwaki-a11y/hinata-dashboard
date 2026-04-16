@@ -330,11 +330,18 @@
   /* ===== 出退勤モーダル内スクロールの修正 =====
      スクロールコンテナ内のbuttonにtouch-action: pan-yを設定して
      ボタン上でのスワイプがスクロールとして認識されるようにする
+     !important を付けて全体CSSの manipulation !important を上書きする
   ===== */
   .attendance-scroll-container button,
   .attendance-scroll-container a,
-  .attendance-scroll-container [role="button"] {
-    touch-action: pan-y;
+  .attendance-scroll-container [role="button"],
+  .attendance-scroll-container [data-slot="button"],
+  .attendance-scroll-container [data-slot="tabs-trigger"],
+  .attendance-scroll-container [data-radix-collection-item],
+  .attendance-scroll-container [data-slot="select-trigger"],
+  .attendance-scroll-container [data-slot="accordion-trigger"],
+  .attendance-scroll-container [data-slot="collapsible-trigger"] {
+    touch-action: pan-y !important;
   }
 
   /* ===== 見出しのフォントウェイト強化 =====
