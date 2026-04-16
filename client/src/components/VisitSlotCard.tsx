@@ -5,6 +5,7 @@
  * - 訪問完了ボタン（完了時はグレーアウト表示）
  */
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import VoiceMicButton from "@/components/VoiceMicButton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -463,7 +464,15 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
 
             {/* メモ（月初め保険証確認と訪問後の間） */}
             <div>
-              <p className="text-xs text-muted-foreground mb-1.5">メモ</p>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-xs text-muted-foreground">メモ</p>
+                <VoiceMicButton
+                  size="sm"
+                  previewMode="inline"
+                  context="clinical_notes"
+                  onResult={(text) => setSpecialNote((prev) => prev ? prev + "\n" + text : text)}
+                />
+              </div>
               <textarea
                 className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-colors placeholder:text-muted-foreground"
                 rows={2}
