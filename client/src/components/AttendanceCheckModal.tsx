@@ -1208,8 +1208,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   // ── 残業カードのJSX（退勤時のみ） ──
   // NOTE: 上記の `)}` は `{alcoholSkipped && !alcoholRecorded}` の閉じタグ
   const overtimeCard = (
-    <div ref={overtimeCardRef} className="mx-3 my-2 rounded-xl border-2 border-purple-200 dark:border-purple-800" style={{overflow: 'clip'}}>
-      <div className={`flex items-center ${hasOvertime ? "bg-purple-50 dark:bg-purple-950/30" : "bg-gray-50 dark:bg-gray-800"}`}>
+    <div ref={overtimeCardRef} className="mx-3 my-2 rounded-xl border-2 border-blue-200 dark:border-blue-800" style={{overflow: 'clip'}}>
+      <div className={`flex items-center ${hasOvertime ? "bg-blue-50 dark:bg-blue-950/30" : "bg-gray-50 dark:bg-gray-800"}`}>
         <button
           type="button"
           onClick={() => {
@@ -1219,7 +1219,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           }}
           className={`flex-1 flex items-center justify-between px-4 py-3 text-sm font-semibold transition-colors ${
             hasOvertime
-              ? "text-purple-700 dark:text-purple-300"
+              ? "text-blue-700 dark:text-blue-300"
               : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-750"
           }`}
         >
@@ -1234,12 +1234,12 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
               </span>
             )}
             {!hasOvertime && !overtimeSubmitted && overtimeReasonTypes.length > 0 && (
-              <span className="text-xs text-purple-600 dark:text-purple-400 font-normal truncate ml-1">
+              <span className="text-xs text-blue-600 dark:text-blue-400 font-normal truncate ml-1">
                 {String(overtimeStartHour).padStart(2, "0")}:{String(overtimeStartMinute).padStart(2, "0")}〜{String(overtimeEndHour).padStart(2, "0")}:{String(overtimeEndMinute).padStart(2, "0")} / {buildOvertimeReason()}
               </span>
             )}
           </div>
-          <div className={`w-10 h-5 rounded-full transition-colors flex items-center px-0.5 flex-shrink-0 ${hasOvertime ? "bg-purple-500" : "bg-gray-300 dark:bg-gray-600"}`}>
+          <div className={`w-10 h-5 rounded-full transition-colors flex items-center px-0.5 flex-shrink-0 ${hasOvertime ? "bg-blue-500" : "bg-gray-300 dark:bg-gray-600"}`}>
             <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${hasOvertime ? "translate-x-5" : "translate-x-0"}`} />
           </div>
         </button>
@@ -1250,7 +1250,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
               e.stopPropagation();
               setShowOvertimeResetConfirm(true);
             }}
-            className="flex items-center gap-1 mr-3 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-800/50 transition-colors whitespace-nowrap"
+            className="flex items-center gap-1 mr-3 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800/50 transition-colors whitespace-nowrap"
           >
             <RefreshCw className="w-3 h-3" />
             全リセット
@@ -1281,7 +1281,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 <select
                   value={overtimeStartHour}
                   onChange={(e) => setOvertimeStartHour(Number(e.target.value))}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none pr-7"
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400 appearance-none pr-7"
                 >
                   {HOUR_OPTIONS.map((h) => (
                     <option key={h} value={h}>{String(h).padStart(2, "0")}時</option>
@@ -1293,10 +1293,9 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 <select
                   value={overtimeStartMinute}
                   onChange={(e) => setOvertimeStartMinute(Number(e.target.value))}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none pr-7"
-                >
-                  {MINUTE_OPTIONS.map((m) => (
-                    <option key={m} value={m}>{String(m).padStart(2, "0")}分</option>
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:rifocus:ring-blue-400 appearance-none pr-7"
+                  >
+                    {[0,10,20,30,40,50].map(m => (                    <option key={m} value={m}>{String(m).padStart(2, "0")}分</option>
                   ))}
                 </select>
                 <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
@@ -1318,7 +1317,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 <select
                   value={overtimeEndHour}
                   onChange={(e) => setOvertimeEndHour(Number(e.target.value))}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none pr-7"
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400 appearance-none pr-7"
                 >
                   {HOUR_OPTIONS.map((h) => (
                     <option key={h} value={h}>{String(h).padStart(2, "0")}時</option>
@@ -1330,7 +1329,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 <select
                   value={overtimeEndMinute}
                   onChange={(e) => setOvertimeEndMinute(Number(e.target.value))}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none pr-7"
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400 appearance-none pr-7"
                 >
                   {MINUTE_OPTIONS.map((m) => (
                     <option key={m} value={m}>{String(m).padStart(2, "0")}分</option>
@@ -1357,8 +1356,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                     onClick={() => toggleOvertimeReason(reason)}
                     className={`py-2 px-2 text-xs font-medium rounded-xl border-2 transition-all text-center flex items-center justify-center gap-1 ${
                       isSelected
-                        ? "bg-purple-500 border-purple-500 text-white shadow-sm"
-                        : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-purple-300"
+                        ? "bg-blue-500 border-blue-500 text-white shadow-sm"
+                        : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-blue-300"
                     }`}
                   >
                     {isSelected && <CheckCircle2 className="w-3 h-3 flex-shrink-0" />}
@@ -1369,8 +1368,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             </div>
             {/* 選択中の理由をプレビュー表示 */}
             {overtimeReasonTypes.length > 0 && (
-              <div className="mt-1.5 px-2 py-1 bg-purple-50 dark:bg-purple-950/30 rounded-lg">
-                <p className="text-xs text-purple-700 dark:text-purple-300">
+              <div className="mt-1.5 px-2 py-1 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+                <p className="text-xs text-blue-700 dark:text-blue-300">
                   選択中: {overtimeReasonTypes.join("、")}
                 </p>
               </div>
@@ -1389,7 +1388,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 value={overtimeContactTarget}
                 onChange={(e) => setOvertimeContactTarget(e.target.value)}
                 placeholder={overtimeReasonTypes.includes("支援者連絡") ? "例: 相談支援専門員 山田さん" : "例: ○○様の長女 鈴木さん"}
-                className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-purple-400"
+                className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-400"
                 style={{ fontSize: "16px" }}
               />
             </div>
@@ -1406,11 +1405,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 <select
                   value={overtimeRecordCount}
                   onChange={(e) => setOvertimeRecordCount(Number(e.target.value))}
-                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-purple-400 appearance-none pr-8"
-                >
-                  {Array.from({ length: 7 }, (_, i) => i + 1).map((n) => (
-                    <option key={n} value={n}>{n}人分</option>
-                  ))}
+                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outlifocus:ring-2 focus:ring-blue-400 appearance-none pr-7"
+                  >
+                    {Array.from({length: 17}, (_, i) => i + 8).map(h => (
+                    <option key={h} value={h}>{String(h).padStart(2, "0")}時</option>                  ))}
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               </div>
@@ -1429,7 +1427,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 onChange={(e) => setOvertimeFreeText(e.target.value)}
                 placeholder="残業の詳細を入力してください"
                 rows={2}
-                className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-purple-400 resize-none"
+                className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-400 resize-none"
               />
             </div>
           )}
@@ -1442,7 +1440,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all shadow-md active:scale-95 disabled:cursor-not-allowed ${
               overtimeSubmitted
                 ? "bg-green-500 opacity-80"
-                : "bg-purple-500 hover:bg-purple-600 disabled:opacity-50"
+                : "bg-blue-500 hover:bg-blue-600 disabled:opacity-50"
             }`}
           >
             {overtimeMutation.isPending ? (
@@ -1578,7 +1576,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       <AlertDialogContent className="max-w-sm mx-4">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
-            <RefreshCw className="w-5 h-5 text-purple-500" />
+            <RefreshCw className="w-5 h-5 text-blue-500" />
             入力内容のリセット
           </AlertDialogTitle>
           <AlertDialogDescription>
@@ -1599,7 +1597,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
               setOvertimeFreeText("");
               setShowOvertimeResetConfirm(false);
             }}
-            className="bg-purple-500 hover:bg-purple-600 text-white"
+            className="bg-blue-500 hover:bg-blue-600 text-white"
           >
             リセットする
           </AlertDialogAction>
@@ -1681,7 +1679,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       <AlertDialogContent className="max-w-sm mx-4">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-purple-500" />
+            <Clock className="w-5 h-5 text-blue-500" />
             残業申請 — 送信前確認
           </AlertDialogTitle>
           <AlertDialogDescription asChild>
@@ -1689,7 +1687,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
               <p className="text-muted-foreground text-xs">以下の内容で残業申請を送信します。内容をご確認ください。</p>
 
               {/* 申請者・日付バッジ */}
-              <div className="flex items-center justify-between bg-purple-50 dark:bg-purple-950/30 rounded-xl px-3 py-2">
+              <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-950/30 rounded-xl px-3 py-2">
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs text-muted-foreground">申請者</span>
                   <span className="text-xs font-semibold text-foreground">{user?.name ?? "—"}</span>
@@ -1700,7 +1698,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
               </div>
 
               {/* 時刻・残業時間 */}
-              <div className="bg-purple-50 dark:bg-purple-950/30 rounded-xl p-3 space-y-2">
+              <div className="bg-blue-50 dark:bg-blue-950/30 rounded-xl p-3 space-y-2">
                 {/* 時刻行 */}
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">残業時間帯</span>
@@ -1721,7 +1719,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                     return (
                       <div className="flex items-center justify-between">
                         <span className="text-muted-foreground">合計時間</span>
-                        <span className="font-semibold text-purple-600 dark:text-purple-400 tabular-nums">
+                        <span className="font-semibold text-blue-600 dark:text-blue-400 tabular-nums">
                           {h > 0 ? `${h}時間` : ""}{m > 0 ? `${m}分` : ""}
                         </span>
                       </div>
@@ -1730,7 +1728,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                   return null;
                 })()}
                 {/* 区切り線 */}
-                <div className="border-t border-purple-200 dark:border-purple-800 pt-2 mt-1" />
+                <div className="border-t border-blue-200 dark:border-blue-800 pt-2 mt-1" />
                 {/* 理由 */}
                 <div className="flex items-start justify-between gap-2">
                   <span className="text-muted-foreground flex-shrink-0">残業理由</span>
@@ -1769,7 +1767,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           <AlertDialogCancel>修正する</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleOvertimeConfirm}
-            className="bg-purple-500 hover:bg-purple-600 text-white"
+            className="bg-blue-500 hover:bg-blue-600 text-white"
           >
             この内容で申請する
           </AlertDialogAction>
@@ -1947,11 +1945,11 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                     href={checkoutChecklistUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all shadow-md active:scale-95 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/30 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700"
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all shadow-md active:scale-95 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-700"
                   >
                     <ClipboardList className="w-4 h-4" />
                     退勤時チェックリスト
-                    <span className="text-xs text-amber-500 dark:text-amber-500">（最後の退勤者のみ）</span>
+                    <span className="text-xs text-blue-400 dark:text-blue-400">（最後の退勤者のみ）</span>
                   </a>
                 ) : (
                   <div className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm bg-muted/50 text-muted-foreground border border-border cursor-not-allowed opacity-60">
@@ -1975,7 +1973,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                   className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all disabled:cursor-not-allowed shadow-md active:scale-95 ${
                     alcoholRecorded
                       ? "bg-green-500 opacity-80"
-                      : "bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50"
+                      : isClockIn ? "bg-orange-500 hover:bg-orange-600 disabled:opacity-50" : "bg-blue-500 hover:bg-blue-600 disabled:opacity-50"
                   }`}
                 >
                   {isAlcoholPending ? (
