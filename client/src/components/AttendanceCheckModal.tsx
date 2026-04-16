@@ -262,13 +262,21 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   const [alcoholOpen, setAlcoholOpen] = useState(false);
 
   // 残業入力（退勤時のみ）
+  // NOTE: 終了時刻は常に「画面を開いた瞬間の現在時刻」を使用する。
+  // savedStateに保存値があっても終了時刻は上書きしない（毎回現在時刻を自動取得）。
   const openedAt = useMemo(() => new Date(), []);
   const [hasOvertime, setHasOvertime] = useState(savedState?.hasOvertime ?? false);
   const [overtimeStartHour, setOvertimeStartHour] = useState(savedState?.overtimeStartHour ?? 17);
   const [overtimeStartMinute, setOvertimeStartMinute] = useState(savedState?.overtimeStartMinute ?? 0);
-  const [overtimeEndHour, setOvertimeEndHour] = useState(savedState?.overtimeEndHour ?? getJSTHours(openedAt));
-  const [overtimeEndMinute, setOvertimeEndMinute] = useState(savedState?.overtimeEndMinute ?? floorToTenMinutes(openedAt));
-  const [overtimeReasonType, setOvertimeReasonType] = useState(savedState?.overtimeReasonType ?? "");
+  // 終了時刻は常に現在時刻から取得（savedStateの値は使わない）
+  const [overtimeEndHour, setOvertimeEndHour] = useState(() => getJSTHours(new Date()));
+  const [overtimeEndMinute, setOvertimeEndMinute] = useState(() => floorToTenMinutes(new Date()));
+  const [overtimeReasonTypes, setOvertimeReasonTypes] = useState<string[]>(
+    savedState?.overtimeReasonType ? savedState.overtimeReasonType.split("、") : []
+  );
+  // 後方互換のため単一選択用の変数も残す（buildOvertimeReason等で使用）
+  const overtimeReasonType = overtimeReasonTypes[0] ?? "";
+  const setOvertimeReasonType = (v: string) => setOvertimeReasonTypes(v ? [v] : []);
   const [overtimeContactTarget, setOvertimeContactTarget] = useState(savedState?.overtimeContactTarget ?? "");
   const [overtimeRecordCount, setOvertimeRecordCount] = useState(savedState?.overtimeRecordCount ?? 1);
   const [overtimeFreeText, setOvertimeFreeText] = useState(savedState?.overtimeFreeText ?? "");
@@ -303,9 +311,11 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       hasOvertime,
       overtimeStartHour,
       overtimeStartMinute,
-      overtimeEndHour,
-      overtimeEndMinute,
-      overtimeReasonType,
+      // 終了時刻は保存しない（次回開いた時に現在時刻を再取得するため）
+      overtimeEndHour: undefined,
+      overtimeEndMinute: undefined,
+      // 複数選択理由を「、」区切りで保存
+      overtimeReasonType: overtimeReasonTypes.join("、"),
       overtimeContactTarget,
       overtimeRecordCount,
       overtimeFreeText,
@@ -315,7 +325,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     } catch {
       // ignore storage errors
     }
-  }, [type, done, alcoholRecorded, alcoholSkipped, clockInDone, clockOutDone, hasOvertime, overtimeStartHour, overtimeStartMinute, overtimeEndHour, overtimeEndMinute, overtimeReasonType, overtimeContactTarget, overtimeRecordCount, overtimeFreeText]);
+  }, [type, done, alcoholRecorded, alcoholSkipped, clockInDone, clockOutDone, hasOvertime, overtimeStartHour, overtimeStartMinute, overtimeReasonTypes, overtimeContactTarget, overtimeRecordCount, overtimeFreeText]);
 
   // モーダルが開いている間、bodyのスクロールをロックする（iOS対応）
   useEffect(() => {
@@ -422,17 +432,35 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     return d.getTime();
   };
 
+  // 複数選択対応の残業理由文字列生成
   const buildOvertimeReason = (): string => {
-    switch (overtimeReasonType) {
-      case "訪問看護実施": return "訪問看護実施";
-      case "支援者連絡": return overtimeContactTarget ? `支援者連絡（${overtimeContactTarget}）` : "支援者連絡";
-      case "家族連絡": return overtimeContactTarget ? `家族連絡（${overtimeContactTarget}）` : "家族連絡";
-      case "記録書Ⅱ作成": return `記録書Ⅱ作成（${overtimeRecordCount}人分）`;
-      case "月次報告書作成": return `月次報告書作成（${overtimeRecordCount}人分）`;
-      case "状態報告書作成": return `状態報告書作成（${overtimeRecordCount}人分）`;
-      case "その他": return overtimeFreeText || "その他";
-      default: return "";
-    }
+    if (overtimeReasonTypes.length === 0) return "";
+    const parts = overtimeReasonTypes.map((reason) => {
+      switch (reason) {
+        case "訪問看護実施": return "訪問看護実施";
+        case "支援者連絡": return overtimeContactTarget ? `支援者連絡（${overtimeContactTarget}）` : "支援者連絡";
+        case "家族連絡": return overtimeContactTarget ? `家族連絡（${overtimeContactTarget}）` : "家族連絡";
+        case "記録書Ⅱ作成": return `記録書Ⅱ作成（${overtimeRecordCount}人分）`;
+        case "月次報告書作成": return `月次報告書作成（${overtimeRecordCount}人分）`;
+        case "状態報告書作成": return `状態報告書作成（${overtimeRecordCount}人分）`;
+        case "その他": return overtimeFreeText || "その他";
+        default: return reason;
+      }
+    });
+    return parts.join("、");
+  };
+
+  // 残業理由のトグル（複数選択）
+  const toggleOvertimeReason = (reason: string) => {
+    setOvertimeReasonTypes((prev) => {
+      if (prev.includes(reason)) {
+        // 選択解除
+        return prev.filter((r) => r !== reason);
+      } else {
+        // 選択追加
+        return [...prev, reason];
+      }
+    });
   };
 
   // ── ミューテーション ──
@@ -494,19 +522,16 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
   const handleOvertimeSubmit = () => {
     if (!hasOvertime) return;
-    if (!overtimeReasonType) {
-      toast.error("残業理由を選択してください");
+    if (overtimeReasonTypes.length === 0) {
+      toast.error("残業理由を少なくとと1つ選択してください");
       return;
     }
-    if (overtimeReasonType === "支援者連絡" && !overtimeContactTarget.trim()) {
+    const needsContact = overtimeReasonTypes.includes("支援者連絡") || overtimeReasonTypes.includes("家族連絡");
+    if (needsContact && !overtimeContactTarget.trim()) {
       toast.error("連絡先を入力してください");
       return;
     }
-    if (overtimeReasonType === "家族連絡" && !overtimeContactTarget.trim()) {
-      toast.error("連絡先を入力してください");
-      return;
-    }
-    if (overtimeReasonType === "その他" && !overtimeFreeText.trim()) {
+    if (overtimeReasonTypes.includes("その他") && !overtimeFreeText.trim()) {
       toast.error("残業理由の詳細を入力してください");
       return;
     }
@@ -624,19 +649,16 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       toast.error("ナンバープレートを入力してください");
       return;
     }
-    if (!isClockIn && hasOvertime && !overtimeReasonType) {
-      toast.error("残業理由を選択してください");
+    if (!isClockIn && hasOvertime && overtimeReasonTypes.length === 0) {
+      toast.error("残業理由を少なくとと1つ選択してください");
       return;
     }
-    if (!isClockIn && hasOvertime && overtimeReasonType === "支援者連絡" && !overtimeContactTarget.trim()) {
+    const needsContact = overtimeReasonTypes.includes("支援者連絡") || overtimeReasonTypes.includes("家族連絡");
+    if (!isClockIn && hasOvertime && needsContact && !overtimeContactTarget.trim()) {
       toast.error("連絡先を入力してください");
       return;
     }
-    if (!isClockIn && hasOvertime && overtimeReasonType === "家族連絡" && !overtimeContactTarget.trim()) {
-      toast.error("連絡先を入力してください");
-      return;
-    }
-    if (!isClockIn && hasOvertime && overtimeReasonType === "その他" && !overtimeFreeText.trim()) {
+    if (!isClockIn && hasOvertime && overtimeReasonTypes.includes("その他") && !overtimeFreeText.trim()) {
       toast.error("残業理由の詳細を入力してください");
       return;
     }
@@ -654,7 +676,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       overtimeEndAt: (!isClockIn && hasOvertime) ? toTodayMs(overtimeEndHour, overtimeEndMinute) : undefined,
       overtimeReason: (!isClockIn && hasOvertime) ? buildOvertimeReason() : undefined,
       overtimeContact: (!isClockIn && hasOvertime && overtimeContactTarget.trim()) ? overtimeContactTarget.trim() : undefined,
-      overtimeCount: (!isClockIn && hasOvertime && ["記録書Ⅱ作成", "月次報告書作成", "状態報告書作成"].includes(overtimeReasonType)) ? overtimeRecordCount : undefined,
+      overtimeCount: (!isClockIn && hasOvertime && overtimeReasonTypes.some((r) => ["記録書Ⅱ作成", "月次報告書作成", "状態報告書作成"].includes(r))) ? overtimeRecordCount : undefined,
       latitude: latitude ?? undefined,
       longitude: longitude ?? undefined,
       locationAddress: locationAddress ?? undefined,
@@ -1153,9 +1175,9 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             <Clock className="w-4 h-4 flex-shrink-0" />
             <span className="flex-shrink-0">残業申請</span>
             {/* トグルオフ時に入力内容プレビューを表示 */}
-            {!hasOvertime && overtimeReasonType && (
+            {!hasOvertime && overtimeReasonTypes.length > 0 && (
               <span className="text-xs text-purple-600 dark:text-purple-400 font-normal truncate ml-1">
-                {String(overtimeStartHour).padStart(2, "0")}:{String(overtimeStartMinute).padStart(2, "0")}〜{String(overtimeEndHour).padStart(2, "0")}:{String(overtimeEndMinute).padStart(2, "0")} / {buildOvertimeReason()}
+                {String(overtimeStartHour).padStart(2, "0")}:{String(overtimeStartMinute).padStart(2, "0")}〜{String(overtimeEndHour).padStart(2, "0")}:{String(overtimeEndMinute).padStart(2, "0")} / {buildOvertimeReason()}
               </span>
             )}
           </div>
@@ -1261,37 +1283,44 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             </div>
           </div>
 
-          {/* 残業理由プリセット */}
+          {/* 残業理由プリセット（複数選択対応） */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">残業理由 <span className="text-red-500">*</span></label>
-              <button type="button" onClick={() => { setOvertimeReasonType(""); setOvertimeContactTarget(""); setOvertimeRecordCount(1); setOvertimeFreeText(""); }} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">残業理由 <span className="text-red-500">*</span> <span className="text-gray-400 font-normal ml-1">(複数選択可)</span></label>
+              <button type="button" onClick={() => { setOvertimeReasonTypes([]); setOvertimeContactTarget(""); setOvertimeRecordCount(1); setOvertimeFreeText(""); }} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
             </div>
             <div className="grid grid-cols-2 gap-1.5">
-              {["訪問看護実施", "支援者連絡", "家族連絡", "記録書Ⅱ作成", "月次報告書作成", "状態報告書作成", "その他"].map((reason) => (
-                <button
-                  key={reason}
-                  type="button"
-                  onClick={() => {
-                    setOvertimeReasonType(reason);
-                    setOvertimeContactTarget("");
-                    setOvertimeRecordCount(1);
-                    setOvertimeFreeText("");
-                  }}
-                  className={`py-2 px-2 text-xs font-medium rounded-xl border-2 transition-all text-center ${
-                    overtimeReasonType === reason
-                      ? "bg-purple-500 border-purple-500 text-white shadow-sm"
-                      : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-300"
-                  }`}
-                >
-                  {reason}
-                </button>
-              ))}
+              {["訪問看護実施", "支援者連絡", "家族連絡", "記録書Ⅱ作成", "月次報告書作成", "状態報告書作成", "その他"].map((reason) => {
+                const isSelected = overtimeReasonTypes.includes(reason);
+                return (
+                  <button
+                    key={reason}
+                    type="button"
+                    onClick={() => toggleOvertimeReason(reason)}
+                    className={`py-2 px-2 text-xs font-medium rounded-xl border-2 transition-all text-center flex items-center justify-center gap-1 ${
+                      isSelected
+                        ? "bg-purple-500 border-purple-500 text-white shadow-sm"
+                        : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-purple-300"
+                    }`}
+                  >
+                    {isSelected && <CheckCircle2 className="w-3 h-3 flex-shrink-0" />}
+                    <span>{reason}</span>
+                  </button>
+                );
+              })}
             </div>
+            {/* 選択中の理由をプレビュー表示 */}
+            {overtimeReasonTypes.length > 0 && (
+              <div className="mt-1.5 px-2 py-1 bg-purple-50 dark:bg-purple-950/30 rounded-lg">
+                <p className="text-xs text-purple-700 dark:text-purple-300">
+                  選択中: {overtimeReasonTypes.join("、")}
+                </p>
+              </div>
+            )}
           </div>
 
-          {/* 支援者連絡：連絡先入力 */}
-          {overtimeReasonType === "支援者連絡" && (
+          {/* 支援者連絡 or 家族連絡：連絡先入力 */}
+          {(overtimeReasonTypes.includes("支援者連絡") || overtimeReasonTypes.includes("家族連絡")) && (
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                 <Users className="w-3.5 h-3.5 inline mr-1 mb-0.5" />
@@ -1301,25 +1330,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 type="text"
                 value={overtimeContactTarget}
                 onChange={(e) => setOvertimeContactTarget(e.target.value)}
-                placeholder="例: 相談支援専門員 山田さん"
-                className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-purple-400"
-                style={{ fontSize: "16px" }}
-              />
-            </div>
-          )}
-
-          {/* 家族連絡：連絡先入力 */}
-          {overtimeReasonType === "家族連絡" && (
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                <Users className="w-3.5 h-3.5 inline mr-1 mb-0.5" />
-                誰に連絡したか <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={overtimeContactTarget}
-                onChange={(e) => setOvertimeContactTarget(e.target.value)}
-                placeholder="例: ○○様の長女 鈴木さん"
+                placeholder={overtimeReasonTypes.includes("支援者連絡") ? "例: 相談支援専門員 山田さん" : "例: ○○様の長女 鈴木さん"}
                 className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-purple-400"
                 style={{ fontSize: "16px" }}
               />
@@ -1327,7 +1338,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           )}
 
           {/* 記録書Ⅱ・月次・状態報告書：人数プルダウン */}
-          {["記録書Ⅱ作成", "月次報告書作成", "状態報告書作成"].includes(overtimeReasonType) && (
+          {overtimeReasonTypes.some((r) => ["記録書Ⅱ作成", "月次報告書作成", "状態報告書作成"].includes(r)) && (
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                 <FileText className="w-3.5 h-3.5 inline mr-1 mb-0.5" />
@@ -1349,7 +1360,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           )}
 
           {/* その他：自由記述 */}
-          {overtimeReasonType === "その他" && (
+          {overtimeReasonTypes.includes("その他") && (
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                 <BarChart2 className="w-3.5 h-3.5 inline mr-1 mb-0.5" />
@@ -1368,7 +1379,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           {/* 残業申請「申請」ボタン */}
           <button
             type="button"
-            disabled={overtimeMutation.isPending || overtimeSubmitted || !overtimeReasonType}
+            disabled={overtimeMutation.isPending || overtimeSubmitted || overtimeReasonTypes.length === 0}
             onClick={handleOvertimeSubmit}
             className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all shadow-md active:scale-95 disabled:cursor-not-allowed ${
               overtimeSubmitted
@@ -1667,22 +1678,22 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                   <span className="text-muted-foreground flex-shrink-0">残業理由</span>
                   <span className="font-medium text-foreground text-right">{buildOvertimeReason()}</span>
                 </div>
-                {/* 連絡先（支援者・家族連絡の場合） */}
-                {(overtimeReasonType === "支援者連絡" || overtimeReasonType === "家族連絡") && overtimeContactTarget && (
+                {/* 連絡先（支援者・家族連絡が含まれる場合） */}
+                {(overtimeReasonTypes.includes("支援者連絡") || overtimeReasonTypes.includes("家族連絡")) && overtimeContactTarget && (
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-muted-foreground flex-shrink-0">連絡先</span>
                     <span className="font-medium text-foreground text-right">{overtimeContactTarget}</span>
                   </div>
                 )}
-                {/* 人数（記録書系の場合） */}
-                {["記録書Ⅱ作成", "月次報告書作成", "状態報告書作成"].includes(overtimeReasonType) && (
+                {/* 人数（記録書系が含まれる場合） */}
+                {overtimeReasonTypes.some((r) => ["記録書Ⅱ作成", "月次報告書作成", "状態報告書作成"].includes(r)) && (
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">対象人数</span>
                     <span className="font-medium text-foreground">{overtimeRecordCount}人分</span>
                   </div>
                 )}
-                {/* 自由記述（その他の場合） */}
-                {overtimeReasonType === "その他" && overtimeFreeText && (
+                {/* 自由記述（その他が含まれる場合） */}
+                {overtimeReasonTypes.includes("その他") && overtimeFreeText && (
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-muted-foreground flex-shrink-0">詳細</span>
                     <span className="font-medium text-foreground text-right">{overtimeFreeText}</span>
