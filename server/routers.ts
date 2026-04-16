@@ -6558,16 +6558,16 @@ export const appRouter = router({
       .input(z.object({
         category: z.enum(["業務効率化", "コミュニケーション", "環境・設備", "ケアの質向上", "その他"]),
         content: z.string().min(1).max(2000),
-        isAnonymous: z.boolean().default(false),
       }))
       .mutation(async ({ ctx, input }) => {
         const { createImprovementSuggestion, getImprovementSpreadsheet, markImprovementSuggestionSynced } = await import("./db");
+        const displayName = ctx.user.name ?? "不明";
         const result = await createImprovementSuggestion({
           createdBy: ctx.user.id,
-          createdByName: ctx.user.name ?? "不明",
+          createdByName: displayName,
           category: input.category,
           content: input.content,
-          isAnonymous: input.isAnonymous ? 1 : 0,
+          isAnonymous: 0,
         });
         const insertId = (result as any).insertId as number;
 
@@ -6581,7 +6581,6 @@ export const appRouter = router({
             if (token.token) {
               const now = new Date();
               const dateStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-              const displayName = input.isAnonymous ? "匿名" : (ctx.user.name ?? "不明");
               const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheet.spreadsheetId}/values/%E6%84%8F%E8%A6%8B%E7%AE%B1!A:E:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
               await fetch(appendUrl, {
                 method: "POST",

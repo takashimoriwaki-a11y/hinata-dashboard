@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp, Lightbulb, Send, Lock, User, MessageSquare } from "lucide-react";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { ChevronDown, ChevronUp, Lightbulb, Send, MessageSquare, User } from "lucide-react";
 
 const CATEGORIES = ["業務効率化", "コミュニケーション", "環境・設備", "ケアの質向上", "その他"] as const;
 type Category = typeof CATEGORIES[number];
@@ -31,15 +32,15 @@ export function ImprovementBox({ isNightMode }: ImprovementBoxProps) {
   const [showForm, setShowForm] = useState(false);
   const [category, setCategory] = useState<Category>("その他");
   const [content, setContent] = useState("");
-  const [isAnonymous, setIsAnonymous] = useState(false);
   const [showList, setShowList] = useState(false);
+
+  const { user } = useAuth();
 
   const submitMutation = trpc.improvement.submit.useMutation({
     onSuccess: () => {
       toast.success("提案を送信しました", { description: "ご意見ありがとうございます。" });
       setContent("");
       setCategory("その他");
-      setIsAnonymous(false);
       setShowForm(false);
       refetch();
     },
@@ -57,7 +58,7 @@ export function ImprovementBox({ isNightMode }: ImprovementBoxProps) {
       toast.error("内容を入力してください");
       return;
     }
-    submitMutation.mutate({ category, content: content.trim(), isAnonymous });
+    submitMutation.mutate({ category, content: content.trim() });
   };
 
   const bg = isNightMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200";
@@ -104,6 +105,12 @@ export function ImprovementBox({ isNightMode }: ImprovementBoxProps) {
             </button>
           ) : (
             <div className={`rounded-xl border p-4 space-y-3 ${isNightMode ? "border-gray-600 bg-gray-750" : "border-gray-200 bg-gray-50"}`}>
+              {/* 投稿者表示 */}
+              <div className={`flex items-center gap-2 text-sm ${subText}`}>
+                <User className="w-4 h-4" />
+                <span>投稿者：<span className={`font-semibold ${isNightMode ? "text-amber-300" : "text-amber-700"}`}>{user?.name ?? "不明"}</span></span>
+              </div>
+
               {/* カテゴリ選択 */}
               <div>
                 <p className={`text-xs font-semibold mb-2 ${subText}`}>カテゴリ</p>
@@ -139,21 +146,6 @@ export function ImprovementBox({ isNightMode }: ImprovementBoxProps) {
                 />
                 <p className={`text-right text-xs mt-1 ${subText}`}>{content.length}/2000</p>
               </div>
-
-              {/* 匿名設定 */}
-              <button
-                onClick={() => setIsAnonymous(v => !v)}
-                className={`flex items-center gap-2 text-sm transition-colors ${
-                  isAnonymous
-                    ? isNightMode ? "text-amber-400" : "text-amber-600"
-                    : subText
-                }`}
-              >
-                {isAnonymous
-                  ? <Lock className="w-4 h-4" />
-                  : <User className="w-4 h-4" />}
-                <span>{isAnonymous ? "匿名で投稿する（スプレッドシートにも匿名で記録）" : "記名で投稿する"}</span>
-              </button>
 
               {/* ボタン */}
               <div className="flex gap-2">
@@ -218,7 +210,7 @@ export function ImprovementBox({ isNightMode }: ImprovementBoxProps) {
                         {s.category}
                       </span>
                       <span className={`text-xs ${subText}`}>
-                        {s.isAnonymous ? "匿名" : s.createdByName}・{new Date(s.createdAt).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })}
+                        {s.createdByName}・{new Date(s.createdAt).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })}
                       </span>
                     </div>
                     <p className={`text-sm leading-relaxed ${isNightMode ? "text-gray-200" : "text-gray-800"}`}>{s.content}</p>
