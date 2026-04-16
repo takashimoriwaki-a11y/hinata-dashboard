@@ -1,0 +1,1 @@
+ALTER TABLE `patients` ADD `patientCode` varchar(50);

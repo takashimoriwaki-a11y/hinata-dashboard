@@ -252,6 +252,7 @@ function PatientMasterPanel() {
   const [addName, setAddName] = useState("");
   const [addKana, setAddKana] = useState("");
   const [addTeam, setAddTeam] = useState<Team>("身体");
+  const [addCode, setAddCode] = useState("");
 
   // 一括登録パネル
   const [showBulkPanel, setShowBulkPanel] = useState(false);
@@ -263,6 +264,20 @@ function PatientMasterPanel() {
   const [editName, setEditName] = useState("");
   const [editKana, setEditKana] = useState("");
   const [editTeam, setEditTeam] = useState<Team>("身体");
+  const [editCode, setEditCode] = useState("");
+
+  // 並び替え（複数選択可）
+  type SortKey = "id" | "kana" | "team";
+  const [sortKeys, setSortKeys] = useState<SortKey[]>(["id"]);
+  const toggleSort = (key: SortKey) => {
+    setSortKeys((prev) => {
+      if (prev.includes(key)) {
+        const next = prev.filter((k) => k !== key);
+        return next.length === 0 ? ["id"] : next;
+      }
+      return [...prev, key];
+    });
+  };
 
   // 一括登録のパース（1行1名前）
   const bulkParsed = useMemo(() => {
@@ -272,16 +287,35 @@ function PatientMasterPanel() {
       .filter((s) => s.length > 0 && s.length <= 100);
   }, [bulkText]);
 
-  // フィルター済みリスト（有効のみ）
+  // フィルター済みリスト（有効のみ） + 並び替え
+  const TEAM_ORDER: Record<string, number> = { "身体": 0, "天理": 1, "郡山北部": 2, "郡山南部": 3 };
   const filteredPatients = useMemo(() => {
     if (!allPatients) return [];
-    return allPatients.filter((p) => {
+    const filtered = allPatients.filter((p) => {
       if (p.active !== 1) return false;
       const teamOk = filterTeam === "全て" || p.team === filterTeam;
       const nameOk = !searchQuery || p.name.includes(searchQuery) || (p.nameKana ?? "").includes(searchQuery);
       return teamOk && nameOk;
     });
-  }, [allPatients, filterTeam, searchQuery]);
+    return [...filtered].sort((a, b) => {
+      for (const key of sortKeys) {
+        let cmp = 0;
+        if (key === "id") {
+          const aCode = a.patientCode ?? "";
+          const bCode = b.patientCode ?? "";
+          if (aCode === "" && bCode !== "") cmp = 1;
+          else if (aCode !== "" && bCode === "") cmp = -1;
+          else cmp = aCode.localeCompare(bCode, "ja", { numeric: true });
+        } else if (key === "kana") {
+          cmp = (a.nameKana ?? a.name).localeCompare(b.nameKana ?? b.name, "ja");
+        } else if (key === "team") {
+          cmp = (TEAM_ORDER[a.team] ?? 99) - (TEAM_ORDER[b.team] ?? 99);
+        }
+        if (cmp !== 0) return cmp;
+      }
+      return 0;
+    });
+  }, [allPatients, filterTeam, searchQuery, sortKeys]);
 
   // 退所済リスト
   const inactivePatients = useMemo(() => {
@@ -348,7 +382,7 @@ function PatientMasterPanel() {
 
   const handleAdd = () => {
     if (!addName.trim()) { toast.error("名前を入力してください"); return; }
-    createPatient.mutate({ name: addName.trim(), nameKana: addKana.trim() || undefined, team: addTeam });
+    createPatient.mutate({ name: addName.trim(), nameKana: addKana.trim() || undefined, team: addTeam, patientCode: addCode.trim() || undefined });
   };
 
   const handleBatchCreate = () => {
@@ -356,16 +390,17 @@ function PatientMasterPanel() {
     batchCreate.mutate({ patients: bulkParsed.map((name) => ({ name, team: bulkTeam })) });
   };
 
-  const handleEditStart = (p: { id: number; name: string; nameKana?: string | null; team: string }) => {
+  const handleEditStart = (p: { id: number; name: string; nameKana?: string | null; team: string; patientCode?: string | null }) => {
     setEditingId(p.id);
     setEditName(p.name);
     setEditKana(p.nameKana ?? "");
     setEditTeam(p.team as Team);
+    setEditCode(p.patientCode ?? "");
   };
 
   const handleEditSave = () => {
     if (!editName.trim() || editingId === null) return;
-    updatePatient.mutate({ id: editingId, name: editName.trim(), nameKana: editKana.trim() || undefined, team: editTeam });
+    updatePatient.mutate({ id: editingId, name: editName.trim(), nameKana: editKana.trim() || undefined, team: editTeam, patientCode: editCode.trim() || null });
   };
 
   return (
@@ -514,6 +549,16 @@ function PatientMasterPanel() {
                 />
               </div>
               <div className="space-y-1">
+                <label className="text-xs font-medium text-foreground">利用者ID（任意）</label>
+                <input
+                  type="text"
+                  value={addCode}
+                  onChange={(e) => setAddCode(e.target.value)}
+                  placeholder="P001"
+                  className="w-full text-sm border border-border rounded-md px-3 py-1.5 bg-background text-foreground focus:outline-none focus:border-primary"
+                />
+              </div>
+              <div className="space-y-1">
                 <label className="text-xs font-medium text-foreground">チーム <span className="text-destructive">*</span></label>
                 <div className="flex flex-wrap gap-1.5">
                   {TEAMS.map((t) => (
@@ -530,13 +575,36 @@ function PatientMasterPanel() {
               </div>
             </div>
             <div className="flex gap-2 justify-end">
-              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setAddName(""); setAddKana(""); setShowAddForm(false); }}>キャンセル</Button>
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setAddName(""); setAddKana(""); setAddCode(""); setShowAddForm(false); }}>キャンセル</Button>
               <Button size="sm" className="h-8 text-xs" onClick={handleAdd} disabled={!addName.trim() || createPatient.isPending}>
                 {createPatient.isPending ? "追加中..." : "追加"}
               </Button>
             </div>
           </div>
         )}
+
+        {/* 並び替えボタン */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-muted-foreground font-medium">並び替え:</span>
+          {([{ key: "id" as const, label: "ID順" }, { key: "kana" as const, label: "あいうえお順" }, { key: "team" as const, label: "チーム順" }]).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => toggleSort(key)}
+              className={cn(
+                "px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
+                sortKeys.includes(key)
+                  ? "bg-primary text-white border-primary shadow-sm"
+                  : "bg-background text-foreground border-border hover:border-primary hover:text-primary"
+              )}
+            >
+              {sortKeys.includes(key) && <span className="mr-1">{sortKeys.indexOf(key) + 1}</span>}
+              {label}
+            </button>
+          ))}
+          {sortKeys.length > 1 && (
+            <span className="text-xs text-muted-foreground">→ 順に適用</span>
+          )}
+        </div>
 
         {/* チームフィルター */}
         <div className="flex flex-wrap gap-1.5">
@@ -611,6 +679,13 @@ function PatientMasterPanel() {
                           placeholder="ふりがな（任意）"
                           className="text-sm border border-border rounded-md px-3 py-1.5 bg-background text-foreground focus:outline-none focus:border-primary"
                         />
+                        <input
+                          type="text"
+                          value={editCode}
+                          onChange={(e) => setEditCode(e.target.value)}
+                          placeholder="利用者ID（任意・P001など）"
+                          className="text-sm border border-border rounded-md px-3 py-1.5 bg-background text-foreground focus:outline-none focus:border-primary"
+                        />
                         <div className="flex flex-wrap gap-1.5">
                           {TEAMS.map((t) => (
                             <button
@@ -635,7 +710,12 @@ function PatientMasterPanel() {
                     // 通常表示
                     <div className="flex items-center justify-between py-1.5 px-1 rounded-lg hover:bg-muted/30 group transition-colors">
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{p.name}</p>
+                        <div className="flex items-center gap-1.5">
+                          {p.patientCode && (
+                            <span className="text-xs font-mono text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded flex-shrink-0">{p.patientCode}</span>
+                          )}
+                          <p className="text-sm font-medium text-foreground truncate">{p.name}</p>
+                        </div>
                         {p.nameKana && (
                           <p className="text-xs text-muted-foreground">{p.nameKana}</p>
                         )}

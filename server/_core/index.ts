@@ -483,11 +483,12 @@ ${medicalPrompt}${feedbackSection}`;
         const name = String(row["★ 氏名"] ?? row["氏名"] ?? "").trim();
         const team = String(row["★ チーム"] ?? row["チーム"] ?? "").trim();
         const nameKana = String(row["ふりがな"] ?? "").trim();
+        const patientCode = String(row["利用者ID"] ?? row["ID"] ?? "").trim();
         const activeRaw = row["有効フラグ（1=有効 / 0=無効）"] ?? row["有効フラグ"] ?? 1;
         const active = Number(activeRaw) === 0 ? 0 : 1;
         if (!name) continue; // 空行スキップ
         if (!VALID_TEAMS.includes(team)) { errors.push(`${i + 4}行目: チーム「${team}」は無効です（身体/天理/郡山北部/郡山南部）`); continue; }
-        patients.push({ name, team, nameKana: nameKana || undefined, active });
+        patients.push({ name, team, nameKana: nameKana || undefined, active, patientCode: patientCode || undefined });
       }
       if (patients.length === 0 && errors.length > 0) {
         res.status(400).json({ error: "インポートできる行がありませんでした", errors }); return;
@@ -548,17 +549,17 @@ ${medicalPrompt}${feedbackSection}`;
       const wb = XLSX.utils.book_new();
       // ヘッダー説明行
       const headerInfo = [
-        ["【利用者一括登録テンプレート】"],
+        ["「利用者一括登録テンプレート」"],
         ["★マークの列は必須です。3行目以降にデータを入力してください。"],
-        ["★ 氏名", "ふりがな", "★ チーム", "有効フラグ（1=有効 / 0=無効）"],
-        ["山田 太郎", "やまだ たろう", "身体", "1"],
-        ["鈴木 花子", "すずき はなこ", "天理", "1"],
-        ["田中 一郎", "", "郡山北部", "1"],
-        ["佐藤 二郎", "", "郡山南部", "1"],
+        ["利用者ID", "★ 氏名", "ふりがな", "★ チーム", "有効フラグ（1=有効 / 0=無効）"],
+        ["P001", "山田 太郎", "やまだ たろう", "身体", "1"],
+        ["P002", "鈴木 花子", "すずき はなこ", "天理", "1"],
+        ["", "田中 一郎", "", "郡山北部", "1"],
+        ["", "佐藤 二郎", "", "郡山南部", "1"],
       ];
       const ws = XLSX.utils.aoa_to_sheet(headerInfo);
       // 列幅設定
-      ws["!cols"] = [{ wch: 20 }, { wch: 20 }, { wch: 14 }, { wch: 30 }];
+      ws["!cols"] = [{ wch: 12 }, { wch: 20 }, { wch: 20 }, { wch: 14 }, { wch: 30 }];
       XLSX.utils.book_append_sheet(wb, ws, "利用者一覧（インポート用）");
       const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
       res.setHeader("Content-Disposition", 'attachment; filename*=UTF-8\'\'%E5%88%A9%E7%94%A8%E8%80%85%E3%83%86%E3%83%B3%E3%83%97%E3%83%AC%E3%83%BC%E3%83%88.xlsx');

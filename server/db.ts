@@ -840,7 +840,7 @@ export async function createPatient(data: InsertPatient) {
 }
 
 /** 利用者を一括登録する */
-export async function batchCreatePatients(data: Array<{ name: string; team: string; nameKana?: string; active?: number }>) {
+export async function batchCreatePatients(data: Array<{ name: string; team: string; nameKana?: string; active?: number; patientCode?: string }>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   if (data.length === 0) return 0;
@@ -850,13 +850,14 @@ export async function batchCreatePatients(data: Array<{ name: string; team: stri
       team: d.team as any,
       nameKana: d.nameKana ?? null,
       active: d.active ?? 1,
+      patientCode: d.patientCode ?? null,
     }))
   );
   return data.length;
 }
 
 /** 利用者を更新する */
-export async function updatePatient(id: number, data: Partial<Pick<InsertPatient, "name" | "nameKana" | "team" | "active">>) {
+export async function updatePatient(id: number, data: Partial<Pick<InsertPatient, "name" | "nameKana" | "team" | "active" | "patientCode">>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.update(patients).set({ ...data, updatedAt: new Date() }).where(eq(patients.id, id));

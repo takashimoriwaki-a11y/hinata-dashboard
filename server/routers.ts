@@ -2800,9 +2800,10 @@ export const appRouter = router({
         name: z.string().min(1).max(100),
         nameKana: z.string().max(100).optional(),
         team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]),
+        patientCode: z.string().max(50).optional(),
       }))
       .mutation(async ({ input }) => {
-        const id = await createPatient({ name: input.name, nameKana: input.nameKana, team: input.team, active: 1 });
+        const id = await createPatient({ name: input.name, nameKana: input.nameKana, team: input.team, active: 1, patientCode: input.patientCode ?? null });
         broadcastEvent("patients");
         return { success: true, id };
       }),
@@ -2814,10 +2815,11 @@ export const appRouter = router({
         name: z.string().min(1).max(100).optional(),
         nameKana: z.string().max(100).optional(),
         team: z.enum(["\u8eab\u4f53", "\u5929\u7406", "\u90e1\u5c71\u5317\u90e8", "\u90e1\u5c71\u5357\u90e8"]).optional(),
+        patientCode: z.string().max(50).optional().nullable(),
       }))
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
-        await updatePatient(id, data);
+        await updatePatient(id, data as any);
         broadcastEvent("patients");
         return { success: true };
       }),

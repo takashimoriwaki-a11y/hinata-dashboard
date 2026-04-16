@@ -239,6 +239,8 @@ export const patients = mysqlTable("patients", {
   team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部"]).notNull(),
   /** ふりがな（検索用） */
   nameKana: varchar("nameKana", { length: 100 }),
+  /** 利用者管理ID（任意・例：P001） */
+  patientCode: varchar("patientCode", { length: 50 }),
   /** 有効フラグ（退所等で非表示にする場合） */
   active: int("active").default(1).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
