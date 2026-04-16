@@ -652,6 +652,19 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     if (!step.link) return;
     window.open(step.link.url, "_blank", "noopener,noreferrer");
     setDone((prev) => ({ ...prev, [step.id]: true }));
+    // 退勤時のみまもドライブを開いたら自動でモーダルを閉じる
+    if (!isClockIn && step.id === "mimamodrive_out") {
+      setTimeout(() => {
+        try {
+          const today = new Date();
+          const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+          localStorage.setItem(`attendance_done_clock_out_${dateStr}`, "true");
+          localStorage.removeItem(getStorageKey(type));
+        } catch { /* ignore */ }
+        onClose();
+        onConfirm?.();
+      }, 500);
+    }
   };
 
   const handleStepButton = async (step: ClockInStep) => {
@@ -2003,7 +2016,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
         {/* フッター（出勤時のみ） */}
         {isClockIn && (
-          <div className="px-5 pt-2 pb-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 space-y-2 bg-white dark:bg-gray-900">
+          <div className="attendance-scroll-container px-5 pt-2 pb-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 space-y-2 bg-white dark:bg-gray-900">
             {/* 全完了バナー */}
             {allClockInTasksDone && (
               <div className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
