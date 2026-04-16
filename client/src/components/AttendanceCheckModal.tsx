@@ -1763,7 +1763,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       />
       {/* モーダル本体 */}
       <div
-        className="relative w-full sm:max-w-md mx-0 sm:mx-4 bg-white dark:bg-gray-900 rounded-b-2xl sm:rounded-2xl shadow-2xl flex flex-col h-[100dvh] sm:h-auto max-h-[100dvh] sm:max-h-[calc(100dvh-2rem)] overflow-hidden"
+        className="relative w-full sm:max-w-md mx-0 sm:mx-4 bg-white dark:bg-gray-900 rounded-b-2xl sm:rounded-2xl shadow-2xl flex flex-col h-[100dvh] sm:h-[calc(100dvh-2rem)] max-h-[100dvh] sm:max-h-[calc(100dvh-2rem)] overflow-hidden"
       >
         {/* スワイプインジケーターは削除（誤操作防止） */}
         {/* ヘッダー */}
@@ -1835,7 +1835,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         </div>
 
         {/* コンテンツ */}
-        <div ref={scrollContainerRef} className="pt-2 pb-0 overflow-y-auto flex-1 min-h-0 overscroll-contain" style={{WebkitOverflowScrolling: 'touch', touchAction: 'pan-y'}}>
+        <div ref={scrollContainerRef} className="attendance-scroll-container pt-2 pb-6 overflow-y-auto flex-1 min-h-0 overscroll-contain" style={{WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain'}}>
 
           {isClockIn ? (
             // ── 出勤画面レイアウト：手順チェック → アルコールチェック ──

@@ -327,6 +327,16 @@
     }
   }
 
+  /* ===== 出退勤モーダル内スクロールの修正 =====
+     スクロールコンテナ内のbuttonにtouch-action: pan-yを設定して
+     ボタン上でのスワイプがスクロールとして認識されるようにする
+  ===== */
+  .attendance-scroll-container button,
+  .attendance-scroll-container a,
+  .attendance-scroll-container [role="button"] {
+    touch-action: pan-y;
+  }
+
   /* ===== 見出しのフォントウェイト強化 =====
      本文はfont-weight:500（medium）、見出しは700（bold）で階層差を明確化
   ===== */
