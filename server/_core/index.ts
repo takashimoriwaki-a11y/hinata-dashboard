@@ -550,7 +550,7 @@ ${medicalPrompt}${feedbackSection}`;
       // ヘッダー説明行
       const headerInfo = [
         ["「利用者一括登録テンプレート」"],
-        ["★マークの列は必須です。3行目以降にデータを入力してください。"],
+        ["★マークの列は必須です。8行目以降にデータを入力してください（4〜7行目は記入例です）。"],
         ["利用者ID", "★ 氏名", "ふりがな", "★ チーム", "有効フラグ（1=有効 / 0=無効）"],
         ["P001", "山田 太郎", "やまだ たろう", "身体", "1"],
         ["P002", "鈴木 花子", "すずき はなこ", "天理", "1"],
@@ -560,7 +560,7 @@ ${medicalPrompt}${feedbackSection}`;
       const ws = XLSX.utils.aoa_to_sheet(headerInfo);
       // 列幅設定
       ws["!cols"] = [{ wch: 12 }, { wch: 20 }, { wch: 20 }, { wch: 14 }, { wch: 30 }];
-      XLSX.utils.book_append_sheet(wb, ws, "利用者一覧（インポート用）");
+      XLSX.utils.book_append_sheet(wb, ws, "利用者");
       const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
       res.setHeader("Content-Disposition", 'attachment; filename*=UTF-8\'\'%E5%88%A9%E7%94%A8%E8%80%85%E3%83%86%E3%83%B3%E3%83%97%E3%83%AC%E3%83%BC%E3%83%88.xlsx');
       res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
