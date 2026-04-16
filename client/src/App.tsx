@@ -13,7 +13,7 @@ import Tasks from "./pages/Tasks";
 import Admin from "./pages/Admin";
 import ScheduleChange from "./pages/ScheduleChange";
 import ScheduleChangeHistory from "./pages/ScheduleChangeHistory";
-import TrafficAccident from "./pages/TrafficAccident";
+import PersonalTasks from "./pages/PersonalTasks";
 import NewContract from "./pages/NewContract";
 import ScheduleManagement from "./pages/ScheduleManagement";
 import Minutes from "./pages/Minutes";
@@ -77,7 +77,7 @@ function Router() {
               </Route>
               <Route path={"/schedule-change"} component={ScheduleChange} />
               <Route path={"/schedule-change-history"} component={ScheduleChangeHistory} />
-              <Route path={"/traffic-accident"} component={TrafficAccident} />
+              <Route path={"/personal-tasks"} component={PersonalTasks} />
               <Route path={"/new-contract"} component={NewContract} />
               <Route path={"/schedule-management"} component={ScheduleManagement} />
               <Route path={"/minutes"} component={Minutes} />

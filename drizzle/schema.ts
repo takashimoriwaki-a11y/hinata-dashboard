@@ -137,6 +137,8 @@ export const tasks = mysqlTable("tasks", {
   done: int("done").default(0).notNull(), // 0: 未完了, 1: 完了
   /** 期日（任意） */
   dueDate: timestamp("dueDate"),
+  /** タスク種別: at_time=この日時にする, by_deadline=この日時までにする */
+  taskKind: mysqlEnum("taskKind", ["at_time", "by_deadline"]).default("by_deadline").notNull(),
   /** 作成者のユーザーID */
   createdBy: int("createdBy").notNull(),
   /** 作成者の名前（表示用キャッシュ） */

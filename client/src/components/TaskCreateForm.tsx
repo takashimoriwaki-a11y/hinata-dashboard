@@ -68,6 +68,9 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
   // AIが返した利用者名（allPatientsロード後にマッチング処理するために保持）— チーム情報も保持
   const [pendingAiPatient, setPendingAiPatient] = useState<{ name: string; assignType: AssignType; assignTeam: Team | null } | null>(null);
 
+  // タスク種別: at_time=この日時にする, by_deadline=この日時まで
+  const [taskKind, setTaskKind] = useState<"at_time" | "by_deadline">("by_deadline");
+
   // 繰り返し設定
   const [repeatType, setRepeatType] = useState<RepeatType>("none");
   const [repeatDayOfWeek, setRepeatDayOfWeek] = useState<number>(1);
@@ -440,6 +443,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
     const payload = {
       text: newText.trim(),
       dueDate,
+      taskKind,
       assignType: newAssignType,
       assignTeam: newAssignType === "team" ? newAssignTeam : undefined,
       assignUserId: newAssignType === "personal" && newAssignUserId ? newAssignUserId : undefined,
@@ -912,6 +916,36 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
 
         {/* 期日・時刻 */}
         <div className="flex flex-col gap-2">
+          {/* タスク種別セレクター */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">期日の種別</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setTaskKind("by_deadline")}
+                className={cn(
+                  "flex-1 text-xs px-3 py-2 rounded-lg border transition-colors",
+                  taskKind === "by_deadline"
+                    ? "bg-blue-500 text-white border-blue-500"
+                    : "border-border text-muted-foreground hover:border-blue-400 hover:text-blue-600"
+                )}
+              >
+                ⏳ この日時までにする
+              </button>
+              <button
+                type="button"
+                onClick={() => setTaskKind("at_time")}
+                className={cn(
+                  "flex-1 text-xs px-3 py-2 rounded-lg border transition-colors",
+                  taskKind === "at_time"
+                    ? "bg-orange-500 text-white border-orange-500"
+                    : "border-border text-muted-foreground hover:border-orange-400 hover:text-orange-600"
+                )}
+              >
+                📅 この日時にする
+              </button>
+            </div>
+          </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">
               <Calendar className="w-3 h-3 inline mr-0.5" />期日（任意）

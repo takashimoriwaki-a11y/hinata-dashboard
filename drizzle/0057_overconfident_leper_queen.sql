@@ -1,0 +1,1 @@
+ALTER TABLE `tasks` ADD `taskKind` enum('at_time','by_deadline') DEFAULT 'by_deadline' NOT NULL;

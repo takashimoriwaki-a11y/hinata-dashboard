@@ -3453,6 +3453,7 @@ function TeamToolsCard() {
 function TasksCard() {
   const utils = trpc.useUtils();
   const { isNight } = useTheme();
+  const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
 
   // DBから未完了タスクを取得
@@ -3532,6 +3533,30 @@ function TasksCard() {
     }).length;
   }, [tasks, dashTeamFilter]);
 
+  // 今日の個人タスク（自分宛ての個人タスク + 期日が今日のタスク）
+  const todayPersonalTasks = useMemo(() => {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const todayEnd = todayStart + 24 * 60 * 60 * 1000 - 1;
+    return tasks
+      .filter((t) => {
+        if (t.done !== 0) return false;
+        if (!t.dueDate) {
+          // 期日なしは自分宛ての個人タスクのみ表示
+          return t.assignType === "personal" && t.assignUserId === user?.id;
+        }
+        const due = new Date(t.dueDate).getTime();
+        // 期日が今日のタスク（自分宛てか全員・チーム向け）
+        return due >= todayStart && due <= todayEnd;
+      })
+      .sort((a, b) => {
+        if (!a.dueDate && !b.dueDate) return 0;
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      });
+  }, [tasks, user?.id]);
+
   const toggleTask = trpc.tasks.toggle.useMutation({
     onMutate: async ({ id, done }) => {
       await utils.tasks.getMine.cancel();
@@ -3564,34 +3589,30 @@ function TasksCard() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
               <ClipboardList className="w-5 h-5 text-primary" />
-              <span className="tracking-wide">今日のタスク</span>
+              <span className="tracking-wide">今日の個人タスク</span>
             </CardTitle>
-            <Link href="/tasks">
+            <Link href="/personal-tasks">
               <span className="text-xs text-primary hover:underline cursor-pointer">すべて見る</span>
             </Link>
           </div>
         </CardHeader>
         <CardContent className="space-y-2">
-          {/* 現在のフィルター状態を表示 */}
-          {dashTeamFilter.size > 0 && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-xs">
-              <Users className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-              <span className="font-medium text-primary">
-                表示中：{Array.from(dashTeamFilter).map((f) =>
-                  f === "all_team" ? "全員向け" : f === "personal" ? "個人指定" : `${f}チーム`
-                ).join("・")}
-              </span>
-            </div>
-          )}
-          {/* タスクリスト（スクロール可能） */}
-          <div className="max-h-64 overflow-y-auto space-y-2 pr-0.5">
-          {incomplete.length === 0 ? (
+          {/* 今日の個人タスクリスト */}
+          <div className="max-h-72 overflow-y-auto space-y-2 pr-0.5">
+          {todayPersonalTasks.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-3">
-              今日のタスクはありません ✓
+              今日の個人タスクはありません ✓
             </p>
           ) : (
-              incomplete.map((task) => (
-              <div key={task.id} className="flex items-start gap-2 group animate-list-item-in">
+            todayPersonalTasks.map((task) => {
+              const taskKind = (task as any).taskKind as "at_time" | "by_deadline" | undefined;
+              return (
+              <div key={task.id} className={cn(
+                "flex items-start gap-2 group animate-list-item-in rounded-lg p-2 -mx-1",
+                taskKind === "at_time"
+                  ? "bg-orange-50/60 dark:bg-orange-950/20 border border-orange-200/60 dark:border-orange-800/40"
+                  : "bg-blue-50/40 dark:bg-blue-950/10 border border-blue-200/40 dark:border-blue-800/30"
+              )}>
                 <button
                   onClick={() => toggleTask.mutate({ id: task.id, done: task.done === 0 })}
                   className="flex-shrink-0 mt-0.5"
@@ -3606,48 +3627,61 @@ function TasksCard() {
                   <span className={cn("text-sm block transition-colors duration-300", task.done ? "animate-strike text-muted-foreground" : "text-foreground")}>
                     {task.text}
                   </span>
-                  {(task as any).patientName && (
-                    <span className="flex items-center gap-0.5 text-xs mt-0.5 text-violet-600 dark:text-violet-400 font-medium">
-                      <UserRound className="w-3 h-3" />{(task as any).patientName}
-                    </span>
-                  )}
-                  {task.dueDate && (
-                    <span className={cn(
-                      "flex items-center gap-0.5 text-xs mt-0.5",
-                      (() => {
-                        const d = new Date(task.dueDate);
-                        const now = new Date();
-                        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                        const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-                        const diff = Math.floor((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                        if (diff < 0) return isNight ? "text-red-400 font-semibold" : "text-red-600 font-semibold";
-                        if (diff === 0) return isNight ? "text-orange-400 font-semibold" : "text-orange-600 font-semibold";
-                        if (diff <= 2) return isNight ? "text-amber-400" : "text-amber-600";
-                        return "text-muted-foreground";
-                      })()
-                    )}>
-                      <Calendar className="w-3 h-3" />
-                      {(() => {
-                        const WDAYS = ["日", "月", "火", "水", "木", "金", "土"];
-                        const d = new Date(task.dueDate);
-                        const now = new Date();
-                        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                        const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-                        const diff = Math.floor((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                        const wday = WDAYS[d.getDay()];
-                        const timeStr = d.getHours() !== 0 || d.getMinutes() !== 0
-                          ? ` ${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`
-                          : "";
-                        if (diff < 0) return `${d.getMonth()+1}月${d.getDate()}日（${wday}）${timeStr}（期限切れ）`;
-                        if (diff === 0) return `今日（${wday}）${timeStr}`;
-                        if (diff === 1) return `明日（${wday}）${timeStr}`;
-                        return `${d.getMonth()+1}月${d.getDate()}日（${wday}）${timeStr}`;
-                      })()}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                    {/* タスク種別バッジ */}
+                    {taskKind === "at_time" ? (
+                      <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0 rounded-full bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 font-medium">
+                        📅この日時に
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-medium">
+                        ⏳この日時まで
+                      </span>
+                    )}
+                    {(task as any).patientName && (
+                      <span className="flex items-center gap-0.5 text-xs text-violet-600 dark:text-violet-400 font-medium">
+                        <UserRound className="w-3 h-3" />{(task as any).patientName}
+                      </span>
+                    )}
+                    {task.dueDate && (
+                      <span className={cn(
+                        "flex items-center gap-0.5 text-xs",
+                        (() => {
+                          const d = new Date(task.dueDate);
+                          const now = new Date();
+                          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                          const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+                          const diff = Math.floor((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                          if (diff < 0) return isNight ? "text-red-400 font-semibold" : "text-red-600 font-semibold";
+                          if (diff === 0) return isNight ? "text-orange-400 font-semibold" : "text-orange-600 font-semibold";
+                          if (diff <= 2) return isNight ? "text-amber-400" : "text-amber-600";
+                          return "text-muted-foreground";
+                        })()
+                      )}>
+                        <Clock className="w-3 h-3" />
+                        {(() => {
+                          const WDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+                          const d = new Date(task.dueDate);
+                          const now = new Date();
+                          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                          const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+                          const diff = Math.floor((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                          const wday = WDAYS[d.getDay()];
+                          const timeStr = d.getHours() !== 0 || d.getMinutes() !== 0
+                            ? ` ${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`
+                            : "";
+                          if (diff < 0) return `${d.getMonth()+1}月${d.getDate()}日（${wday}）${timeStr}（期限切れ）`;
+                          if (diff === 0) return `今日（${wday}）${timeStr}`;
+                          if (diff === 1) return `明日（${wday}）${timeStr}`;
+                          return `${d.getMonth()+1}月${d.getDate()}日（${wday}）${timeStr}`;
+                        })()}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-            ))
+              );
+            })
           )}
           </div>
 

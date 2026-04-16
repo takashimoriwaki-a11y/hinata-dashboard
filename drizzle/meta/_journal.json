@@ -400,6 +400,13 @@
       "when": 1776341192207,
       "tag": "0056_worthless_star_brand",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "5",
+      "when": 1776345573713,
+      "tag": "0057_overconfident_leper_queen",
+      "breakpoints": true
     }
   ]
 }

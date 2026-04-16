@@ -2445,3 +2445,14 @@
 - [x] 一括音声入力（bulkCandidates）の複数候補モーダルを画面上部固定（fixed top）に変更
 - [x] 全員言い終わった後（録音停止後）にまとめて候補選択モーダルを表示するよう変更（録音中は候補をキューに保留）
 - [x] 個別枠の音声入力（voiceCandidates）の候補リストは入力欄直下のドロップダウン形式を維持（個別枠の操作なので現位置で十分）
+
+## 個人タスク機能実装（2026-04-16）
+
+- [x] DBスキーマ: tasksテーブルに taskKind("at_time" | "by_deadline") カラム追加
+- [x] 直接SQLでtaskKindカラムをDBに追加（マイグレーション記録も挿入）
+- [x] routers.ts: tasks.create/update に taskKind 対応追加
+- [x] TaskCreateForm.tsx: taskKind切り替えUI追加（「この日時に」/「この日時まで」選択）
+- [x] PersonalTasks.tsx 新規ページ作成（期日順表示・at_time/by_deadline 区別表示・タスク作成フォーム）
+- [x] App.tsx: /personal-tasks ルート追加・事故ルート削除
+- [x] DashboardLayout: 「事故」タブ→「個人タスク」タブに変更（ClipboardListアイコン）
+- [x] Dashboard.tsx: 「今日の個人タスク」セクション追加（今日指定タスク＋期日が今日以内のタスク・期日表示）
