@@ -150,6 +150,7 @@ interface SavedState {
   overtimeContactTarget?: string;
   overtimeRecordCount?: number;
   overtimeFreeText?: string;
+  voiceMemoDeleted?: boolean;
 }
 
 export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutChecklistUrl, isEmergency }: AttendanceCheckModalProps) {
@@ -201,6 +202,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   const [clockInDone, setClockInDone] = useState(savedState?.clockInDone ?? false);
   // 退勤打刻済みフラグ
   const [clockOutDone, setClockOutDone] = useState(savedState?.clockOutDone ?? false);
+  // ボイスメモ・NotebookLM削除済みフラグ
+  const [voiceMemoDeleted, setVoiceMemoDeleted] = useState(savedState?.voiceMemoDeleted ?? false);
 
   // dragY は削除（スワイプジェスチャーを無効化）
   const dragY = 0;
@@ -319,13 +322,14 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       overtimeContactTarget,
       overtimeRecordCount,
       overtimeFreeText,
+      voiceMemoDeleted,
     };
     try {
       localStorage.setItem(getStorageKey(type), JSON.stringify(stateToSave));
     } catch {
       // ignore storage errors
     }
-  }, [type, done, alcoholRecorded, alcoholSkipped, clockInDone, clockOutDone, hasOvertime, overtimeStartHour, overtimeStartMinute, overtimeReasonTypes, overtimeContactTarget, overtimeRecordCount, overtimeFreeText]);
+  }, [type, done, alcoholRecorded, alcoholSkipped, clockInDone, clockOutDone, hasOvertime, overtimeStartHour, overtimeStartMinute, overtimeReasonTypes, overtimeContactTarget, overtimeRecordCount, overtimeFreeText, voiceMemoDeleted]);
 
   // モーダルが開いている間、bodyのスクロールをロックする（iOS対応）
   useEffect(() => {
@@ -1770,12 +1774,13 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 </div>
               );
             } else {
-              // 退勤時：打刻 + アルコール + 手順ステップ
-              const total = 1 + 1 + steps.length; // 退勤打刻 + アルコール + みまもドライブ
+              // 退勤時：打刻 + アルコール + 手順ステップ + ボイスメモ削除
+              const total = 1 + 1 + steps.length + 1; // 退勤打刻 + アルコール + みまもドライブ + ボイスメモ削除
               const completedClockOut = clockOutDone ? 1 : 0;
               const completedAlcohol = alcoholDoneForBanner ? 1 : 0;
               const completedSteps = steps.filter(s => done[s.id]).length;
-              const completed = completedClockOut + completedAlcohol + completedSteps;
+              const completedVoiceMemo = voiceMemoDeleted ? 1 : 0;
+              const completed = completedClockOut + completedAlcohol + completedSteps + completedVoiceMemo;
               return (
                 <div className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
                   completed === total
@@ -1809,8 +1814,45 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
               <div ref={afterAlcoholRef} />
             </>
           ) : (
-            // ── 退勤画面レイアウト：残業カード → 退勤打刻 → アルコールチェック → アルコール記録 → みまもドライブ停止 ──
+            // ── 退勤画面レイアウト：ボイスメモ削除 → 残業カード → 退勤打刻 → アルコールチェック → アルコール記録 → みまもドライブ停止 ──
             <>
+              {/* 0. ボイスメモ・NotebookLM削除 */}
+              <div className="mx-3 my-2">
+                <button
+                  type="button"
+                  onClick={() => setVoiceMemoDeleted((v) => !v)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all active:scale-95 ${
+                    voiceMemoDeleted
+                      ? "border-green-400 bg-green-50 dark:bg-green-950/30"
+                      : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+                  }`}
+                >
+                  <div className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center border-2 transition-all ${
+                    voiceMemoDeleted
+                      ? "border-green-500 bg-green-500"
+                      : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                  }`}>
+                    {voiceMemoDeleted && (
+                      <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className={`text-sm font-semibold ${
+                      voiceMemoDeleted ? "text-green-700 dark:text-green-400" : "text-foreground"
+                    }`}>
+                      今日のボイスメモ・NotebookLM削除
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      iCloudボイスメモとNotebookLMの今日分を削除する
+                    </p>
+                  </div>
+                  {voiceMemoDeleted && (
+                    <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  )}
+                </button>
+              </div>
               {/* 1. 残業申請 */}
               {overtimeCard}
               {/* 2. 退勤打刻ボタン */}

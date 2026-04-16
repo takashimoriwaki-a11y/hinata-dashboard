@@ -657,7 +657,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   key={item.label}
                   href={item.href}
                   style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", WebkitTouchCallout: "none" }}
-                  onPointerDown={() => { try { navigator.vibrate?.(8); } catch {} }}
+                  onPointerDown={(e) => {
+                    try { navigator.vibrate?.(8); } catch {}
+                    // アクティブなタブを再タップしたらページ最上部へスクロール
+                    if (isActive) {
+                      e.preventDefault();
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }
+                  }}
                   className={cn(
                     "flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors relative select-none active:scale-95",
                     isActive ? "text-primary" : isNight ? "text-slate-200 active:text-primary" : "text-muted-foreground active:text-primary"
