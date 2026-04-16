@@ -6552,6 +6552,89 @@ export const appRouter = router({
         return { success: true };
       }),
   }),
+  improvement: router({
+    /** 業務改善提案を投稿する */
+    submit: protectedProcedure
+      .input(z.object({
+        category: z.enum(["業務効率化", "コミュニケーション", "環境・設備", "ケアの質向上", "その他"]),
+        content: z.string().min(1).max(2000),
+        isAnonymous: z.boolean().default(false),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { createImprovementSuggestion, getImprovementSpreadsheet, markImprovementSuggestionSynced } = await import("./db");
+        const result = await createImprovementSuggestion({
+          createdBy: ctx.user.id,
+          createdByName: ctx.user.name ?? "不明",
+          category: input.category,
+          content: input.content,
+          isAnonymous: input.isAnonymous ? 1 : 0,
+        });
+        const insertId = (result as any).insertId as number;
+
+        // スプレッドシート転記
+        try {
+          const sheet = await getImprovementSpreadsheet();
+          if (sheet?.spreadsheetId) {
+            const auth = getAuth();
+            const client = await auth.getClient();
+            const token = await client.getAccessToken();
+            if (token.token) {
+              const now = new Date();
+              const dateStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+              const displayName = input.isAnonymous ? "匿名" : (ctx.user.name ?? "不明");
+              const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheet.spreadsheetId}/values/%E6%84%8F%E8%A6%8B%E7%AE%B1!A:E:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+              await fetch(appendUrl, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ values: [[dateStr, displayName, input.category, input.content, ""]] }),
+              });
+              await markImprovementSuggestionSynced(insertId);
+            }
+          }
+        } catch (e) {
+          console.error("[Improvement] Sheet sync failed:", e);
+        }
+
+        return { success: true, id: insertId };
+      }),
+
+    /** 提案一覧を取得する */
+    list: protectedProcedure.query(async () => {
+      const { getImprovementSuggestions } = await import("./db");
+      return await getImprovementSuggestions(200);
+    }),
+
+    /** 管理者：提案に返信する */
+    reply: protectedProcedure
+      .input(z.object({ id: z.number().int(), reply: z.string().min(1) }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const { replyToImprovementSuggestion } = await import("./db");
+        await replyToImprovementSuggestion(input.id, input.reply, ctx.user.name ?? "管理者");
+        return { success: true };
+      }),
+
+    /** 管理者：スプレッドシート設定を取得する */
+    getSpreadsheet: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+      const { getImprovementSpreadsheet } = await import("./db");
+      return await getImprovementSpreadsheet();
+    }),
+
+    /** 管理者：スプレッドシート設定を保存する */
+    setSpreadsheet: protectedProcedure
+      .input(z.object({
+        spreadsheetId: z.string().min(1),
+        spreadsheetUrl: z.string().url(),
+        label: z.string().min(1),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const { upsertImprovementSpreadsheet } = await import("./db");
+        await upsertImprovementSpreadsheet(input);
+        return { success: true };
+      }),
+  }),
 });
 export type AppRouter = typeof appRouter;
 

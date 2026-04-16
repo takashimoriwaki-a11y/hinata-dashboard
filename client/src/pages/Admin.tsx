@@ -883,7 +883,7 @@ export default function Admin() {
   }, []);
 
   // セクション切り替え
-  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "toolLogs" | "alcoholSheets" | "detectorSettings" | "timesheetSheets" | "overtimeApprovals" | "monthlySignatures">("sheets");
+  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "toolLogs" | "alcoholSheets" | "detectorSettings" | "timesheetSheets" | "overtimeApprovals" | "monthlySignatures" | "improvementSheet">("sheets");
   const { user: currentUser } = useAuth();
 
   return (
@@ -1043,6 +1043,19 @@ export default function Admin() {
             )}
           >
             月次署名確認
+          </button>
+        )}
+        {currentUser?.role === "admin" && (
+          <button
+            onClick={() => setActiveSection("improvementSheet")}
+            className={cn(
+            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
+            activeSection === "improvementSheet"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            意見箱設定
           </button>
         )}
       </div>
@@ -1259,6 +1272,93 @@ export default function Admin() {
       {activeSection === "overtimeApprovals" && <OvertimeApprovalsPanel />}
       {/* 月次署名確認 */}
       {activeSection === "monthlySignatures" && <MonthlySignaturesPanel />}
+      {/* 業務改善意見箱スプレッドシート設定 */}
+      {activeSection === "improvementSheet" && <ImprovementSheetPanel />}
+    </div>
+  );
+}
+
+// ============================
+// 業務改善意見箱スプレッドシート設定パネル
+// ============================
+function ImprovementSheetPanel() {
+  const utils = trpc.useUtils();
+  const { data: sheet, isLoading } = trpc.improvement.getSpreadsheet.useQuery();
+  const setSheetMutation = trpc.improvement.setSpreadsheet.useMutation({
+    onSuccess: () => {
+      toast.success("スプレッドシートを設定しました");
+      utils.improvement.getSpreadsheet.invalidate();
+    },
+    onError: (e) => toast.error(`設定エラー: ${e.message}`),
+  });
+  const [urlInput, setUrlInput] = useState("");
+  const [labelInput, setLabelInput] = useState("業務改善意見箱");
+
+  const handleSave = () => {
+    const match = urlInput.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+    if (!match) { toast.error("GoogleスプレッドシートのURLを入力してください"); return; }
+    const spreadsheetId = match[1];
+    setSheetMutation.mutate({ spreadsheetId, spreadsheetUrl: urlInput, label: labelInput });
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <FileSpreadsheet className="w-5 h-5 text-amber-500" />
+            業務改善意見箱 スプレッドシート設定
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            提案が投稿されると、指定したGoogleスプレッドシートの「意見箱」シートに自動転記されます。
+          </p>
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">読み込み中...</p>
+          ) : sheet ? (
+            <div className="rounded-lg border border-green-200 bg-green-50 p-3 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-800">{sheet.label}</p>
+                <a href={sheet.spreadsheetUrl} target="_blank" rel="noreferrer" className="text-xs text-green-600 hover:underline flex items-center gap-1">
+                  <ExternalLink className="w-3 h-3" /> スプレッドシートを開く
+                </a>
+              </div>
+              <Badge variant="outline" className="text-green-700 border-green-300">設定済み</Badge>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">スプレッドシートが未設定です。</p>
+          )}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground">スプレッドシートURL</p>
+            <Input
+              value={urlInput}
+              onChange={e => setUrlInput(e.target.value)}
+              placeholder="https://docs.google.com/spreadsheets/d/..."
+              className="text-sm"
+            />
+            <p className="text-xs font-semibold text-muted-foreground">ラベル（任意）</p>
+            <Input
+              value={labelInput}
+              onChange={e => setLabelInput(e.target.value)}
+              placeholder="業務改善意見箱"
+              className="text-sm"
+            />
+            <Button
+              onClick={handleSave}
+              disabled={setSheetMutation.isPending || !urlInput.trim()}
+              className="w-full"
+            >
+              {setSheetMutation.isPending ? "保存中..." : "スプレッドシートを設定する"}
+            </Button>
+          </div>
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 space-y-1">
+            <p className="font-semibold">転記される内容</p>
+            <p>投稿日時 / 投稿者名（匿名の場合は「匿名」） / カテゴリ / 提案内容 / 管理者コメント欄</p>
+            <p className="mt-1">※ サービスアカウントに対してスプレッドシートの編集権限を付与してください。</p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

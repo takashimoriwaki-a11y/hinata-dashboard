@@ -10,6 +10,7 @@ import { Confetti } from "@/components/Confetti";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { AttendanceCheckModal } from "@/components/AttendanceCheckModal";
+import { ImprovementBox } from "@/components/ImprovementBox";
 import { AlcoholCheckModal } from "@/components/AlcoholCheckModal";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5373,6 +5374,10 @@ export default function Dashboard() {
               </Link>
             </CardContent>
           </Card>
+          {/* 業務改善意見箱 */}
+          <div data-scroll-reveal data-delay="500">
+            <ImprovementBox isNightMode={isNight} />
+          </div>
         </div>
 
           {/* 右カラム（PCのみ表示）: ツール・タスク */}

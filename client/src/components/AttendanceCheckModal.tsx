@@ -1821,7 +1821,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       </AlertDialogContent>
     </AlertDialog>
 
-    <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-hidden" style={{height: '100svh'}}>
+    <div className="fixed inset-0 z-[60] flex items-start justify-center" style={{height: '100svh', overflow: 'hidden', maxHeight: '100svh'}}>
       {/* 背景オーバーレイ */}
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm"
@@ -1829,7 +1829,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       />
       {/* モーダル本体 */}
       <div
-        className="relative w-full sm:max-w-md mx-0 sm:mx-4 bg-white dark:bg-gray-900 rounded-b-2xl sm:rounded-2xl shadow-2xl flex flex-col h-[100svh] sm:h-[calc(100svh-2rem)] max-h-[100svh] sm:max-h-[calc(100svh-2rem)] overflow-hidden"
+        className="relative w-full sm:max-w-md mx-0 sm:mx-4 bg-white dark:bg-gray-900 rounded-b-2xl sm:rounded-2xl shadow-2xl flex flex-col h-full sm:h-[calc(100svh-2rem)] max-h-full sm:max-h-[calc(100svh-2rem)] overflow-hidden"
       >
         {/* スワイプインジケーターは削除（誤操作防止） */}
         {/* ヘッダー */}

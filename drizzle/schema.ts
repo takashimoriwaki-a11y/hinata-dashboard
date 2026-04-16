@@ -930,3 +930,60 @@ export const monthlySignatures = mysqlTable("monthly_signatures", {
 });
 export type MonthlySignature = typeof monthlySignatures.$inferSelect;
 export type InsertMonthlySignature = typeof monthlySignatures.$inferInsert;
+
+// ============================================================
+// 業務改善意見箱テーブル
+// ============================================================
+/**
+ * 全職員からの業務改善提案を管理するテーブル
+ * 提案はスプレッドシートに自動転記される
+ */
+export const improvementSuggestions = mysqlTable("improvement_suggestions", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 提案者のユーザーID */
+  createdBy: int("createdBy").notNull(),
+  /** 提案者の名前（スナップショット） */
+  createdByName: varchar("createdByName", { length: 100 }).notNull(),
+  /** 提案カテゴリ */
+  category: mysqlEnum("category", [
+    "業務効率化",
+    "コミュニケーション",
+    "環境・設備",
+    "ケアの質向上",
+    "その他",
+  ]).default("その他").notNull(),
+  /** 提案内容 */
+  content: text("content").notNull(),
+  /** 匿名投稿フラグ（1=匿名、0=記名） */
+  isAnonymous: tinyint("isAnonymous").default(0).notNull(),
+  /** スプレッドシート転記済みフラグ */
+  sheetSynced: int("sheetSynced").default(0).notNull(),
+  /** 管理者からの返信 */
+  adminReply: text("adminReply"),
+  /** 返信者名 */
+  adminReplierName: varchar("adminReplierName", { length: 100 }),
+  /** 返信日時（UNIXタイムスタンプ ms） */
+  adminRepliedAt: bigint("adminRepliedAt", { mode: "number" }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type ImprovementSuggestion = typeof improvementSuggestions.$inferSelect;
+export type InsertImprovementSuggestion = typeof improvementSuggestions.$inferInsert;
+
+/**
+ * 業務改善意見箱スプレッドシート管理テーブル
+ * 転記先のGoogleスプレッドシートIDを管理する
+ */
+export const improvementSpreadsheets = mysqlTable("improvement_spreadsheets", {
+  id: int("id").autoincrement().primaryKey(),
+  /** GoogleスプレッドシートID */
+  spreadsheetId: varchar("spreadsheetId", { length: 200 }).notNull(),
+  /** スプレッドシートのURL */
+  spreadsheetUrl: text("spreadsheetUrl").notNull(),
+  /** 表示ラベル */
+  label: varchar("label", { length: 200 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type ImprovementSpreadsheet = typeof improvementSpreadsheets.$inferSelect;
+export type InsertImprovementSpreadsheet = typeof improvementSpreadsheets.$inferInsert;

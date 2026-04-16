@@ -23,6 +23,8 @@ import {
   scheduleChanges, InsertScheduleChange,
   quickAccessLinks, InsertQuickAccessLink,
   voiceFeedback,
+  improvementSuggestions, InsertImprovementSuggestion,
+  improvementSpreadsheets, InsertImprovementSpreadsheet,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -2288,4 +2290,66 @@ export async function adminConfirmMonthlySignature(id: number, confirmerName: st
     adminConfirmerName: confirmerName,
     adminConfirmedAt: Date.now(),
   }).where(eq(monthlySignatures.id, id));
+}
+
+// ============================================================
+// 業務改善意見箱 ヘルパー
+// ============================================================
+
+/** 業務改善提案を作成する */
+export async function createImprovementSuggestion(data: InsertImprovementSuggestion) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(improvementSuggestions).values(data);
+  return result;
+}
+
+/** 業務改善提案一覧を取得する（新しい順） */
+export async function getImprovementSuggestions(limit = 100) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(improvementSuggestions)
+    .orderBy(desc(improvementSuggestions.createdAt))
+    .limit(limit);
+}
+
+/** 管理者：業務改善提案に返信する */
+export async function replyToImprovementSuggestion(id: number, reply: string, replierName: string) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(improvementSuggestions).set({
+    adminReply: reply,
+    adminReplierName: replierName,
+    adminRepliedAt: Date.now(),
+    updatedAt: new Date(),
+  }).where(eq(improvementSuggestions.id, id));
+}
+
+/** スプレッドシート転記済みフラグを立てる */
+export async function markImprovementSuggestionSynced(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(improvementSuggestions).set({ sheetSynced: 1, updatedAt: new Date() })
+    .where(eq(improvementSuggestions.id, id));
+}
+
+/** 業務改善スプレッドシート設定を取得する */
+export async function getImprovementSpreadsheet() {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(improvementSpreadsheets).limit(1);
+  return rows[0] ?? null;
+}
+
+/** 業務改善スプレッドシート設定を保存（upsert） */
+export async function upsertImprovementSpreadsheet(data: { spreadsheetId: string; spreadsheetUrl: string; label: string }) {
+  const db = await getDb();
+  if (!db) return;
+  const existing = await getImprovementSpreadsheet();
+  if (existing) {
+    await db.update(improvementSpreadsheets).set({ ...data, updatedAt: new Date() })
+      .where(eq(improvementSpreadsheets.id, existing.id));
+  } else {
+    await db.insert(improvementSpreadsheets).values({ ...data });
+  }
 }
