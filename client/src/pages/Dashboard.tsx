@@ -5289,6 +5289,8 @@ export default function Dashboard() {
 
   return (
     <div ref={scrollContainerRef as React.RefObject<HTMLDivElement>} className="p-3 md:p-4 pb-6 md:pb-4 space-y-3 md:space-y-4 max-w-screen-xl mx-auto">
+      {/* チーム目標テロップ（ロゴとウェルカムバナーの間） */}
+      <TeamGoalsTicker />
       {/* ウェルカムバナー */}
       <div className="relative rounded-2xl overflow-hidden shadow-md fade-in-up">
         {/* 月別背景画像 */}
@@ -5426,6 +5428,27 @@ export default function Dashboard() {
               <ClipboardEdit className="w-3.5 h-3.5 md:w-4 md:h-4" />
               訪問
             </Link>
+            {/* 7. 業務改善 */}
+            <button
+              onClick={() => {
+                const el = document.getElementById('improvement-box');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              onPointerDown={() => {}}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#c0392b', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#a93226')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#c0392b')}
+            >
+              <span className="text-sm leading-none">💡</span>
+              業務改善
+            </button>
+            {/* 8. 個人タスク */}
+            <Link
+              href="/tasks"
+              onPointerDown={() => {}}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#1a6b9e', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#155a87')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#1a6b9e')}
+            >
+              <ListTodo className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              個人タスク
+            </Link>
           </div>
 
           {/* 承認残業時間表示（承認済みの残業申請がある場合のみ表示） */}
@@ -5497,7 +5520,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
           {/* 業務改善意見笥 */}
-          <div data-scroll-reveal data-delay="500">
+          <div id="improvement-box" data-scroll-reveal data-delay="500">
             <ImprovementBox isNightMode={isNight} />
           </div>
         </div>

@@ -683,7 +683,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     // アクティブなタブを再タップしたらページ最上部へスクロール
                     if (isActive) {
                       e.preventDefault();
-                      window.scrollTo({ top: 0, behavior: "smooth" });
+                      const mainEl = document.querySelector('main.main-content-safe');
+                      if (mainEl) {
+                        mainEl.scrollTo({ top: 0, behavior: 'smooth' });
+                      } else {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }
                     }
                   }}
                   className={cn(

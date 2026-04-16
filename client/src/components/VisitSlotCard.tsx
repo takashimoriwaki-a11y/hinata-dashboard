@@ -16,6 +16,15 @@ import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { getTeamButtonClass, getTeamButtonStyle } from "@shared/teamColors";
+import { SPREADSHEET_LINKS } from "@/lib/spreadsheetLinks";
+
+// チーム別利用者料金表URLマッピング
+const TEAM_FEE_SHEET_URL: Record<string, string> = {
+  "身体": SPREADSHEET_LINKS.find(l => l.label === "利用者料金一覧（身体）")?.href ?? "",
+  "天理": SPREADSHEET_LINKS.find(l => l.label === "利用者料金一覧（天理）")?.href ?? "",
+  "郡山北部": SPREADSHEET_LINKS.find(l => l.label === "利用者料金一覧（精神郡山）")?.href ?? "",
+  "郡山南部": SPREADSHEET_LINKS.find(l => l.label === "利用者料金一覧（精神郡山）")?.href ?? "",
+};
 
 const NOTIFY_TO_OPTIONS = ["本人", "家族", "その他"] as const;
 const NOTIFY_METHOD_OPTIONS = ["口頭", "カレンダー記入", "付箋", "電話", "その他"] as const;
@@ -421,17 +430,30 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                       onChange={() => setTasksBefore(prev => prev.map(t => t.id === task.id ? { ...t, checked: !t.checked } : t))}
                       className="mt-0.5 w-4 h-4 accent-primary flex-shrink-0"
                     />
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 flex items-center gap-2">
                       <span className={cn(
-                        "text-sm leading-snug",
+                        "text-sm leading-snug flex-1",
                         task.checked ? "line-through text-muted-foreground" : "text-foreground"
                       )}>
                         {task.label}
+                        {task.optional && (
+                          <span className="ml-2 text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-1.5 py-0.5 rounded-full">
+                            必要時
+                          </span>
+                        )}
                       </span>
-                      {task.optional && (
-                        <span className="ml-2 text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-1.5 py-0.5 rounded-full">
-                          必要時
-                        </span>
+                      {/* 料金表記入の横にチーム別スプレッドシートボタン */}
+                      {task.id === "fee_sheet" && slotData.team && TEAM_FEE_SHEET_URL[slotData.team] && (
+                        <a
+                          href={TEAM_FEE_SHEET_URL[slotData.team]}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={e => e.stopPropagation()}
+                          className="flex-shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          利用者料金表
+                        </a>
                       )}
                     </div>
                   </label>
@@ -439,6 +461,17 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
               </div>
             </div>
 
+            {/* メモ（月初め保険証確認と訪問後の間） */}
+            <div>
+              <p className="text-xs text-muted-foreground mb-1.5">メモ</p>
+              <textarea
+                className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-colors placeholder:text-muted-foreground"
+                rows={2}
+                placeholder="例：看護記録Ⅱ作成時に使用するキーワード、支援者・家族への連絡等"
+                value={specialNote}
+                onChange={(e) => setSpecialNote(e.target.value)}
+              />
+            </div>
             {/* 訪問後 - チェックボックスなしのテキスト表示 */}
             <div>
               <p className="text-xs text-muted-foreground mb-1.5">訪問後</p>
@@ -476,17 +509,7 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
               </div>
             </div>
 
-            {/* 特記事項 */}
-            <div>
-              <p className="text-xs text-muted-foreground mb-1.5">特記事項</p>
-              <textarea
-                className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-colors placeholder:text-muted-foreground"
-                rows={2}
-                placeholder="例：支援者・家族に連絡"
-                value={specialNote}
-                onChange={(e) => setSpecialNote(e.target.value)}
-              />
-            </div>
+
 
             {/* チェックリストリセットボタン */}
             <div className="flex justify-end">

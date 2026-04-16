@@ -173,7 +173,7 @@ const findBestMatches = (
 };
 
 const MAX_SLOTS = 8;
-const CONTINUOUS_SILENCE_TIMEOUT_MS = 2200; // 無音2.2秒で自動停止
+const CONTINUOUS_SILENCE_TIMEOUT_MS = 10000; // 無音10秒で自動停止
 
 type VisitSlotData = {
   team: Team | "";

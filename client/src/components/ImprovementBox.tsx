@@ -3,6 +3,8 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { ChevronDown, ChevronUp, Lightbulb, Send, MessageSquare, User } from "lucide-react";
+import { VoiceMicButton } from "@/components/VoiceMicButton";
+import { useVoiceInput } from "@/hooks/useVoiceInput";
 
 const CATEGORIES = ["業務効率化", "コミュニケーション", "環境・設備", "ケアの質向上", "その他"] as const;
 type Category = typeof CATEGORIES[number];
@@ -35,6 +37,12 @@ export function ImprovementBox({ isNightMode }: ImprovementBoxProps) {
   const [showList, setShowList] = useState(false);
 
   const { user } = useAuth();
+
+  // 音声入力フック（提案内容に追記）
+  const voiceState = useVoiceInput({
+    onResult: (text) => setContent(prev => prev ? prev + text : text),
+    longTextMode: true,
+  });
 
   const submitMutation = trpc.improvement.submit.useMutation({
     onSuccess: () => {
@@ -133,13 +141,28 @@ export function ImprovementBox({ isNightMode }: ImprovementBoxProps) {
                 </div>
               </div>
 
-              {/* 内容入力 */}
+              {/* 内容入力（音声入力ボタン付き） */}
               <div>
-                <p className={`text-xs font-semibold mb-1 ${subText}`}>提案内容</p>
+                <div className="flex items-center justify-between mb-1">
+                  <p className={`text-xs font-semibold ${subText}`}>提案内容</p>
+                  {/* 音声入力ボタン */}
+                  <VoiceMicButton
+                    externalState={voiceState}
+                    size="sm"
+                    previewMode="inline"
+                    context="general"
+                  />
+                </div>
+                {/* 音声認識中の暫定テキスト表示 */}
+                {voiceState.isRecording && voiceState.interimText && (
+                  <div className={`mb-1 px-2 py-1 rounded text-xs italic ${isNightMode ? "bg-amber-900/30 text-amber-300" : "bg-amber-50 text-amber-700"}`}>
+                    🎙️ {voiceState.interimText}
+                  </div>
+                )}
                 <textarea
                   value={content}
                   onChange={e => setContent(e.target.value)}
-                  placeholder="業務改善のアイデアや気になっていることを自由に書いてください..."
+                  placeholder="業務改善のアイデアや気になっていることを自由に書いてください...（マイクボタンで音声入力も可能）"
                   rows={4}
                   maxLength={2000}
                   className={`w-full rounded-lg border px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-400 ${inputBg}`}
