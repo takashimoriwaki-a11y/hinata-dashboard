@@ -5,7 +5,7 @@
  * - 訪問完了ボタン（完了時はグレーアウト表示）
  */
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import VoiceMicButton from "@/components/VoiceMicButton";
+import { VoiceMicButton } from "@/components/VoiceMicButton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
