@@ -212,6 +212,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const afterAlcoholRef = useRef<HTMLDivElement>(null);
   const alcoholHeaderRef = useRef<HTMLDivElement>(null); // アコーディオン展開時のスクロールターゲット
+  const alcoholFormEndRef = useRef<HTMLDivElement>(null); // アルコールフォーム末尾のスクロールターゲット
+  const overtimeCardRef = useRef<HTMLDivElement>(null); // 残業カード先頭のスクロールターゲット
 
   // アルコールチェック完了後に次のアクションへスクロールするヘルパー
   const scrollToAfterAlcohol = useCallback(() => {
@@ -231,6 +233,30 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       if (alcoholHeaderRef.current && scrollContainerRef.current) {
         const container = scrollContainerRef.current;
         const target = alcoholHeaderRef.current;
+        const targetTop = target.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+        container.scrollTo({ top: targetTop - 8, behavior: 'smooth' });
+      }
+    }, 50); // 展開開始直後にスクロール
+  }, []);
+
+  // アルコールフォーム展開後にフォーム末尾へスクロールするヘルパー
+  const scrollToAlcoholFormEnd = useCallback(() => {
+    setTimeout(() => {
+      if (alcoholFormEndRef.current && scrollContainerRef.current) {
+        const container = scrollContainerRef.current;
+        const target = alcoholFormEndRef.current;
+        const targetTop = target.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+        container.scrollTo({ top: targetTop - 8, behavior: 'smooth' });
+      }
+    }, 350); // アコーディオンのアニメーション完了後にスクロール
+  }, []);
+
+  // 残業カード展開時に残業カード先頭へスクロールするヘルパー
+  const scrollToOvertimeCard = useCallback(() => {
+    setTimeout(() => {
+      if (overtimeCardRef.current && scrollContainerRef.current) {
+        const container = scrollContainerRef.current;
+        const target = overtimeCardRef.current;
         const targetTop = target.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
         container.scrollTo({ top: targetTop - 8, behavior: 'smooth' });
       }
@@ -721,7 +747,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         onClick={() => {
           const next = !alcoholOpen;
           setAlcoholOpen(next);
-          if (next) scrollToAlcoholHeader();
+          if (next) scrollToAlcoholFormEnd();
         }}
         className={`px-4 py-3 flex items-center justify-between gap-2 cursor-pointer select-none ${
         isClockIn
@@ -1154,6 +1180,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-400 resize-none"
           />
         </div>
+        {/* アルコールフォーム末尾のスクロールターゲット */}
+        <div ref={alcoholFormEndRef} />
       </div>
       )}
       </div>
@@ -1164,11 +1192,15 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   // ── 残業カードのJSX（退勤時のみ） ──
   // NOTE: 上記の `)}` は `{alcoholSkipped && !alcoholRecorded}` の閉じタグ
   const overtimeCard = (
-    <div className="mx-3 my-2 rounded-xl border-2 border-purple-200 dark:border-purple-800 overflow-hidden">
+    <div ref={overtimeCardRef} className="mx-3 my-2 rounded-xl border-2 border-purple-200 dark:border-purple-800 overflow-hidden">
       <div className={`flex items-center ${hasOvertime ? "bg-purple-50 dark:bg-purple-950/30" : "bg-gray-50 dark:bg-gray-800"}`}>
         <button
           type="button"
-          onClick={() => setHasOvertime((v) => !v)}
+          onClick={() => {
+            const next = !hasOvertime;
+            setHasOvertime(next);
+            if (next) scrollToOvertimeCard();
+          }}
           className={`flex-1 flex items-center justify-between px-4 py-3 text-sm font-semibold transition-colors ${
             hasOvertime
               ? "text-purple-700 dark:text-purple-300"
@@ -1612,7 +1644,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
               setAlcoholRecorded(false);
               setAlcoholOpen(true);
               setShowAlcoholReEditConfirm(false);
-              scrollToAlcoholHeader();
+              scrollToAlcoholFormEnd();
             }}
             className={isClockIn ? "bg-orange-500 hover:bg-orange-600 text-white" : "bg-cyan-500 hover:bg-cyan-600 text-white"}
           >
