@@ -803,7 +803,7 @@ export default function Admin() {
   }, []);
 
   // セクション切り替え
-  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "teamGoals" | "toolLogs" | "alcoholSheets" | "detectorSettings" | "timesheetSheets" | "overtimeApprovals" | "monthlySignatures">("sheets");
+  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "toolLogs" | "alcoholSheets" | "detectorSettings" | "timesheetSheets" | "overtimeApprovals" | "monthlySignatures">("sheets");
   const { user: currentUser } = useAuth();
 
   return (
@@ -870,19 +870,6 @@ export default function Admin() {
           </button>
         )}
         {/* クイックアクセスはホーム画面から削除済みのため非表示 */}
-        {currentUser?.role === "admin" && (
-          <button
-            onClick={() => setActiveSection("teamGoals")}
-            className={cn(
-            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
-            activeSection === "teamGoals"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            チーム目標
-          </button>
-        )}
         {currentUser?.role === "admin" && (
           <button
             onClick={() => setActiveSection("settings")}
@@ -1175,7 +1162,6 @@ export default function Admin() {
       {activeSection === "import" && <BulkExcelImportPanel />}
 
       {/* システム設定セクション */}
-      {activeSection === "teamGoals" && <TeamGoalsPanel />}
       {activeSection === "settings" && <SystemSettingsPanel />}
 
       {/* クイックアクセスリンク管理セクション（ホーム画面から削除済みのため非表示） */}
@@ -4171,6 +4157,8 @@ function TimesheetSpreadsheetsPanel() {
 // ============================
 // 残業承認パネル
 // ============================
+const OVERTIME_TEAMS = ["全て", "身体", "天理", "郡山北部", "郡山南部", "事務員"] as const;
+
 function OvertimeApprovalsPanel() {
   const utils = trpc.useUtils();
   const [commentInputs, setCommentInputs] = useState<Record<number, string>>({});
@@ -4178,8 +4166,19 @@ function OvertimeApprovalsPanel() {
   const [adjustEnd, setAdjustEnd] = useState<Record<number, string>>({});
   const [isBulkApproving, setIsBulkApproving] = useState(false);
 
-  // 承認待ちのみ取得
-  const { data: approvals = [], isLoading } = trpc.overtime.getAll.useQuery({ status: "pending" });
+  // フィルター状態
+  const now = new Date();
+  const defaultYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const [filterStatus, setFilterStatus] = useState<"pending" | "approved" | "rejected" | "all">("pending");
+  const [filterTeamOT, setFilterTeamOT] = useState<string>("全て");
+  const [filterYearMonth, setFilterYearMonth] = useState<string>(defaultYearMonth);
+
+  const queryInput = {
+    status: filterStatus,
+    team: filterTeamOT !== "全て" ? filterTeamOT : undefined,
+    yearMonth: filterYearMonth || undefined,
+  };
+  const { data: approvals = [], isLoading } = trpc.overtime.getAll.useQuery(queryInput);
 
   const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
 
@@ -4233,7 +4232,7 @@ function OvertimeApprovalsPanel() {
             職員からの残業申請を確認・承認します。承認者名は自動的に記録されます。
           </p>
         </div>
-        {approvals.length > 0 && (
+        {filterStatus === "pending" && approvals.length > 0 && (
           <Button
             onClick={handleBulkApprove}
             disabled={isBulkApproving}
@@ -4243,6 +4242,50 @@ function OvertimeApprovalsPanel() {
             {isBulkApproving ? "処理中..." : `一括承認（${approvals.length}件）`}
           </Button>
         )}
+      </div>
+
+      {/* フィルターバー */}
+      <div className="flex flex-wrap gap-2 items-end p-3 bg-muted/40 rounded-lg">
+        {/* 月フィルター */}
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-muted-foreground font-medium">対象月</label>
+          <input
+            type="month"
+            value={filterYearMonth}
+            onChange={(e) => setFilterYearMonth(e.target.value)}
+            className="border rounded px-2 py-1.5 text-sm bg-background"
+          />
+        </div>
+        {/* チームフィルター */}
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-muted-foreground font-medium">チーム</label>
+          <select
+            value={filterTeamOT}
+            onChange={(e) => setFilterTeamOT(e.target.value)}
+            className="border rounded px-2 py-1.5 text-sm bg-background"
+          >
+            {OVERTIME_TEAMS.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        </div>
+        {/* ステータスフィルター */}
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-muted-foreground font-medium">ステータス</label>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value as any)}
+            className="border rounded px-2 py-1.5 text-sm bg-background"
+          >
+            <option value="pending">承認待ち</option>
+            <option value="approved">承認済み</option>
+            <option value="rejected">却下</option>
+            <option value="all">全て</option>
+          </select>
+        </div>
+        <div className="text-xs text-muted-foreground self-end pb-1.5">
+          {isLoading ? "読み込み中..." : `${approvals.length}件`}
+        </div>
       </div>
 
       {isLoading ? (

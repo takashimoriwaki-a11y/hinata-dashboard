@@ -6293,12 +6293,19 @@ export const appRouter = router({
     getAll: protectedProcedure
       .input(z.object({
         date: z.string().optional(),
-        status: z.enum(["pending", "approved", "rejected"]).optional(),
+        status: z.enum(["pending", "approved", "rejected", "all"]).optional(),
+        team: z.string().optional(),
+        yearMonth: z.string().optional(), // YYYY-MM形式
       }).optional())
       .query(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
         const { getOvertimeApprovals } = await import("./db");
-        return getOvertimeApprovals(input ?? {});
+        const opts: { date?: string; status?: string; team?: string; yearMonth?: string } = {};
+        if (input?.date) opts.date = input.date;
+        if (input?.status && input.status !== "all") opts.status = input.status;
+        if (input?.team) opts.team = input.team;
+        if (input?.yearMonth) opts.yearMonth = input.yearMonth;
+        return getOvertimeApprovals(opts);
       }),
     /** 自分の残業申請一覧を取得する */
     getMine: protectedProcedure

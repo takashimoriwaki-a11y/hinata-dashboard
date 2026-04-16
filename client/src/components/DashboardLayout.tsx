@@ -37,6 +37,7 @@ import {
   Sparkles,
   MapPin,
   FileCheck,
+  Target,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
@@ -362,6 +363,24 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <span className="flex-shrink-0 w-2 h-2 bg-red-500 rounded-full" />
           )}
         </button>
+
+        {/* チーム目標（全職員表示） */}
+        <Link href="/team-goals">
+          <button
+            onClick={() => setMobileOpen(false)}
+            title={(collapsed && !mobile) ? "チーム目標" : undefined}
+            className={cn(
+              "relative flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
+              "text-sm font-medium text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+              (collapsed && !mobile) ? "justify-center px-0" : "px-3 w-[calc(100%-1rem)]"
+            )}
+          >
+            <Target className="w-5 h-5 flex-shrink-0" />
+            {(!collapsed || mobile) && (
+              <span className="truncate flex-1 text-left">チーム目標</span>
+            )}
+          </button>
+        </Link>
       </nav>
 
       {/* ボトムアクション */}

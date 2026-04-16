@@ -1,4 +1,4 @@
-import { and, eq, or, isNull, isNotNull, desc, lte, gte, gt, lt, sql } from "drizzle-orm";
+import { and, eq, or, isNull, isNotNull, desc, lte, gte, gt, lt, sql, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2";
 import {
@@ -2059,13 +2059,43 @@ export async function deleteTimesheetSpreadsheet(id: number) {
 // ============================================================
 
 /** 残業申請一覧を取得する（管理者用・日付範囲フィルタ付き） */
-export async function getOvertimeApprovals(opts?: { date?: string; status?: string }) {
+export async function getOvertimeApprovals(opts?: { date?: string; status?: string; team?: string; yearMonth?: string }) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [];
   if (opts?.date) conditions.push(eq(overtimeApprovals.applicationDate, opts.date));
   if (opts?.status) conditions.push(eq(overtimeApprovals.status, opts.status as any));
-  const query = db.select().from(overtimeApprovals);
+  if (opts?.yearMonth) {
+    // YYYY-MM形式で月フィルター（applicationDateはYYYY-MM-DD形式）
+    conditions.push(like(overtimeApprovals.applicationDate, `${opts.yearMonth}%`));
+  }
+  // usersテーブルとJOINしてteamを取得
+  const query = db
+    .select({
+      id: overtimeApprovals.id,
+      applicantUserId: overtimeApprovals.applicantUserId,
+      applicantName: overtimeApprovals.applicantName,
+      applicationDate: overtimeApprovals.applicationDate,
+      requestedStartAt: overtimeApprovals.requestedStartAt,
+      requestedEndAt: overtimeApprovals.requestedEndAt,
+      requestedReason: overtimeApprovals.requestedReason,
+      status: overtimeApprovals.status,
+      approverUserId: overtimeApprovals.approverUserId,
+      approverName: overtimeApprovals.approverName,
+      approvedAt: overtimeApprovals.approvedAt,
+      adjustedStartAt: overtimeApprovals.adjustedStartAt,
+      adjustedEndAt: overtimeApprovals.adjustedEndAt,
+      approverComment: overtimeApprovals.approverComment,
+      sheetSynced: overtimeApprovals.sheetSynced,
+      createdAt: overtimeApprovals.createdAt,
+      updatedAt: overtimeApprovals.updatedAt,
+      applicantTeam: users.team,
+    })
+    .from(overtimeApprovals)
+    .leftJoin(users, eq(overtimeApprovals.applicantUserId, users.id));
+  if (opts?.team && opts.team !== "全て") {
+    conditions.push(eq(users.team, opts.team as any));
+  }
   if (conditions.length > 0) {
     return query.where(and(...conditions)).orderBy(desc(overtimeApprovals.createdAt));
   }
