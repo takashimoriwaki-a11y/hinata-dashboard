@@ -56,9 +56,10 @@ const normalizeVoice = (s: string): string => removeHonorific(s.normalize("NFKC"
 const splitMultipleNames = (transcript: string): string[] => {
   // 区切り文字で分割: 「と」「、」「，」「あと」「それから」「次に」「次は」「それと」「および」「&」
   const separators = /(?:と|、|，|,|あと|それから|次に|次は|それと|および|&|\s+と\s+|\s+)/g;
-  // まず敬称を除去してから分割
+  // 敬称（さん・様・くん・ちゃん）を先に区切り文字「、」に置き換えてから分割
+  // ※ 先に除去すると「田中さん佐藤さん」→「田中佐藤」になり分割できなくなるため
   const cleaned = transcript
-    .replace(/さん|様|くん|ちゃん/g, "")
+    .replace(/さん|様|くん|ちゃん/g, "、")
     .replace(/の訪問|への訪問|を訪問/g, "");
   const parts = cleaned.split(separators)
     .map(p => p.trim())
