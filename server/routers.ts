@@ -6578,13 +6578,41 @@ export const appRouter = router({
         try {
           const sheet = await getImprovementSpreadsheet();
           if (sheet?.spreadsheetId) {
-            const auth = getAuth();
-            const client = await auth.getClient();
-            const token = await client.getAccessToken();
+            const writeAuth = new google.auth.GoogleAuth({
+              credentials: {
+                client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+                private_key: (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ?? "").replace(/\\n/g, "\n"),
+              },
+              scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+            });
+            const writeClient = await writeAuth.getClient();
+            const token = await writeClient.getAccessToken();
             if (token.token) {
+              const sheetName = encodeURIComponent("シート1");
+              const spreadsheetId = sheet.spreadsheetId;
+              const HEADERS = ["投稿日時", "投稿者", "カテゴリ", "内容", "対応状況"];
+
+              // 1行目を取得してヘッダーが未設定なら追加
+              const getUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A1:E1`;
+              const getRes = await fetch(getUrl, {
+                headers: { Authorization: `Bearer ${token.token}` },
+              });
+              const getJson = await getRes.json() as { values?: string[][] };
+              const firstRow = getJson.values?.[0] ?? [];
+              if (firstRow.length === 0 || firstRow[0] !== HEADERS[0]) {
+                // ヘッダー行を1行目に書き込む
+                const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A1:E1?valueInputOption=USER_ENTERED`;
+                await fetch(updateUrl, {
+                  method: "PUT",
+                  headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({ values: [HEADERS] }),
+                });
+              }
+
+              // データを追記
               const now = new Date();
               const dateStr = now.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
-              const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheet.spreadsheetId}/values/%E3%82%B7%E3%83%BC%E3%83%881!A:E:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+              const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A:E:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
               await fetch(appendUrl, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
