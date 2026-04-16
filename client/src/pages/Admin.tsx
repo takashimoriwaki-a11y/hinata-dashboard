@@ -2337,6 +2337,17 @@ function SystemSettingsPanel() {
   const { data: shareEmailsData, isLoading: isLoadingEmails } = trpc.settings.getShareEmails.useQuery();
   const utils = trpc.useUtils();
 
+  // 次回訪問日時シートにフィルターを適用
+  const applyVisitFilterMutation = trpc.visitRecords.applySheetFilter.useMutation({
+    onSuccess: (data) => {
+      const succeeded = data.results.filter(r => r.success).map(r => r.sheetName);
+      const failed = data.results.filter(r => !r.success).map(r => `${r.sheetName}(${r.message})`);
+      if (succeeded.length > 0) toast.success(`フィルターを適用しました: ${succeeded.join("、")}`);
+      if (failed.length > 0) toast.error(`失敗: ${failed.join("、")}`);
+    },
+    onError: (e) => toast.error(`フィルター適用失敗: ${e.message}`),
+  });
+
   // スケジュール変更連絡シートにフィルターを適用
   const applyFilterMutation = trpc.scheduleChanges.applySheetFilter.useMutation({
     onSuccess: (data) => {
@@ -2409,6 +2420,50 @@ function SystemSettingsPanel() {
 
   return (
     <div className="space-y-4">
+      {/* 次回訪問日時シートフィルター適用 */}
+      <Card className="shadow-sm">
+        <CardHeader className="pb-2 pt-4">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <Filter className="w-4 h-4 text-primary" />
+            次回訪問日時シートのフィルター設定
+          </CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            「次回訪問日時」スプレッドシートの全シート（身体・天理・郡山北部・郡山南部）にフィルター・ヘッダー書式・列幅を一括適用します。
+            新規シート作成時は自動適用されますが、既存シートに後から適用する場合はこのボタンを使用してください。
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-3">
+            <Button
+              size="sm"
+              onClick={() => applyVisitFilterMutation.mutate({})}
+              disabled={applyVisitFilterMutation.isPending}
+              className="flex items-center gap-2"
+            >
+              <Filter className="w-4 h-4" />
+              {applyVisitFilterMutation.isPending ? "適用中..." : "全シートにフィルターを適用"}
+            </Button>
+          </div>
+          {applyVisitFilterMutation.data && (
+            <div className="rounded-lg bg-muted/50 border border-border p-3 text-xs space-y-1">
+              {applyVisitFilterMutation.data.results.map(r => (
+                <div key={r.sheetName} className={`flex items-center gap-2 ${r.success ? "text-green-600 dark:text-green-400" : "text-red-500"}`}>
+                  <span>{r.success ? "✓" : "✕"}</span>
+                  <span>{r.sheetName}: {r.message}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="rounded-lg bg-muted/50 border border-border p-3 text-xs text-muted-foreground space-y-1">
+            <p className="font-medium text-foreground">適用内容</p>
+            <p>・ヘッダー行（1行目）にオートフィルターを設定（A～I列）</p>
+            <p>・ヘッダー行の背景色（青系）・太字・白文字に書式設定</p>
+            <p>・各列幅を内容に合わせて最適化</p>
+            <p>・1行目を固定（スクロール時もヘッダーが常に表示）</p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* スケジュール変更連絡シートフィルター適用 */}
       <Card className="shadow-sm">
         <CardHeader className="pb-2 pt-4">

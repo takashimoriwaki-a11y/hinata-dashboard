@@ -3347,6 +3347,116 @@ export const appRouter = router({
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AIの応答を解析できませんでした" });
         }
       }),
+
+    // 次回訪問日時スプレッドシートにフィルター・書式を後付け適用
+    applySheetFilter: protectedProcedure
+      .input(z.object({ sheetName: z.string().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ実行できます" });
+        }
+
+        const VISIT_RECORD_SHEET_ID = "1WOZQ5rI0Fu57nWaiGwComPS_DdEwPgNR6zeOmyrqKpo";
+        const TARGET_SHEET_NAMES = input.sheetName ? [input.sheetName] : ["身体", "天理", "郡山北部", "郡山南部"];
+
+        const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+        const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+        if (!email || !privateKey) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "サービスアカウント設定がありません" });
+
+        const { GoogleAuth: GA } = await import("google-auth-library");
+        const auth = new GA({
+          credentials: { client_email: email, private_key: privateKey.replace(/\\n/g, "\n") },
+          scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+        });
+        const client = await auth.getClient();
+        const token = await client.getAccessToken();
+        if (!token.token) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "認証トークン取得失敗" });
+
+        // シート一覧を取得
+        const metaRes = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}?fields=sheets.properties`,
+          { headers: { Authorization: `Bearer ${token.token}` } }
+        );
+        if (!metaRes.ok) {
+          const text = await metaRes.text();
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `メタデータ取得失敗: ${text}` });
+        }
+        const metaJson = await metaRes.json() as { sheets?: { properties: { title: string; sheetId: number } }[] };
+        const allSheets = metaJson.sheets ?? [];
+
+        const results: { sheetName: string; success: boolean; message: string }[] = [];
+
+        for (const targetName of TARGET_SHEET_NAMES) {
+          const sheet = allSheets.find(s => s.properties.title === targetName);
+          if (!sheet) {
+            results.push({ sheetName: targetName, success: false, message: "シートが見つかりません" });
+            continue;
+          }
+          const sheetId = sheet.properties.sheetId;
+
+          const batchRes = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}:batchUpdate`,
+            {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                requests: [
+                  // オートフィルターを設定（A〜I列）
+                  {
+                    setBasicFilter: {
+                      filter: {
+                        range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 9 }
+                      }
+                    }
+                  },
+                  // ヘッダー行の書式設定
+                  {
+                    repeatCell: {
+                      range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 9 },
+                      cell: {
+                        userEnteredFormat: {
+                          backgroundColor: { red: 0.267, green: 0.447, blue: 0.769 },
+                          textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 }, fontSize: 10 },
+                          horizontalAlignment: "CENTER",
+                          wrapStrategy: "CLIP",
+                        }
+                      },
+                      fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,wrapStrategy)",
+                    }
+                  },
+                  // 列幅の設定
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 150 }, fields: "pixelSize" } }, // 転送日時
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 1, endIndex: 2 }, properties: { pixelSize: 100 }, fields: "pixelSize" } }, // 担当者
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 2, endIndex: 3 }, properties: { pixelSize: 100 }, fields: "pixelSize" } }, // チーム
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 3, endIndex: 4 }, properties: { pixelSize: 130 }, fields: "pixelSize" } }, // 利用者名
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 4, endIndex: 5 }, properties: { pixelSize: 150 }, fields: "pixelSize" } }, // 次回訪問日時
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 5, endIndex: 6 }, properties: { pixelSize: 100 }, fields: "pixelSize" } }, // 伝達先
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 6, endIndex: 7 }, properties: { pixelSize: 130 }, fields: "pixelSize" } }, // 伝達先(その他)
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 7, endIndex: 8 }, properties: { pixelSize: 110 }, fields: "pixelSize" } }, // 伝達方法
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 8, endIndex: 9 }, properties: { pixelSize: 130 }, fields: "pixelSize" } }, // 伝達方法(その他)
+                  // 1行目を固定
+                  {
+                    updateSheetProperties: {
+                      properties: { sheetId, gridProperties: { frozenRowCount: 1 } },
+                      fields: "gridProperties.frozenRowCount"
+                    }
+                  },
+                  // ヘッダー行の高さ
+                  { updateDimensionProperties: { range: { sheetId, dimension: "ROWS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 36 }, fields: "pixelSize" } },
+                ]
+              }),
+            }
+          );
+          if (batchRes.ok) {
+            results.push({ sheetName: targetName, success: true, message: "フィルター・書式を適用しました" });
+          } else {
+            const errText = await batchRes.text();
+            results.push({ sheetName: targetName, success: false, message: `適用失敗: ${errText.slice(0, 200)}` });
+          }
+        }
+
+        return { results };
+      }),
   }),
 
   // ========== アプリ内通知 ==========

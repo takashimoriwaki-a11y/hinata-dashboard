@@ -403,20 +403,22 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <span>{pushLoading ? "処理中..." : isSubscribed ? "通知設定" : "通知を有効に"}</span>
           )}
         </button>
-        <Link href="/admin">
-          <div
-            title={(collapsed && !mobile) ? "管理画面" : undefined}
-            className={cn(
-              "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150",
-              "text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-              (collapsed && !mobile) ? "justify-center px-0" : "px-3",
-              location === "/admin" && "bg-primary text-white"
-            )}
-          >
-            <Settings className="w-4 h-4 flex-shrink-0" />
-            {(!collapsed || mobile) && <span>管理画面</span>}
-          </div>
-        </Link>
+        {user?.role === "admin" && (
+          <Link href="/admin">
+            <div
+              title={(collapsed && !mobile) ? "管理画面" : undefined}
+              className={cn(
+                "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150",
+                "text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                (collapsed && !mobile) ? "justify-center px-0" : "px-3",
+                location === "/admin" && "bg-primary text-white"
+              )}
+            >
+              <Settings className="w-4 h-4 flex-shrink-0" />
+              {(!collapsed || mobile) && <span>管理画面</span>}
+            </div>
+          </Link>
+        )}
         {/* ダークモード手動切替ボタン（switchable=trueのとき表示） */}
         {switchable && toggleTheme && (
           <button
