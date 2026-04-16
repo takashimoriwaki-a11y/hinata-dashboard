@@ -224,6 +224,7 @@ function PatientMasterPanel() {
   // Excelインポート
   const patientExcelRef = useRef<HTMLInputElement>(null);
   const [importingPatients, setImportingPatients] = useState(false);
+  const [importResult, setImportResult] = useState<{ count: number; skipped: number; errors: string[] } | null>(null);
   const handlePatientExcelImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -233,12 +234,15 @@ function PatientMasterPanel() {
       formData.append("file", file);
       const res = await fetch("/api/import/patients", { method: "POST", body: formData, credentials: "include" });
       const data = await res.json();
-      if (!res.ok) { toast.error(data.error ?? "インポートに失敗しました"); return; }
-      utils.patients.listAll.invalidate();
-      toast.success(`${data.count}名の利用者をインポートしました${data.errors?.length ? `（${data.errors.length}件エラー）` : ""}`);
-      if (data.errors?.length) {
-        data.errors.slice(0, 3).forEach((err: string) => toast.error(err, { duration: 5000 }));
+      if (!res.ok) {
+        toast.error(data.error ?? "インポートに失敗しました");
+        if (data.errors?.length) {
+          setImportResult({ count: 0, skipped: data.skipped ?? 0, errors: data.errors });
+        }
+        return;
       }
+      utils.patients.listAll.invalidate();
+      setImportResult({ count: data.count ?? 0, skipped: data.skipped ?? 0, errors: data.errors ?? [] });
     } catch {
       toast.error("インポート処理中にエラーが発生しました");
     } finally {
@@ -470,6 +474,51 @@ function PatientMasterPanel() {
       </CardHeader>
 
       <CardContent className="space-y-4">
+        {/* インポート結果サマリー */}
+        {importResult && (
+          <div className={cn(
+            "rounded-xl border p-4 space-y-2",
+            importResult.errors.length > 0
+              ? "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800"
+              : "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800"
+          )}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {importResult.errors.length > 0
+                  ? <AlertCircle className="w-4 h-4 text-amber-600" />
+                  : <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+                <p className="text-sm font-semibold">
+                  {importResult.errors.length > 0 ? "インポート完了（一部エラーあり）" : "インポート完了"}
+                </p>
+              </div>
+              <button onClick={() => setImportResult(null)}><X className="w-4 h-4 text-muted-foreground" /></button>
+            </div>
+            <div className="flex flex-wrap gap-3 text-sm">
+              <span className="text-emerald-700 dark:text-emerald-400 font-medium">
+                登録成功：{importResult.count}名
+              </span>
+              {importResult.skipped > 0 && (
+                <span className="text-muted-foreground">
+                  スキップ：{importResult.skipped}行（空行・記入例）
+                </span>
+              )}
+              {importResult.errors.length > 0 && (
+                <span className="text-amber-700 dark:text-amber-400 font-medium">
+                  エラー：{importResult.errors.length}件
+                </span>
+              )}
+            </div>
+            {importResult.errors.length > 0 && (
+              <div className="space-y-1 mt-1">
+                {importResult.errors.map((err, i) => (
+                  <p key={i} className="text-xs text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 rounded px-2 py-1">
+                    {err}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {/* 一括登録パネル */}
         {showBulkPanel && (
           <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-3">

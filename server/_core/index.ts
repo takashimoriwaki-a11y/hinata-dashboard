@@ -469,14 +469,17 @@ ${medicalPrompt}${feedbackSection}`;
       if (!req.file) { res.status(400).json({ error: "ファイルがありません" }); return; }
       const XLSX = await import("xlsx");
       const wb = XLSX.read(req.file.buffer, { type: "buffer" });
-      // 最初のシートを使用（「利用者一覧（インポート用）」シート）
+      // 最初のシートを使用
       const sheetName = wb.SheetNames[0];
       const ws = wb.Sheets[sheetName];
-      // ヘッダー行は3行目（0-indexed: 2）、データは4行目から
+      // テンプレート構造: 1行目タイトル・2行目説明・3行目ヘッダー・4〜7行目記入例・8行目以降データ
+      // range:2 → 3行目をヘッダーとして読み込み（記入例行4〜7行目もデータとして読まれる）
       const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { range: 2, defval: "" });
       const VALID_TEAMS = ["身体", "天理", "郡山北部", "郡山南部"];
-      const patients: Array<{ name: string; team: string; nameKana?: string; active?: number }> = [];
+      const TEAM_EXAMPLE = "例：身体・天理・郡山北部・郡山南部";
+      const patients: Array<{ name: string; team: string; nameKana?: string; active?: number; patientCode?: string }> = [];
       const errors: string[] = [];
+      let skipped = 0;
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
         // ヘッダー行キーを柔軟に取得（★付きも対応）
@@ -486,17 +489,24 @@ ${medicalPrompt}${feedbackSection}`;
         const patientCode = String(row["利用者ID"] ?? row["ID"] ?? "").trim();
         const activeRaw = row["有効フラグ（1=有効 / 0=無効）"] ?? row["有効フラグ"] ?? 1;
         const active = Number(activeRaw) === 0 ? 0 : 1;
-        if (!name) continue; // 空行スキップ
-        if (!VALID_TEAMS.includes(team)) { errors.push(`${i + 4}行目: チーム「${team}」は無効です（身体/天理/郡山北部/郡山南部）`); continue; }
+        if (!name) { skipped++; continue; } // 空行スキップ
+        // 記入例行をスキップ（i=0〜3 は 4〜7行目 = 記入例）
+        if (i < 4) { skipped++; continue; }
+        // 実際のExcel行番号（range:2で読むとi=0が4行目、i=4が8行目）
+        const excelRowNum = i + 4;
+        if (!VALID_TEAMS.includes(team)) {
+          errors.push(`${excelRowNum}行目：チーム名が正しくありません（${TEAM_EXAMPLE}）`);
+          continue;
+        }
         patients.push({ name, team, nameKana: nameKana || undefined, active, patientCode: patientCode || undefined });
       }
       if (patients.length === 0 && errors.length > 0) {
-        res.status(400).json({ error: "インポートできる行がありませんでした", errors }); return;
+        res.status(400).json({ error: "インポートできる行がありませんでした", errors, skipped }); return;
       }
       // DB登録
       const { batchCreatePatients } = await import("../db");
       const count = await batchCreatePatients(patients);
-      res.json({ success: true, count, errors });
+      res.json({ success: true, count, skipped, errors });
     } catch (e) {
       console.error("[import/patients] error:", e);
       res.status(500).json({ error: "インポート処理中にエラーが発生しました" });
