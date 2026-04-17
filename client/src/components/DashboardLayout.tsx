@@ -329,7 +329,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* AI共有プロンプトボタン */}
         <button
           onClick={() => setShowAIPromptsModal(true)}
-          title={(collapsed && !mobile) ? "AI共有プロンプト" : undefined}
+          title={(collapsed && !mobile) ? "共有プロンプト" : undefined}
           className={cn(
             "flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
             "text-sm font-medium text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground",
@@ -337,13 +337,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           )}
         >
           <Sparkles className="w-5 h-5 flex-shrink-0" />
-          {(!collapsed || mobile) && <span className="truncate">AI共有</span>}
+          {(!collapsed || mobile) && <span className="truncate">共有プロンプト</span>}
         </button>
 
         {/* 月次残業確認・署名（他のナビアイテムと統一感のあるボタン形式） */}
         <button
           onClick={() => setShowMonthlyOvertimeModal(true)}
-          title={(collapsed && !mobile) ? "月次残業確認・署名" : undefined}
+          title={(collapsed && !mobile) ? "月次残業署名" : undefined}
           className={cn(
             "relative flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
             "text-sm font-medium text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground",
@@ -357,7 +357,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             )}
           </span>
           {(!collapsed || mobile) && (
-            <span className="truncate flex-1 text-left">月次残業確認・署名</span>
+            <span className="truncate flex-1 text-left">月次残業署名</span>
           )}
           {(!collapsed || mobile) && isMonthlySignatureUnsigned && (
             <span className="flex-shrink-0 w-2 h-2 bg-red-500 rounded-full" />
