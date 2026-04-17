@@ -349,6 +349,7 @@ export default function RecordInput() {
   const [isBulkListening, setIsBulkListening] = useState(false);
   const bulkRecognitionRef = useRef<SpeechRecognitionType | null>(null);
   const bulkSilenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bulkManualStopRef = useRef(false); // 手動停止フラグ（trueのときonendで再起動しない）
   const [bulkRecognizedCount, setBulkRecognizedCount] = useState(0); // 連続モードで認識した名前数
   // スロットのrefリスト（次の空き枠へのスクロール用）
   const slotRefs = useRef<Array<HTMLDivElement | null>>(Array.from({ length: MAX_SLOTS }, () => null));
@@ -369,10 +370,12 @@ export default function RecordInput() {
       return;
     }
     if (isBulkListening) {
+      bulkManualStopRef.current = true; // 手動停止フラグを立てる
       bulkRecognitionRef.current?.stop();
       setIsBulkListening(false);
       return;
     }
+    bulkManualStopRef.current = false; // 新規開始時はフラグをリセット
     const recognition = new SpeechRecognition();
     recognition.lang = "ja-JP";
     recognition.continuous = true;
@@ -391,27 +394,67 @@ export default function RecordInput() {
       }, CONTINUOUS_SILENCE_TIMEOUT_MS * 2);
     };
     recognition.onend = () => {
-      setIsBulkListening(false);
-      if (bulkSilenceTimerRef.current) {
-        clearTimeout(bulkSilenceTimerRef.current);
-        bulkSilenceTimerRef.current = null;
+      // 手動停止フラグが立っている場合は完全停止
+      if (bulkManualStopRef.current) {
+        bulkManualStopRef.current = false;
+        setIsBulkListening(false);
+        if (bulkSilenceTimerRef.current) {
+          clearTimeout(bulkSilenceTimerRef.current);
+          bulkSilenceTimerRef.current = null;
+        }
+        // 録音停止後にキューの先頭の候補モーダルを表示
+        const queue = pendingCandidateQueueRef.current;
+        if (queue.length > 0) {
+          const first = queue[0];
+          setBulkCandidates(first.candidates);
+          setBulkCandidateSlotIndex(first.slotIndex);
+          toast.info(`「${first.query}」の候補が${first.candidates.length}件あります。選択してください`);
+        }
+        return;
       }
-      // 録音停止後にキューの先頭の候補モーダルを表示
-      const queue = pendingCandidateQueueRef.current;
-      if (queue.length > 0) {
-        const first = queue[0];
-        setBulkCandidates(first.candidates);
-        setBulkCandidateSlotIndex(first.slotIndex);
-        toast.info(`「${first.query}」の候補が${first.candidates.length}件あります。選択してください`);
+      // 自動終了（無音タイムアウトまたはブラウザの自動停止）の場合は再起動する
+      // 無音タイマーが発火した場合（タイマーがない）は完全停止
+      if (!bulkSilenceTimerRef.current) {
+        // 無音タイムアウトによる停止 → 完全停止
+        setIsBulkListening(false);
+        const queue = pendingCandidateQueueRef.current;
+        if (queue.length > 0) {
+          const first = queue[0];
+          setBulkCandidates(first.candidates);
+          setBulkCandidateSlotIndex(first.slotIndex);
+          toast.info(`「${first.query}」の候補が${first.candidates.length}件あります。選択してください`);
+        }
+        return;
+      }
+      // ブラウザの自動停止（発話の間の無音など） → 再起動して連続認識を維持
+      try {
+        recognition.start();
+      } catch {
+        // 再起動失敗時は完全停止
+        setIsBulkListening(false);
+        if (bulkSilenceTimerRef.current) {
+          clearTimeout(bulkSilenceTimerRef.current);
+          bulkSilenceTimerRef.current = null;
+        }
       }
     };
     recognition.onerror = (e: any) => {
+      if (bulkManualStopRef.current) return; // 手動停止時はエラー無視
+      // no-speechエラー（発話なし）は再起動で対応
+      if (e.error === "no-speech") {
+        if (bulkSilenceTimerRef.current) {
+          // タイマーがまだ生きている場合は再起動
+          try { recognition.start(); } catch { /* 無視 */ }
+        }
+        return;
+      }
+      // その他のエラーは完全停止
       setIsBulkListening(false);
       if (bulkSilenceTimerRef.current) {
         clearTimeout(bulkSilenceTimerRef.current);
         bulkSilenceTimerRef.current = null;
       }
-      if (e.error !== "no-speech") toast.error("音声認識に失敗しました");
+      toast.error("音声認識に失敗しました");
     };
     recognition.onresult = (event: any) => {
       // 無音タイマーをリセット（発話が来たので延長）
