@@ -5112,24 +5112,14 @@ function TeamGoalsTicker() {
   // 目標がない場合は何も表示しない
   if (goals.length === 0) return null;
 
-  // テロップアイテムを2セット繰り返してシームレスなループを実現
-  const items = [...goals, ...goals];
-
   return (
-    <div
-      className="relative overflow-hidden rounded-xl bg-orange-50/70 dark:bg-card border border-orange-200/60 dark:border-border sticky top-0 z-10 shadow-sm"
-    >
-      {/* 左右のフェードマスク */}
-      <div className="absolute left-0 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-r from-orange-50/70 dark:from-card to-transparent" />
-      <div className="absolute right-0 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-l from-orange-50/70 dark:from-card to-transparent" />
-
-      {/* テロップ本体 */}
-      <div className="flex items-center gap-0 py-2.5 px-2 team-goals-ticker-track">
-        {items.map((g, idx) => {
+    <div className="rounded-xl bg-orange-50/70 dark:bg-card border border-orange-200/60 dark:border-border shadow-sm">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5 px-4">
+        {goals.map((g) => {
           const startStr = g.startDate ? (() => { const d = new Date(g.startDate); return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`; })() : null;
           const endStr = g.endDate ? (() => { const d = new Date(g.endDate); return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`; })() : null;
           return (
-            <div key={`${g.id}-${idx}`} className="flex items-center gap-3 flex-shrink-0 px-4">
+            <div key={g.id} className="flex items-center gap-2 flex-wrap">
               {/* チームバッジ */}
               <span className={cn(
                 "text-xs font-bold px-2 py-0.5 rounded-full border flex-shrink-0",
@@ -5137,16 +5127,18 @@ function TeamGoalsTicker() {
               )}>
                 {g.team}
               </span>
-              {/* 目標タイトル */}
-              <span className="text-sm font-semibold text-foreground whitespace-nowrap">{g.title}</span>
+              {/* 目標内容 */}
+              <span className="text-sm font-semibold text-foreground">{g.title}</span>
               {/* 期間 */}
               {(startStr || endStr) && (
-                <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
+                <span className="text-xs text-muted-foreground flex-shrink-0">
                   {startStr ?? ""}{startStr && endStr ? " 〜 " : ""}{endStr ?? ""}
                 </span>
               )}
-              {/* 区切り */}
-              <span className="text-border text-lg flex-shrink-0 ml-2">｜</span>
+              {/* 区切り（最後のアイテム以外） */}
+              {goals.indexOf(g) < goals.length - 1 && (
+                <span className="text-border text-base flex-shrink-0">｜</span>
+              )}
             </div>
           );
         })}
@@ -5314,8 +5306,8 @@ export default function Dashboard() {
 
   return (
     <div ref={scrollContainerRef as React.RefObject<HTMLDivElement>} className="p-3 md:p-4 pb-6 md:pb-4 space-y-3 md:space-y-4 max-w-screen-xl mx-auto">
-      {/* チーム目標カード（ウェルカムバナーの前） */}
-      <TeamGoalsCard />
+      {/* チーム目標（静止表示） */}
+      <TeamGoalsTicker />
       {/* ウェルカムバナー */}
       <div className="relative rounded-2xl overflow-hidden shadow-md fade-in-up">
         {/* 月別背景画像 */}
