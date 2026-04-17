@@ -3552,14 +3552,20 @@ function TasksCard() {
               期日ありの未完了タスクはありません ✓
             </p>
           ) : (
-            todayPersonalTasks.map((task) => {
+            <>
+            {todayPersonalTasks.slice(0, 5).map((task) => {
               const taskKind = task.taskKind as "at_time" | "by_deadline";
+              const _now = new Date();
+              const _todayStart = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate()).getTime();
+              const isOverdue = task.dueDate ? new Date(task.dueDate).getTime() < _todayStart : false;
               return (
               <div key={task.id} className={cn(
                 "flex items-start gap-2 group animate-list-item-in rounded-lg p-2 -mx-1",
-                taskKind === "at_time"
-                  ? "bg-orange-50/60 dark:bg-orange-950/20 border border-orange-200/60 dark:border-orange-800/40"
-                  : "bg-blue-50/40 dark:bg-blue-950/10 border border-blue-200/40 dark:border-blue-800/30"
+                isOverdue
+                  ? "bg-red-50/70 dark:bg-red-950/25 border border-l-4 border-red-300 dark:border-red-700/60 border-l-red-500"
+                  : taskKind === "at_time"
+                    ? "bg-orange-50/60 dark:bg-orange-950/20 border border-orange-200/60 dark:border-orange-800/40"
+                    : "bg-blue-50/40 dark:bg-blue-950/10 border border-blue-200/40 dark:border-blue-800/30"
               )}>
                 <button
                   onClick={() => toggleTask.mutate({ id: task.id, done: !task.isDone })}
@@ -3630,7 +3636,16 @@ function TasksCard() {
                 </div>
               </div>
               );
-            })
+            })}
+            {/* 5件を超える場合「他N件」リンクを表示 */}
+            {todayPersonalTasks.length > 5 && (
+              <Link href="/tasks">
+                <div className="text-center py-1.5 text-xs text-primary hover:underline cursor-pointer font-medium">
+                  他 {todayPersonalTasks.length - 5} 件のタスクを見る →
+                </div>
+              </Link>
+            )}
+            </>
           )}
           </div>
 
