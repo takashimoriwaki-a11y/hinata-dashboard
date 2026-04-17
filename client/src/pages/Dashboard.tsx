@@ -3468,7 +3468,7 @@ function TasksCard() {
   const todayPersonalTasks = useMemo(() => {
     return personalTasksData
       .filter((t) => {
-        if (hideCompleted && t.isDone) return false;
+        if (hideCompleted && t.done) return false;
         if (!t.dueDate) return false;
         // at_time（この日時に行う）タスクは非表示
         if (t.taskKind === "at_time") return false;
@@ -3490,7 +3490,7 @@ function TasksCard() {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     return personalTasksData.filter((t) => {
-      if (t.isDone) return false;
+      if (t.done) return false;
       if (!t.dueDate) return false;
       if (t.assignType === "personal" && t.assignUserId !== user?.id && t.createdBy === user?.id) return false;
       const due = new Date(t.dueDate).getTime();
@@ -3504,14 +3504,18 @@ function TasksCard() {
       const prev = utils.personalTasks.getMyTasks.getData({ showDone: true });
       utils.personalTasks.getMyTasks.setData(
         { showDone: true },
-        (old) => old?.map((t) => t.id === id ? { ...t, isDone: done } : t)
+        (old) => old?.map((t) => t.id === id ? { ...t, done: done ? 1 : 0 } : t)
       );
       return { prev };
     },
     onError: (_e, _v, ctx) => {
       if (ctx?.prev) utils.personalTasks.getMyTasks.setData({ showDone: true }, ctx.prev);
     },
-    onSettled: () => utils.personalTasks.getMyTasks.invalidate(),
+    onSettled: () => {
+      // 全キャッシュを無効化して「個人タスク」ページとも同期
+      utils.personalTasks.getMyTasks.invalidate();
+      utils.personalTasks.getTodayTasks.invalidate();
+    },
   });
 
   return (
@@ -3567,17 +3571,17 @@ function TasksCard() {
                   : "bg-blue-50/40 dark:bg-blue-950/10 border border-blue-200/40 dark:border-blue-800/30"
               )}>
                 <button
-                  onClick={() => toggleTask.mutate({ id: task.id, done: !task.isDone })}
+                  onClick={() => toggleTask.mutate({ id: task.id, done: task.done === 0 })}
                   className="flex-shrink-0 mt-0.5"
                 >
-                  {task.isDone ? (
+                  {task.done ? (
                     <CheckCircle2 className="w-4 h-4 text-primary animate-check-bounce" />
                   ) : (
                     <Circle className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                   )}
                 </button>
                 <div className="flex-1 min-w-0">
-                  <span className={cn("text-sm block transition-colors duration-300", task.isDone ? "animate-strike text-muted-foreground" : "text-foreground")}>
+                  <span className={cn("text-sm block transition-colors duration-300", task.done ? "animate-strike text-muted-foreground" : "text-foreground")}>
                     {task.text}
                   </span>
                   <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">

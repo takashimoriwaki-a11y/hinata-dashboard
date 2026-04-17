@@ -705,7 +705,11 @@ export default function PersonalTasks() {
     onError: (_e, _v, ctx: any) => {
       utils.personalTasks.getMyTasks.setData({ showDone }, ctx?.prev);
     },
-    onSettled: () => utils.personalTasks.getMyTasks.invalidate(),
+    onSettled: () => {
+      // 全キャッシュを無効化してホーム画面の「今日の個人タスク」とも同期
+      utils.personalTasks.getMyTasks.invalidate();
+      utils.personalTasks.getTodayTasks.invalidate();
+    },
   });
 
   const deleteMutation = trpc.personalTasks.delete.useMutation({
