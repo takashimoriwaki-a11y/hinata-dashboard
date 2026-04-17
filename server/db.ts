@@ -2470,6 +2470,8 @@ export async function getMyPersonalTasks(
     or(
       and(eq(personalTasks.assignType, "self"), eq(personalTasks.createdBy, userId)),
       and(eq(personalTasks.assignType, "personal"), eq(personalTasks.assignUserId, userId)),
+      // 自分が作成して他スタッフに依頼したタスク（「依頼した」フィルター用）
+      and(eq(personalTasks.assignType, "personal"), eq(personalTasks.createdBy, userId)),
       eq(personalTasks.assignType, "all"),
       ...(userTeam && ["身体", "天理", "郡山北部", "郡山南部"].includes(userTeam)
         ? [and(eq(personalTasks.assignType, "team"), eq(personalTasks.assignTeam, userTeam as any))]
