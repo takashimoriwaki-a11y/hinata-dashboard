@@ -3455,11 +3455,12 @@ function TasksCard() {
   const utils = trpc.useUtils();
   const { isNight } = useTheme();
   const [showForm, setShowForm] = useState(false);
+  const [hideCompleted, setHideCompleted] = useState(true);
 
   const { user } = useAuth();
   // 新しい personal_tasks テーブルから今日の個人タスクを取得
   const { data: personalTasksData = [] } = trpc.personalTasks.getMyTasks.useQuery(
-    { showDone: false },
+    { showDone: true },
     { refetchInterval: 15 * 1000, staleTime: 0 }
   );
 
@@ -3467,7 +3468,7 @@ function TasksCard() {
   const todayPersonalTasks = useMemo(() => {
     return personalTasksData
       .filter((t) => {
-        if (t.isDone) return false;
+        if (hideCompleted && t.isDone) return false;
         if (!t.dueDate) return false;
         // at_time（この日時に行う）タスクは非表示
         if (t.taskKind === "at_time") return false;
@@ -3500,15 +3501,15 @@ function TasksCard() {
   const toggleTask = trpc.personalTasks.toggleDone.useMutation({
     onMutate: async ({ id, done }) => {
       await utils.personalTasks.getMyTasks.cancel();
-      const prev = utils.personalTasks.getMyTasks.getData({ showDone: false });
+      const prev = utils.personalTasks.getMyTasks.getData({ showDone: true });
       utils.personalTasks.getMyTasks.setData(
-        { showDone: false },
+        { showDone: true },
         (old) => old?.map((t) => t.id === id ? { ...t, isDone: done } : t)
       );
       return { prev };
     },
     onError: (_e, _v, ctx) => {
-      if (ctx?.prev) utils.personalTasks.getMyTasks.setData({ showDone: false }, ctx.prev);
+      if (ctx?.prev) utils.personalTasks.getMyTasks.setData({ showDone: true }, ctx.prev);
     },
     onSettled: () => utils.personalTasks.getMyTasks.invalidate(),
   });
@@ -3532,9 +3533,20 @@ function TasksCard() {
               <ClipboardList className="w-5 h-5 text-primary" />
               <span className="tracking-wide">今日の個人タスク</span>
             </CardTitle>
-            <Link href="/personal-tasks">
-              <span className="text-xs text-primary hover:underline cursor-pointer">すべて見る</span>
-            </Link>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={hideCompleted}
+                  onChange={(e) => setHideCompleted(e.target.checked)}
+                  className="w-3 h-3 cursor-pointer"
+                />
+                完了済みを非表示
+              </label>
+              <Link href="/personal-tasks">
+                <span className="text-xs text-primary hover:underline cursor-pointer">すべて見る</span>
+              </Link>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-2">
