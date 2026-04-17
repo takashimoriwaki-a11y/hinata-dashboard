@@ -530,14 +530,13 @@ ${medicalPrompt}${feedbackSection}`;
         const name = String(row["★ 氏名"] ?? row["氏名"] ?? "").trim();
         const nameKana = String(row["よみがな"] ?? "").trim() || undefined;
         const email = String(row["★ メールアドレス"] ?? row["メールアドレス"] ?? "").trim().toLowerCase();
-        const password = String(row["★ 初期パスワード"] ?? row["初期パスワード"] ?? "").trim();
+        const password = String(row["★ 初期パスワード"] ?? row["初期パスワード"] ?? "Pass1234").trim();
         const team = String(row["★ チーム"] ?? row["チーム"] ?? "").trim();
-        const roleRaw = String(row["権限（admin / user）"] ?? row["権限"] ?? "user").trim().toLowerCase();
+        const roleRaw = String(row["管理者・スタッフ（admin / user）"] ?? row["権限（admin / user）"] ?? row["権限"] ?? "user").trim().toLowerCase();
         const role: "admin" | "user" = roleRaw === "admin" ? "admin" : "user";
         const numberPlate = String(row["ナンバープレート"] ?? "").trim() || undefined;
         if (!name) continue;
         if (!email || !email.includes("@")) { errors.push(`${i + 4}行目: メールアドレスが無効です`); continue; }
-        if (!password || password.length < 4) { errors.push(`${i + 4}行目: パスワードが短すぎます（4文字以上）`); continue; }
         if (!VALID_TEAMS.includes(team)) { errors.push(`${i + 4}行目: チーム「${team}」は無効です（身体/天理/郡山北部/郡山南部/事務員/全チーム）`); continue; }
         staffList.push({ name, nameKana, email, password, team, role, numberPlate });
       }
@@ -591,14 +590,14 @@ ${medicalPrompt}${feedbackSection}`;
       const headerInfo = [
         ["【職員一括登録テンプレート】"],
         ["★マークの列は必須です。3行目以降にデータを入力してください。メール重複はスキップされます。"],
-        ["★ 氏名", "よみがな", "★ メールアドレス", "★ 初期パスワード", "★ チーム", "権限（admin / user）", "ナンバープレート"],
-        ["山田 太郎", "やまだ たろう", "yamada@example.com", "Pass1234", "身体", "user", "大和 12-34 あ 5678"],
-        ["鈴木 花子", "すずき はなこ", "suzuki@example.com", "Pass1234", "天理", "user", ""],
-        ["田中 一郎", "たなか いちろう", "tanaka@example.com", "Pass1234", "郡山北部", "user", ""],
-        ["佐藤 二郎", "さとう じろう", "sato@example.com", "Pass1234", "郡山南部", "admin", ""],
+        ["★ 氏名", "よみがな", "管理者・スタッフ（admin / user）", "★ チーム", "★ メールアドレス", "ナンバープレート"],
+        ["山田 太郎", "やまだ たろう", "user", "身体", "yamada@example.com", "大和 12-34 あ 5678"],
+        ["鈴木 花子", "すずき はなこ", "user", "天理", "suzuki@example.com", ""],
+        ["田中 一郎", "たなか いちろう", "user", "郡山北部", "tanaka@example.com", ""],
+        ["佐藤 二郎", "さとう じろう", "admin", "郡山南部", "sato@example.com", ""],
       ];
       const ws = XLSX.utils.aoa_to_sheet(headerInfo);
-      ws["!cols"] = [{ wch: 20 }, { wch: 20 }, { wch: 30 }, { wch: 16 }, { wch: 14 }, { wch: 22 }, { wch: 22 }];
+      ws["!cols"] = [{ wch: 20 }, { wch: 20 }, { wch: 24 }, { wch: 14 }, { wch: 30 }, { wch: 22 }];
       XLSX.utils.book_append_sheet(wb, ws, "職員一覧（インポート用）");
       const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
       res.setHeader("Content-Disposition", 'attachment; filename*=UTF-8\'\'%E8%81%B7%E5%93%A1%E3%83%86%E3%83%B3%E3%83%97%E3%83%AC%E3%83%BC%E3%83%88.xlsx');

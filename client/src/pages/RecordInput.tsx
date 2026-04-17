@@ -266,13 +266,20 @@ export default function RecordInput() {
 
   // 全枠リセット
   const handleResetAll = () => {
-    if (!window.confirm("今日の訪問予定をリセットしますか？")) return;
+    if (!window.confirm("訪問時チェック項目の全ての入力内容をリセットしますか？\n\n• 今日の訪問予定（8枚分）\n• 各カードのチェック項目・メモ・次回訪問日時")) return;
+    // スロットデータをリセット
     const empty = Array.from({ length: MAX_SLOTS }, () => ({ ...DEFAULT_SLOT }));
     setSlots(empty);
     setSlotSearchQueries(Array.from({ length: MAX_SLOTS }, () => ""));
     setSlotShowLists(Array.from({ length: MAX_SLOTS }, () => false));
     localStorage.removeItem(SLOTS_STORAGE_KEY);
-    toast.success("訪問予定をリセットしました");
+    // 各カードのlocalStorageも削除
+    for (let i = 0; i < MAX_SLOTS; i++) {
+      localStorage.removeItem(`hinata_visit_card_${i}`);
+    }
+    // VisitSlotCardを再マウントして全stateを初期化
+    setCardResetKey(k => k + 1);
+    toast.success("訪問時チェック項目を全てリセットしました");
   };
 
   const setSlotSearch = (index: number, query: string) => {
@@ -290,6 +297,8 @@ export default function RecordInput() {
       return next;
     });
   };
+
+  const [cardResetKey, setCardResetKey] = useState(0);
 
   const filledSlots = slots.filter(s => s.patientName).length;
 
@@ -852,7 +861,7 @@ export default function RecordInput() {
 
       {/* ===== 8つの訪問チェック項目カード ===== */}
       {slots.map((slot, index) => (
-        <div key={index} id={`visit-check-card-${index}`}>
+        <div key={`${cardResetKey}-${index}`} id={`visit-check-card-${index}`}>
           <VisitSlotCard
             slotIndex={index}
             slotData={slot}
