@@ -1578,12 +1578,14 @@ function StaffManagementPanel() {
     onError: (e) => toast.error(e.message),
   });
 
-  const openEditDialog = (staff: { id: number; name: string | null; team: string | null; role: "user" | "admin"; numberPlate?: string | null; nameKana?: string | null }) => {
-    setEditStaff({ id: staff.id, name: staff.name ?? "", team: (staff.team as TeamStaff) ?? "身体", role: staff.role, numberPlate: staff.numberPlate ?? "" });
+  const openEditDialog = (staff: { id: number; name: string | null; team: string | null; role: string; numberPlate?: string | null; nameKana?: string | null }) => {
+    // roleが "user" または "admin" 以外の場合は "admin" にフォールバック
+    const safeRole: "user" | "admin" = (staff.role === "user" || staff.role === "admin") ? staff.role : "admin";
+    setEditStaff({ id: staff.id, name: staff.name ?? "", team: (staff.team as TeamStaff) ?? "身体", role: safeRole, numberPlate: staff.numberPlate ?? "" });
     setEditName(staff.name ?? "");
     setEditKanaStaff((staff as any).nameKana ?? "");
     setEditTeam((staff.team as TeamStaff) ?? "身体");
-    setEditRole(staff.role);
+    setEditRole(safeRole);
     setEditNumberPlate(staff.numberPlate ?? "");
   };
 
