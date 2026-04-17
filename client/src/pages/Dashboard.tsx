@@ -96,7 +96,6 @@ import {
   ThumbsUp,
   ThumbsDown,
   RotateCcw,
-  User,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, openLink } from "@/lib/utils";
@@ -3629,8 +3628,8 @@ function TasksCard() {
                     )}
                     {/* 作成者バッジ（自分以外が作成したタスクのみ表示） */}
                     {(task as any).createdByName && (task as any).createdBy !== user?.id && (
-                      <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 font-medium">
-                        <User className="w-3 h-3 flex-shrink-0" />{(task as any).createdByName}から依頼
+                      <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 font-medium">
+                        👤{(task as any).createdByName}が作成
                       </span>
                     )}
                   </div>

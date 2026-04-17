@@ -38,12 +38,12 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
 
   // renderフェーズでnavigateを呼ぶとReactのルール違反になるためuseEffectで実行
   useEffect(() => {
-    if (!loading && (!user || (user.role !== "admin" && (user as any).role !== "super_admin"))) {
+    if (!loading && (!user || user.role !== "admin")) {
       navigate("/");
     }
   }, [loading, user, navigate]);
 
-  if (loading || !user || (user.role !== "admin" && (user as any).role !== "super_admin")) {
+  if (loading || !user || user.role !== "admin") {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
