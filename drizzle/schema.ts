@@ -16,7 +16,7 @@ export const users = mysqlTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin", "super_admin"]).default("user").notNull(),
+  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
   /** ユーザーが所属するチーム（デフォルト選択に使用） */
   team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]).default("身体"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -28,8 +28,6 @@ export const users = mysqlTable("users", {
   teamSetupDone: tinyint("teamSetupDone").default(0).notNull(),
   /** 車両ナンバープレート（アルコールチェック記録に使用） */
   numberPlate: varchar("numberPlate", { length: 20 }).default(""),
-  /** 職員のよみがな（音声認識での自動選択に使用） */
-  nameKana: varchar("nameKana", { length: 100 }).default(""),
   /** Google Calendar用アクセストークン */
   googleAccessToken: text("googleAccessToken"),
   /** Google Calendar用リフレッシュトークン */
@@ -1018,18 +1016,12 @@ export const personalTasks = mysqlTable("personal_tasks", {
    * self=自分のみ, personal=個人指定, team=チーム指定, all=全職員
    */
   assignType: mysqlEnum("assignType", ["self", "personal", "team", "all"]).default("self").notNull(),
-  /** チーム指定の場合のチーム名（単一・後方互換用） */
-  assignTeam: mysqlEnum("assignTeam", ["身体", "天理", "郡山北部", "郡山南部", "事務員"]),
-  /** チーム指定の場合の複数チーム名（JSON配列文字列） */
-  assignTeams: text("assignTeams"),
-  /** 個人指定の場合の対象ユーザーID（単一・後方互換用） */
+  /** チーム指定の場合のチーム名 */
+  assignTeam: mysqlEnum("assignTeam", ["身体", "天理", "郡山北部", "郡山南部"]),
+  /** 個人指定の場合の対象ユーザーID */
   assignUserId: int("assignUserId"),
-  /** 個人指定の場合の複数対象ユーザーID（JSON配列文字列） */
-  assignUserIds: text("assignUserIds"),
   /** 個人指定の場合の対象ユーザー名（表示用キャッシュ） */
   assignUserName: text("assignUserName"),
-  /** 個人指定の場合の複数対象ユーザー名（JSON配列文字列） */
-  assignUserNames: text("assignUserNames"),
   /**
    * 繰り返しタイプ
    * none=なし, daily=毎日, weekly=毎週, biweekly=隔週,

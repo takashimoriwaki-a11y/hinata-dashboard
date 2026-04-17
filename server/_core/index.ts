@@ -3,7 +3,7 @@ import express from "express";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerLocalAuthRoutes, authenticateRequest } from "./localAuth";
+import { registerLocalAuthRoutes } from "./localAuth";
 import { registerGoogleAuthRoutes } from "./googleAuth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
@@ -506,9 +506,6 @@ ${medicalPrompt}${feedbackSection}`;
       // DB登録（同名氏名は上書き更新）
       const { batchCreatePatients } = await import("../db");
       const result = await batchCreatePatients(patients);
-      // 全職員の画面にリアルタイム反映
-      const { broadcastEvent } = await import("./sse");
-      broadcastEvent("patients", { action: "import", created: result.created, updated: result.updated });
       res.json({ success: true, created: result.created, updated: result.updated, count: result.created + result.updated, skipped, errors });
     } catch (e) {
       console.error("[import/patients] error:", e);
@@ -617,15 +614,18 @@ ${medicalPrompt}${feedbackSection}`;
   app.get("/api/export/patients", async (req, res) => {
     try {
       // 認証チェック
-      const user = await authenticateRequest(req).catch(() => null);
-      if (!user) { res.status(401).json({ error: "認証が必要です" }); return; }
+      const { verifySessionToken } = await import("./localAuth");
+      const { parse: parseCookieHeader } = await import("cookie");
+      const { COOKIE_NAME } = await import("../../shared/const");
+      const cookieHeader = req.headers.cookie;
+      const cookies = cookieHeader ? parseCookieHeader(cookieHeader) : {};
+      const sessionToken = cookies[COOKIE_NAME];
+      const session = await verifySessionToken(sessionToken);
+      if (!session) { res.status(401).json({ error: "認証が必要です" }); return; }
 
-      const { getDb } = await import("../db");
+      const { db } = await import("../db");
       const { patients } = await import("../../drizzle/schema");
       const { asc } = await import("drizzle-orm");
-
-      const db = await getDb();
-      if (!db) { res.status(500).json({ error: "データベースに接続できません" }); return; }
 
       const allPatients = await db
         .select()
@@ -1375,7 +1375,7 @@ function scheduleNextMonthTimesheetSheet() {
 }
 scheduleNextMonthTimesheetSheet();
 
-// ========== 毎日0:05（JST）にスケジュール変更連絡をtoDatetimeから設定日数後に自動削除 ==========
+// ========== 毎日0:05（JST）にスケジュール変更連絡をtoDatetimeから3日後に自動削除 ==========
 function scheduleScheduleChangeCleanup() {
   const checkInterval = 60 * 1000; // 1分ごとにチェック
   let lastCleanedDate = "";
@@ -1391,29 +1391,26 @@ function scheduleScheduleChangeCleanup() {
     if (h === 0 && m === 5 && lastCleanedDate !== dateStr) {
       lastCleanedDate = dateStr;
       try {
-        // DB設定から削除日数を取得（デフォルト: 3日）
-        const { getSetting } = await import("../db");
-        const deleteDaysStr = await getSetting("schedule_change_delete_days", "3");
-        const deleteDays = parseInt(deleteDaysStr, 10);
-        console.log(`[ScheduleChangeCleanup] ${dateStr} 00:05 - toDatetimeから${deleteDays}日経過したスケジュール変更連絡を削除します`);
+        console.log(`[ScheduleChangeCleanup] ${dateStr} 00:05 - toDatetimeから3日経過したスケジュール変更連絡を削除します`);
+        const db = await import("../db");
         const { scheduleChanges } = await import("../../drizzle/schema");
         const { drizzle } = await import("drizzle-orm/mysql2");
         const mysql = await import("mysql2/promise");
-        const { lt } = await import("drizzle-orm");
+        const { lt, isNotNull } = await import("drizzle-orm");
 
         const connection = await mysql.default.createConnection(process.env.DATABASE_URL!);
         const drizzleDb = drizzle(connection);
 
-        // deleteDays日前の日時（JST）
-        const daysAgo = new Date(jstNow.getTime() - deleteDays * 24 * 60 * 60 * 1000);
-        const daysAgoStr = daysAgo.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:mm"
+        // 3日前の日時（JST）
+        const threeDaysAgo = new Date(jstNow.getTime() - 3 * 24 * 60 * 60 * 1000);
+        const threeDaysAgoStr = threeDaysAgo.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:mm"
 
-        // toDatetime が設定されていて、deleteDays日以上前のレコードを削除
+        // toDatetime が設定されていて、3日以上前のレコードを削除
         // toDatetime は "YYYY-MM-DDTHH:mm" 形式の文字列
         const result = await drizzleDb
           .delete(scheduleChanges)
           .where(
-            lt(scheduleChanges.toDatetime, daysAgoStr)
+            lt(scheduleChanges.toDatetime, threeDaysAgoStr)
           );
 
         const deletedCount = (result as any)[0]?.affectedRows ?? 0;

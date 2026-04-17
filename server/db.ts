@@ -1109,10 +1109,9 @@ export async function createStaffAccount(data: {
   name: string;
   email: string;
   passwordHash: string;
-  role: "user" | "admin" | "super_admin";
+  role: "user" | "admin";
   team: "身体" | "天理" | "郡山北部" | "郡山南部" | "事務員" | "全チーム";
   numberPlate?: string;
-  nameKana?: string;
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -1130,7 +1129,6 @@ export async function createStaffAccount(data: {
     role: data.role,
     team: data.team,
     numberPlate: data.numberPlate ?? null,
-    nameKana: data.nameKana ?? "",
     teamSetupDone: 1,
     loginMethod: "local",
     lastSignedIn: new Date(),
@@ -1182,7 +1180,7 @@ export async function deleteStaffAccount(userId: number) {
 }
 
 /** スタッフのロールを変更する（管理者用） */
-export async function updateStaffRole(userId: number, role: "user" | "admin" | "super_admin") {
+export async function updateStaffRole(userId: number, role: "user" | "admin") {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.update(users).set({ role }).where(eq(users.id, userId));
@@ -1192,9 +1190,8 @@ export async function updateStaffRole(userId: number, role: "user" | "admin" | "
 export async function updateStaffInfo(userId: number, data: {
   name: string;
   team: "身体" | "天理" | "郡山北部" | "郡山南部" | "事務員" | "全チーム";
-  role: "user" | "admin" | "super_admin";
+  role: "user" | "admin";
   numberPlate?: string;
-  nameKana?: string;
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -1203,7 +1200,6 @@ export async function updateStaffInfo(userId: number, data: {
     team: data.team,
     role: data.role,
     numberPlate: data.numberPlate !== undefined ? (data.numberPlate || null) : undefined,
-    nameKana: data.nameKana !== undefined ? data.nameKana : undefined,
     teamSetupDone: 1,
   }).where(eq(users.id, userId));
 }
@@ -2469,22 +2465,14 @@ export async function getMyPersonalTasks(
   const db = await getDb();
   if (!db) return [];
 
-  const ALL_TEAMS = ["身体", "天理", "郡山北部", "郡山南部", "事務員"];
   const conditions = [
     isNull(personalTasks.deletedAt),
     or(
       and(eq(personalTasks.assignType, "self"), eq(personalTasks.createdBy, userId)),
       and(eq(personalTasks.assignType, "personal"), eq(personalTasks.assignUserId, userId)),
-      // 自分が作成して他スタッフに依頼したタスク（「依頼した」フィルター用）
-      and(eq(personalTasks.assignType, "personal"), eq(personalTasks.createdBy, userId)),
       eq(personalTasks.assignType, "all"),
-      // チーム指定（単一チーム・assignTeam）
-      ...(userTeam && ALL_TEAMS.includes(userTeam)
+      ...(userTeam && ["身体", "天理", "郡山北部", "郡山南部"].includes(userTeam)
         ? [and(eq(personalTasks.assignType, "team"), eq(personalTasks.assignTeam, userTeam as any))]
-        : []),
-      // チーム指定（複数チーム・assignTeams JSON配列）
-      ...(userTeam && ALL_TEAMS.includes(userTeam)
-        ? [and(eq(personalTasks.assignType, "team"), like(personalTasks.assignTeams, `%"${userTeam}"%`))]
         : []),
     ),
   ];
@@ -2503,10 +2491,9 @@ export async function getMyPersonalTasks(
 }
 
 /**
- * ホーム画面用の個人タスクを取得する
- * - 期日が設定されている未完了タスクを全て表示（今日・過去・未来を含む）
+ * 今日の個人タスクを取得する（ホーム画面用）
+ * - 今日が期日のタスク（taskKind=at_time or by_deadline, dueDate=今日）
  * - 繰り返しタスクで今日が該当するもの
- * ソート順: 今日のタスク → 期日切れ（古い順）→ 未来（近い順）
  */
 export async function getTodayPersonalTasks(
   userId: number,
@@ -2519,63 +2506,44 @@ export async function getTodayPersonalTasks(
   const todayStart = new Date(Date.UTC(jstNow.getUTCFullYear(), jstNow.getUTCMonth(), jstNow.getUTCDate(), -9, 0, 0)); // JST 00:00
   const todayEnd = new Date(Date.UTC(jstNow.getUTCFullYear(), jstNow.getUTCMonth(), jstNow.getUTCDate(), 14, 59, 59)); // JST 23:59:59
 
-  const assignConditions = or(
-    and(eq(personalTasks.assignType, "self"), eq(personalTasks.createdBy, userId)),
-    and(eq(personalTasks.assignType, "personal"), eq(personalTasks.assignUserId, userId)),
-    eq(personalTasks.assignType, "all"),
-    ...(userTeam && ["身体", "天理", "郡山北部", "郡山南部"].includes(userTeam)
-      ? [and(eq(personalTasks.assignType, "team"), eq(personalTasks.assignTeam, userTeam as any))]
-      : []),
-  );
+  const conditions = [
+    isNull(personalTasks.deletedAt),
+    eq(personalTasks.done, 0),
+    or(
+      and(eq(personalTasks.assignType, "self"), eq(personalTasks.createdBy, userId)),
+      and(eq(personalTasks.assignType, "personal"), eq(personalTasks.assignUserId, userId)),
+      eq(personalTasks.assignType, "all"),
+      ...(userTeam && ["身体", "天理", "郡山北部", "郡山南部"].includes(userTeam)
+        ? [and(eq(personalTasks.assignType, "team"), eq(personalTasks.assignTeam, userTeam as any))]
+        : []),
+    ),
+    or(
+      // 今日が期日のタスク
+      and(gte(personalTasks.dueDate, todayStart), lte(personalTasks.dueDate, todayEnd)),
+      // 期日が過ぎているタスク（未完了）
+      lt(personalTasks.dueDate, todayStart),
+    ),
+  ];
 
-  // 期日が設定されている未完了タスクを全て取得
   const rows = await db
     .select()
     .from(personalTasks)
-    .where(and(
-      isNull(personalTasks.deletedAt),
-      eq(personalTasks.done, 0),
-      assignConditions!,
-      isNotNull(personalTasks.dueDate),
-    ))
+    .where(and(...conditions))
     .orderBy(personalTasks.dueDate, personalTasks.createdAt);
 
-  // 繰り返しタスクのフィルタリング（今日が該当するもの）
+  // 繰り返しタスクのフィルタリング
   const today = new Date(todayStart.getTime() + 9 * 60 * 60 * 1000);
   const allTasks = await getMyPersonalTasks(userId, userTeam, false);
-  // 「今日の個人タスク」では他の職員に依頼したタスクは除外する
-  // assignType=personal かつ assignUserId !== userId（自分が担当者でない）は除外
-  const filteredTasks = allTasks.filter(t => {
-    if (t.assignType === "personal") {
-      return t.assignUserId === userId; // 自分が担当者のもののみ
-    }
-    return true;
-  });
-  const repeatTasks = filteredTasks.filter(t =>
+  const repeatTasks = allTasks.filter(t =>
     t.repeatType !== "none" && isRepeatTaskDueToday(t, today)
   );
 
   // 重複除去してマージ
   const seen = new Set(rows.map(r => r.id));
   const merged = [...rows, ...repeatTasks.filter(t => !seen.has(t.id))];
-
-  // ソート: 今日のタスク → 期日切れ（古い順）→ 未来（近い順）
-  const todayStartMs = todayStart.getTime();
-  const todayEndMs = todayEnd.getTime();
   merged.sort((a, b) => {
-    const aTime = a.dueDate?.getTime() ?? Infinity;
-    const bTime = b.dueDate?.getTime() ?? Infinity;
-    const aIsToday = aTime >= todayStartMs && aTime <= todayEndMs;
-    const bIsToday = bTime >= todayStartMs && bTime <= todayEndMs;
-    const aIsOverdue = aTime < todayStartMs;
-    const bIsOverdue = bTime < todayStartMs;
-    // 今日のタスクを最優先
-    if (aIsToday && !bIsToday) return -1;
-    if (!aIsToday && bIsToday) return 1;
-    // 期日切れを次に（古い順）
-    if (aIsOverdue && !bIsOverdue) return -1;
-    if (!aIsOverdue && bIsOverdue) return 1;
-    // 同じカテゴリ内では期日順
+    const aTime = a.dueDate?.getTime() ?? 0;
+    const bTime = b.dueDate?.getTime() ?? 0;
     return aTime - bTime;
   });
 
@@ -2590,12 +2558,9 @@ export async function createPersonalTask(data: {
   createdBy: number;
   createdByName: string;
   assignType: "self" | "personal" | "team" | "all";
-  assignTeam?: "身体" | "天理" | "郡山北部" | "郡山南部" | "事務員";
-  assignTeams?: string[];
+  assignTeam?: "身体" | "天理" | "郡山北部" | "郡山南部";
   assignUserId?: number;
-  assignUserIds?: number[];
   assignUserName?: string;
-  assignUserNames?: string[];
   repeatType: "none" | "daily" | "weekly" | "biweekly" | "monthly" | "nth_weekday";
   repeatDayOfWeek?: number;
   repeatDayOfMonth?: number;
@@ -2615,11 +2580,8 @@ export async function createPersonalTask(data: {
     createdByName: data.createdByName,
     assignType: data.assignType,
     assignTeam: data.assignTeam ?? null,
-    assignTeams: data.assignTeams ? JSON.stringify(data.assignTeams) : null,
     assignUserId: data.assignUserId ?? null,
-    assignUserIds: data.assignUserIds ? JSON.stringify(data.assignUserIds) : null,
     assignUserName: data.assignUserName ?? null,
-    assignUserNames: data.assignUserNames ? JSON.stringify(data.assignUserNames) : null,
     repeatType: data.repeatType,
     repeatDayOfWeek: data.repeatDayOfWeek ?? null,
     repeatDayOfMonth: data.repeatDayOfMonth ?? null,
@@ -2657,12 +2619,9 @@ export async function updatePersonalTask(
     taskKind: "at_time" | "by_deadline";
     dueDate: Date | null;
     assignType: "self" | "personal" | "team" | "all";
-    assignTeam: "身体" | "天理" | "郡山北部" | "郡山南部" | "事務員" | null;
-    assignTeams: string[] | null;
+    assignTeam: "身体" | "天理" | "郡山北部" | "郡山南部" | null;
     assignUserId: number | null;
-    assignUserIds: number[] | null;
     assignUserName: string | null;
-    assignUserNames: string[] | null;
     repeatType: "none" | "daily" | "weekly" | "biweekly" | "monthly" | "nth_weekday";
     repeatDayOfWeek: number | null;
     repeatDayOfMonth: number | null;
@@ -2682,11 +2641,8 @@ export async function updatePersonalTask(
   if ("dueDate" in data) updateData.dueDate = data.dueDate;
   if (data.assignType !== undefined) updateData.assignType = data.assignType;
   if ("assignTeam" in data) updateData.assignTeam = data.assignTeam;
-  if ("assignTeams" in data) updateData.assignTeams = data.assignTeams ? JSON.stringify(data.assignTeams) : null;
   if ("assignUserId" in data) updateData.assignUserId = data.assignUserId;
-  if ("assignUserIds" in data) updateData.assignUserIds = data.assignUserIds ? JSON.stringify(data.assignUserIds) : null;
   if ("assignUserName" in data) updateData.assignUserName = data.assignUserName;
-  if ("assignUserNames" in data) updateData.assignUserNames = data.assignUserNames ? JSON.stringify(data.assignUserNames) : null;
   if (data.repeatType !== undefined) updateData.repeatType = data.repeatType;
   if ("repeatDayOfWeek" in data) updateData.repeatDayOfWeek = data.repeatDayOfWeek;
   if ("repeatDayOfMonth" in data) updateData.repeatDayOfMonth = data.repeatDayOfMonth;
@@ -2709,17 +2665,4 @@ export async function deletePersonalTask(id: number, userId: number): Promise<vo
     deletedAt: new Date(),
     deletedBy: userId,
   }).where(eq(personalTasks.id, id));
-}
-
-/** super_adminロールのユーザーのメールアドレス一覧を取得する */
-export async function getSuperAdminEmails(): Promise<string[]> {
-  const db = await getDb();
-  if (!db) return [];
-  const { users } = await import("../drizzle/schema");
-  const { eq, isNotNull } = await import("drizzle-orm");
-  const rows = await db
-    .select({ email: users.email })
-    .from(users)
-    .where(eq(users.role, "super_admin" as any));
-  return rows.map((r) => r.email).filter((e): e is string => !!e);
 }

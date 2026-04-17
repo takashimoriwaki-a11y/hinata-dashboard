@@ -634,8 +634,9 @@ async function autoCreateAlcoholCheckSpreadsheet(year: number, month: number): P
       },
     });
 
-    // super_adminロールのユーザーのメールアドレスに自動共有
-    const shareEmails = await getSuperAdminEmails();
+    // DBに登録された共有先メールアドレスに自動共有
+    const shareEmailsValue = await getSetting("sheet_share_emails", "");
+    const shareEmails = shareEmailsValue ? shareEmailsValue.split(",").map((e: string) => e.trim()).filter(Boolean) : [];
     for (const email of shareEmails) {
       await drive.permissions.create({
         fileId: spreadsheetId,
@@ -644,7 +645,7 @@ async function autoCreateAlcoholCheckSpreadsheet(year: number, month: number): P
       }).catch((e: unknown) => console.warn(`[AutoSheet] Share to ${email} failed:`, e));
     }
     if (shareEmails.length > 0) {
-      console.log(`[AutoSheet] Shared spreadsheet with super_admins: ${shareEmails.join(", ")}`);
+      console.log(`[AutoSheet] Shared spreadsheet with: ${shareEmails.join(", ")}`);
     }
 
     // DBに登録
@@ -747,8 +748,9 @@ export async function autoCreateTimesheetSpreadsheet(year: number, month: number
       },
     });
 
-    // super_adminロールのユーザーのメールアドレスに自動共有
-    const shareEmails = await getSuperAdminEmails();
+    // DBに登録された共有先メールアドレスに自動共有
+    const shareEmailsValue = await getSetting("sheet_share_emails", "");
+    const shareEmails = shareEmailsValue ? shareEmailsValue.split(",").map((e: string) => e.trim()).filter(Boolean) : [];
     for (const email of shareEmails) {
       await drive.permissions.create({
         fileId: spreadsheetId,
@@ -757,7 +759,7 @@ export async function autoCreateTimesheetSpreadsheet(year: number, month: number
       }).catch((e: unknown) => console.warn(`[TimesheetAutoSheet] Share to ${email} failed:`, e));
     }
     if (shareEmails.length > 0) {
-      console.log(`[TimesheetAutoSheet] Shared spreadsheet with super_admins: ${shareEmails.join(", ")}`);
+      console.log(`[TimesheetAutoSheet] Shared spreadsheet with: ${shareEmails.join(", ")}`);
     }
 
     // DBに登録
@@ -1335,7 +1337,6 @@ import {
   deleteAlcoholDetector,
   getTimesheetSpreadsheets,
   upsertTimesheetSpreadsheet,
-  getSuperAdminEmails,
 } from "./db";
 import { storagePut } from "./storage";
 import { eq } from "drizzle-orm";
@@ -2470,7 +2471,6 @@ export const appRouter = router({
         patientNames: z.array(z.string()).optional(),
         patientNamesWithKana: z.array(z.object({ name: z.string(), kana: z.string() })).optional(),
         staffNames: z.array(z.string()).optional(),
-        staffNamesWithKana: z.array(z.object({ name: z.string(), kana: z.string().optional() })).optional(),
       }))
       .mutation(async ({ input }) => {
         const { invokeLLM } = await import("./_core/llm");
@@ -2485,15 +2485,9 @@ export const appRouter = router({
         } else if (input.patientNames && input.patientNames.length > 0) {
           patientListStr = `\n\n登録済利用者リスト（この中から最も近い名前を選んでpatientNameに返すこと）:\n${input.patientNames.join('、')}`;
         }
-        let staffListStr = '';
-        if (input.staffNamesWithKana && input.staffNamesWithKana.length > 0) {
-          const entries = input.staffNamesWithKana
-            .map(s => s.kana ? `${s.name}（よみがな: ${s.kana}）` : s.name)
-            .join('、');
-          staffListStr = `\n\n登録済みスタッフリスト（assignPersonNameはこの中から選ぶこと。姓のみ・よみがな・苗字のよみがなで言及されても正式名を返すこと）:\n${entries}`;
-        } else if (input.staffNames && input.staffNames.length > 0) {
-          staffListStr = `\n\n登録済みスタッフリスト（assignPersonNameはこの中から選ぶこと）:\n${input.staffNames.join('、')}`;
-        }
+        const staffListStr = input.staffNames && input.staffNames.length > 0
+          ? `\n\n登録済みスタッフリスト（assignPersonNameはこの中から選ぶこと）:\n${input.staffNames.join('、')}`
+          : '';
         const today2 = new Date();
         const dayNames2 = ['日', '月', '火', '水', '木', '金', '土'];
         const todayDayName2 = dayNames2[today2.getDay()];
@@ -3503,7 +3497,7 @@ export const appRouter = router({
     // スタッフ一覧を取得（変更連絡フォーム用：全ユーザー可）
     listForForm: protectedProcedure.query(async () => {
       const all = await getAllStaff();
-      return all.map(s => ({ id: s.id, name: s.name ?? "不明", team: s.team, nameKana: s.nameKana ?? null }));
+      return all.map(s => ({ id: s.id, name: s.name ?? "不明", team: s.team }));
     }),
     // スタッフ一覧を取得（管理者のみ）
     getAll: protectedProcedure.query(async ({ ctx }) => {
@@ -3519,13 +3513,12 @@ export const appRouter = router({
         name: z.string().min(1).max(50),
         email: z.string().email(),
         password: z.string().min(6).max(100),
-        role: z.enum(["user", "admin", "super_admin"]).default("user"),
+        role: z.enum(["user", "admin"]).default("user"),
         team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]).default("身体"),
         numberPlate: z.string().max(20).optional(),
-        nameKana: z.string().max(100).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+        if (ctx.user.role !== "admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
         }
         const bcrypt = await import("bcryptjs");
@@ -3538,7 +3531,6 @@ export const appRouter = router({
             role: input.role,
             team: input.team,
             numberPlate: input.numberPlate,
-            nameKana: input.nameKana,
           });
           return { success: true };
         } catch (err: any) {
@@ -3582,15 +3574,11 @@ export const appRouter = router({
     updateRole: protectedProcedure
       .input(z.object({
         userId: z.number(),
-        role: z.enum(["user", "admin", "super_admin"]),
+        role: z.enum(["user", "admin"]),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+        if (ctx.user.role !== "admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
-        }
-        // super_admin への昇格は super_admin のみ可能
-        if (input.role === "super_admin" && ctx.user.role !== "super_admin") {
-          throw new TRPCError({ code: "FORBIDDEN", message: "特別管理者への昇格は特別管理者のみ可能です" });
         }
         await updateStaffRole(input.userId, input.role);
         broadcastEvent("staff");
@@ -3621,23 +3609,18 @@ export const appRouter = router({
         userId: z.number(),
         name: z.string().min(1).max(50),
         team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]),
-        role: z.enum(["user", "admin", "super_admin"]),
+        role: z.enum(["user", "admin"]),
         numberPlate: z.string().max(20).optional(),
-        nameKana: z.string().max(100).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+        if (ctx.user.role !== "admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
-        }
-        if (input.role === "super_admin" && ctx.user.role !== "super_admin") {
-          throw new TRPCError({ code: "FORBIDDEN", message: "特別管理者への昇格は特別管理者のみ可能です" });
         }
         await updateStaffInfo(input.userId, {
           name: input.name,
           team: input.team,
           role: input.role,
           numberPlate: input.numberPlate,
-          nameKana: input.nameKana,
         });
         broadcastEvent("staff");
         return { success: true };
@@ -4612,22 +4595,6 @@ export const appRouter = router({
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
         }
         await setSetting("sheet_cleanup_days", String(input.days));
-        broadcastEvent("settings");
-        return { success: true, days: input.days };
-      }),
-    /** スケジュール変更連絡自動削除日数を取得 */
-    getScheduleChangeDeleteDays: protectedProcedure.query(async () => {
-      const value = await getSetting("schedule_change_delete_days", "3");
-      return { days: parseInt(value, 10) };
-    }),
-    /** スケジュール変更連絡自動削除日数を更新（adminまたはsuper_adminのみ） */
-    setScheduleChangeDeleteDays: protectedProcedure
-      .input(z.object({ days: z.number().int().min(1).max(90) }))
-      .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && (ctx.user.role as string) !== "super_admin") {
-          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
-        }
-        await setSetting("schedule_change_delete_days", String(input.days));
         broadcastEvent("settings");
         return { success: true, days: input.days };
       }),
@@ -6724,12 +6691,9 @@ export const appRouter = router({
         taskKind: z.enum(["at_time", "by_deadline"]).default("by_deadline"),
         dueDate: z.date().optional(),
         assignType: z.enum(["self", "personal", "team", "all"]).default("self"),
-        assignTeam: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員"]).optional(),
-        assignTeams: z.array(z.string()).optional(),
+        assignTeam: z.enum(["身体", "天理", "郡山北部", "郡山南部"]).optional(),
         assignUserId: z.number().optional(),
-        assignUserIds: z.array(z.number()).optional(),
         assignUserName: z.string().optional(),
-        assignUserNames: z.array(z.string()).optional(),
         repeatType: z.enum(["none", "daily", "weekly", "biweekly", "monthly", "nth_weekday"]).default("none"),
         repeatDayOfWeek: z.number().min(0).max(6).optional(),
         repeatDayOfMonth: z.number().min(1).max(31).optional(),
@@ -6740,13 +6704,11 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const { createPersonalTask } = await import("./db");
-        const result = await createPersonalTask({
+        return await createPersonalTask({
           ...input,
           createdBy: ctx.user.id,
           createdByName: ctx.user.name ?? "不明",
         });
-        broadcastEvent("personalTasks");
-        return result;
       }),
 
     /** タスクを完了/未完了にする */
@@ -6757,9 +6719,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const { togglePersonalTaskDone } = await import("./db");
-        const result = await togglePersonalTaskDone(input.id, input.done, ctx.user.id);
-        broadcastEvent("personalTasks");
-        return result;
+        return await togglePersonalTaskDone(input.id, input.done, ctx.user.id);
       }),
 
     /** タスクを更新する */
@@ -6770,12 +6730,9 @@ export const appRouter = router({
         taskKind: z.enum(["at_time", "by_deadline"]).optional(),
         dueDate: z.date().nullable().optional(),
         assignType: z.enum(["self", "personal", "team", "all"]).optional(),
-        assignTeam: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員"]).nullable().optional(),
-        assignTeams: z.array(z.string()).nullable().optional(),
+        assignTeam: z.enum(["身体", "天理", "郡山北部", "郡山南部"]).nullable().optional(),
         assignUserId: z.number().nullable().optional(),
-        assignUserIds: z.array(z.number()).nullable().optional(),
         assignUserName: z.string().nullable().optional(),
-        assignUserNames: z.array(z.string()).nullable().optional(),
         repeatType: z.enum(["none", "daily", "weekly", "biweekly", "monthly", "nth_weekday"]).optional(),
         repeatDayOfWeek: z.number().nullable().optional(),
         repeatDayOfMonth: z.number().nullable().optional(),
@@ -6786,9 +6743,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const { updatePersonalTask } = await import("./db");
-        const result = await updatePersonalTask(input.id, input, ctx.user.id);
-        broadcastEvent("personalTasks");
-        return result;
+        return await updatePersonalTask(input.id, input, ctx.user.id);
       }),
 
     /** タスクを削除する（ソフトデリート） */
@@ -6796,62 +6751,7 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         const { deletePersonalTask } = await import("./db");
-        const result = await deletePersonalTask(input.id, ctx.user.id);
-        broadcastEvent("personalTasks");
-        return result;
-      }),
-
-    /** 音声入力テキストからタスクフィールドをAI解析する */
-    parseVoice: protectedProcedure
-      .input(z.object({
-        text: z.string(),
-        staffNames: z.array(z.string()).optional(),
-      }))
-      .mutation(async ({ input }) => {
-        const { invokeLLM } = await import("./_core/llm");
-        const { TRPCError } = await import("@trpc/server");
-        const today = new Date();
-        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        const dayNames = ['\u65e5', '\u6708', '\u706b', '\u6c34', '\u6728', '\u91d1', '\u571f'];
-        const todayDayName = dayNames[today.getDay()];
-        const staffListStr = input.staffNames && input.staffNames.length > 0
-          ? `\n\n\u767b\u9332\u6e08\u307f\u30b9\u30bf\u30c3\u30d5\u30ea\u30b9\u30c8\uff08assignPersonName\u306f\u3053\u306e\u4e2d\u304b\u3089\u9078\u3076\u3053\u3068\uff09:\n${input.staffNames.join('\u3001')}` : '';
-        const systemPrompt = `\u3042\u306a\u305f\u306f\u8a2a\u554f\u770b\u8b77\u30b9\u30c6\u30fc\u30b7\u30e7\u30f3\u306e\u696d\u52d9\u30a2\u30b7\u30b9\u30bf\u30f3\u30c8\u3067\u3059\u3002\u30b9\u30bf\u30c3\u30d5\u304c\u97f3\u58f0\u3067\u4f1d\u3048\u305f\u5185\u5bb9\u304b\u3089\u3001\u500b\u4eba\u30bf\u30b9\u30af\u306e\u5404\u9805\u76ee\u3092\u62bd\u51fa\u3057\u3066JSON\u3067\u8fd4\u3057\u3066\u304f\u3060\u3055\u3044\u3002\n\u4eca\u65e5\u306f${todayStr}\uff08${todayDayName}\u66dc\u65e5\uff09\u3067\u3059\u3002\n\u65e5\u4ed8\u89e3\u6790\u30eb\u30fc\u30eb\uff08\u5fc5\u305a\u9075\u5b88\uff09:\n1. \u76f8\u5bfe\u8868\u73fe: \u300c\u4eca\u65e5\u300d\u300c\u660e\u65e5\u300d\u300c\u660e\u5f8c\u65e5\u300d\u300c\u660e\u3005\u5f8c\u65e5\u300d\u300c\u6628\u65e5\u300d\u2192 \u4eca\u65e5\u304b\u3089\u306e\u76f8\u5bfe\u65e5\u6570\u3067\u6b63\u78ba\u306b\u8a08\u7b97\n2. \u66dc\u65e5\u6307\u5b9a: \u300c\u6b21\u306e\u706b\u66dc\u65e5\u300d\u300c\u4eca\u9031\u306e\u91d1\u66dc\u65e5\u300d\u2192 \u4eca\u65e5\u304b\u3089\u6700\u3082\u8fd1\u3044\u305d\u306e\u66dc\u65e5\n3. \u65e5\u4ed8\u306e\u307f: \u300c4\u6708\u30fb7\u65e5\u300d\u300c4/7\u300d\u2192 \u5e74\u306f\u4eca\u5e74\u307e\u305f\u306f\u6765\u5e74\u306e\u8fd1\u3044\u65b9\u3092\u9078\u629e\n\u91cd\u8981\uff1a\u97f3\u58f0\u5165\u529b\u3067\u306f\u8a00\u3044\u9593\u9055\u3044\u3092\u8a02\u6b63\u3059\u308b\u5834\u5408\u304c\u3042\u308a\u307e\u3059\u3002\u300c\u3058\u3083\u306a\u304f\u3066\u300d\u300c\u3067\u306f\u306a\u304f\u300d\u300c\u9055\u3044\u307e\u3059\u300d\u300c\u3084\u3063\u3071\u308a\u300d\u306a\u3069\u306e\u8a02\u6b63\u8868\u73fe\u304c\u3042\u308b\u5834\u5408\u306f\u3001\u305d\u306e\u5f8c\u306b\u7d9a\u304f\u5185\u5bb9\uff08\u6700\u5f8c\u306b\u8a00\u53ca\u3055\u308c\u305f\u5185\u5bb9\uff09\u3092\u6b63\u3057\u3044\u5024\u3068\u3057\u3066\u63a1\u7528\u3057\u3066\u304f\u3060\u3055\u3044\u3002\n\u62bd\u51fa\u9805\u76ee:\n- text: \u30bf\u30b9\u30af\u5185\u5bb9\u30fb\u3084\u308b\u3053\u3068\u306e\u8aac\u660e\uff08\u5fc5\u9808\uff09\n- dueDateStr: \u671f\u65e5\u65e5\u4ed8\uff08YYYY-MM-DD\u5f62\u5f0f\uff09\u3002\u4e0d\u660e\u306a\u5834\u5408\u306fnull\n- dueTimeStr: \u671f\u65e5\u6642\u523b\uff08HH:MM\u5f62\u5f0f\uff09\u3002\u4e0d\u660e\u306a\u5834\u5408\u306fnull\n- assignType: \u6307\u5b9a\u5148\u306e\u7a2e\u5225\u3002\u300c\u5168\u54e1\u300d\u300c\u5168\u30b9\u30bf\u30c3\u30d5\u300d\u300c\u5168\u4f53\u300d\u2192all\u3001\u300c\u8eab\u4f53\u30c1\u30fc\u30e0\u300d\u300c\u8eab\u4f53\u300d\u300c\u5929\u7406\u30c1\u30fc\u30e0\u300d\u300c\u5929\u7406\u300d\u300c\u90e1\u5c71\u5317\u90e8\u300d\u300c\u5317\u90e8\u300d\u300c\u90e1\u5c71\u5357\u90e8\u300d\u300c\u5357\u90e8\u300d\u300c\u4e8b\u52d9\u54e1\u300d\u306a\u3069\u30c1\u30fc\u30e0\u3092\u6307\u3059\u8868\u73fe\u2192team\u3001\u767b\u9332\u6e08\u307f\u30b9\u30bf\u30c3\u30d5\u306e\u540d\u524d\u304c\u660e\u793a\u3055\u308c\u305f\u5834\u5408\u2192personal\u3002\u4e0d\u660e\u306a\u5834\u5408\u306fself\n- assignTeams: assignType\u304cteam\u306e\u5834\u5408\u306e\u30c1\u30fc\u30e0\u540d\u306e\u914d\u5217\u3002\u300c\u8eab\u4f53\u300d\u300c\u8eab\u4f53\u30c1\u30fc\u30e0\u300d\u2192["\u8eab\u4f53"]\u3001\u300c\u5929\u7406\u300d\u300c\u5929\u7406\u30c1\u30fc\u30e0\u300d\u2192["\u5929\u7406"]\u3001\u300c\u90e1\u5c71\u5317\u90e8\u300d\u300c\u5317\u90e8\u300d\u2192["\u90e1\u5c71\u5317\u90e8"]\u3001\u300c\u90e1\u5c71\u5357\u90e8\u300d\u300c\u5357\u90e8\u300d\u2192["\u90e1\u5c71\u5357\u90e8"]\u3001\u300c\u4e8b\u52d9\u54e1\u300d\u2192["\u4e8b\u52d9\u54e1"]\u3002\u8907\u6570\u30c1\u30fc\u30e0\u304c\u8a00\u53ca\u3055\u308c\u305f\u5834\u5408\u306f\u8907\u6570\u8fd4\u3059\u3002\u4e0d\u660e\u306a\u5834\u5408\u306fnull\n- assignPersonNames: assignType\u304cpersonal\u306e\u5834\u5408\u306e\u62c5\u5f53\u8005\u540d\u306e\u914d\u5217\uff08\u59d3\u306e\u307f\u3067\u53ef\uff09\u3002\u5fc5\u305a\u767b\u9332\u6e08\u307f\u30b9\u30bf\u30c3\u30d5\u30ea\u30b9\u30c8\u306b\u542b\u307e\u308c\u308b\u540d\u524d\u306e\u307f\u8a2d\u5b9a\u3059\u308b\u3053\u3068\u3002\u4e0d\u660e\u306a\u5834\u5408\u306fnull\n\u4e0d\u660e\u306a\u9805\u76ee\u306fnull\u3092\u8fd4\u3057\u3066\u304f\u3060\u3055\u3044\u3002\u5fc5\u305a\u6709\u52b9\u306aJSON\u306e\u307f\u3092\u8fd4\u3057\u3066\u304f\u3060\u3055\u3044\u3002${staffListStr}`;
-        const res = await invokeLLM({
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: input.text },
-          ],
-          response_format: {
-            type: "json_schema",
-            json_schema: {
-              name: "personal_task_fields",
-              strict: true,
-              schema: {
-                type: "object",
-                properties: {
-                  text: { type: "string" },
-                  dueDateStr: { type: ["string", "null"] },
-                  dueTimeStr: { type: ["string", "null"] },
-                  assignType: { type: "string", enum: ["self", "personal", "team", "all"] },
-                  assignTeams: { type: ["array", "null"], items: { type: "string" } },
-                  assignPersonNames: { type: ["array", "null"], items: { type: "string" } },
-                },
-                required: ["text", "dueDateStr", "dueTimeStr", "assignType", "assignTeams", "assignPersonNames"],
-                additionalProperties: false,
-              },
-            },
-          },
-        });
-        const rawContent = res.choices?.[0]?.message?.content;
-        const content = typeof rawContent === "string" ? rawContent : null;
-        if (!content) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI\u89e3\u6790\u306b\u5931\u6557\u3057\u307e\u3057\u305f" });
-        try {
-          const parsed = JSON.parse(content);
-          return { success: true, fields: parsed };
-        } catch {
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI\u306e\u5fdc\u7b54\u3092\u89e3\u6790\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f" });
-        }
+        return await deletePersonalTask(input.id, ctx.user.id);
       }),
   }),
 });

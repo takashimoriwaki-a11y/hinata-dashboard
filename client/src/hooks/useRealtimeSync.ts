@@ -48,8 +48,6 @@ const EVENT_QUERY_MAP: Record<string, string[][]> = {
   teamTools: [["teamTools", "list"]],
   // 議事録
   minutes: [["minutes", "list"], ["minutes", "uncheckedCount"]],
-  // 個人タスク
-  personalTasks: [["personalTasks", "getMyTasks"], ["personalTasks", "getTodayTasks"]],
 };
 
 export function useRealtimeSync() {

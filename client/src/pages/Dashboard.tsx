@@ -96,7 +96,6 @@ import {
   ThumbsUp,
   ThumbsDown,
   RotateCcw,
-  User,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, openLink } from "@/lib/utils";
@@ -3464,7 +3463,7 @@ function TasksCard() {
     { refetchInterval: 15 * 1000, staleTime: 0 }
   );
 
-  // 個人タスク（期日あり未完了タスクを全て表示。今日優先ソート）
+  // 今日の個人タスク（今日が期日のもの、または今日が指定日時のもの）
   const todayPersonalTasks = useMemo(() => {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -3472,26 +3471,15 @@ function TasksCard() {
     return personalTasksData
       .filter((t) => {
         if (t.isDone) return false;
-        if (!t.dueDate) return false; // 期日なしは表示しない
-        // 他の職員に依頼したタスク（assignType=personal かつ自分が担当者でない）は除外
-        if (t.assignType === "personal" && t.assignUserId !== user?.id) return false;
-        return true; // 期日あり未完了タスクを全て表示
+        if (!t.dueDate) return false;
+        const due = new Date(t.dueDate).getTime();
+        return due >= todayStart && due <= todayEnd;
       })
       .sort((a, b) => {
-        const aTime = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
-        const bTime = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
-        const aIsToday = aTime >= todayStart && aTime <= todayEnd;
-        const bIsToday = bTime >= todayStart && bTime <= todayEnd;
-        const aIsOverdue = aTime < todayStart;
-        const bIsOverdue = bTime < todayStart;
-        // 今日のタスクを最優先
-        if (aIsToday && !bIsToday) return -1;
-        if (!aIsToday && bIsToday) return 1;
-        // 期日切れを次に（古い順）
-        if (aIsOverdue && !bIsOverdue) return -1;
-        if (!aIsOverdue && bIsOverdue) return 1;
-        // 同じカテゴリ内では期日順
-        return aTime - bTime;
+        if (!a.dueDate && !b.dueDate) return 0;
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
       });
   }, [personalTasksData]);
 
@@ -3552,23 +3540,17 @@ function TasksCard() {
           <div className="max-h-72 overflow-y-auto space-y-2 pr-0.5">
           {todayPersonalTasks.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-3">
-              期日ありの未完了タスクはありません ✓
+              今日の個人タスクはありません ✓
             </p>
           ) : (
-            <>
-            {todayPersonalTasks.slice(0, 5).map((task) => {
+            todayPersonalTasks.map((task) => {
               const taskKind = task.taskKind as "at_time" | "by_deadline";
-              const _now = new Date();
-              const _todayStart = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate()).getTime();
-              const isOverdue = task.dueDate ? new Date(task.dueDate).getTime() < _todayStart : false;
               return (
               <div key={task.id} className={cn(
                 "flex items-start gap-2 group animate-list-item-in rounded-lg p-2 -mx-1",
-                isOverdue
-                  ? "bg-red-50/70 dark:bg-red-950/25 border border-l-4 border-red-300 dark:border-red-700/60 border-l-red-500"
-                  : taskKind === "at_time"
-                    ? "bg-orange-50/60 dark:bg-orange-950/20 border border-orange-200/60 dark:border-orange-800/40"
-                    : "bg-blue-50/40 dark:bg-blue-950/10 border border-blue-200/40 dark:border-blue-800/30"
+                taskKind === "at_time"
+                  ? "bg-orange-50/60 dark:bg-orange-950/20 border border-orange-200/60 dark:border-orange-800/40"
+                  : "bg-blue-50/40 dark:bg-blue-950/10 border border-blue-200/40 dark:border-blue-800/30"
               )}>
                 <button
                   onClick={() => toggleTask.mutate({ id: task.id, done: !task.isDone })}
@@ -3582,7 +3564,7 @@ function TasksCard() {
                 </button>
                 <div className="flex-1 min-w-0">
                   <span className={cn("text-sm block transition-colors duration-300", task.isDone ? "animate-strike text-muted-foreground" : "text-foreground")}>
-                    {task.text}
+                    {task.title}
                   </span>
                   <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                     {/* タスク種別バッジ */}
@@ -3629,26 +3611,11 @@ function TasksCard() {
                         })()}
                       </span>
                     )}
-                    {/* 作成者バッジ（自分以外が作成したタスクのみ表示） */}
-                    {(task as any).createdByName && (task as any).createdBy !== user?.id && (
-                      <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 font-medium">
-                        <User className="w-3 h-3 flex-shrink-0" />{(task as any).createdByName}から依頼
-                      </span>
-                    )}
                   </div>
                 </div>
               </div>
               );
-            })}
-            {/* 5件を超える場合「他N件」リンクを表示 */}
-            {todayPersonalTasks.length > 5 && (
-              <Link href="/personal-tasks">
-                <div className="text-center py-1.5 text-xs text-primary hover:underline cursor-pointer font-medium">
-                  他 {todayPersonalTasks.length - 5} 件のタスクを見る →
-                </div>
-              </Link>
-            )}
-            </>
+            })
           )}
           </div>
 
@@ -5142,11 +5109,11 @@ function TeamGoalsTicker() {
 
   return (
     <div
-      className="relative overflow-hidden rounded-xl sticky top-0 z-10 shadow-sm" style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 60%, #fed7aa 100%)", border: "1px solid #fdba74" }}
+      className="relative overflow-hidden rounded-xl bg-card border border-border sticky top-0 z-10 shadow-sm"
     >
       {/* 左右のフェードマスク */}
-      <div className="absolute left-0 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-r from-orange-50 to-transparent" />
-      <div className="absolute right-0 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-l from-orange-100 to-transparent" />
+      <div className="absolute left-0 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-r from-card to-transparent" />
+      <div className="absolute right-0 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-l from-card to-transparent" />
 
       {/* テロップ本体 */}
       <div className="flex items-center gap-0 py-2.5 px-2 team-goals-ticker-track">
@@ -5163,15 +5130,15 @@ function TeamGoalsTicker() {
                 {g.team}
               </span>
               {/* 目標タイトル */}
-              <span className="text-sm font-semibold whitespace-nowrap" style={{ color: "#7c2d12" }}>{g.title}</span>
+              <span className="text-sm font-semibold text-foreground whitespace-nowrap">{g.title}</span>
               {/* 期間 */}
               {(startStr || endStr) && (
-                <span className="text-xs whitespace-nowrap flex-shrink-0" style={{ color: "#9a3412" }}>
+                <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
                   {startStr ?? ""}{startStr && endStr ? " 〜 " : ""}{endStr ?? ""}
                 </span>
               )}
               {/* 区切り */}
-              <span className="text-lg flex-shrink-0 ml-2" style={{ color: "#fdba74" }}>｜</span>
+              <span className="text-border text-lg flex-shrink-0 ml-2">｜</span>
             </div>
           );
         })}

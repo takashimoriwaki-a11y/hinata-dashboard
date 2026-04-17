@@ -414,48 +414,6 @@
       "when": 1776349968447,
       "tag": "0058_dusty_sumo",
       "breakpoints": true
-    },
-    {
-      "idx": 59,
-      "version": "5",
-      "when": 1776403127204,
-      "tag": "0059_curvy_virginia_dare",
-      "breakpoints": true
-    },
-    {
-      "idx": 60,
-      "version": "5",
-      "when": 1776404815294,
-      "tag": "0060_rapid_garia",
-      "breakpoints": true
-    },
-    {
-      "idx": 61,
-      "version": "5",
-      "when": 1776410336129,
-      "tag": "0061_wonderful_lord_hawal",
-      "breakpoints": true
-    },
-    {
-      "idx": 62,
-      "version": "5",
-      "when": 1776416517513,
-      "tag": "0062_graceful_nitro",
-      "breakpoints": true
-    },
-    {
-      "idx": 63,
-      "version": "5",
-      "when": 1776419697581,
-      "tag": "0063_big_ser_duncan",
-      "breakpoints": true
-    },
-    {
-      "idx": 64,
-      "version": "5",
-      "when": 1776420480138,
-      "tag": "0064_worthless_madelyne_pryor",
-      "breakpoints": true
     }
   ]
 }

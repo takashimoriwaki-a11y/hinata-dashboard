@@ -407,7 +407,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             setNotifDialogOpen(true);
           }}
           disabled={pushLoading}
-          title={(collapsed && !mobile) ? (isSubscribed ? "通知中" : "通知を有効にする") : undefined}
+          title={(collapsed && !mobile) ? (isSubscribed ? "通知設定" : "通知を有効にする") : undefined}
           className={cn(
             "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150 select-none active:scale-95 active:opacity-80",
             "text-sm hover:bg-sidebar-accent",
@@ -417,14 +417,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               : "text-sidebar-foreground/80 hover:text-sidebar-foreground"
           )}
         >
-          <div className="relative flex-shrink-0">
-            <Bell className={cn("w-4 h-4", isSubscribed && "fill-emerald-500")} />
-            {isSubscribed && (
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full border border-sidebar" />
-            )}
-          </div>
+          <Bell className={cn("w-4 h-4 flex-shrink-0", isSubscribed && "fill-emerald-500")} />
           {(!collapsed || mobile) && (
-            <span>{pushLoading ? "処理中..." : isSubscribed ? "通知中" : "通知を有効に"}</span>
+            <span>{pushLoading ? "処理中..." : isSubscribed ? "通知設定" : "通知を有効に"}</span>
           )}
         </button>
         {user?.role === "admin" && (
@@ -602,7 +597,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </header>
 
         {/* ページコンテンツ（ボトムナビ分の余白） */}
-        <main ref={mainRef} className="flex-1 overflow-y-auto bg-orange-50/40 dark:bg-background main-content-safe md:pb-4">
+        <main ref={mainRef} className="flex-1 overflow-y-auto bg-background main-content-safe md:pb-4">
           {children}
         </main>
 
