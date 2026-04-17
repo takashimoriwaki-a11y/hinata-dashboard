@@ -3473,6 +3473,8 @@ function TasksCard() {
       .filter((t) => {
         if (t.isDone) return false;
         if (!t.dueDate) return false; // 期日なしは表示しない
+        // 他の職員に依頼したタスク（assignType=personal かつ自分が担当者でない）は除外
+        if (t.assignType === "personal" && t.assignUserId !== user?.id) return false;
         return true; // 期日あり未完了タスクを全て表示
       })
       .sort((a, b) => {
@@ -3640,7 +3642,7 @@ function TasksCard() {
             })}
             {/* 5件を超える場合「他N件」リンクを表示 */}
             {todayPersonalTasks.length > 5 && (
-              <Link href="/tasks">
+              <Link href="/personal-tasks">
                 <div className="text-center py-1.5 text-xs text-primary hover:underline cursor-pointer font-medium">
                   他 {todayPersonalTasks.length - 5} 件のタスクを見る →
                 </div>
