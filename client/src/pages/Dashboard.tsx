@@ -5412,8 +5412,6 @@ export default function Dashboard() {
 
   return (
     <div ref={scrollContainerRef as React.RefObject<HTMLDivElement>} className="p-3 md:p-4 pb-6 md:pb-4 space-y-3 md:space-y-4 max-w-screen-xl mx-auto">
-      {/* チーム目標（静止表示） */}
-      <TeamGoalsTicker />
       {/* ウェルカムバナー */}
       <div className="relative rounded-2xl overflow-hidden shadow-md fade-in-up">
         {/* 月別背景画像 */}

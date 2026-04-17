@@ -601,6 +601,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </header>
 
+        {/* チーム目標バー（常時固定表示） */}
+        <TeamGoalsTicker />
+
         {/* ページコンテンツ（ボトムナビ分の余白） */}
         <main ref={mainRef} className="flex-1 overflow-y-auto bg-orange-50/40 dark:bg-background main-content-safe md:pb-4">
           {children}
