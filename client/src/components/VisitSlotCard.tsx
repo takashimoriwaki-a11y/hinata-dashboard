@@ -287,10 +287,24 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
     }
   };
 
-  // チェックリストリセット
-  const handleResetChecklist = () => {
+  // このカードだけリセット（全状態 + localStorage削除）
+  const handleResetCard = () => {
+    if (!window.confirm(`${slotData.patientName ? slotData.patientName + "さんの" : ""}カード${slotIndex + 1}の入力内容を全てリセットしますか？`)) return;
     setTasksBefore(VISIT_TASKS_BEFORE_DEFAULT.map(t => ({ ...t })));
     setSpecialNote("");
+    setNextVisitDate("");
+    setNextVisitTime("");
+    setNotifiedTo("");
+    setNotifiedToOther("");
+    setNotifyMethod("");
+    setNotifyMethodOther("");
+    setCompleted(false);
+    setExported(false);
+    setSavedRecordId(null);
+    try {
+      localStorage.removeItem(getCardStorageKey(slotIndex));
+    } catch {}
+    toast.success(`カード${slotIndex + 1}をリセットしました`);
   };
 
   const isPatientSelected = !!slotData.patientName;
@@ -547,15 +561,15 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
 
 
 
-            {/* チェックリストリセットボタン */}
+            {/* このカードだけリセットボタン */}
             <div className="flex justify-end">
               <button
                 type="button"
-                onClick={handleResetChecklist}
+                onClick={handleResetCard}
                 className="flex items-center gap-1 px-2 py-1 rounded-lg border border-border text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                リセット
+                このカードだけリセット
               </button>
             </div>
           </div>
