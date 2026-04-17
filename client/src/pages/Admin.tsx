@@ -1114,68 +1114,6 @@ function StaffManagementPanel() {
   const utils = trpc.useUtils();
   const { data: staffList, isLoading } = trpc.staff.getAll.useQuery();
 
-  // ===== よみがな CSVエクスポート =====
-  const { data: kanaExportData } = trpc.staff.exportKana.useQuery();
-  const handleKanaExport = useCallback(() => {
-    if (!kanaExportData) return;
-    // CSV生成（BOM付き UTF-8）
-    const header = "ID,名前,よみがな,チーム,ロール";
-    const rows = kanaExportData.map(s =>
-      [s.id, `"${s.name}"`, `"${s.nameKana}"`, `"${s.team}"`, s.role].join(",")
-    );
-    const csv = "\uFEFF" + [header, ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `スタッフよみがな_${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("CSVをエクスポートしました");
-  }, [kanaExportData]);
-
-  // ===== よみがな CSVインポート =====
-  const kanaImportRef = useRef<HTMLInputElement>(null);
-  const [importingKana, setImportingKana] = useState(false);
-  const bulkUpdateKana = trpc.staff.bulkUpdateKana.useMutation({
-    onSuccess: (res) => {
-      utils.staff.getAll.invalidate();
-      toast.success(`${res.updated}名のよみがなを更新しました`);
-    },
-    onError: (e) => toast.error(e.message),
-  });
-  const handleKanaImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImportingKana(true);
-    try {
-      const text = await file.text();
-      // BOM除去
-      const cleaned = text.replace(/^\uFEFF/, "");
-      const lines = cleaned.split(/\r?\n/).filter(l => l.trim());
-      if (lines.length < 2) { toast.error("データがありません"); return; }
-      // ヘッダー行をスキップ
-      const dataLines = lines.slice(1);
-      const updates: Array<{ id: number; nameKana: string }> = [];
-      for (const line of dataLines) {
-        // CSVパース（クォート内のカンマを考慮）
-        const cols = line.match(/(?:"([^"]*)"|([^,]*))/g)?.map(c => c.replace(/^"|"$/g, "").trim()) ?? [];
-        const id = parseInt(cols[0] ?? "", 10);
-        const nameKana = cols[2] ?? "";
-        if (!isNaN(id) && id > 0) {
-          updates.push({ id, nameKana });
-        }
-      }
-      if (updates.length === 0) { toast.error("有効なデータが見つかりませんでした"); return; }
-      await bulkUpdateKana.mutateAsync({ updates });
-    } catch {
-      toast.error("インポート処理中にエラーが発生しました");
-    } finally {
-      setImportingKana(false);
-      if (kanaImportRef.current) kanaImportRef.current.value = "";
-    }
-  }, [bulkUpdateKana]);
-
   // Excelインポート
   const staffExcelRef = useRef<HTMLInputElement>(null);
   const [importingStaff, setImportingStaff] = useState(false);
@@ -1313,37 +1251,6 @@ function StaffManagementPanel() {
             <Badge variant="outline" className="text-xs">{staffList?.length ?? 0}名</Badge>
           </div>
           <div className="flex gap-2 flex-wrap">
-            {/* よみがな CSVエクスポートボタン */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs gap-1 text-violet-600 border-violet-300 hover:bg-violet-50"
-              onClick={handleKanaExport}
-              disabled={!kanaExportData}
-              title="よみがな一覧をCSVでダウンロード"
-            >
-              <Download className="w-3.5 h-3.5" />
-              よみがなCSV出力
-            </Button>
-            {/* よみがな CSVインポートボタン */}
-            <input
-              ref={kanaImportRef}
-              type="file"
-              accept=".csv"
-              className="hidden"
-              onChange={handleKanaImport}
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs gap-1 text-violet-600 border-violet-300 hover:bg-violet-50"
-              onClick={() => kanaImportRef.current?.click()}
-              disabled={importingKana}
-              title="CSVでよみがなを一括登録"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5" />
-              {importingKana ? "処理中..." : "よみがなCSV取込"}
-            </Button>
             {/* テンプレートダウンロードボタン */}
             <Button
               variant="outline"
@@ -1600,11 +1507,6 @@ function StaffManagementPanel() {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">{staff.email ?? "メール未設定"}</p>
-                    {(staff as any).nameKana ? (
-                      <p className="text-xs text-muted-foreground">よみがな: <span className="font-medium text-foreground">{(staff as any).nameKana}</span></p>
-                    ) : (
-                      <p className="text-xs text-orange-500">⚠️ よみがな未登録（音声入力の精度に影響します）</p>
-                    )}
                     <p className="text-xs text-muted-foreground">最終ログイン: {staff.lastSignedIn ? new Date(staff.lastSignedIn).toLocaleDateString("ja-JP") : "未ログイン"}</p>
                     {(staff as any).numberPlate && (
                       <p className="text-xs text-muted-foreground">
