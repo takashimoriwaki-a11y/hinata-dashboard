@@ -1096,6 +1096,7 @@ export async function getAllStaff() {
       role: users.role,
       team: users.team,
       numberPlate: users.numberPlate,
+      nameKana: users.nameKana,
       createdAt: users.createdAt,
       lastSignedIn: users.lastSignedIn,
       teamSetupDone: users.teamSetupDone,

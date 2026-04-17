@@ -3642,6 +3642,49 @@ export const appRouter = router({
         broadcastEvent("staff");
         return { success: true };
       }),
+
+    // ===== よみがな一括更新（CSVインポート） =====
+    bulkUpdateKana: protectedProcedure
+      .input(z.object({
+        /** [{id: number, nameKana: string}] の配列 */
+        updates: z.array(z.object({
+          id: z.number(),
+          nameKana: z.string().max(100),
+        })),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
+        }
+        const { getDb } = await import("./_core/env");
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続エラー" });
+        const { users } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        let updated = 0;
+        for (const row of input.updates) {
+          await db.update(users).set({ nameKana: row.nameKana || null }).where(eq(users.id, row.id));
+          updated++;
+        }
+        broadcastEvent("staff");
+        return { updated };
+      }),
+
+    // ===== よみがな一覧エクスポート（CSV用データ取得） =====
+    exportKana: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
+        }
+        const all = await getAllStaff();
+        return all.map(s => ({
+          id: s.id,
+          name: s.name ?? "",
+          nameKana: s.nameKana ?? "",
+          team: s.team ?? "",
+          role: s.role,
+        }));
+      }),
   }),
 
   // ========== Excelインポート ==========
