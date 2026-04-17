@@ -3,7 +3,7 @@ import express from "express";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerLocalAuthRoutes } from "./localAuth";
+import { registerLocalAuthRoutes, authenticateRequest } from "./localAuth";
 import { registerGoogleAuthRoutes } from "./googleAuth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
@@ -617,14 +617,8 @@ ${medicalPrompt}${feedbackSection}`;
   app.get("/api/export/patients", async (req, res) => {
     try {
       // 認証チェック
-      const { verifySessionToken } = await import("./localAuth");
-      const { parse: parseCookieHeader } = await import("cookie");
-      const { COOKIE_NAME } = await import("../../shared/const");
-      const cookieHeader = req.headers.cookie;
-      const cookies = cookieHeader ? parseCookieHeader(cookieHeader) : {};
-      const sessionToken = cookies[COOKIE_NAME];
-      const session = await verifySessionToken(sessionToken);
-      if (!session) { res.status(401).json({ error: "認証が必要です" }); return; }
+      const user = await authenticateRequest(req).catch(() => null);
+      if (!user) { res.status(401).json({ error: "認証が必要です" }); return; }
 
       const { db } = await import("../db");
       const { patients } = await import("../../drizzle/schema");
