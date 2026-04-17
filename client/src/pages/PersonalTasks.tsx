@@ -120,7 +120,7 @@ export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps
   const [repeatNthDayOfWeek, setRepeatNthDayOfWeek] = useState<number>(1);
   const [repeatEndDate, setRepeatEndDate] = useState("");
 
-  const staffQuery = trpc.staff.getAll.useQuery();
+  const staffQuery = trpc.staff.listForForm.useQuery();
   const staffList = (staffQuery.data ?? []) as any[];
 
   const createMutation = trpc.personalTasks.create.useMutation({
