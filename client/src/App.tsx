@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -36,18 +36,19 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const [, navigate] = useLocation();
 
-  if (loading) {
+  // renderフェーズでnavigateを呼ぶとReactのルール違反になるためuseEffectで実行
+  useEffect(() => {
+    if (!loading && (!user || user.role !== "admin")) {
+      navigate("/");
+    }
+  }, [loading, user, navigate]);
+
+  if (loading || !user || user.role !== "admin") {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
-  }
-
-  if (!user || user.role !== "admin") {
-    // 管理者以外はホームへリダイレクト
-    navigate("/");
-    return null;
   }
 
   return <>{children}</>;
