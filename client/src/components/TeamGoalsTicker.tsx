@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useState, useEffect } from "react";
 
 // 夜モード：チームバッジ色（ダーク背景向け）
 const TEAM_BADGE_COLORS_NIGHT: Record<string, string> = {
@@ -27,14 +28,7 @@ const PHILOSOPHY_FALLBACK = [
   { label: "チームの力", text: "仲間と支えあいながら", sub: "スタッフ一人ひとりが輝き、利用者の生活を豊かにするケアを届けます。" },
 ];
 
-// 目標数に応じたアニメーション速度（秒）を計算する
-// 1件=20秒、2件=25秒、3〜4件=30秒、5件以上=35秒（読みやすさを優先）
-function calcDuration(count: number): number {
-  if (count <= 1) return 20;
-  if (count <= 2) return 25;
-  if (count <= 4) return 30;
-  return Math.min(20 + count * 3, 60); // 最大60秒
-}
+const SWITCH_INTERVAL_MS = 10000; // 10秒ごとに切り替え
 
 export default function TeamGoalsTicker() {
   const { isNight } = useTheme();
@@ -43,12 +37,38 @@ export default function TeamGoalsTicker() {
     refetchOnWindowFocus: false,
   });
 
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  const hasGoals = goals.length > 0;
+  const items = hasGoals
+    ? goals
+    : PHILOSOPHY_FALLBACK.map((p) => ({
+        id: p.label,
+        team: p.label,
+        title: p.text,
+        description: p.sub,
+        startDate: null as Date | null,
+        endDate: null as Date | null,
+      }));
+
+  // 10秒ごとにフェードアウト→インデックス更新→フェードイン
+  useEffect(() => {
+    if (items.length <= 1) return;
+    const timer = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setCurrentIndex((prev) => (prev + 1) % items.length);
+        setVisible(true);
+      }, 400); // フェードアウト後に切り替え
+    }, SWITCH_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [items.length]);
+
   // ローディング中は何も表示しない
   if (isLoading) return null;
 
-  const hasGoals = goals.length > 0;
-
-  // 背景・ボーダー・フェードマスクの色をモードに応じて切り替え
+  // 背景・ボーダーの色をモードに応じて切り替え
   const bgStyle = isNight
     ? {
         background: "linear-gradient(135deg, rgba(20,20,40,0.95) 0%, rgba(30,20,50,0.95) 100%)",
@@ -59,146 +79,88 @@ export default function TeamGoalsTicker() {
         borderBottom: "1px solid rgba(249,115,22,0.15)",
       };
 
-  const fadeLeft = isNight
-    ? "linear-gradient(to right, rgba(20,20,40,0.95), transparent)"
-    : "linear-gradient(to right, #fff7ed, transparent)";
-
-  const fadeRight = isNight
-    ? "linear-gradient(to left, rgba(20,20,40,0.95), transparent)"
-    : "linear-gradient(to left, #fff7ed, transparent)";
-
   const titleColor = isNight ? "text-white/90" : "text-orange-900";
   const dateColor = isNight ? "text-white/40" : "text-orange-500/70";
-  const dividerColor = isNight ? "text-white/15" : "text-orange-300/50";
   const badgeColors = isNight ? TEAM_BADGE_COLORS_NIGHT : TEAM_BADGE_COLORS_DAY;
 
-  // --- 目標がある場合 ---
-  if (hasGoals) {
-    const duration = calcDuration(goals.length);
-    // テロップアイテムを2セット繰り返してシームレスなループを実現
-    const items = [...goals, ...goals];
+  const current = items[currentIndex % items.length];
+  if (!current) return null;
 
-    return (
-      <div
-        className="relative overflow-hidden flex-shrink-0 transition-colors duration-500"
-        style={bgStyle}
-      >
-        {/* 左右のフェードマスク */}
-        <div
-          className="absolute left-0 top-0 bottom-0 w-10 z-10 pointer-events-none"
-          style={{ background: fadeLeft }}
-        />
-        <div
-          className="absolute right-0 top-0 bottom-0 w-10 z-10 pointer-events-none"
-          style={{ background: fadeRight }}
-        />
-        {/* テロップ本体 */}
-        <div
-          className="flex items-center gap-0 py-1 px-2 team-goals-ticker-track"
-          style={{ animationDuration: `${duration}s` }}
-        >
-          {items.map((g, idx) => {
-            // DateオブジェクトまたはISO文字列をJST基準で「YYYY年M月D日」に変換
-            const toJSTDateLabel = (val: unknown): string | null => {
-              if (!val) return null;
-              let d: Date;
-              if (val instanceof Date) {
-                d = new Date(val.getTime() + 9 * 60 * 60 * 1000);
-              } else {
-                const parsed = new Date(String(val));
-                if (isNaN(parsed.getTime())) return null;
-                d = new Date(parsed.getTime() + 9 * 60 * 60 * 1000);
-              }
-              return `${d.getUTCFullYear()}年${d.getUTCMonth() + 1}月${d.getUTCDate()}日`;
-            };
-            const startStr = toJSTDateLabel(g.startDate);
-            const endStr = toJSTDateLabel(g.endDate);
-            return (
-              <div key={`${g.id}-${idx}`} className="flex items-center gap-2.5 flex-shrink-0 px-5">
-                {/* チームバッジ */}
-                <span
-                  className={cn(
-                    "text-xs font-bold px-1.5 py-0 rounded-full border flex-shrink-0 leading-5",
-                    badgeColors[g.team] ?? (isNight
-                      ? "bg-muted/60 text-foreground border-border"
-                      : "bg-gray-100 text-gray-700 border-gray-300")
-                  )}
-                >
-                  {g.team}
-                </span>
-                {/* 目標タイトル */}
-                <span className={cn("text-sm font-semibold whitespace-nowrap", titleColor)}>
-                  {g.title}
-                </span>
-                {/* 期間 */}
-                {(startStr || endStr) && (
-                  <span className={cn("text-xs whitespace-nowrap flex-shrink-0", dateColor)}>
-                    {startStr ?? ""}
-                    {startStr && endStr ? " 〜 " : ""}
-                    {endStr ?? ""}
-                  </span>
-                )}
-                {/* 区切り */}
-                <span className={cn("text-base flex-shrink-0 ml-1", dividerColor)}>｜</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
+  // JST日付ラベル変換
+  const toJSTDateLabel = (val: unknown): string | null => {
+    if (!val) return null;
+    let d: Date;
+    if (val instanceof Date) {
+      d = new Date(val.getTime() + 9 * 60 * 60 * 1000);
+    } else {
+      const parsed = new Date(String(val));
+      if (isNaN(parsed.getTime())) return null;
+      d = new Date(parsed.getTime() + 9 * 60 * 60 * 1000);
+    }
+    return `${d.getUTCFullYear()}年${d.getUTCMonth() + 1}月${d.getUTCDate()}日`;
+  };
 
-  // --- 目標がない場合：企業理念フォールバック ---
-  const fallbackItems = [...PHILOSOPHY_FALLBACK, ...PHILOSOPHY_FALLBACK];
-  const fallbackDuration = 40; // 企業理念は少しゆっくり
+  const startStr = toJSTDateLabel((current as { startDate?: unknown }).startDate);
+  const endStr = toJSTDateLabel((current as { endDate?: unknown }).endDate);
 
-  const labelColorClass = isNight
-    ? "bg-orange-500/20 text-orange-300 border-orange-500/40"
-    : "bg-orange-100 text-orange-700 border-orange-300";
-  const subColor = isNight ? "text-white/40" : "text-orange-500/70";
+  // 件数インジケーター（複数件ある場合のみ表示）
+  const showDots = items.length > 1;
 
   return (
     <div
-      className="relative overflow-hidden flex-shrink-0 transition-colors duration-500"
+      className="relative flex-shrink-0 transition-colors duration-500 overflow-hidden"
       style={bgStyle}
     >
-      {/* 左右のフェードマスク */}
+      {/* コンテンツ */}
       <div
-        className="absolute left-0 top-0 bottom-0 w-10 z-10 pointer-events-none"
-        style={{ background: fadeLeft }}
-      />
-      <div
-        className="absolute right-0 top-0 bottom-0 w-10 z-10 pointer-events-none"
-        style={{ background: fadeRight }}
-      />
-      {/* テロップ本体（企業理念） */}
-      <div
-        className="flex items-center gap-0 py-1 px-2 team-goals-ticker-track"
-        style={{ animationDuration: `${fallbackDuration}s` }}
+        className="flex items-center justify-center gap-2.5 py-1 px-4 min-h-[28px]"
+        style={{
+          opacity: visible ? 1 : 0,
+          transition: "opacity 0.4s ease",
+        }}
       >
-        {fallbackItems.map((item, idx) => (
-          <div key={`fb-${idx}`} className="flex items-center gap-2.5 flex-shrink-0 px-5">
-            {/* ラベルバッジ */}
-            <span
-              className={cn(
-                "text-xs font-bold px-1.5 py-0 rounded-full border flex-shrink-0 leading-5",
-                labelColorClass
-              )}
-            >
-              {item.label}
-            </span>
-            {/* 理念テキスト */}
-            <span className={cn("text-sm font-semibold whitespace-nowrap", titleColor)}>
-              {item.text}
-            </span>
-            {/* 説明 */}
-            <span className={cn("text-xs whitespace-nowrap flex-shrink-0", subColor)}>
-              {item.sub}
-            </span>
-            {/* 区切り */}
-            <span className={cn("text-base flex-shrink-0 ml-1", dividerColor)}>｜</span>
+        {/* チームバッジ */}
+        <span
+          className={cn(
+            "text-xs font-bold px-1.5 py-0 rounded-full border flex-shrink-0 leading-5",
+            badgeColors[current.team] ?? (isNight
+              ? "bg-muted/60 text-foreground border-border"
+              : "bg-gray-100 text-gray-700 border-gray-300")
+          )}
+        >
+          {current.team}
+        </span>
+
+        {/* 目標タイトル */}
+        <span className={cn("text-sm font-semibold truncate max-w-[60vw]", titleColor)}>
+          {current.title}
+        </span>
+
+        {/* 期間（目標がある場合のみ） */}
+        {hasGoals && (startStr || endStr) && (
+          <span className={cn("text-xs whitespace-nowrap flex-shrink-0 hidden sm:inline", dateColor)}>
+            {startStr ?? ""}
+            {startStr && endStr ? " 〜 " : ""}
+            {endStr ?? ""}
+          </span>
+        )}
+
+        {/* ページインジケーター（複数件） */}
+        {showDots && (
+          <div className="flex items-center gap-1 flex-shrink-0 ml-1">
+            {items.map((_, i) => (
+              <span
+                key={i}
+                className={cn(
+                  "rounded-full transition-all duration-300",
+                  i === currentIndex
+                    ? (isNight ? "bg-orange-400 w-3 h-1.5" : "bg-orange-500 w-3 h-1.5")
+                    : (isNight ? "bg-white/20 w-1.5 h-1.5" : "bg-orange-300/50 w-1.5 h-1.5")
+                )}
+              />
+            ))}
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
