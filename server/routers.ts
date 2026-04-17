@@ -2470,6 +2470,7 @@ export const appRouter = router({
         patientNames: z.array(z.string()).optional(),
         patientNamesWithKana: z.array(z.object({ name: z.string(), kana: z.string() })).optional(),
         staffNames: z.array(z.string()).optional(),
+        staffNamesWithKana: z.array(z.object({ name: z.string(), kana: z.string().optional() })).optional(),
       }))
       .mutation(async ({ input }) => {
         const { invokeLLM } = await import("./_core/llm");
@@ -2484,9 +2485,15 @@ export const appRouter = router({
         } else if (input.patientNames && input.patientNames.length > 0) {
           patientListStr = `\n\n登録済利用者リスト（この中から最も近い名前を選んでpatientNameに返すこと）:\n${input.patientNames.join('、')}`;
         }
-        const staffListStr = input.staffNames && input.staffNames.length > 0
-          ? `\n\n登録済みスタッフリスト（assignPersonNameはこの中から選ぶこと）:\n${input.staffNames.join('、')}`
-          : '';
+        let staffListStr = '';
+        if (input.staffNamesWithKana && input.staffNamesWithKana.length > 0) {
+          const entries = input.staffNamesWithKana
+            .map(s => s.kana ? `${s.name}（よみがな: ${s.kana}）` : s.name)
+            .join('、');
+          staffListStr = `\n\n登録済みスタッフリスト（assignPersonNameはこの中から選ぶこと。姓のみ・よみがな・苗字のよみがなで言及されても正式名を返すこと）:\n${entries}`;
+        } else if (input.staffNames && input.staffNames.length > 0) {
+          staffListStr = `\n\n登録済みスタッフリスト（assignPersonNameはこの中から選ぶこと）:\n${input.staffNames.join('、')}`;
+        }
         const today2 = new Date();
         const dayNames2 = ['日', '月', '火', '水', '木', '金', '土'];
         const todayDayName2 = dayNames2[today2.getDay()];
@@ -3496,7 +3503,7 @@ export const appRouter = router({
     // スタッフ一覧を取得（変更連絡フォーム用：全ユーザー可）
     listForForm: protectedProcedure.query(async () => {
       const all = await getAllStaff();
-      return all.map(s => ({ id: s.id, name: s.name ?? "不明", team: s.team }));
+      return all.map(s => ({ id: s.id, name: s.name ?? "不明", team: s.team, nameKana: s.nameKana ?? null }));
     }),
     // スタッフ一覧を取得（管理者のみ）
     getAll: protectedProcedure.query(async ({ ctx }) => {
@@ -3515,6 +3522,7 @@ export const appRouter = router({
         role: z.enum(["user", "admin", "super_admin"]).default("user"),
         team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]).default("身体"),
         numberPlate: z.string().max(20).optional(),
+        nameKana: z.string().max(100).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
@@ -3530,6 +3538,7 @@ export const appRouter = router({
             role: input.role,
             team: input.team,
             numberPlate: input.numberPlate,
+            nameKana: input.nameKana,
           });
           return { success: true };
         } catch (err: any) {
@@ -3614,6 +3623,7 @@ export const appRouter = router({
         team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]),
         role: z.enum(["user", "admin", "super_admin"]),
         numberPlate: z.string().max(20).optional(),
+        nameKana: z.string().max(100).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
@@ -3627,6 +3637,7 @@ export const appRouter = router({
           team: input.team,
           role: input.role,
           numberPlate: input.numberPlate,
+          nameKana: input.nameKana,
         });
         broadcastEvent("staff");
         return { success: true };

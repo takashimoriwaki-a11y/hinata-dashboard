@@ -194,7 +194,7 @@ export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps
       setVoiceError(null);
       parseVoiceMutation.mutate({
         text: transcribedText,
-        staffNames: staffList.map((s: any) => s.name).filter(Boolean) as string[],
+        staffNamesWithKana: staffList.map((s: any) => ({ name: s.name ?? "", kana: s.nameKana ?? undefined })).filter((s: any) => s.name),
       });
     },
   });
@@ -315,7 +315,7 @@ export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps
                         setVoiceError(null);
                         parseVoiceMutation.mutate({
                           text: lastVoiceText,
-                          staffNames: staffList.map((s: any) => s.name).filter(Boolean) as string[],
+                          staffNamesWithKana: staffList.map((s: any) => ({ name: s.name ?? "", kana: s.nameKana ?? undefined })).filter((s: any) => s.name),
                         });
                       }}
                       className="text-xs text-blue-400 hover:underline mt-0.5"

@@ -28,6 +28,8 @@ export const users = mysqlTable("users", {
   teamSetupDone: tinyint("teamSetupDone").default(0).notNull(),
   /** 車両ナンバープレート（アルコールチェック記録に使用） */
   numberPlate: varchar("numberPlate", { length: 20 }).default(""),
+  /** 職員のよみがな（音声認識での自動選択に使用） */
+  nameKana: varchar("nameKana", { length: 100 }).default(""),
   /** Google Calendar用アクセストークン */
   googleAccessToken: text("googleAccessToken"),
   /** Google Calendar用リフレッシュトークン */
