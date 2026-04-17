@@ -518,9 +518,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* ========== メインコンテンツエリア ========== */}
       <div className="flex flex-col flex-1 overflow-hidden min-w-0">
 
-        {/* ========== チーム目標テロップ ========== */}
-        <TeamGoalsTicker />
-
         {/* トップヘッダー */}
         <header className={cn(
           "flex items-center justify-between px-3 md:px-4 py-2.5 border-b border-border shadow-sm flex-shrink-0 bg-sidebar"
