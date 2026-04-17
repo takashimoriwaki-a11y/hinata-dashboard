@@ -608,6 +608,83 @@ ${medicalPrompt}${feedbackSection}`;
     }
   });
 
+  // 利用者エクスポート /api/export/patients
+  // 現在登録されている全利用者（有効・退所済含む）をExcelとしてダウンロード
+  // ダウンロードしたファイルはそのままインポートテンプレートとして使用可能
+  app.get("/api/export/patients", async (req, res) => {
+    try {
+      // 認証チェック
+      const { verifySession } = await import("./cookies");
+      const user = await verifySession(req);
+      if (!user) { res.status(401).json({ error: "認証が必要です" }); return; }
+
+      const { db } = await import("../db");
+      const { patients } = await import("../../drizzle/schema");
+      const { asc } = await import("drizzle-orm");
+
+      const allPatients = await db
+        .select()
+        .from(patients)
+        .orderBy(asc(patients.team), asc(patients.name));
+
+      const XLSX = await import("xlsx");
+      const wb = XLSX.utils.book_new();
+
+      // ヘッダー行（インポートテンプレートと同じ形式）
+      const headerRows = [
+        ["「利用者エクスポートデータ」 ※このファイルに行を追加してそのままインポートできます"],
+        ["★マークの列は必須です。4行目以降がデータです。有効フラグ：1=有効 / 0=退所済"],
+        ["利用者ID", "★ 氏名", "ふりがな", "★ チーム", "有効フラグ（1=有効 / 0=無効）"],
+      ];
+
+      // データ行
+      const dataRows = allPatients.map((p) => [
+        p.patientCode ?? "",
+        p.name,
+        p.nameKana ?? "",
+        p.team,
+        p.active,
+      ]);
+
+      const ws = XLSX.utils.aoa_to_sheet([...headerRows, ...dataRows]);
+
+      // 列幅設定
+      ws["!cols"] = [
+        { wch: 12 },  // 利用者ID
+        { wch: 20 },  // 氏名
+        { wch: 20 },  // ふりがな
+        { wch: 14 },  // チーム
+        { wch: 30 },  // 有効フラグ
+      ];
+
+      // ヘッダー行のスタイル（太字・背景色）
+      // 3行目（ヘッダー行）のセルに背景色を設定
+      const headerCols = ["A", "B", "C", "D", "E"];
+      for (const col of headerCols) {
+        const cellRef = `${col}3`;
+        if (ws[cellRef]) {
+          ws[cellRef].s = {
+            font: { bold: true },
+            fill: { fgColor: { rgb: "D6E4F0" } },
+          };
+        }
+      }
+
+      XLSX.utils.book_append_sheet(wb, ws, "利用者");
+
+      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+      const filename = encodeURIComponent(`ひなた_利用者一覧_${dateStr}.xlsx`);
+      res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${filename}`);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.send(buf);
+    } catch (e) {
+      console.error("[export/patients] error:", e);
+      res.status(500).json({ error: "エクスポート処理中にエラーが発生しました" });
+    }
+  });
+
   // ========== SSE（Server-Sent Events）リアルタイム同期 ==========
   // 認証済みユーザーが /api/events に接続すると、他職員の更新通知をリアルタイムで受け取れる
   const { addSseClient, removeSseClient } = await import("./sse");

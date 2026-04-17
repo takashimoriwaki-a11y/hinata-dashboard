@@ -417,18 +417,32 @@ function PatientMasterPanel() {
             <Badge variant="outline" className="text-xs">{activePatients.length}名</Badge>
           </div>
           <div className="flex gap-2 flex-wrap">
+            {/* 利用者データエクスポートボタン */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1 text-orange-600 border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950/20"
+              onClick={() => {
+                const a = document.createElement("a");
+                a.href = "/api/export/patients";
+                a.click();
+              }}
+            >
+              <Download className="w-3.5 h-3.5" />
+              データDL
+            </Button>
             {/* テンプレートダウンロードボタン */}
             <Button
               variant="outline"
               size="sm"
-              className="h-8 text-xs gap-1 text-blue-600 border-blue-300 hover:bg-blue-50"
+              className="h-8 text-xs gap-1 text-blue-600 border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/20"
               onClick={() => {
                 const a = document.createElement("a");
                 a.href = "/api/template/patients";
                 a.click();
               }}
             >
-              <Download className="w-3.5 h-3.5" />
+              <FileSpreadsheet className="w-3.5 h-3.5" />
               テンプレートDL
             </Button>
             {/* Excelインポートボタン */}
@@ -442,11 +456,11 @@ function PatientMasterPanel() {
             <Button
               variant="outline"
               size="sm"
-              className="h-8 text-xs gap-1 text-emerald-600 border-emerald-300 hover:bg-emerald-50"
+              className="h-8 text-xs gap-1 text-emerald-600 border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
               onClick={() => patientExcelRef.current?.click()}
               disabled={importingPatients}
             >
-              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <Upload className="w-3.5 h-3.5" />
               {importingPatients ? "処理中..." : "Excelインポート"}
             </Button>
             <Button
@@ -470,6 +484,7 @@ function PatientMasterPanel() {
         </div>
         <p className="text-xs text-muted-foreground mt-1">
           記録入力時に選択できる利用者の一覧を管理します。
+          「データDL」で現在登録済みの利用者一覧をExcelでダウンロードできます。ダウンロードしたファイルに行を追加して「Excelインポート」で新規利用者を一括登録できます。
         </p>
       </CardHeader>
 
