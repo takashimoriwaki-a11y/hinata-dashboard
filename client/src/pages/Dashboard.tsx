@@ -5132,7 +5132,7 @@ function TeamGoalsTicker() {
         setCurrentIndex(prev => (prev + 1) % goals.length);
         setVisible(true);
       }, 400);
-    }, 4000);
+    }, 10000);
     return () => clearInterval(interval);
   }, [goals.length]);
 
@@ -5146,8 +5146,8 @@ function TeamGoalsTicker() {
   const endStr = g.endDate ? (() => { const d = new Date(g.endDate); return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`; })() : null;
 
   return (
-    <div className="rounded-xl bg-orange-50/70 dark:bg-card border border-orange-200/60 dark:border-border shadow-sm">
-      <div className="flex items-center gap-3 py-2.5 px-4 min-h-[42px]">
+    <div className="rounded-xl bg-card border border-border shadow-sm">
+      <div className="flex items-center gap-3 py-1.5 px-4 min-h-[34px]">
         {/* チームバッジ */}
         <span
           className={cn(
