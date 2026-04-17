@@ -1022,6 +1022,12 @@ export const personalTasks = mysqlTable("personal_tasks", {
   assignUserId: int("assignUserId"),
   /** 個人指定の場合の対象ユーザー名（表示用キャッシュ） */
   assignUserName: text("assignUserName"),
+  /** 複数チーム指定（JSON配列文字列） */
+  assignTeams: text("assignTeams"),
+  /** 複数個人指定のユーザーID（JSON配列文字列） */
+  assignUserIds: text("assignUserIds"),
+  /** 複数個人指定のユーザー名（JSON配列文字列） */
+  assignUserNames: text("assignUserNames"),
   /**
    * 繰り返しタイプ
    * none=なし, daily=毎日, weekly=毎週, biweekly=隔週,

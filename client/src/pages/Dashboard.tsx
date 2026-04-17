@@ -3463,25 +3463,24 @@ function TasksCard() {
     { refetchInterval: 15 * 1000, staleTime: 0 }
   );
 
-  // 今日の個人タスク（今日が期日のもの、または今日が指定日時のもの）
+  // 今日の個人タスク（期日あり未完了タスク全表示＋期日切れ含む、5件上限・他職員への依頼タスク除外）
   const todayPersonalTasks = useMemo(() => {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const todayEnd = todayStart + 24 * 60 * 60 * 1000 - 1;
     return personalTasksData
       .filter((t) => {
         if (t.isDone) return false;
         if (!t.dueDate) return false;
-        const due = new Date(t.dueDate).getTime();
-        return due >= todayStart && due <= todayEnd;
+        // 自分が作成した他職員への依頼タスクを除外
+        if (t.assignType === "personal" && t.assignUserId !== user?.id && t.createdBy === user?.id) return false;
+        return true;
       })
       .sort((a, b) => {
         if (!a.dueDate && !b.dueDate) return 0;
         if (!a.dueDate) return 1;
         if (!b.dueDate) return -1;
         return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-      });
-  }, [personalTasksData]);
+      })
+      .slice(0, 5);
+  }, [personalTasksData, user?.id]);
 
   // 期限切れタスク（今日より前の期日で未完了）のカウント
   const overdueCount = useMemo(() => {
@@ -3490,10 +3489,11 @@ function TasksCard() {
     return personalTasksData.filter((t) => {
       if (t.isDone) return false;
       if (!t.dueDate) return false;
+      if (t.assignType === "personal" && t.assignUserId !== user?.id && t.createdBy === user?.id) return false;
       const due = new Date(t.dueDate).getTime();
       return due < todayStart;
     }).length;
-  }, [personalTasksData]);
+  }, [personalTasksData, user?.id]);
 
   const toggleTask = trpc.personalTasks.toggleDone.useMutation({
     onMutate: async ({ id, done }) => {
@@ -3564,9 +3564,15 @@ function TasksCard() {
                 </button>
                 <div className="flex-1 min-w-0">
                   <span className={cn("text-sm block transition-colors duration-300", task.isDone ? "animate-strike text-muted-foreground" : "text-foreground")}>
-                    {task.title}
+                    {task.text}
                   </span>
                   <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                    {/* 作成者バッジ（他者から依頼されたタスク） */}
+                    {task.createdBy !== user?.id && task.createdByName && (
+                      <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 font-medium">
+                        {task.createdByName}から依頼
+                      </span>
+                    )}
                     {/* タスク種別バッジ */}
                     {taskKind === "at_time" ? (
                       <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0 rounded-full bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 font-medium">

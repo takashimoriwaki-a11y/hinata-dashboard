@@ -1,9 +1,11 @@
 /**
  * PersonalTasks - 個人タスク管理ページ（利用者と無関係の個人タスク）
- * - 自分のみ / 個人指定 / チーム / 全職員 への指定
+ * - 自分のみ / 個人指定（複数） / チーム（複数） / 全職員 への指定
  * - この日時にする（at_time）/ この日時まで（by_deadline）の区別
- * - 繰り返し設定：毎日・毎週・隔週・毎月（N月毎）・第N曜日
+ * - 繰り返し設定：毎日・毎週・隔週・毎月（N月毎）・第N曜日（by_deadlineのみ）
  * - 期日順（直近から）表示
+ * - 「依頼した」フィルター：自分が他者に依頼したタスク
+ * - 「すべて」フィルター：自分に関係するタスクのみ（他者への依頼は除外）
  */
 import React, { useState, useMemo, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
@@ -21,6 +23,7 @@ type AssignType = "self" | "personal" | "team" | "all";
 type TeamName = "身体" | "天理" | "郡山北部" | "郡山南部";
 type RepeatType = "none" | "daily" | "weekly" | "biweekly" | "monthly" | "nth_weekday";
 type TaskKind = "at_time" | "by_deadline";
+type FilterMode = "all" | "at_time" | "by_deadline" | "delegated";
 
 const TEAMS: TeamName[] = ["身体", "天理", "郡山北部", "郡山南部"];
 const TEAM_COLORS: Record<TeamName, string> = {
@@ -109,9 +112,11 @@ export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps
   const [dueDate, setDueDate] = useState("");
   const [dueTime, setDueTime] = useState("");
   const [assignType, setAssignType] = useState<AssignType>("self");
-  const [assignTeam, setAssignTeam] = useState<TeamName | "">(userTeam as TeamName || "");
-  const [assignUserId, setAssignUserId] = useState<number | null>(null);
-  const [assignUserName, setAssignUserName] = useState("");
+  // 複数チーム選択
+  const [assignTeams, setAssignTeams] = useState<TeamName[]>(userTeam ? [userTeam as TeamName] : []);
+  // 複数個人選択
+  const [assignUserIds, setAssignUserIds] = useState<number[]>([]);
+  const [assignUserNames, setAssignUserNames] = useState<string[]>([]);
   const [repeatType, setRepeatType] = useState<RepeatType>("none");
   const [repeatDayOfWeek, setRepeatDayOfWeek] = useState<number>(1);
   const [repeatDayOfMonth, setRepeatDayOfMonth] = useState<number>(1);
@@ -120,7 +125,7 @@ export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps
   const [repeatNthDayOfWeek, setRepeatNthDayOfWeek] = useState<number>(1);
   const [repeatEndDate, setRepeatEndDate] = useState("");
 
-  const staffQuery = trpc.staff.getAll.useQuery();
+  const staffQuery = trpc.staff.listForForm.useQuery();
   const staffList = (staffQuery.data ?? []) as any[];
 
   const createMutation = trpc.personalTasks.create.useMutation({
@@ -131,6 +136,24 @@ export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps
     },
     onError: (e) => toast.error(e.message),
   });
+
+  const toggleTeam = useCallback((team: TeamName) => {
+    setAssignTeams(prev =>
+      prev.includes(team) ? prev.filter(t => t !== team) : [...prev, team]
+    );
+  }, []);
+
+  const toggleUser = useCallback((id: number, name: string) => {
+    setAssignUserIds(prev => {
+      if (prev.includes(id)) {
+        setAssignUserNames(n => n.filter((_, i) => prev.indexOf(id) !== i));
+        return prev.filter(i => i !== id);
+      } else {
+        setAssignUserNames(n => [...n, name]);
+        return [...prev, id];
+      }
+    });
+  }, []);
 
   const handleSubmit = useCallback(() => {
     if (!text.trim()) {
@@ -148,14 +171,22 @@ export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps
       const [year, month, day] = repeatEndDate.split("-").map(Number);
       repeatEndDateObj = new Date(year, month - 1, day, 23, 59, 59);
     }
+
+    // 複数チーム・複数個人の場合はassignTeams/assignUserIds/assignUserNamesに格納
+    const isMultiTeam = assignType === "team" && assignTeams.length > 1;
+    const isMultiPersonal = assignType === "personal" && assignUserIds.length > 1;
+
     createMutation.mutate({
       text: text.trim(),
       taskKind,
       dueDate: dueDateObj,
       assignType,
-      assignTeam: assignType === "team" && assignTeam ? assignTeam as TeamName : undefined,
-      assignUserId: assignType === "personal" && assignUserId ? assignUserId : undefined,
-      assignUserName: assignType === "personal" && assignUserName ? assignUserName : undefined,
+      assignTeam: assignType === "team" && assignTeams.length === 1 ? assignTeams[0] : undefined,
+      assignUserId: assignType === "personal" && assignUserIds.length === 1 ? assignUserIds[0] : undefined,
+      assignUserName: assignType === "personal" && assignUserNames.length === 1 ? assignUserNames[0] : undefined,
+      assignTeams: isMultiTeam ? assignTeams : undefined,
+      assignUserIds: isMultiPersonal ? assignUserIds : undefined,
+      assignUserNames: isMultiPersonal ? assignUserNames : undefined,
       repeatType,
       repeatDayOfWeek: ["weekly", "biweekly"].includes(repeatType) ? repeatDayOfWeek : undefined,
       repeatDayOfMonth: repeatType === "monthly" ? repeatDayOfMonth : undefined,
@@ -164,9 +195,9 @@ export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps
       repeatNthDayOfWeek: repeatType === "nth_weekday" ? repeatNthDayOfWeek : undefined,
       repeatEndDate: repeatType !== "none" ? repeatEndDateObj : undefined,
     });
-  }, [text, taskKind, dueDate, dueTime, assignType, assignTeam, assignUserId, assignUserName,
+  }, [text, taskKind, dueDate, dueTime, assignType, assignTeams, assignUserIds, assignUserNames,
     repeatType, repeatDayOfWeek, repeatDayOfMonth, repeatMonthInterval, repeatNthWeek,
-    repeatNthDayOfWeek, repeatEndDate, createMutation, toast]);
+    repeatNthDayOfWeek, repeatEndDate, createMutation]);
 
   return (
     <div className="rounded-xl border border-blue-400/30 bg-card shadow-sm mb-3">
@@ -236,32 +267,51 @@ export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps
               {TEAMS.map(team => (
                 <button
                   key={team}
-                  onClick={() => setAssignTeam(team)}
+                  onClick={() => toggleTeam(team)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    assignTeam === team ? TEAM_COLORS[team] : "bg-muted text-muted-foreground"
+                    assignTeams.includes(team) ? TEAM_COLORS[team] : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {team}
                 </button>
               ))}
+              {assignTeams.length > 0 && (
+                <span className="text-xs text-muted-foreground self-center">
+                  {assignTeams.join("・")}に送信
+                </span>
+              )}
             </div>
           )}
           {assignType === "personal" && (
-            <select
-              className="mt-2 w-full bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm border border-border"
-              value={assignUserId ?? ""}
-              onChange={e => {
-                const id = Number(e.target.value);
-                setAssignUserId(id || null);
-                const staff = staffList.find((s: any) => s.id === id);
-                setAssignUserName(staff?.name ?? "");
-              }}
-            >
-              <option value="">スタッフを選択...</option>
-              {staffList.map((s: any) => (
-                <option key={s.id} value={s.id}>{s.name}（{s.team}）</option>
-              ))}
-            </select>
+            <div className="mt-2 space-y-1">
+              <div className="flex flex-wrap gap-1.5 mb-1">
+                {assignUserIds.map((id, i) => (
+                  <span key={id} className="flex items-center gap-1 bg-indigo-900/50 text-indigo-300 text-xs px-2 py-1 rounded-lg">
+                    {assignUserNames[i]}
+                    <button onClick={() => toggleUser(id, assignUserNames[i])} className="hover:text-white">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <select
+                className="w-full bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm border border-border"
+                value=""
+                onChange={e => {
+                  const id = Number(e.target.value);
+                  if (!id) return;
+                  const staff = staffList.find((s: any) => s.id === id);
+                  if (staff && !assignUserIds.includes(id)) {
+                    toggleUser(id, staff.name);
+                  }
+                }}
+              >
+                <option value="">スタッフを追加...</option>
+                {staffList.filter((s: any) => !assignUserIds.includes(s.id)).map((s: any) => (
+                  <option key={s.id} value={s.id}>{s.name}（{s.team}）</option>
+                ))}
+              </select>
+            </div>
           )}
         </div>
 
@@ -303,82 +353,84 @@ export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps
           />
         </div>
 
-        {/* 繰り返し */}
-        <div className="mb-6">
-          <label className="text-muted-foreground text-xs uppercase tracking-wide mb-2 block flex items-center gap-1">
-            <Repeat className="w-3.5 h-3.5" />繰り返し
-          </label>
-          <div className="grid grid-cols-3 gap-1.5 mb-2">
-            {(["none", "daily", "weekly", "biweekly", "monthly", "nth_weekday"] as RepeatType[]).map(type => (
-              <button
-                key={type}
-                onClick={() => setRepeatType(type)}
-                className={`py-2 rounded-xl text-xs font-medium transition-all ${
-                  repeatType === type
-                    ? "bg-purple-600 text-white"
-                    : "bg-muted text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {type === "none" && "なし"}
-                {type === "daily" && "毎日"}
-                {type === "weekly" && "毎週"}
-                {type === "biweekly" && "隔週"}
-                {type === "monthly" && "毎月"}
-                {type === "nth_weekday" && "第N曜日"}
-              </button>
-            ))}
-          </div>
-          {(repeatType === "weekly" || repeatType === "biweekly") && (
-            <div className="flex gap-1 mt-1">
-              {WEEKDAY_LABELS.map((label, i) => (
-                <button key={i} onClick={() => setRepeatDayOfWeek(i)}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    repeatDayOfWeek === i ? "bg-purple-600 text-white" : "bg-muted text-muted-foreground"
-                  }`}>{label}</button>
+        {/* 繰り返し（「この日時にする」の場合のみ表示） */}
+        {taskKind === "at_time" && (
+          <div className="mb-6">
+            <label className="text-muted-foreground text-xs uppercase tracking-wide mb-2 block flex items-center gap-1">
+              <Repeat className="w-3.5 h-3.5" />繰り返し
+            </label>
+            <div className="grid grid-cols-3 gap-1.5 mb-2">
+              {(["none", "daily", "weekly", "biweekly", "monthly", "nth_weekday"] as RepeatType[]).map(type => (
+                <button
+                  key={type}
+                  onClick={() => setRepeatType(type)}
+                  className={`py-2 rounded-xl text-xs font-medium transition-all ${
+                    repeatType === type
+                      ? "bg-purple-600 text-white"
+                      : "bg-muted text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {type === "none" && "なし"}
+                  {type === "daily" && "毎日"}
+                  {type === "weekly" && "毎週"}
+                  {type === "biweekly" && "隔週"}
+                  {type === "monthly" && "毎月"}
+                  {type === "nth_weekday" && "第N曜日"}
+                </button>
               ))}
             </div>
-          )}
-          {repeatType === "monthly" && (
-            <div className="flex gap-2 mt-1 items-center">
-              <select value={repeatMonthInterval} onChange={e => setRepeatMonthInterval(Number(e.target.value))}
-                className="bg-muted text-foreground rounded-xl px-2 py-2 text-sm border border-border">
-                {[1, 2, 3, 4, 6, 12].map(n => <option key={n} value={n}>{n}ヶ月毎</option>)}
-              </select>
-              <select value={repeatDayOfMonth} onChange={e => setRepeatDayOfMonth(Number(e.target.value))}
-                className="bg-muted text-foreground rounded-xl px-2 py-2 text-sm border border-border">
-                {Array.from({ length: 31 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}日</option>)}
-              </select>
-            </div>
-          )}
-          {repeatType === "nth_weekday" && (
-            <div className="flex gap-2 mt-1 items-center flex-wrap">
-              <select value={repeatNthWeek} onChange={e => setRepeatNthWeek(Number(e.target.value))}
-                className="bg-muted text-foreground rounded-xl px-2 py-2 text-sm border border-border">
-                {NTH_WEEK_VALUES.map((v, i) => <option key={v} value={v}>{NTH_WEEK_LABELS[i]}</option>)}
-              </select>
-              <div className="flex gap-1">
+            {(repeatType === "weekly" || repeatType === "biweekly") && (
+              <div className="flex gap-1 mt-1">
                 {WEEKDAY_LABELS.map((label, i) => (
-                  <button key={i} onClick={() => setRepeatNthDayOfWeek(i)}
-                    className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      repeatNthDayOfWeek === i ? "bg-purple-600 text-white" : "bg-muted text-muted-foreground"
+                  <button key={i} onClick={() => setRepeatDayOfWeek(i)}
+                    className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      repeatDayOfWeek === i ? "bg-purple-600 text-white" : "bg-muted text-muted-foreground"
                     }`}>{label}</button>
                 ))}
               </div>
-            </div>
-          )}
-          {repeatType !== "none" && (
-            <div className="mt-2 flex items-center gap-2">
-              <span className="text-gray-500 text-xs whitespace-nowrap">終了日（任意）</span>
-              <input type="date" value={repeatEndDate} onChange={e => setRepeatEndDate(e.target.value)}
-                className="flex-1 bg-muted text-foreground rounded-xl px-2 py-1.5 text-xs border border-border" />
-              {repeatEndDate && (
-                <button onClick={() => setRepeatEndDate("")} className="text-gray-500 hover:text-white">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+            )}
+            {repeatType === "monthly" && (
+              <div className="flex gap-2 mt-1 items-center">
+                <select value={repeatMonthInterval} onChange={e => setRepeatMonthInterval(Number(e.target.value))}
+                  className="bg-muted text-foreground rounded-xl px-2 py-2 text-sm border border-border">
+                  {[1, 2, 3, 4, 6, 12].map(n => <option key={n} value={n}>{n}ヶ月毎</option>)}
+                </select>
+                <select value={repeatDayOfMonth} onChange={e => setRepeatDayOfMonth(Number(e.target.value))}
+                  className="bg-muted text-foreground rounded-xl px-2 py-2 text-sm border border-border">
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}日</option>)}
+                </select>
+              </div>
+            )}
+            {repeatType === "nth_weekday" && (
+              <div className="flex gap-2 mt-1 items-center flex-wrap">
+                <select value={repeatNthWeek} onChange={e => setRepeatNthWeek(Number(e.target.value))}
+                  className="bg-muted text-foreground rounded-xl px-2 py-2 text-sm border border-border">
+                  {NTH_WEEK_VALUES.map((v, i) => <option key={v} value={v}>{NTH_WEEK_LABELS[i]}</option>)}
+                </select>
+                <div className="flex gap-1">
+                  {WEEKDAY_LABELS.map((label, i) => (
+                    <button key={i} onClick={() => setRepeatNthDayOfWeek(i)}
+                      className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        repeatNthDayOfWeek === i ? "bg-purple-600 text-white" : "bg-muted text-muted-foreground"
+                      }`}>{label}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {repeatType !== "none" && (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-gray-500 text-xs whitespace-nowrap">終了日（任意）</span>
+                <input type="date" value={repeatEndDate} onChange={e => setRepeatEndDate(e.target.value)}
+                  className="flex-1 bg-muted text-foreground rounded-xl px-2 py-1.5 text-xs border border-border" />
+                {repeatEndDate && (
+                  <button onClick={() => setRepeatEndDate("")} className="text-gray-500 hover:text-white">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         <Button
           onClick={handleSubmit}
@@ -397,10 +449,12 @@ function TaskCard({
   task,
   onToggle,
   onDelete,
+  currentUserId,
 }: {
   task: any;
   onToggle: (id: number, done: boolean) => void;
   onDelete: (id: number) => void;
+  currentUserId?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
   const isDone = task.done === 1;
@@ -409,6 +463,9 @@ function TaskCard({
   const dueDateColor = getDueDateColor(task.dueDate, isDone);
   const repeatStr = formatRepeat(task);
   const isOverdue = dueDateColor.includes("red");
+
+  // 作成者バッジ：自分以外が作成したタスクに「〇〇から依頼」を表示
+  const isDelegatedToMe = task.createdBy && currentUserId && task.createdBy !== currentUserId;
 
   return (
     <div className={`rounded-xl border transition-all ${
@@ -478,9 +535,11 @@ function TaskCard({
                 <User className="w-3 h-3" />{task.assignUserName}
               </span>
             )}
-            {/* 作成者 */}
-            {task.createdByName && (
-              <span className="text-xs text-gray-600">by {task.createdByName}</span>
+            {/* 作成者バッジ：他者から依頼されたタスク */}
+            {isDelegatedToMe && task.createdByName && (
+              <span className="text-xs px-1.5 py-0.5 rounded-md bg-amber-900/50 text-amber-300 flex items-center gap-1">
+                <User className="w-3 h-3" />{task.createdByName}から依頼
+              </span>
             )}
           </div>
         </div>
@@ -511,7 +570,7 @@ export default function PersonalTasks() {
   const { user, loading: authLoading } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showDone, setShowDone] = useState(false);
-  const [filterKind, setFilterKind] = useState<"all" | TaskKind>("all");
+  const [filterMode, setFilterMode] = useState<FilterMode>("all");
 
   const tasksQuery = trpc.personalTasks.getMyTasks.useQuery(
     { showDone },
@@ -544,9 +603,37 @@ export default function PersonalTasks() {
   });
 
   const filteredTasks = useMemo(() => {
-    if (filterKind === "all") return tasks;
-    return tasks.filter((t: any) => t.taskKind === filterKind);
-  }, [tasks, filterKind]);
+    const currentUserId = user?.id;
+    if (filterMode === "delegated") {
+      // 「依頼した」：自分が作成して他者に割り当てたタスク
+      return tasks.filter((t: any) =>
+        t.createdBy === currentUserId &&
+        t.assignType !== "self" &&
+        t.assignUserId !== currentUserId
+      );
+    }
+    if (filterMode === "at_time") {
+      return tasks.filter((t: any) =>
+        t.taskKind === "at_time" &&
+        // 他者への依頼タスクは除外（自分が担当のもの or 自分が作成したもの）
+        (t.assignUserId === currentUserId || t.createdBy === currentUserId || t.assignType === "self")
+      );
+    }
+    if (filterMode === "by_deadline") {
+      return tasks.filter((t: any) =>
+        t.taskKind === "by_deadline" &&
+        (t.assignUserId === currentUserId || t.createdBy === currentUserId || t.assignType === "self")
+      );
+    }
+    // 「すべて」：自分に関係するタスク（他者への依頼は除外）
+    return tasks.filter((t: any) =>
+      t.assignUserId === currentUserId ||
+      t.createdBy === currentUserId ||
+      t.assignType === "self" ||
+      t.assignType === "all" ||
+      (t.assignType === "team" && t.assignTeam === user?.team)
+    );
+  }, [tasks, filterMode, user]);
 
   const sortedTasks = useMemo(() => {
     return [...filteredTasks].sort((a: any, b: any) => {
@@ -559,7 +646,7 @@ export default function PersonalTasks() {
   const pendingTasks = sortedTasks.filter((t: any) => t.done !== 1);
   const doneTasks = sortedTasks.filter((t: any) => t.done === 1);
 
-   if (authLoading) {
+  if (authLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
@@ -597,20 +684,21 @@ export default function PersonalTasks() {
         </div>
 
         {/* フィルター */}
-        <div className="flex gap-1.5 mb-4">
-          {(["all", "at_time", "by_deadline"] as const).map(kind => (
+        <div className="flex gap-1.5 mb-4 flex-wrap">
+          {(["all", "at_time", "by_deadline", "delegated"] as FilterMode[]).map(mode => (
             <button
-              key={kind}
-              onClick={() => setFilterKind(kind)}
+              key={mode}
+              onClick={() => setFilterMode(mode)}
               className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
-                filterKind === kind
+                filterMode === mode
                   ? "bg-indigo-600 text-white"
                   : "bg-muted text-muted-foreground hover:text-foreground"
               }`}
             >
-              {kind === "all" && "すべて"}
-              {kind === "at_time" && "日時指定"}
-              {kind === "by_deadline" && "期日"}
+              {mode === "all" && "すべて"}
+              {mode === "at_time" && "日時指定"}
+              {mode === "by_deadline" && "期日"}
+              {mode === "delegated" && "依頼した"}
             </button>
           ))}
           <button
@@ -645,13 +733,17 @@ export default function PersonalTasks() {
         ) : pendingTasks.length === 0 ? (
           <div className="text-center py-14 text-gray-600">
             <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-20" />
-            <p className="text-sm">未完了のタスクはありません</p>
-            <button
-              onClick={() => setShowCreateForm(true)}
-              className="mt-3 text-blue-500 text-sm hover:underline"
-            >
-              タスクを追加する
-            </button>
+            <p className="text-sm">
+              {filterMode === "delegated" ? "依頼したタスクはありません" : "未完了のタスクはありません"}
+            </p>
+            {filterMode !== "delegated" && (
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="mt-3 text-blue-500 text-sm hover:underline"
+              >
+                タスクを追加する
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-2">
@@ -661,6 +753,7 @@ export default function PersonalTasks() {
                 task={task}
                 onToggle={(id, done) => toggleMutation.mutate({ id, done })}
                 onDelete={(id) => deleteMutation.mutate({ id })}
+                currentUserId={user?.id}
               />
             ))}
           </div>
@@ -679,6 +772,7 @@ export default function PersonalTasks() {
                   task={task}
                   onToggle={(id, done) => toggleMutation.mutate({ id, done })}
                   onDelete={(id) => deleteMutation.mutate({ id })}
+                  currentUserId={user?.id}
                 />
               ))}
             </div>

@@ -2561,6 +2561,9 @@ export async function createPersonalTask(data: {
   assignTeam?: "身体" | "天理" | "郡山北部" | "郡山南部";
   assignUserId?: number;
   assignUserName?: string;
+  assignTeams?: string;
+  assignUserIds?: string;
+  assignUserNames?: string;
   repeatType: "none" | "daily" | "weekly" | "biweekly" | "monthly" | "nth_weekday";
   repeatDayOfWeek?: number;
   repeatDayOfMonth?: number;
@@ -2582,6 +2585,9 @@ export async function createPersonalTask(data: {
     assignTeam: data.assignTeam ?? null,
     assignUserId: data.assignUserId ?? null,
     assignUserName: data.assignUserName ?? null,
+    assignTeams: data.assignTeams ?? null,
+    assignUserIds: data.assignUserIds ?? null,
+    assignUserNames: data.assignUserNames ?? null,
     repeatType: data.repeatType,
     repeatDayOfWeek: data.repeatDayOfWeek ?? null,
     repeatDayOfMonth: data.repeatDayOfMonth ?? null,

@@ -3819,8 +3819,41 @@ export const appRouter = router({
 
         return result;
       }),
-  }),
 
+    /** よみがなCSVエクスポート */
+    exportKana: protectedProcedure.query(async () => {
+      const { getDb } = await import("./db");
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続失敗" });
+      const { users: usersTable } = await import("../drizzle/schema");
+      const staffList = await db.select({ id: usersTable.id, name: usersTable.name, nameKana: usersTable.nameKana, team: usersTable.team })
+        .from(usersTable)
+        .orderBy(usersTable.name);
+      return staffList;
+    }),
+
+    /** よみがなCSV一括更新 */
+    bulkUpdateKana: protectedProcedure
+      .input(z.array(z.object({
+        id: z.number(),
+        nameKana: z.string(),
+      })))
+      .mutation(async ({ input }) => {
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続失敗" });
+        const { users: usersTable } = await import("../drizzle/schema");
+        const { eq: drizzleEq } = await import("drizzle-orm");
+        let updated = 0;
+        for (const item of input) {
+          await db.update(usersTable)
+            .set({ nameKana: item.nameKana, updatedAt: new Date() })
+            .where(drizzleEq(usersTable.id, item.id));
+          updated++;
+        }
+        return { updated };
+      }),
+  }),
   // ========== スケジュール変更連絡 ==========
   scheduleChanges: router({
     /** スケジュール変更連絡を作成する */
@@ -6694,6 +6727,9 @@ export const appRouter = router({
         assignTeam: z.enum(["身体", "天理", "郡山北部", "郡山南部"]).optional(),
         assignUserId: z.number().optional(),
         assignUserName: z.string().optional(),
+        assignTeams: z.string().optional(),
+        assignUserIds: z.string().optional(),
+        assignUserNames: z.string().optional(),
         repeatType: z.enum(["none", "daily", "weekly", "biweekly", "monthly", "nth_weekday"]).default("none"),
         repeatDayOfWeek: z.number().min(0).max(6).optional(),
         repeatDayOfMonth: z.number().min(1).max(31).optional(),
@@ -6704,11 +6740,17 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const { createPersonalTask } = await import("./db");
-        return await createPersonalTask({
+        const result = await createPersonalTask({
           ...input,
           createdBy: ctx.user.id,
           createdByName: ctx.user.name ?? "不明",
         });
+        // SSEブロードキャスト
+        try {
+          const { broadcastEvent } = await import("./_core/sse");
+          broadcastEvent("personalTasks");
+        } catch {}
+        return result;
       }),
 
     /** タスクを完了/未完了にする */
@@ -6719,7 +6761,9 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const { togglePersonalTaskDone } = await import("./db");
-        return await togglePersonalTaskDone(input.id, input.done, ctx.user.id);
+        const result = await togglePersonalTaskDone(input.id, input.done, ctx.user.id);
+        try { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("personalTasks"); } catch {}
+        return result;
       }),
 
     /** タスクを更新する */
@@ -6743,7 +6787,9 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const { updatePersonalTask } = await import("./db");
-        return await updatePersonalTask(input.id, input, ctx.user.id);
+        const result = await updatePersonalTask(input.id, input, ctx.user.id);
+        try { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("personalTasks"); } catch {}
+        return result;
       }),
 
     /** タスクを削除する（ソフトデリート） */
@@ -6751,7 +6797,9 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         const { deletePersonalTask } = await import("./db");
-        return await deletePersonalTask(input.id, ctx.user.id);
+        const result = await deletePersonalTask(input.id, ctx.user.id);
+        try { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("personalTasks"); } catch {}
+        return result;
       }),
   }),
 });

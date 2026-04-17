@@ -1452,6 +1452,52 @@ function StaffManagementPanel() {
   // Excelインポート
   const staffExcelRef = useRef<HTMLInputElement>(null);
   const [importingStaff, setImportingStaff] = useState(false);
+
+  // よみがなCSVエクスポート
+  const exportKana = trpc.staff.exportKana.useMutation({
+    onSuccess: (data) => {
+      const blob = new Blob([data.csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "staff_kana.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("よみがなCSVをダウンロードしました");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  // よみがなCSVインポート
+  const kanaCSVRef = useRef<HTMLInputElement>(null);
+  const [importingKana, setImportingKana] = useState(false);
+  const bulkUpdateKana = trpc.staff.bulkUpdateKana.useMutation({
+    onSuccess: (data) => {
+      utils.staff.getAll.invalidate();
+      toast.success(`${data.updated}名のよみがなを更新しました`);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const handleKanaCSVImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportingKana(true);
+    try {
+      const text = await file.text();
+      const lines = text.split("\n").filter(l => l.trim());
+      const items = lines.slice(1).map(line => {
+        const [idStr, , nameKana] = line.split(",");
+        return { id: parseInt(idStr, 10), nameKana: (nameKana ?? "").trim().replace(/\r/g, "") };
+      }).filter(item => !isNaN(item.id) && item.nameKana);
+      if (items.length === 0) { toast.error("有効なデータが見つかりませんでした"); return; }
+      bulkUpdateKana.mutate({ items });
+    } catch {
+      toast.error("CSVの読み込みに失敗しました");
+    } finally {
+      setImportingKana(false);
+      if (kanaCSVRef.current) kanaCSVRef.current.value = "";
+    }
+  }, [bulkUpdateKana]);
   const handleStaffExcelImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1614,6 +1660,35 @@ function StaffManagementPanel() {
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
               {importingStaff ? "処理中..." : "Excelインポート"}
+            </Button>
+            {/* よみがなCSVエクスポートボタン */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1 text-purple-600 border-purple-300 hover:bg-purple-50"
+              onClick={() => exportKana.mutate()}
+              disabled={exportKana.isPending}
+            >
+              <Download className="w-3.5 h-3.5" />
+              よみがなDL
+            </Button>
+            {/* よみがなCSVインポートボタン */}
+            <input
+              ref={kanaCSVRef}
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={handleKanaCSVImport}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1 text-orange-600 border-orange-300 hover:bg-orange-50"
+              onClick={() => kanaCSVRef.current?.click()}
+              disabled={importingKana}
+            >
+              <Upload className="w-3.5 h-3.5" />
+              {importingKana ? "インポート中..." : "よみがな登録"}
             </Button>
             <Button size="sm" className="h-8 text-xs gap-1" onClick={() => setShowAddForm((v) => !v)}>
               <UserPlus className="w-3.5 h-3.5" />
