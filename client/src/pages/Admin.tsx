@@ -129,6 +129,7 @@ function PatientManagementPanel() {
   const patientExcelRef = useRef<HTMLInputElement>(null);
   const [importingPatients, setImportingPatients] = useState(false);
   const [showBulkPanel, setShowBulkPanel] = useState(false);
+  const [importResult, setImportResult] = useState<{ created: number; updated: number; skipped: number; errors: string[] } | null>(null);
 
   const handlePatientExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -146,10 +147,15 @@ function PatientManagementPanel() {
       if (!res.ok) {
         toast.error((json as { error?: string }).error || "インポートに失敗しました");
       } else {
-        const r = json as { success?: number; skipped?: number; errors?: string[] };
-        toast.success(`${r.success ?? 0}名を登録しました（スキップ: ${r.skipped ?? 0}名）`);
-        if (r.errors && r.errors.length > 0) {
-          toast.error(r.errors.slice(0, 3).join("\n"));
+        const r = json as { created?: number; updated?: number; success?: number; skipped?: number; errors?: string[] };
+        const created = r.created ?? r.success ?? 0;
+        const updated = r.updated ?? 0;
+        const skipped = r.skipped ?? 0;
+        const errors = r.errors ?? [];
+        setImportResult({ created, updated, skipped, errors });
+        toast.success(`${created}名を登録しました（スキップ: ${skipped}名）`);
+        if (errors.length > 0) {
+          toast.error(errors.slice(0, 3).join("\n"));
         }
         utils.patients.listAll.invalidate();
       }
