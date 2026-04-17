@@ -3473,6 +3473,10 @@ function TasksCard() {
         if (t.isDone) return false;
         if (!t.dueDate) return false;
         const due = new Date(t.dueDate).getTime();
+        const kind = (t.taskKind ?? "by_deadline") as string;
+        // by_deadline: 期日が今日以前（期日内）のタスクを表示
+        // at_time: 今日が期日のタスクのみ表示
+        if (kind === "by_deadline") return due <= todayEnd;
         return due >= todayStart && due <= todayEnd;
       })
       .sort((a, b) => {

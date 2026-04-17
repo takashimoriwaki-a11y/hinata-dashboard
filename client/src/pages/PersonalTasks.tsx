@@ -303,8 +303,8 @@ export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps
           />
         </div>
 
-        {/* 繰り返し */}
-        <div className="mb-6">
+        {/* 繰り返し：「この日時まで」選択時は非表示 */}
+        {taskKind !== "by_deadline" ? (<div className="mb-6">
           <label className="text-muted-foreground text-xs uppercase tracking-wide mb-2 block flex items-center gap-1">
             <Repeat className="w-3.5 h-3.5" />繰り返し
           </label>
@@ -378,7 +378,7 @@ export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps
               )}
             </div>
           )}
-        </div>
+        </div>) : null}
 
         <Button
           onClick={handleSubmit}
