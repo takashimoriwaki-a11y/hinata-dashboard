@@ -103,7 +103,7 @@ interface CreateFormProps {
   userTeam: string | null;
 }
 
-function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps) {
+export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps) {
   const [text, setText] = useState("");
   const [taskKind, setTaskKind] = useState<TaskKind>("by_deadline");
   const [dueDate, setDueDate] = useState("");

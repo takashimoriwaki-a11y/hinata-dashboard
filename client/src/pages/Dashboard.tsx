@@ -104,6 +104,7 @@ import type { TeamName } from "@shared/teamColors";
 import { Link, useLocation } from "wouter";
 import { useTheme } from "@/contexts/ThemeContext";
 import TaskCreateForm from "@/components/TaskCreateForm";
+import { CreateTaskForm } from "@/pages/PersonalTasks";
 import { VoiceMicButton } from "@/components/VoiceMicButton";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { VoiceHelpDialog } from "@/components/VoiceHelpDialog";
@@ -3455,9 +3456,10 @@ function TasksCard() {
   const { isNight } = useTheme();
   const [showForm, setShowForm] = useState(false);
 
+  const { user } = useAuth();
   // 新しい personal_tasks テーブルから今日の個人タスクを取得
   const { data: personalTasksData = [] } = trpc.personalTasks.getMyTasks.useQuery(
-    { includeCompleted: false },
+    { showDone: false },
     { refetchInterval: 15 * 1000, staleTime: 0 }
   );
 
@@ -3493,18 +3495,18 @@ function TasksCard() {
     }).length;
   }, [personalTasksData]);
 
-  const toggleTask = trpc.personalTasks.toggle.useMutation({
-    onMutate: async ({ id }) => {
+  const toggleTask = trpc.personalTasks.toggleDone.useMutation({
+    onMutate: async ({ id, done }) => {
       await utils.personalTasks.getMyTasks.cancel();
-      const prev = utils.personalTasks.getMyTasks.getData({ includeCompleted: false });
+      const prev = utils.personalTasks.getMyTasks.getData({ showDone: false });
       utils.personalTasks.getMyTasks.setData(
-        { includeCompleted: false },
-        (old) => old?.map((t) => t.id === id ? { ...t, isDone: !t.isDone } : t)
+        { showDone: false },
+        (old) => old?.map((t) => t.id === id ? { ...t, isDone: done } : t)
       );
       return { prev };
     },
     onError: (_e, _v, ctx) => {
-      if (ctx?.prev) utils.personalTasks.getMyTasks.setData({ includeCompleted: false }, ctx.prev);
+      if (ctx?.prev) utils.personalTasks.getMyTasks.setData({ showDone: false }, ctx.prev);
     },
     onSettled: () => utils.personalTasks.getMyTasks.invalidate(),
   });
@@ -3551,7 +3553,7 @@ function TasksCard() {
                   : "bg-blue-50/40 dark:bg-blue-950/10 border border-blue-200/40 dark:border-blue-800/30"
               )}>
                 <button
-                  onClick={() => toggleTask.mutate({ id: task.id })}
+                  onClick={() => toggleTask.mutate({ id: task.id, done: !task.isDone })}
                   className="flex-shrink-0 mt-0.5"
                 >
                   {task.isDone ? (
@@ -3629,11 +3631,15 @@ function TasksCard() {
             )}
           </button>
 
-          {/* 詳細フォーム */}
-          {showForm && (
-            <TaskCreateForm
+          {/* 詳細フォーム（PersonalTasksページと同じモーダルフォームを使用） */}
+          {showForm && user && (
+            <CreateTaskForm
               onClose={() => setShowForm(false)}
-              onSuccess={() => utils.personalTasks.getMyTasks.invalidate()}
+              onCreated={() => {
+                utils.personalTasks.getMyTasks.invalidate();
+                setShowForm(false);
+              }}
+              userTeam={user.team ?? null}
             />
           )}
         </CardContent>
