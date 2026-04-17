@@ -169,24 +169,15 @@ export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps
     repeatNthDayOfWeek, repeatEndDate, createMutation, toast]);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70"
-      onClick={onClose}
-      style={{ touchAction: "none" }}
-    >
-      <div
-        className="w-full max-w-lg bg-card rounded-t-2xl p-5 pb-8 overflow-y-auto overscroll-contain"
-        style={{ maxHeight: "92dvh", touchAction: "pan-y", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
-        onClick={e => e.stopPropagation()}
-        onTouchMove={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-foreground font-bold text-lg flex items-center gap-2">
-            <Plus className="w-5 h-5 text-blue-400" />
+    <div className="rounded-xl border border-blue-400/30 bg-card shadow-sm mb-3">
+      <div className="p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-foreground font-bold text-sm flex items-center gap-2">
+            <Plus className="w-4 h-4 text-blue-400" />
             個人タスクを追加
           </h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1">
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -632,6 +623,18 @@ export default function PersonalTasks() {
           </button>
         </div>
 
+        {/* 作成フォーム（インライン展開） */}
+        {showCreateForm && user && (
+          <CreateTaskForm
+            onClose={() => setShowCreateForm(false)}
+            onCreated={() => {
+              utils.personalTasks.getMyTasks.invalidate();
+              utils.personalTasks.getTodayTasks.invalidate();
+            }}
+            userTeam={user.team ?? null}
+          />
+        )}
+
         {/* 未完了タスク */}
         {tasksQuery.isLoading ? (
           <div className="space-y-2">
@@ -683,17 +686,6 @@ export default function PersonalTasks() {
         )}
       </div>
 
-      {/* 作成フォーム */}
-      {showCreateForm && user && (
-        <CreateTaskForm
-          onClose={() => setShowCreateForm(false)}
-          onCreated={() => {
-            utils.personalTasks.getMyTasks.invalidate();
-            utils.personalTasks.getTodayTasks.invalidate();
-          }}
-          userTeam={user.team ?? null}
-        />
-      )}
     </div>
   );
 }
