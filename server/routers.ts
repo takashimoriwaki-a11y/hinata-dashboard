@@ -6163,7 +6163,7 @@ export const appRouter = router({
     /** 全スプレッドシートを取得する */
     getAll: protectedProcedure
       .query(async ({ ctx }) => {
-        if ((ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
         const { getAllTimesheetSpreadsheets } = await import("./db");
         return getAllTimesheetSpreadsheets();
       }),
@@ -6191,7 +6191,7 @@ export const appRouter = router({
     getByMonth: protectedProcedure
       .input(z.object({ year: z.number().int(), month: z.number().int().min(1).max(12) }))
       .query(async ({ ctx, input }) => {
-        if ((ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
         const { getTimesheetSpreadsheets } = await import("./db");
         return getTimesheetSpreadsheets(input.year, input.month);
       }),
@@ -6204,7 +6204,7 @@ export const appRouter = router({
         spreadsheetUrl: z.string().url(),
       }))
       .mutation(async ({ ctx, input }) => {
-        if ((ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
         const { createTimesheetSpreadsheet } = await import("./db");
         await createTimesheetSpreadsheet(input);
         return { success: true };
@@ -6213,7 +6213,7 @@ export const appRouter = router({
     delete: protectedProcedure
       .input(z.object({ id: z.number().int() }))
       .mutation(async ({ ctx, input }) => {
-        if ((ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
         const { deleteTimesheetSpreadsheet } = await import("./db");
         await deleteTimesheetSpreadsheet(input.id);
         return { success: true };
@@ -6222,7 +6222,7 @@ export const appRouter = router({
     autoCreate: protectedProcedure
       .input(z.object({ year: z.number().int(), month: z.number().int().min(1).max(12) }))
       .mutation(async ({ ctx, input }) => {
-        if ((ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
         const { year, month } = input;
         let spreadsheetId: string | null = null;
         try {
@@ -6317,7 +6317,7 @@ export const appRouter = router({
     shareSpreadsheet: protectedProcedure
       .input(z.object({ id: z.number().int() }))
       .mutation(async ({ ctx, input }) => {
-        if ((ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
         const { getAllTimesheetSpreadsheets } = await import("./db");
         const all = await getAllTimesheetSpreadsheets();
         const sheet = all.find((s) => s.id === input.id);
@@ -6336,7 +6336,7 @@ export const appRouter = router({
         yearMonth: z.string().optional(), // YYYY-MM形式
       }).optional())
       .query(async ({ ctx, input }) => {
-        if ((ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
         const { getOvertimeApprovals } = await import("./db");
         const opts: { date?: string; status?: string; team?: string; yearMonth?: string } = {};
         if (input?.date) opts.date = input.date;
@@ -6378,7 +6378,7 @@ export const appRouter = router({
         approverComment: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        if ((ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
         const { approveOvertimeApproval, getOvertimeApprovalById, getTimesheetSpreadsheets } = await import("./db");
         const approvedAt = Date.now();
         await approveOvertimeApproval({
