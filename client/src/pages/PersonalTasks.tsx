@@ -66,10 +66,10 @@ function getDueDateColor(date: Date | null | undefined, done: boolean): string {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const taskDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const diffDays = Math.floor((taskDay.getTime() - today.getTime()) / 86400000);
-  if (diffDays < 0) return "text-red-400 font-semibold";
-  if (diffDays === 0) return "text-orange-400 font-semibold";
-  if (diffDays <= 3) return "text-yellow-400";
-  return "text-gray-400";
+  if (diffDays < 0) return "text-red-600 dark:text-red-400 font-semibold";
+  if (diffDays === 0) return "text-orange-600 dark:text-orange-400 font-semibold";
+  if (diffDays <= 3) return "text-amber-600 dark:text-yellow-400";
+  return "text-gray-600 dark:text-gray-400";
 }
 
 function formatRepeat(task: {
@@ -672,47 +672,47 @@ function TaskCard({
           <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
             {/* 種別 */}
             {taskKind === "at_time" ? (
-              <span className="text-xs px-1.5 py-0.5 rounded-md bg-blue-900/50 text-blue-300 flex items-center gap-1">
+              <span className="text-xs px-1.5 py-0.5 rounded-md bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200 flex items-center gap-1 font-medium">
                 <Clock className="w-3 h-3" />日時指定
               </span>
             ) : (
-              <span className="text-xs px-1.5 py-0.5 rounded-md bg-orange-900/50 text-orange-300 flex items-center gap-1">
+              <span className="text-xs px-1.5 py-0.5 rounded-md bg-orange-100 text-orange-700 dark:bg-orange-900/60 dark:text-orange-200 flex items-center gap-1 font-medium">
                 <Bell className="w-3 h-3" />期日
               </span>
             )}
             {/* 期日表示 */}
             {dueDateStr && (
-              <span className={`text-xs flex items-center gap-0.5 ${dueDateColor}`}>
+              <span className={`text-xs font-medium flex items-center gap-0.5 ${dueDateColor}`}>
                 {isOverdue && !isDone && <AlertTriangle className="w-3 h-3" />}
                 {dueDateStr}
               </span>
             )}
             {/* 繰り返し */}
             {repeatStr && (
-              <span className="text-xs px-1.5 py-0.5 rounded-md bg-purple-900/50 text-purple-300 flex items-center gap-1">
+              <span className="text-xs px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-200 flex items-center gap-1 font-medium">
                 <Repeat className="w-3 h-3" />{repeatStr}
               </span>
             )}
             {/* 指定先 */}
             {task.assignType === "all" && (
-              <span className="text-xs px-1.5 py-0.5 rounded-md bg-gray-700/60 text-gray-300 flex items-center gap-1">
+              <span className="text-xs px-1.5 py-0.5 rounded-md bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200 flex items-center gap-1 font-medium">
                 <Users className="w-3 h-3" />全職員
               </span>
             )}
             {task.assignType === "team" && assignTeams.map((team: string) => (
-              <span key={team} className={`text-xs px-1.5 py-0.5 rounded-md flex items-center gap-1 ${TEAM_COLORS[team as TeamName] ?? "bg-gray-700 text-gray-300"}`}>
+              <span key={team} className={`text-xs px-1.5 py-0.5 rounded-md flex items-center gap-1 font-medium ${TEAM_COLORS[team as TeamName] ?? "bg-gray-200 text-gray-700"}`}>
                 <Users className="w-3 h-3" />{team}
               </span>
             ))}
             {task.assignType === "personal" && assignUserNames.map((name: string) => (
-              <span key={name} className="text-xs px-1.5 py-0.5 rounded-md bg-indigo-900/50 text-indigo-300 flex items-center gap-1">
+              <span key={name} className="text-xs px-1.5 py-0.5 rounded-md bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-200 flex items-center gap-1 font-medium">
                 <User className="w-3 h-3" />{name}
               </span>
             ))}
             {/* 作成者（自分以外が作成したタスクの場合に目立つバッジで表示） */}
             {task.createdByName && task.createdBy !== currentUserId && (
-              <span className="text-xs px-1.5 py-0.5 rounded-md bg-amber-900/50 text-amber-300 flex items-center gap-1">
-                <User className="w-3 h-3" />{task.createdByName}が作成
+              <span className="text-xs px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-200 flex items-center gap-1 font-medium">
+                <User className="w-3 h-3" />{task.createdByName}から依頼
               </span>
             )}
           </div>
@@ -776,27 +776,30 @@ export default function PersonalTasks() {
     onError: (e) => toast.error(e.message),
   });
 
+  // 「依頼した」タスク判定ヘルパー（自分が作成して他の職員に依頼したタスク）
+  const isDelegatedTask = useCallback((t: any) => {
+    if (t.createdBy !== user?.id) return false;
+    if (t.assignType !== "personal") return false;
+    if (t.assignUserIds) {
+      try {
+        const ids: number[] = JSON.parse(t.assignUserIds);
+        return ids.some((id: number) => id !== user?.id);
+      } catch {}
+    }
+    return t.assignUserId !== user?.id;
+  }, [user?.id]);
+
   const filteredTasks = useMemo(() => {
-    if (filterKind === "all") return tasks;
+    if (filterKind === "all") {
+      // 「すべて」では依頼したタスクを除外（「依頼した」タブにのみ表示）
+      return tasks.filter((t: any) => !isDelegatedTask(t));
+    }
     if (filterKind === "delegated") {
       // 自分が作成して他のスタッフに依頼したタスク（単一・複数個人指定両対応）
-      return tasks.filter((t: any) => {
-        if (t.createdBy !== user?.id) return false;
-        if (t.assignType !== "personal") return false;
-        // 複数個人指定の場合
-        if (t.assignUserIds) {
-          try {
-            const ids: number[] = JSON.parse(t.assignUserIds);
-            // 自分以外が含まれていれば「依頼した」
-            return ids.some((id: number) => id !== user?.id);
-          } catch {}
-        }
-        // 単一指定の場合
-        return t.assignUserId !== user?.id;
-      });
+      return tasks.filter((t: any) => isDelegatedTask(t));
     }
-    return tasks.filter((t: any) => t.taskKind === filterKind);
-  }, [tasks, filterKind, user?.id]);
+    return tasks.filter((t: any) => t.taskKind === filterKind && !isDelegatedTask(t));
+  }, [tasks, filterKind, isDelegatedTask]);
 
   const sortedTasks = useMemo(() => {
     return [...filteredTasks].sort((a: any, b: any) => {
