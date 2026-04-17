@@ -3579,7 +3579,7 @@ function TasksCard() {
                 </button>
                 <div className="flex-1 min-w-0">
                   <span className={cn("text-sm block transition-colors duration-300", task.isDone ? "animate-strike text-muted-foreground" : "text-foreground")}>
-                    {task.title}
+                    {task.text}
                   </span>
                   <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                     {/* タスク種別バッジ */}
