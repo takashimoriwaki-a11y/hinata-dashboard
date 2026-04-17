@@ -5087,16 +5087,11 @@ function TeamGoalsTicker() {
 
   return (
     <div
-      className="relative overflow-hidden rounded-xl"
-      style={{
-        background: "linear-gradient(135deg, rgba(30,30,50,0.85) 0%, rgba(20,20,40,0.9) 100%)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        backdropFilter: "blur(4px)",
-      }}
+      className="relative overflow-hidden rounded-xl bg-card border border-border"
     >
       {/* 左右のフェードマスク */}
-      <div className="absolute left-0 top-0 bottom-0 w-8 z-10 pointer-events-none" style={{background: "linear-gradient(to right, rgba(30,30,50,0.9), transparent)"}} />
-      <div className="absolute right-0 top-0 bottom-0 w-8 z-10 pointer-events-none" style={{background: "linear-gradient(to left, rgba(30,30,50,0.9), transparent)"}} />
+      <div className="absolute left-0 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-r from-card to-transparent" />
+      <div className="absolute right-0 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-l from-card to-transparent" />
 
       {/* テロップ本体 */}
       <div className="flex items-center gap-0 py-2.5 px-2 team-goals-ticker-track">
@@ -5113,15 +5108,15 @@ function TeamGoalsTicker() {
                 {g.team}
               </span>
               {/* 目標タイトル */}
-              <span className="text-sm font-semibold text-white whitespace-nowrap">{g.title}</span>
+              <span className="text-sm font-semibold text-foreground whitespace-nowrap">{g.title}</span>
               {/* 期間 */}
               {(startStr || endStr) && (
-                <span className="text-xs text-white/85 whitespace-nowrap flex-shrink-0">
+                <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
                   {startStr ?? ""}{startStr && endStr ? " 〜 " : ""}{endStr ?? ""}
                 </span>
               )}
               {/* 区切り */}
-              <span className="text-white/50 text-lg flex-shrink-0 ml-2">｜</span>
+              <span className="text-border text-lg flex-shrink-0 ml-2">｜</span>
             </div>
           );
         })}
@@ -5442,7 +5437,7 @@ export default function Dashboard() {
             </button>
             {/* 8. 個人タスク */}
             <Link
-              href="/tasks"
+              href="/personal-tasks"
               onPointerDown={() => {}}
               className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#1a6b9e', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#155a87')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#1a6b9e')}
             >

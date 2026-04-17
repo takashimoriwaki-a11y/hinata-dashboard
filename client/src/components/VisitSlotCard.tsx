@@ -19,12 +19,19 @@ import { toast } from "sonner";
 import { getTeamButtonClass, getTeamButtonStyle } from "@shared/teamColors";
 import { SPREADSHEET_LINKS } from "@/lib/spreadsheetLinks";
 
-// チーム別利用者料金表URLマッピング
-const TEAM_FEE_SHEET_URL: Record<string, string> = {
+// チーム別利用者料金表URLマッピング（静的フォールバック用）
+const TEAM_FEE_SHEET_URL_FALLBACK: Record<string, string> = {
   "身体": SPREADSHEET_LINKS.find(l => l.label === "利用者料金一覧（身体）")?.href ?? "",
   "天理": SPREADSHEET_LINKS.find(l => l.label === "利用者料金一覧（天理）")?.href ?? "",
   "郡山北部": SPREADSHEET_LINKS.find(l => l.label === "利用者料金一覧（精神郡山）")?.href ?? "",
   "郡山南部": SPREADSHEET_LINKS.find(l => l.label === "利用者料金一覧（精神郡山）")?.href ?? "",
+};
+// チーム名 → linkKey マッピング
+const TEAM_FEE_LINK_KEY: Record<string, string> = {
+  "身体": "fee_shintai",
+  "天理": "fee_tenri",
+  "郡山北部": "fee_seishin_koriyama",
+  "郡山南部": "fee_seishin_koriyama",
 };
 
 const NOTIFY_TO_OPTIONS = ["本人", "家族", "その他"] as const;
@@ -95,6 +102,16 @@ function loadCardState(slotIndex: number): CardSavedState | null {
 export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromptBody }: Props) {
   const utils = trpc.useUtils();
   const todayStr = useMemo(() => getTodayStr(), []);
+
+  // 月次利用者料金表URL（DB登録分）
+  const { data: monthlyLinks } = trpc.spreadsheetLinks.getCurrent.useQuery();
+  // 選択中チームの料金表URL（DB登録分 → 静的フォールバックの順で解決）
+  const teamFeeUrl = useMemo(() => {
+    if (!slotData.team) return "";
+    const linkKey = TEAM_FEE_LINK_KEY[slotData.team];
+    const dbUrl = monthlyLinks?.find(l => l.linkKey === linkKey)?.url;
+    return dbUrl || TEAM_FEE_SHEET_URL_FALLBACK[slotData.team] || "";
+  }, [slotData.team, monthlyLinks]);
 
   // 保存済み状態の復元
   const savedState = useMemo(() => loadCardState(slotIndex), [slotIndex]);
@@ -444,9 +461,9 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                         )}
                       </span>
                       {/* 料金表記入の横にチーム別スプレッドシートボタン */}
-                      {task.id === "fee_sheet" && slotData.team && TEAM_FEE_SHEET_URL[slotData.team] && (
+                      {task.id === "fee_sheet" && slotData.team && teamFeeUrl && (
                         <a
-                          href={TEAM_FEE_SHEET_URL[slotData.team]}
+                          href={teamFeeUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={e => e.stopPropagation()}

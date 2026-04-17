@@ -171,29 +171,29 @@ function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70" onClick={onClose}>
       <div
-        className="w-full max-w-lg bg-[#141c2e] rounded-t-2xl p-5 pb-8 max-h-[92vh] overflow-y-auto"
+        className="w-full max-w-lg bg-card rounded-t-2xl p-5 pb-8 max-h-[92vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-white font-bold text-lg flex items-center gap-2">
+          <h2 className="text-foreground font-bold text-lg flex items-center gap-2">
             <Plus className="w-5 h-5 text-blue-400" />
             個人タスクを追加
           </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white p-1">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* 種別 */}
         <div className="mb-4">
-          <label className="text-gray-400 text-xs uppercase tracking-wide mb-2 block">種別</label>
+          <label className="text-muted-foreground text-xs uppercase tracking-wide mb-2 block">種別</label>
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setTaskKind("at_time")}
               className={`py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${
                 taskKind === "at_time"
                   ? "bg-blue-600 text-white shadow-lg shadow-blue-900/40"
-                  : "bg-[#1e2740] text-gray-400 hover:text-white"
+                  : "bg-muted text-muted-foreground hover:text-foreground"
               }`}
             >
               <Clock className="w-4 h-4" />
@@ -204,7 +204,7 @@ function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps) {
               className={`py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${
                 taskKind === "by_deadline"
                   ? "bg-orange-600 text-white shadow-lg shadow-orange-900/40"
-                  : "bg-[#1e2740] text-gray-400 hover:text-white"
+                  : "bg-muted text-muted-foreground hover:text-foreground"
               }`}
             >
               <Bell className="w-4 h-4" />
@@ -215,7 +215,7 @@ function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps) {
 
         {/* 指定先 */}
         <div className="mb-4">
-          <label className="text-gray-400 text-xs uppercase tracking-wide mb-2 block">指定先</label>
+          <label className="text-muted-foreground text-xs uppercase tracking-wide mb-2 block">指定先</label>
           <div className="grid grid-cols-4 gap-1.5">
             {(["self", "personal", "team", "all"] as AssignType[]).map(type => (
               <button
@@ -224,7 +224,7 @@ function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps) {
                 className={`py-2 rounded-xl text-xs font-medium transition-all ${
                   assignType === type
                     ? "bg-indigo-600 text-white"
-                    : "bg-[#1e2740] text-gray-400 hover:text-white"
+                    : "bg-muted text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {type === "self" && "自分のみ"}
@@ -241,7 +241,7 @@ function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps) {
                   key={team}
                   onClick={() => setAssignTeam(team)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    assignTeam === team ? TEAM_COLORS[team] : "bg-[#1e2740] text-gray-400"
+                    assignTeam === team ? TEAM_COLORS[team] : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {team}
@@ -251,7 +251,7 @@ function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps) {
           )}
           {assignType === "personal" && (
             <select
-              className="mt-2 w-full bg-[#1e2740] text-white rounded-xl px-3 py-2.5 text-sm border border-[#2d3a5a]"
+              className="mt-2 w-full bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm border border-border"
               value={assignUserId ?? ""}
               onChange={e => {
                 const id = Number(e.target.value);
@@ -270,7 +270,7 @@ function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps) {
 
         {/* 期日・時刻 */}
         <div className="mb-4">
-          <label className="text-gray-400 text-xs uppercase tracking-wide mb-2 block">
+          <label className="text-muted-foreground text-xs uppercase tracking-wide mb-2 block">
             {taskKind === "at_time" ? "実施日時" : "期日"}
           </label>
           <div className="flex gap-2">
@@ -278,13 +278,13 @@ function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps) {
               type="date"
               value={dueDate}
               onChange={e => setDueDate(e.target.value)}
-              className="flex-1 bg-[#1e2740] text-white rounded-xl px-3 py-2.5 text-sm border border-[#2d3a5a]"
+              className="flex-1 bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm border border-border"
             />
             <input
               type="time"
               value={dueTime}
               onChange={e => setDueTime(e.target.value)}
-              className="w-28 bg-[#1e2740] text-white rounded-xl px-3 py-2.5 text-sm border border-[#2d3a5a]"
+              className="w-28 bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm border border-border"
             />
             {(dueDate || dueTime) && (
               <button onClick={() => { setDueDate(""); setDueTime(""); }}
@@ -297,18 +297,18 @@ function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps) {
 
         {/* 内容 */}
         <div className="mb-4">
-          <label className="text-gray-400 text-xs uppercase tracking-wide mb-2 block">内容</label>
+          <label className="text-muted-foreground text-xs uppercase tracking-wide mb-2 block">内容</label>
           <textarea
             value={text}
             onChange={e => setText(e.target.value)}
             placeholder="タスクの内容を入力..."
-            className="w-full bg-[#1e2740] text-white rounded-xl px-3 py-2.5 text-sm min-h-[80px] resize-none placeholder-gray-600 border border-[#2d3a5a]"
+            className="w-full bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm min-h-[80px] resize-none placeholder-muted-foreground border border-border"
           />
         </div>
 
         {/* 繰り返し */}
         <div className="mb-6">
-          <label className="text-gray-400 text-xs uppercase tracking-wide mb-2 block flex items-center gap-1">
+          <label className="text-muted-foreground text-xs uppercase tracking-wide mb-2 block flex items-center gap-1">
             <Repeat className="w-3.5 h-3.5" />繰り返し
           </label>
           <div className="grid grid-cols-3 gap-1.5 mb-2">
@@ -319,7 +319,7 @@ function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps) {
                 className={`py-2 rounded-xl text-xs font-medium transition-all ${
                   repeatType === type
                     ? "bg-purple-600 text-white"
-                    : "bg-[#1e2740] text-gray-400 hover:text-white"
+                    : "bg-muted text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {type === "none" && "なし"}
@@ -336,7 +336,7 @@ function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps) {
               {WEEKDAY_LABELS.map((label, i) => (
                 <button key={i} onClick={() => setRepeatDayOfWeek(i)}
                   className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    repeatDayOfWeek === i ? "bg-purple-600 text-white" : "bg-[#1e2740] text-gray-400"
+                    repeatDayOfWeek === i ? "bg-purple-600 text-white" : "bg-muted text-muted-foreground"
                   }`}>{label}</button>
               ))}
             </div>
@@ -344,11 +344,11 @@ function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps) {
           {repeatType === "monthly" && (
             <div className="flex gap-2 mt-1 items-center">
               <select value={repeatMonthInterval} onChange={e => setRepeatMonthInterval(Number(e.target.value))}
-                className="bg-[#1e2740] text-white rounded-xl px-2 py-2 text-sm border border-[#2d3a5a]">
+                className="bg-muted text-foreground rounded-xl px-2 py-2 text-sm border border-border">
                 {[1, 2, 3, 4, 6, 12].map(n => <option key={n} value={n}>{n}ヶ月毎</option>)}
               </select>
               <select value={repeatDayOfMonth} onChange={e => setRepeatDayOfMonth(Number(e.target.value))}
-                className="bg-[#1e2740] text-white rounded-xl px-2 py-2 text-sm border border-[#2d3a5a]">
+                className="bg-muted text-foreground rounded-xl px-2 py-2 text-sm border border-border">
                 {Array.from({ length: 31 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}日</option>)}
               </select>
             </div>
@@ -356,14 +356,14 @@ function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps) {
           {repeatType === "nth_weekday" && (
             <div className="flex gap-2 mt-1 items-center flex-wrap">
               <select value={repeatNthWeek} onChange={e => setRepeatNthWeek(Number(e.target.value))}
-                className="bg-[#1e2740] text-white rounded-xl px-2 py-2 text-sm border border-[#2d3a5a]">
+                className="bg-muted text-foreground rounded-xl px-2 py-2 text-sm border border-border">
                 {NTH_WEEK_VALUES.map((v, i) => <option key={v} value={v}>{NTH_WEEK_LABELS[i]}</option>)}
               </select>
               <div className="flex gap-1">
                 {WEEKDAY_LABELS.map((label, i) => (
                   <button key={i} onClick={() => setRepeatNthDayOfWeek(i)}
                     className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      repeatNthDayOfWeek === i ? "bg-purple-600 text-white" : "bg-[#1e2740] text-gray-400"
+                      repeatNthDayOfWeek === i ? "bg-purple-600 text-white" : "bg-muted text-muted-foreground"
                     }`}>{label}</button>
                 ))}
               </div>
@@ -373,7 +373,7 @@ function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps) {
             <div className="mt-2 flex items-center gap-2">
               <span className="text-gray-500 text-xs whitespace-nowrap">終了日（任意）</span>
               <input type="date" value={repeatEndDate} onChange={e => setRepeatEndDate(e.target.value)}
-                className="flex-1 bg-[#1e2740] text-white rounded-xl px-2 py-1.5 text-xs border border-[#2d3a5a]" />
+                className="flex-1 bg-muted text-foreground rounded-xl px-2 py-1.5 text-xs border border-border" />
               {repeatEndDate && (
                 <button onClick={() => setRepeatEndDate("")} className="text-gray-500 hover:text-white">
                   <X className="w-3.5 h-3.5" />
@@ -416,12 +416,12 @@ function TaskCard({
   return (
     <div className={`rounded-xl border transition-all ${
       isDone
-        ? "bg-[#141c2e]/60 border-[#2d3a5a]/30 opacity-55"
+        ? "bg-muted/30 border-border/30 opacity-55"
         : isOverdue
           ? "bg-red-950/30 border-red-800/50"
           : taskKind === "at_time"
             ? "bg-blue-950/30 border-blue-800/40"
-            : "bg-[#1a2035] border-[#2d3a5a]"
+            : "bg-card border-border"
     }`}>
       <div className="flex items-start gap-3 p-3">
         {/* 完了ボタン */}
@@ -438,7 +438,7 @@ function TaskCard({
 
         {/* コンテンツ */}
         <div className="flex-1 min-w-0">
-          <p className={`text-sm font-medium leading-snug ${isDone ? "line-through text-gray-500" : "text-white"}`}>
+          <p className={`text-sm font-medium leading-snug ${isDone ? "line-through text-muted-foreground" : "text-foreground"}`}>
             {task.text}
           </p>
           <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
@@ -496,7 +496,7 @@ function TaskCard({
 
       {/* 展開時操作 */}
       {expanded && (
-        <div className="px-3 pb-3 pt-0 border-t border-[#2d3a5a]/40">
+        <div className="px-3 pb-3 pt-0 border-t border-border/40">
           <button
             onClick={() => onDelete(task.id)}
             className="mt-2 flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 px-2.5 py-1.5 rounded-lg bg-red-900/20 hover:bg-red-900/40 transition-colors"
@@ -576,7 +576,7 @@ export default function PersonalTasks() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <ClipboardList className="w-5 h-5 text-blue-400" />
-            <h1 className="text-white font-bold text-lg">個人タスク</h1>
+            <h1 className="text-foreground font-bold text-lg">個人タスク</h1>
             {pendingTasks.length > 0 && (
               <Badge className="bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full">
                 {pendingTasks.length}
@@ -586,7 +586,7 @@ export default function PersonalTasks() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => tasksQuery.refetch()}
-              className="text-gray-500 hover:text-white p-1.5 rounded-lg hover:bg-[#1e2740] transition-colors"
+              className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted transition-colors"
             >
               <RefreshCw className={`w-4 h-4 ${tasksQuery.isFetching ? "animate-spin" : ""}`} />
             </button>
@@ -608,7 +608,7 @@ export default function PersonalTasks() {
               className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
                 filterKind === kind
                   ? "bg-indigo-600 text-white"
-                  : "bg-[#1a2035] text-gray-500 hover:text-white"
+                  : "bg-muted text-muted-foreground hover:text-foreground"
               }`}
             >
               {kind === "all" && "すべて"}
@@ -619,7 +619,7 @@ export default function PersonalTasks() {
           <button
             onClick={() => setShowDone(!showDone)}
             className={`ml-auto px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
-              showDone ? "bg-gray-600 text-white" : "bg-[#1a2035] text-gray-500 hover:text-white"
+              showDone ? "bg-secondary text-secondary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
             }`}
           >
             {showDone ? "完了を非表示" : "完了を表示"}
@@ -630,7 +630,7 @@ export default function PersonalTasks() {
         {tasksQuery.isLoading ? (
           <div className="space-y-2">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-16 rounded-xl bg-[#1a2035] animate-pulse" />
+              <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />
             ))}
           </div>
         ) : pendingTasks.length === 0 ? (
