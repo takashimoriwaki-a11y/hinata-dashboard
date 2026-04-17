@@ -1564,6 +1564,7 @@ function StaffManagementPanel() {
   // スタッフ情報編集ダイアログ
   const [editStaff, setEditStaff] = useState<{ id: number; name: string; team: TeamStaff; role: "user" | "admin"; numberPlate: string } | null>(null);
   const [editName, setEditName] = useState("");
+  const [editKanaStaff, setEditKanaStaff] = useState("");
   const [editTeam, setEditTeam] = useState<TeamStaff>("身体");
   const [editRole, setEditRole] = useState<"user" | "admin">("user");
   const [editNumberPlate, setEditNumberPlate] = useState("");
@@ -1577,9 +1578,10 @@ function StaffManagementPanel() {
     onError: (e) => toast.error(e.message),
   });
 
-  const openEditDialog = (staff: { id: number; name: string | null; team: string | null; role: "user" | "admin"; numberPlate?: string | null }) => {
+  const openEditDialog = (staff: { id: number; name: string | null; team: string | null; role: "user" | "admin"; numberPlate?: string | null; nameKana?: string | null }) => {
     setEditStaff({ id: staff.id, name: staff.name ?? "", team: (staff.team as TeamStaff) ?? "身体", role: staff.role, numberPlate: staff.numberPlate ?? "" });
     setEditName(staff.name ?? "");
+    setEditKanaStaff((staff as any).nameKana ?? "");
     setEditTeam((staff.team as TeamStaff) ?? "身体");
     setEditRole(staff.role);
     setEditNumberPlate(staff.numberPlate ?? "");
@@ -1649,35 +1651,7 @@ function StaffManagementPanel() {
               <FileSpreadsheet className="w-3.5 h-3.5" />
               {importingStaff ? "処理中..." : "Excelインポート"}
             </Button>
-            {/* よみがなCSVエクスポートボタン */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs gap-1 text-purple-600 border-purple-300 hover:bg-purple-50"
-              onClick={() => exportKana.mutate()}
-              disabled={exportKana.isPending}
-            >
-              <Download className="w-3.5 h-3.5" />
-              よみがなDL
-            </Button>
-            {/* よみがなCSVインポートボタン */}
-            <input
-              ref={kanaCSVRef}
-              type="file"
-              accept=".csv"
-              className="hidden"
-              onChange={handleKanaCSVImport}
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs gap-1 text-orange-600 border-orange-300 hover:bg-orange-50"
-              onClick={() => kanaCSVRef.current?.click()}
-              disabled={importingKana}
-            >
-              <Upload className="w-3.5 h-3.5" />
-              {importingKana ? "インポート中..." : "よみがな登録"}
-            </Button>
+
             <Button size="sm" className="h-8 text-xs gap-1" onClick={() => setShowAddForm((v) => !v)}>
               <UserPlus className="w-3.5 h-3.5" />
               新規追加
@@ -1880,6 +1854,9 @@ function StaffManagementPanel() {
                         </Badge>
                       )}
                     </div>
+                    {(staff as any).nameKana && (
+                      <p className="text-xs text-muted-foreground mt-0.5">よみがな: {(staff as any).nameKana}</p>
+                    )}
                     <p className="text-xs text-muted-foreground mt-0.5">{staff.email ?? "メール未設定"}</p>
                     <p className="text-xs text-muted-foreground">最終ログイン: {staff.lastSignedIn ? new Date(staff.lastSignedIn).toLocaleDateString("ja-JP") : "未ログイン"}</p>
                     {(staff as any).numberPlate && (
@@ -2026,6 +2003,18 @@ function StaffManagementPanel() {
             />
           </div>
 
+          {/* よみがな */}
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">よみがな</label>
+            <input
+              type="text"
+              value={editKanaStaff}
+              onChange={(e) => setEditKanaStaff(e.target.value)}
+              placeholder="例：やまだ はなこ"
+              className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </div>
+
           {/* チーム */}
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">所属チーム</label>
@@ -2100,7 +2089,7 @@ function StaffManagementPanel() {
               className="flex-1 h-9 text-sm"
               onClick={() => {
                 if (!editName.trim()) { toast.error("名前を入力してください"); return; }
-                updateInfo.mutate({ userId: editStaff.id, name: editName.trim(), team: editTeam, role: editRole, numberPlate: editNumberPlate.trim() || undefined });
+                updateInfo.mutate({ userId: editStaff.id, name: editName.trim(), nameKana: editKanaStaff.trim() || undefined, team: editTeam, role: editRole, numberPlate: editNumberPlate.trim() || undefined });
               }}
               disabled={updateInfo.isPending}
             >

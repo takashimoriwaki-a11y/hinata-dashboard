@@ -3607,6 +3607,7 @@ export const appRouter = router({
       .input(z.object({
         userId: z.number(),
         name: z.string().min(1).max(50),
+        nameKana: z.string().max(100).optional(),
         team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]),
         role: z.enum(["user", "admin"]),
         numberPlate: z.string().max(20).optional(),
@@ -3617,6 +3618,7 @@ export const appRouter = router({
         }
         await updateStaffInfo(input.userId, {
           name: input.name,
+          nameKana: input.nameKana,
           team: input.team,
           role: input.role,
           numberPlate: input.numberPlate,

@@ -1092,6 +1092,7 @@ export async function getAllStaff() {
     .select({
       id: users.id,
       name: users.name,
+      nameKana: users.nameKana,
       email: users.email,
       role: users.role,
       team: users.team,
@@ -1137,7 +1138,7 @@ export async function createStaffAccount(data: {
 }
 
 /** 職員を一括登録する（メール重複はスキップ） */
-export async function batchCreateStaff(data: Array<{ name: string; email: string; password: string; team: string; role: "admin" | "user" }>) {
+export async function batchCreateStaff(data: Array<{ name: string; nameKana?: string; email: string; password: string; team: string; role: "admin" | "user"; numberPlate?: string }>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const bcrypt = await import("bcryptjs");
@@ -1152,6 +1153,7 @@ export async function batchCreateStaff(data: Array<{ name: string; email: string
     await db.insert(users).values({
       openId,
       name: d.name,
+      nameKana: d.nameKana ?? null,
       email: d.email,
       passwordHash,
       role: d.role,
@@ -1159,6 +1161,7 @@ export async function batchCreateStaff(data: Array<{ name: string; email: string
       teamSetupDone: 1,
       loginMethod: "local",
       lastSignedIn: new Date(),
+      numberPlate: d.numberPlate ?? "",
     });
     count++;
   }
@@ -1189,6 +1192,7 @@ export async function updateStaffRole(userId: number, role: "user" | "admin") {
 /** スタッフの基本情報を一括更新する（管理者用） */
 export async function updateStaffInfo(userId: number, data: {
   name: string;
+  nameKana?: string;
   team: "身体" | "天理" | "郡山北部" | "郡山南部" | "事務員" | "全チーム";
   role: "user" | "admin";
   numberPlate?: string;
@@ -1197,6 +1201,7 @@ export async function updateStaffInfo(userId: number, data: {
   if (!db) throw new Error("Database not available");
   await db.update(users).set({
     name: data.name,
+    nameKana: data.nameKana !== undefined ? (data.nameKana || null) : undefined,
     team: data.team,
     role: data.role,
     numberPlate: data.numberPlate !== undefined ? (data.numberPlate || null) : undefined,

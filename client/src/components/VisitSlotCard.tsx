@@ -500,12 +500,13 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                 />
               </div>
               <textarea
-                className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-colors placeholder:text-muted-foreground"
+                className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-colors placeholder:text-muted-foreground/50"
                 rows={2}
                 placeholder="例：看護記録Ⅱ作成時に使用するキーワード、支援者・家族への連絡等"
                 value={specialNote}
                 onChange={(e) => setSpecialNote(e.target.value)}
               />
+              <p className="text-[11px] text-muted-foreground/60 mt-0.5">（注）リセットボタンでメモ削除</p>
             </div>
             {/* 訪問後 - チェックボックスなしのテキスト表示 */}
             <div>
