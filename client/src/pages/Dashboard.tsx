@@ -3818,8 +3818,8 @@ function MessageBoard({ title }: { title: string }) {
   const { user } = useAuth();
   const { isNight } = useTheme();
   const [, navigate] = useLocation();
-
-  // DBからメッセージ取得
+  const REACTION_EMOJIS = ["👍", "✅", "❤️", "🙏", "😊", "💪"];
+  // DBからメッセージ取得得
   const { data: messages = [], isLoading } = trpc.messages.getActive.useQuery(undefined, {
     refetchInterval: 15000, // 15秒ごとに自動更新
   });
