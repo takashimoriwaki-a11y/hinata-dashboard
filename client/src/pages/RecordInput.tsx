@@ -55,19 +55,22 @@ const normalizeVoice = (s: string): string => removeHonorific(s.normalize("NFKC"
  * 「田中、佐藤、山田」→ ["田中", "佐藤", "山田"]
  */
 const splitMultipleNames = (transcript: string): string[] => {
-  // 区切り文字で分割: 「と」「、」「，」「あと」「それから」「次に」「次は」「それと」「および」「&」
-  const separators = /(?:と|、|，|,|あと|それから|次に|次は|それと|および|&|\s+と\s+|\s+)/g;
-  // 敬称（さん・様・くん・ちゃん）を先に区切り文字「、」に置き換えてから分割
+  // 敗称（さん・様・くん・ちゃん）を先に区切り文字「、」に置き換えてから分割
   // ※ 先に除去すると「田中さん佐藤さん」→「田中佐藤」になり分割できなくなるため
   const cleaned = transcript
-    .replace(/さん|様|くん|ちゃん/g, "、")
+    .replace(/さん|様|くん|ちゃん|先生|女士/g, "、")
     .replace(/の訪問|への訪問|を訪問/g, "");
+  // 区切り文字で分割: 「と」「、」「，」「,」「あと」「それから」「次に」「次は」「それと」「および」「それから」「ならびに」「など」「または」「かつ」
+  const separators = /(?:と|、|，|,|あと|それから|次に|次は|それと|および|ならびに|など|または|かつ|&|\s+と\s+|\s+)/g;
   const parts = cleaned.split(separators)
     .map(p => p.trim())
     .filter(p => p.length >= 1);
-  // チーム名を除去
+  // チーム名・不要語を除去
+  const stopWords = new Set(["と", "、", "を", "に", "は", "が", "の", "で", "も", "か", "よ"]);
   return parts.filter(p => {
     const norm = normalizeVoice(p);
+    if (stopWords.has(norm)) return false;
+    if (norm.length === 0) return false;
     return !Object.keys(TEAM_VOICE_MAP).some(k => normalizeVoice(k) === norm);
   });
 };
@@ -685,6 +688,34 @@ export default function RecordInput() {
                   }, 300);
                 }
               }}
+              onMultipleNamesDetected={(nameTokens, startFromIndex) => {
+                // 複数人名が検出された場合、残りの名前を次のスロットに順次入力
+                let currentSlots = [...slots];
+                let successCount = 0;
+                nameTokens.forEach((namePart, i) => {
+                  // startFromIndex以降の空き枠を探す
+                  const targetIdx = currentSlots.findIndex((s, si) => si >= startFromIndex + i && !s.patientName);
+                  if (targetIdx === -1) return;
+                  const nameAlts = [{ transcript: namePart, confidence: 1.0 }];
+                  const { matches } = findBestMatches(nameAlts, allPatients, null);
+                  if (matches.length === 1) {
+                    handleSlotChange(targetIdx, {
+                      team: (matches[0].team as Team) || "",
+                      patientId: matches[0].id,
+                      patientName: matches[0].name,
+                    });
+                    setSlotSearch(targetIdx, matches[0].name);
+                    currentSlots[targetIdx] = { ...currentSlots[targetIdx], patientName: matches[0].name };
+                    successCount++;
+                    setTimeout(() => {
+                      slotRefs.current[targetIdx]?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }, 300 * (i + 1));
+                  }
+                });
+                if (successCount > 0) {
+                  toast.success(`合計${successCount + 1}名を入力しました`);
+                }
+              }}
             />
           ))}
         </CardContent>
@@ -877,12 +908,14 @@ type SlotSelectorProps = {
   onSlotChange: (data: Partial<VisitSlotData>) => void;
   slotRef?: (el: HTMLDivElement | null) => void;
   onCandidateSelected?: () => void;
+  /** 複数人名が検出された場合、残りの名前トークンを親に渡して次のスロットへ順次入力させる */
+  onMultipleNamesDetected?: (nameTokens: string[], startFromIndex: number) => void;
 };
 
 function SlotSelector({
   index, slot, allPatients, searchQuery, showList,
   onSearchChange, onShowListChange, onSlotChange,
-  slotRef, onCandidateSelected
+  slotRef, onCandidateSelected, onMultipleNamesDetected
 }: SlotSelectorProps) {
   const slotNumber = index + 1;
   const [isListening, setIsListening] = useState(false);
@@ -956,6 +989,45 @@ function SlotSelector({
       for (let i = 0; i < resultSet.length; i++) {
         alternatives.push({ transcript: resultSet[i].transcript, confidence: resultSet[i].confidence });
       }
+
+      // ===== 複数人名の連続認識 =====
+      const rawTranscript = alternatives[0]?.transcript || "";
+      const { rest: transcriptWithoutTeam } = extractTeamFromVoice(rawTranscript);
+      const nameTokens = splitMultipleNames(transcriptWithoutTeam || rawTranscript);
+      if (nameTokens.length > 1 && onMultipleNamesDetected) {
+        // 複数人名が検出された → 最初の名前はこのスロットに入力し、残りは親に委譲
+        const firstToken = nameTokens[0];
+        const firstAlts = [{ transcript: firstToken, confidence: 1.0 }];
+        const { matches: firstMatches } = findBestMatches(firstAlts, allPatients, slot.team as Team | null);
+        if (firstMatches.length === 1) {
+          onSlotChange({
+            team: (firstMatches[0].team as Team) || slot.team,
+            patientId: firstMatches[0].id,
+            patientName: firstMatches[0].name,
+          });
+          onSearchChange(firstMatches[0].name);
+          onShowListChange(false);
+          setVoiceCandidates([]);
+          setSuggestCandidates([]);
+          toast.success(`${nameTokens.length}名を検出: 「${firstMatches[0].name}」を入力しました`);
+          // 残りの名前トークンを親に渡す
+          onMultipleNamesDetected(nameTokens.slice(1), index + 1);
+        } else {
+          // 最初の名前が特定できない場合は通常処理にフォールバック
+          const { matches, usedTranscript } = findBestMatches(alternatives, allPatients, slot.team as Team | null);
+          if (matches.length >= 1) {
+            setVoiceCandidates(matches);
+            onSearchChange(usedTranscript);
+            onShowListChange(false);
+            toast.info(`「${usedTranscript}」の候補が${matches.length}件あります`);
+          } else {
+            onSearchChange(rawTranscript);
+            onShowListChange(true);
+          }
+        }
+        return;
+      }
+
       // チームフィルタを適用してスコアリング
       const { matches, usedTranscript, bestScore } = findBestMatches(alternatives, allPatients, slot.team as Team | null);
       if (matches.length === 1) {
