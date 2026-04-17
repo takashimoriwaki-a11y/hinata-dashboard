@@ -2322,7 +2322,7 @@ export const appRouter = router({
         z.object({
           text: z.string().min(1).max(500),
           dueDate: z.date().optional(),
-          taskKind: z.enum(["at_time", "by_deadline"]).default("by_deadline"),
+          taskKind: z.enum(["at_time", "by_deadline", "next_visit"]).default("at_time"),
           assignType: z.enum(["all", "team", "personal"]).default("all"),
           assignTeam: z.enum(["身体", "天理", "郡山北部", "郡山南部"]).optional(),
           assignUserId: z.number().optional(),
@@ -2431,7 +2431,7 @@ export const appRouter = router({
           id: z.number(),
           text: z.string().min(1).optional(),
           dueDate: z.date().nullable().optional(),
-          taskKind: z.enum(["at_time", "by_deadline"]).optional(),
+          taskKind: z.enum(["at_time", "by_deadline", "next_visit"]).optional(),
           assignType: z.enum(["all", "team", "personal"]).optional(),
           assignTeam: z.enum(["身体", "天理", "郡山北部", "郡山南部"]).nullable().optional(),
           assignUserId: z.number().nullable().optional(),

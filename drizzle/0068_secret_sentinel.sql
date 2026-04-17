@@ -1,0 +1,2 @@
+ALTER TABLE `personal_tasks` MODIFY COLUMN `taskKind` enum('at_time','by_deadline','next_visit') NOT NULL DEFAULT 'by_deadline';--> statement-breakpoint
+ALTER TABLE `tasks` MODIFY COLUMN `taskKind` enum('at_time','by_deadline','next_visit') NOT NULL DEFAULT 'by_deadline';

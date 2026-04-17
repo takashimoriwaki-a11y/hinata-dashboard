@@ -68,8 +68,8 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
   // AIが返した利用者名（allPatientsロード後にマッチング処理するために保持）— チーム情報も保持
   const [pendingAiPatient, setPendingAiPatient] = useState<{ name: string; assignType: AssignType; assignTeam: Team | null } | null>(null);
 
-  // タスク種別: at_time=この日時にする, by_deadline=この日時まで
-  const [taskKind, setTaskKind] = useState<"at_time" | "by_deadline">("by_deadline");
+  // タスク種別: at_time=この日時にする, by_deadline=この日時まで, next_visit=次回訪問時
+  const [taskKind, setTaskKind] = useState<"at_time" | "by_deadline" | "next_visit">("at_time");
 
   // 繰り返し設定
   const [repeatType, setRepeatType] = useState<RepeatType>("none");
@@ -922,19 +922,7 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => setTaskKind("by_deadline")}
-                className={cn(
-                  "flex-1 text-xs px-3 py-2 rounded-lg border transition-colors",
-                  taskKind === "by_deadline"
-                    ? "bg-blue-500 text-white border-blue-500"
-                    : "border-border text-muted-foreground hover:border-blue-400 hover:text-blue-600"
-                )}
-              >
-                ⏳ この日時までにする
-              </button>
-              <button
-                type="button"
-                onClick={() => setTaskKind("at_time")}
+                onClick={() => { setTaskKind("at_time"); }}
                 className={cn(
                   "flex-1 text-xs px-3 py-2 rounded-lg border transition-colors",
                   taskKind === "at_time"
@@ -944,66 +932,87 @@ export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormPro
               >
                 📅 この日時にする
               </button>
-            </div>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">
-              <Calendar className="w-3 h-3 inline mr-0.5" />期日（任意）
-            </label>
-            <div className="flex items-center gap-1.5">
-              <input
-                id="task-due-date"
-                type="date"
-                value={newDueDate}
-                onChange={(e) => setNewDueDate(e.target.value)}
-                className="flex-1 text-sm border border-border rounded-lg px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              {newDueDate && (
-                <button
-                  type="button"
-                  onClick={(e) => { e.preventDefault(); setNewDueDate(""); setNewDueTime(""); }}
-                  className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
-                  title="期日をクリア"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">時刻（任意）</label>
-            <div className="flex items-center gap-1.5">
-              <select
-                value={newDueTime}
-                onChange={(e) => setNewDueTime(e.target.value)}
-                disabled={!newDueDate}
-                className="flex-1 text-sm border border-border rounded-lg px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40"
+              <button
+                type="button"
+                onClick={() => { setTaskKind("next_visit"); setNewDueDate(""); setNewDueTime(""); }}
+                className={cn(
+                  "flex-1 text-xs px-3 py-2 rounded-lg border transition-colors",
+                  taskKind === "next_visit"
+                    ? "bg-green-600 text-white border-green-600"
+                    : "border-border text-muted-foreground hover:border-green-500 hover:text-green-700"
+                )}
               >
-                <option value="">時刻を選択...</option>
-                {Array.from({ length: 24 * 12 }, (_, i) => {
-                  const h = Math.floor(i / 12);
-                  const m = (i % 12) * 5;
-                  const hh = String(h).padStart(2, "0");
-                  const mm = String(m).padStart(2, "0");
-                  return (
-                    <option key={`${hh}:${mm}`} value={`${hh}:${mm}`}>
-                      {hh}:{mm}
-                    </option>
-                  );
-                })}
-              </select>
-              {newDueTime && (
-                <button
-                  type="button"
-                  onClick={(e) => { e.preventDefault(); setNewDueTime(""); }}
-                  className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
-                  title="時刻をクリア"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
+                🏥 次回訪問時
+              </button>
             </div>
           </div>
+          {taskKind !== "next_visit" && (
+            <>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                  <Calendar className="w-3 h-3 inline mr-0.5" />期日（任意）
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    id="task-due-date"
+                    type="date"
+                    value={newDueDate}
+                    onChange={(e) => setNewDueDate(e.target.value)}
+                    className="flex-1 text-sm border border-border rounded-lg px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  {newDueDate && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); setNewDueDate(""); setNewDueTime(""); }}
+                      className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                      title="期日をクリア"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">時刻（任意）</label>
+                <div className="flex items-center gap-1.5">
+                  <select
+                    value={newDueTime}
+                    onChange={(e) => setNewDueTime(e.target.value)}
+                    disabled={!newDueDate}
+                    className="flex-1 text-sm border border-border rounded-lg px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40"
+                  >
+                    <option value="">時刻を選択...</option>
+                    {Array.from({ length: 24 * 12 }, (_, i) => {
+                      const h = Math.floor(i / 12);
+                      const m = (i % 12) * 5;
+                      const hh = String(h).padStart(2, "0");
+                      const mm = String(m).padStart(2, "0");
+                      return (
+                        <option key={`${hh}:${mm}`} value={`${hh}:${mm}`}>
+                          {hh}:{mm}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  {newDueTime && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); setNewDueTime(""); }}
+                      className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                      title="時刻をクリア"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+          {taskKind === "next_visit" && (
+            <p className="text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded-lg px-3 py-2">
+              🏥 次回訪問時に実施するタスクとして登録されます。訪問記録の「タスク」欄に表示されます。
+            </p>
+          )}
         </div>
 
         {/* タスク内容 */}

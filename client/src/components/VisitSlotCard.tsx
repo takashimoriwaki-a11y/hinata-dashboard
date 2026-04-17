@@ -416,6 +416,11 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                               期日: {new Date(task.dueDate).toLocaleDateString("ja-JP")}
                             </p>
                           )}
+                          {(task as any).taskKind === "next_visit" && !task.dueDate && (
+                            <span className="inline-block mt-0.5 text-[10px] font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-1.5 py-0.5 rounded-full">
+                              🏥 次回訪問時
+                            </span>
+                          )}
                         </div>
                       </label>
                     ))}
@@ -460,8 +465,8 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                           </span>
                         )}
                       </span>
-                      {/* 料金表記入の横にチーム別スプレッドシートボタン */}
-                      {task.id === "fee_sheet" && slotData.team && teamFeeUrl && (
+                      {/* 料金表記入の横にチーム別スプレッドシートボタン（利用者選択時のみ表示） */}
+                      {task.id === "fee_sheet" && slotData.patientName && slotData.team && teamFeeUrl && (
                         <a
                           href={teamFeeUrl}
                           target="_blank"
