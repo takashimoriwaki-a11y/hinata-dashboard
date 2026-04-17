@@ -421,6 +421,13 @@
       "when": 1776403127204,
       "tag": "0059_curvy_virginia_dare",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "5",
+      "when": 1776404815294,
+      "tag": "0060_rapid_garia",
+      "breakpoints": true
     }
   ]
 }

@@ -52,321 +52,7 @@ function extractUrls(text: string): string[] {
   const urlRegex = /https?:\/\/[^\s\n\r]+/g;
   return (text.match(urlRegex) ?? []).map((u) => u.replace(/[,;]+$/, "").trim());
 }
-
-// 一括インポートパネル
-function BulkImportPanel({
-  selectedYearMonth,
-  onSuccess,
-}: {
-  selectedYearMonth: string;
-  onSuccess: () => void;
-}) {
-  const utils = trpc.useUtils();
-  const [pasteText, setPasteText] = useState("");
-  const [isOpen, setIsOpen] = useState(false);
-
-  const parsedLinks = useMemo(() => {
-    const urls = extractUrls(pasteText);
-    return LINK_DEFINITIONS.map((def, idx) => ({
-      ...def,
-      url: urls[idx] ?? "",
-      valid: urls[idx] ? /^https?:\/\/.+/.test(urls[idx]) : false,
-    }));
-  }, [pasteText]);
-
-  const validCount = parsedLinks.filter((l) => l.valid).length;
-  const hasAnyUrl = parsedLinks.some((l) => l.url);
-
-  const batchUpsert = trpc.spreadsheetLinks.batchUpsert.useMutation({
-    onSuccess: (data) => {
-      utils.spreadsheetLinks.getAll.invalidate();
-      utils.spreadsheetLinks.getCurrent.invalidate();
-      toast.success(`${data.count}件のURLを一括登録しました`);
-      setPasteText("");
-      setIsOpen(false);
-      onSuccess();
-    },
-    onError: (e) => toast.error(e.message),
-  });
-
-  const handleImport = () => {
-    const validLinks = parsedLinks.filter((l) => l.valid);
-    if (validLinks.length === 0) { toast.error("有効なURLが見つかりませんでした"); return; }
-    batchUpsert.mutate({
-      yearMonth: selectedYearMonth,
-      links: validLinks.map((l) => ({ linkKey: l.key, label: l.label, url: l.url, color: l.color, displayTarget: l.displayTarget })),
-    });
-  };
-
-  return (
-    <Card className="shadow-sm border-primary/20 bg-primary/5">
-      <button className="w-full text-left" onClick={() => setIsOpen((v) => !v)}>
-        <CardHeader className="pb-2 pt-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ClipboardPaste className="w-4 h-4 text-primary" />
-              <CardTitle className="text-base font-semibold text-primary">一括インポート</CardTitle>
-              <Badge className="text-xs bg-primary/10 text-primary border-0 px-1.5 py-0">月末の更新に便利</Badge>
-            </div>
-            {isOpen ? <ChevronUp className="w-4 h-4 text-primary" /> : <ChevronDown className="w-4 h-4 text-primary" />}
-          </div>
-          {!isOpen && (
-            <p className="text-xs text-muted-foreground mt-1">6つのURLをまとめて貼り付けて一括登録できます</p>
-          )}
-        </CardHeader>
-      </button>
-
-      {isOpen && (
-        <CardContent className="space-y-4 pt-0">
-          <div className="space-y-2">
-            <div className="flex items-center gap-1.5">
-              <p className="text-xs font-semibold text-foreground">登録順番とファイル名の目安</p>
-              <Badge className="text-xs bg-amber-100 text-amber-700 border-0 px-1.5 py-0">上から順に貼り付け</Badge>
-            </div>
-            <div className="rounded-lg border border-border overflow-hidden">
-              {LINK_DEFINITIONS.map((def, i) => (
-                <div key={def.key} className={cn(
-                  "flex items-start gap-2.5 px-3 py-2 text-xs",
-                  i % 2 === 0 ? "bg-card" : "bg-muted/30",
-                  i < LINK_DEFINITIONS.length - 1 && "border-b border-border/50"
-                )}>
-                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs mt-0.5">{i + 1}</span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <p className={cn("font-semibold leading-tight", def.color)}>{def.label}</p>
-                      {def.displayTarget === "team" ? (
-                        <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0 rounded-full font-medium border border-emerald-200">チームツール</span>
-                      ) : (
-                        <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0 rounded-full font-medium border border-blue-200">全チーム共通</span>
-                      )}
-                    </div>
-                    <p className="text-muted-foreground mt-0.5 leading-tight">
-                      <span className="font-mono bg-muted/60 px-1 py-0.5 rounded text-xs">{def.fileNameExample}</span>
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground/70 flex items-center gap-1">
-              <span>ℹ️</span>
-              <span>YYYY年M月分の部分は実際の年月（例: 2026年4月分）に小文字で書かれています</span>
-            </p>
-          </div>
-          <textarea
-            value={pasteText}
-            onChange={(e) => setPasteText(e.target.value)}
-            placeholder={"https://docs.google.com/spreadsheets/d/AAAA...\nhttps://docs.google.com/spreadsheets/d/BBBB...\nhttps://docs.google.com/spreadsheets/d/CCCC...\nhttps://docs.google.com/spreadsheets/d/DDDD...\nhttps://docs.google.com/spreadsheets/d/EEEE...\nhttps://docs.google.com/spreadsheets/d/FFFF..."}
-            rows={6}
-            className="w-full text-xs border border-border rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:border-primary font-mono resize-none"
-            autoFocus
-          />
-          {hasAnyUrl && (
-            <div className="space-y-1.5">
-              <p className="text-xs font-semibold text-foreground">プレビュー</p>
-              <div className="space-y-1">
-                {parsedLinks.map((link) => (
-                  <div key={link.key} className="flex items-start gap-2 text-xs">
-                    {link.valid ? (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 flex-shrink-0" />
-                    ) : link.url ? (
-                      <AlertCircle className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
-                    ) : (
-                      <div className="w-3.5 h-3.5 rounded-full border border-muted-foreground/30 mt-0.5 flex-shrink-0" />
-                    )}
-                    <div className="min-w-0">
-                      <span className={cn("font-medium", link.color)}>{link.label}</span>
-                      {link.url ? (
-                        <p className="text-muted-foreground truncate font-mono">{link.url}</p>
-                      ) : (
-                        <p className="text-muted-foreground italic">（未入力）</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          <div className="flex items-center justify-between gap-3 pt-1">
-            <p className="text-xs text-muted-foreground">
-              {validCount > 0 ? <span className="text-emerald-600 font-medium">{validCount}件</span> : <span>0件</span>}
-              {" "}のURLが登録されます
-            </p>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setPasteText(""); setIsOpen(false); }}>キャンセル</Button>
-              <Button size="sm" className="h-8 text-xs" onClick={handleImport} disabled={validCount === 0 || batchUpsert.isPending}>
-                {batchUpsert.isPending ? "登録中..." : `${validCount}件を一括登録`}
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      )}
-    </Card>
-  );
-}
-
-// ============================
-// 利用者マスタ管理パネル
-// ============================
-
-function PatientMasterPanel() {
-  const utils = trpc.useUtils();
-
-  // 全利用者取得（退所済も含む）
-  const { data: allPatients, isLoading } = trpc.patients.listAll.useQuery({});
-
-  // 退所済を表示するか
-  const [showInactive, setShowInactive] = useState(false);
-
-  // フィルター
-  const [filterTeam, setFilterTeam] = useState<Team | "全て">("全て");
-  const [searchQuery, setSearchQuery] = useState("");
-
-  // Excelインポート
-  const patientExcelRef = useRef<HTMLInputElement>(null);
-  const [importingPatients, setImportingPatients] = useState(false);
-  const [importResult, setImportResult] = useState<{ count: number; created: number; updated: number; skipped: number; errors: string[] } | null>(null);
-  const handlePatientExcelImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImportingPatients(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/import/patients", { method: "POST", body: formData, credentials: "include" });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error ?? "インポートに失敗しました");
-        if (data.errors?.length) {
-          setImportResult({ count: 0, created: 0, updated: 0, skipped: data.skipped ?? 0, errors: data.errors });
-        }
-        return;
-      }
-      utils.patients.listAll.invalidate();
-      setImportResult({ count: data.count ?? 0, created: data.created ?? 0, updated: data.updated ?? 0, skipped: data.skipped ?? 0, errors: data.errors ?? [] });
-    } catch {
-      toast.error("インポート処理中にエラーが発生しました");
-    } finally {
-      setImportingPatients(false);
-      if (patientExcelRef.current) patientExcelRef.current.value = "";
-    }
-  }, [utils]);
-
-  // 個別追加フォーム
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [addName, setAddName] = useState("");
-  const [addKana, setAddKana] = useState("");
-  const [addTeam, setAddTeam] = useState<Team>("身体");
-  const [addCode, setAddCode] = useState("");
-
-  // 一括登録パネル
-  const [showBulkPanel, setShowBulkPanel] = useState(false);
-  const [bulkText, setBulkText] = useState("");
-  const [bulkTeam, setBulkTeam] = useState<Team>("身体");
-
-  // 編集中
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editKana, setEditKana] = useState("");
-  const [editTeam, setEditTeam] = useState<Team>("身体");
-  const [editCode, setEditCode] = useState("");
-
-  // 並び替え（複数選択可）
-  type SortKey = "id" | "kana" | "team";
-  const [sortKeys, setSortKeys] = useState<SortKey[]>(["id"]);
-  const toggleSort = (key: SortKey) => {
-    setSortKeys((prev) => {
-      if (prev.includes(key)) {
-        const next = prev.filter((k) => k !== key);
-        return next.length === 0 ? ["id"] : next;
-      }
-      return [...prev, key];
-    });
-  };
-
-  // 一括登録のパース（1行1名前）
-  const bulkParsed = useMemo(() => {
-    return bulkText
-      .split(/[\n,、，]/)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0 && s.length <= 100);
-  }, [bulkText]);
-
-  // フィルター済みリスト（有効のみ） + 並び替え
-  const TEAM_ORDER: Record<string, number> = { "身体": 0, "天理": 1, "郡山北部": 2, "郡山南部": 3 };
-  const filteredPatients = useMemo(() => {
-    if (!allPatients) return [];
-    const filtered = allPatients.filter((p) => {
-      if (p.active !== 1) return false;
-      const teamOk = filterTeam === "全て" || p.team === filterTeam;
-      const nameOk = !searchQuery || p.name.includes(searchQuery) || (p.nameKana ?? "").includes(searchQuery);
-      return teamOk && nameOk;
-    });
-    return [...filtered].sort((a, b) => {
-      for (const key of sortKeys) {
-        let cmp = 0;
-        if (key === "id") {
-          const aCode = a.patientCode ?? "";
-          const bCode = b.patientCode ?? "";
-          if (aCode === "" && bCode !== "") cmp = 1;
-          else if (aCode !== "" && bCode === "") cmp = -1;
-          else cmp = aCode.localeCompare(bCode, "ja", { numeric: true });
-        } else if (key === "kana") {
-          cmp = (a.nameKana ?? a.name).localeCompare(b.nameKana ?? b.name, "ja");
-        } else if (key === "team") {
-          cmp = (TEAM_ORDER[a.team] ?? 99) - (TEAM_ORDER[b.team] ?? 99);
-        }
-        if (cmp !== 0) return cmp;
-      }
-      return 0;
-    });
-  }, [allPatients, filterTeam, searchQuery, sortKeys]);
-
-  // 退所済リスト
-  const inactivePatients = useMemo(() => {
-    if (!allPatients) return [];
-    return allPatients.filter((p) => {
-      if (p.active === 1) return false;
-      const teamOk = filterTeam === "全て" || p.team === filterTeam;
-      const nameOk = !searchQuery || p.name.includes(searchQuery) || (p.nameKana ?? "").includes(searchQuery);
-      return teamOk && nameOk;
-    });
-  }, [allPatients, filterTeam, searchQuery]);
-
-  // チーム別件数（有効のみ）
-  const activePatients = useMemo(() => allPatients?.filter((p) => p.active === 1) ?? [], [allPatients]);
-  const teamCounts = useMemo(() => {
-    const counts: Record<string, number> = { 全て: activePatients.length };
-    for (const t of TEAMS) counts[t] = activePatients.filter((p) => p.team === t).length;
-    return counts;
-  }, [activePatients]);
-
-  // Mutations
-  const createPatient = trpc.patients.create.useMutation({
-    onSuccess: () => {
-      utils.patients.listAll.invalidate();
-      toast.success("利用者を追加しました");
-      setAddName(""); setAddKana(""); setShowAddForm(false);
-    },
-    onError: (e) => toast.error(e.message),
-  });
-
-  const batchCreate = trpc.patients.batchCreate.useMutation({
-    onSuccess: (data) => {
-      utils.patients.listAll.invalidate();
-      toast.success(`${data.count}名の利用者を一括登録しました`);
-      setBulkText(""); setShowBulkPanel(false);
-    },
-    onError: (e) => toast.error(e.message),
-  });
-
-  const updatePatient = trpc.patients.update.useMutation({
-    onSuccess: () => {
-      utils.patients.listAll.invalidate();
-      toast.success("利用者情報を更新しました");
-      setEditingId(null);
-    },
-    onError: (e) => toast.error(e.message),
-  });
+function PatientManagementPanel() {
 
   const deactivatePatient = trpc.patients.deactivate.useMutation({
     onSuccess: () => {
@@ -970,7 +656,7 @@ export default function Admin() {
   }, []);
 
   // セクション切り替え
-  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "toolLogs" | "alcoholSheets" | "detectorSettings" | "timesheetSheets" | "overtimeApprovals" | "monthlySignatures" | "improvementSheet">("sheets");
+  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "settings" | "quickaccess" | "toolLogs" | "alcoholSheets" | "detectorSettings" | "timesheetSheets" | "overtimeApprovals" | "monthlySignatures" | "improvementSheet">("sheets");
   const { user: currentUser } = useAuth();
 
   return (
@@ -1021,19 +707,6 @@ export default function Admin() {
             )}
           >
             スタッフ管理
-          </button>
-        )}
-        {currentUser?.role === "admin" && (
-          <button
-            onClick={() => setActiveSection("import")}
-            className={cn(
-            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
-            activeSection === "import"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            一括インポート
           </button>
         )}
         {/* クイックアクセスはホーム画面から削除済みのため非表示 */}
@@ -1164,11 +837,6 @@ export default function Admin() {
             </CardContent>
           </Card>
 
-          {/* 一括インポートパネル */}
-          <BulkImportPanel
-            selectedYearMonth={selectedYearMonth}
-            onSuccess={() => { setEditingKey(null); setEditUrl(""); }}
-          />
 
           {/* リンク一覧・個別登録フォーム */}
           <Card className="shadow-sm">
@@ -1326,9 +994,6 @@ export default function Admin() {
       {/* スタッフ管理セクション */}
       {activeSection === "staff" && <StaffManagementPanel />}
 
-      {/* 一括インポートセクション */}
-      {activeSection === "import" && <BulkExcelImportPanel />}
-
       {/* システム設定セクション */}
       {activeSection === "settings" && <SystemSettingsPanel />}
 
@@ -1481,7 +1146,7 @@ function StaffManagementPanel() {
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [newRole, setNewRole] = useState<"user" | "admin">("user");
+  const [newRole, setNewRole] = useState<"user" | "admin" | "super_admin">("user");
   const [newTeam, setNewTeam] = useState<TeamStaff>("身体");
   const [newNumberPlate, setNewNumberPlate] = useState("");
 
@@ -1528,10 +1193,10 @@ function StaffManagementPanel() {
   const [showNoPlateOnly, setShowNoPlateOnly] = useState(false);
 
   // スタッフ情報編集ダイアログ
-  const [editStaff, setEditStaff] = useState<{ id: number; name: string; team: TeamStaff; role: "user" | "admin"; numberPlate: string } | null>(null);
+  const [editStaff, setEditStaff] = useState<{ id: number; name: string; team: TeamStaff; role: "user" | "admin" | "super_admin"; numberPlate: string } | null>(null);
   const [editName, setEditName] = useState("");
   const [editTeam, setEditTeam] = useState<TeamStaff>("身体");
-  const [editRole, setEditRole] = useState<"user" | "admin">("user");
+  const [editRole, setEditRole] = useState<"user" | "admin" | "super_admin">("user");
   const [editNumberPlate, setEditNumberPlate] = useState("");
 
   const updateInfo = trpc.staff.updateInfo.useMutation({
@@ -1713,6 +1378,16 @@ function StaffManagementPanel() {
                     <ShieldCheck className="w-3.5 h-3.5" />
                     管理者
                   </button>
+                  <button
+                    onClick={() => setNewRole("super_admin")}
+                    className={cn(
+                      "flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors",
+                      newRole === "super_admin" ? "bg-red-600 text-white border-red-600" : "border-border text-muted-foreground hover:border-red-500"
+                    )}
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    特別管理者
+                  </button>
                 </div>
               </div>
             </div>
@@ -1798,10 +1473,11 @@ function StaffManagementPanel() {
                         variant="outline"
                         className={cn(
                           "text-xs px-1.5 py-0",
+                          (staff.role as string) === "super_admin" ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-700" :
                           staff.role === "admin" ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-700" : "bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-700"
                         )}
                       >
-                        {staff.role === "admin" ? "管理者" : "スタッフ"}
+                        {(staff.role as string) === "super_admin" ? "特別管理者" : staff.role === "admin" ? "管理者" : "スタッフ"}
                       </Badge>
                       {staff.team && (
                         <Badge variant="outline" className="text-xs px-1.5 py-0 bg-muted text-muted-foreground">{staff.team}</Badge>
@@ -2010,6 +1686,17 @@ function StaffManagementPanel() {
               >
                 管理者
               </button>
+              <button
+                onClick={() => setEditRole("super_admin")}
+                className={cn(
+                  "flex-1 py-1.5 text-xs rounded-lg border transition-colors",
+                  editRole === "super_admin"
+                    ? "bg-red-600 text-white border-red-600"
+                    : "border-border text-muted-foreground hover:border-red-400"
+                )}
+              >
+                特別管理者
+              </button>
             </div>
           </div>
 
@@ -2050,273 +1737,6 @@ function StaffManagementPanel() {
     </>
   );
 }
-
-// ============================
-// 一括Excelインポートパネル
-// ============================
-
-function BulkExcelImportPanel() {
-  const [file, setFile] = useState<File | null>(null);
-  const [dragOver, setDragOver] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const utils = trpc.useUtils();
-
-  const importMutation = trpc.import.excel.useMutation({
-    onSuccess: (result) => {
-      const pMsg = `利用者: ${result.patients.success}件登録${result.patients.skipped > 0 ? `・${result.patients.skipped}件スキップ` : ""}`;
-      const sMsg = `スタッフ: ${result.staff.success}件更新${result.staff.skipped > 0 ? `・${result.staff.skipped}件スキップ` : ""}`;
-      const hasErrors = result.patients.errors.length > 0 || result.staff.errors.length > 0;
-
-      if (hasErrors) {
-        const allErrors = [...result.patients.errors, ...result.staff.errors];
-        toast.warning(`インポート完了（一部エラー）\n${pMsg} / ${sMsg}`, {
-          description: allErrors.slice(0, 3).join("\n") + (allErrors.length > 3 ? `\n他${allErrors.length - 3}件` : ""),
-          duration: 8000,
-        });
-      } else {
-        toast.success(`インポート完了！ ${pMsg} / ${sMsg}`);
-      }
-
-      // キャッシュを更新
-      utils.patients.list.invalidate();
-      utils.staff.getAll.invalidate();
-      setFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    },
-    onError: (e) => toast.error(e.message),
-  });
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) setFile(f);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const f = e.dataTransfer.files?.[0];
-    if (f && (f.name.endsWith(".xlsx") || f.name.endsWith(".xls"))) {
-      setFile(f);
-    } else {
-      toast.error(".xlsx または .xls ファイルをドロップしてください");
-    }
-  };
-
-  const handleImport = async () => {
-    if (!file) return;
-    // FileをBase64に変換
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64 = (e.target?.result as string).split(",")[1];
-      importMutation.mutate({ fileBase64: base64, fileName: file.name });
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleDownloadTemplate = () => {
-    const a = document.createElement("a");
-    a.href = "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/\u3072\u306a\u305f_\u4e00\u62ec\u30a4\u30f3\u30dd\u30fc\u30c8_30e004e2.xlsx";
-    a.download = "\u3072\u306a\u305f_\u4e00\u62ec\u30a4\u30f3\u30dd\u30fc\u30c8.xlsx";
-    a.click();
-  };
-
-  return (
-    <div className="space-y-4">
-      {/* 説明カード */}
-      <Card className="shadow-sm border-primary/20 bg-primary/5">
-        <CardContent className="pt-4 pb-3">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <Upload className="w-4 h-4 text-primary" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-foreground mb-1">エクセルファイルで利用者・スタッフを一括登録</p>
-              <p className="text-xs text-muted-foreground leading-relaxed mb-2">
-                「ひなた_一括インポート.xlsx」テンプレートに入力したデータを読み込みます。<br />
-                <span className="font-medium text-foreground">利用者シート</span>：新規登録（最大200件）<br />
-                <span className="font-medium text-foreground">スタッフシート</span>：既存ユーザーのチーム・権限を更新（未ログインユーザーはスキップ）
-              </p>
-              <button
-                onClick={handleDownloadTemplate}
-                className="text-xs text-primary hover:underline flex items-center gap-1"
-              >
-                <Download className="w-3 h-3" />
-                テンプレートをダウンロード
-              </button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ファイルアップロードエリア */}
-      <Card className="shadow-sm">
-        <CardHeader className="pb-2 pt-4">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-            Excelファイルを選択
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* ドラッグ&ドロップエリア */}
-          <div
-            className={cn(
-              "border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all",
-              dragOver
-                ? "border-primary bg-primary/5 scale-[1.01]"
-                : "border-border hover:border-primary/50 hover:bg-muted/30",
-              file && "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20"
-            )}
-            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-            {file ? (
-              <div className="space-y-2">
-                <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto">
-                  <FileSpreadsheet className="w-6 h-6 text-emerald-600" />
-                </div>
-                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">{file.name}</p>
-                <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
-                <p className="text-xs text-emerald-600 dark:text-emerald-400">クリックで別のファイルを選択</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mx-auto">
-                  <Upload className="w-6 h-6 text-muted-foreground" />
-                </div>
-                <p className="text-sm font-medium text-foreground">クリックまたはドラッグ&ドロップ</p>
-                <p className="text-xs text-muted-foreground">.xlsx / .xls ファイル対応</p>
-              </div>
-            )}
-          </div>
-
-          {/* アクションボタン */}
-          <div className="flex gap-3">
-            <Button
-              onClick={handleImport}
-              disabled={!file || importMutation.isPending}
-              className="flex-1"
-            >
-              {importMutation.isPending ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                  インポート中...
-                </>
-              ) : (
-                <>
-                  <Upload className="w-4 h-4 mr-2" />
-                  インポート実行
-                </>
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => { setFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
-              disabled={!file || importMutation.isPending}
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* インポート結果 */}
-      {importMutation.isSuccess && (
-        <Card className="shadow-sm border-emerald-200 dark:border-emerald-800">
-          <CardHeader className="pb-2 pt-4">
-            <CardTitle className="text-base font-semibold flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-              <CheckCircle2 className="w-4 h-4" />
-              インポート結果
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {/* 利用者 */}
-            <div className="rounded-lg bg-muted/50 p-3 space-y-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">利用者シート</p>
-              <div className="flex gap-4 text-sm">
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                  ✓ {importMutation.data.patients.success}件 登録
-                </span>
-                {importMutation.data.patients.skipped > 0 && (
-                  <span className="text-muted-foreground">{importMutation.data.patients.skipped}件 スキップ</span>
-                )}
-              </div>
-              {importMutation.data.patients.errors.length > 0 && (
-                <div className="mt-2 space-y-1">
-                  {importMutation.data.patients.errors.map((err, i) => (
-                    <p key={i} className="text-xs text-destructive flex items-start gap-1">
-                      <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                      {err}
-                    </p>
-                  ))}
-                </div>
-              )}
-            </div>
-            {/* スタッフ */}
-            <div className="rounded-lg bg-muted/50 p-3 space-y-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">スタッフシート</p>
-              <div className="flex gap-4 text-sm">
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                  ✓ {importMutation.data.staff.success}件 更新
-                </span>
-                {importMutation.data.staff.skipped > 0 && (
-                  <span className="text-muted-foreground">{importMutation.data.staff.skipped}件 スキップ（未ログイン）</span>
-                )}
-              </div>
-              {importMutation.data.staff.errors.length > 0 && (
-                <div className="mt-2 space-y-1">
-                  {importMutation.data.staff.errors.map((err, i) => (
-                    <p key={i} className="text-xs text-destructive flex items-start gap-1">
-                      <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                      {err}
-                    </p>
-                  ))}
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* 注意事項 */}
-      <Card className="shadow-sm">
-        <CardContent className="pt-4 pb-3">
-          <p className="text-xs font-semibold text-muted-foreground mb-2">注意事項</p>
-          <ul className="space-y-1 text-xs text-muted-foreground">
-            <li className="flex items-start gap-1.5">
-              <span className="text-primary mt-0.5">•</span>
-              利用者は「氏名＋チーム」が一致する場合は更新、一致しない場合は新規登録されます
-            </li>
-            <li className="flex items-start gap-1.5">
-              <span className="text-primary mt-0.5">•</span>
-              スタッフはアプリに一度ログインしたユーザーのみ更新可能です（未ログインユーザーはスキップ）
-            </li>
-            <li className="flex items-start gap-1.5">
-              <span className="text-primary mt-0.5">•</span>
-              テンプレートのグレー記入例行は自動的に無視されます
-            </li>
-            <li className="flex items-start gap-1.5">
-              <span className="text-primary mt-0.5">•</span>
-              インポート後は利用者マスタ・スタッフ管理タブで内容を確認してください
-            </li>
-          </ul>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-// ============================
-// チーム目標管理パネル
-// ============================
 const TEAM_OPTIONS = ["身体", "天理", "郡山北部", "郡山南部", "全チーム"] as const;
 type TeamOption = typeof TEAM_OPTIONS[number];
 
@@ -2568,11 +1988,6 @@ function TeamGoalsPanel() {
     </div>
   );
 }
-
-// ============================
-// システム設定パネル
-// ============================
-
 function SystemSettingsPanel() {
   const { data: cleanupDaysData, isLoading } = trpc.settings.getSheetCleanupDays.useQuery();
   const { data: shareEmailsData, isLoading: isLoadingEmails } = trpc.settings.getShareEmails.useQuery();
@@ -2868,598 +2283,90 @@ function SystemSettingsPanel() {
           </div>
         </CardContent>
       </Card>
-    </div>
-  );
-}
-
-// ============================
-// クイックアクセスリンク管理パネル
-// ============================
-
-const QUICK_ACCESS_CATEGORIES = ["スプレッドシート", "ドキュメント", "フォーム", "その他"] as const;
-type QuickAccessCategory = typeof QUICK_ACCESS_CATEGORIES[number];
-
-const COLOR_OPTIONS = [
-  { value: "text-blue-600", label: "青" },
-  { value: "text-emerald-600", label: "緑" },
-  { value: "text-purple-600", label: "紫" },
-  { value: "text-orange-500", label: "オレンジ" },
-  { value: "text-rose-500", label: "赤" },
-  { value: "text-amber-500", label: "黄" },
-  { value: "text-cyan-600", label: "シアン" },
-  { value: "text-slate-600", label: "グレー" },
-];
-
-function QuickAccessLinksPanel() {
-  const utils = trpc.useUtils();
-  const { data: links, isLoading } = trpc.quickAccessLinks.list.useQuery();
-  const createMutation = trpc.quickAccessLinks.create.useMutation({
-    onSuccess: () => { utils.quickAccessLinks.list.invalidate(); toast.success("リンクを追加しました"); setShowAddForm(false); resetForm(); },
-    onError: (e) => toast.error(`追加失敗: ${e.message}`),
-  });
-  const updateMutation = trpc.quickAccessLinks.update.useMutation({
-    onSuccess: () => { utils.quickAccessLinks.list.invalidate(); toast.success("リンクを更新しました"); setEditingId(null); },
-    onError: (e) => toast.error(`更新失敗: ${e.message}`),
-  });
-  const deleteMutation = trpc.quickAccessLinks.delete.useMutation({
-    onSuccess: () => { utils.quickAccessLinks.list.invalidate(); toast.success("リンクを削除しました"); },
-    onError: (e) => toast.error(`削除失敗: ${e.message}`),
-  });
-
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-
-  // 追加フォーム
-  const [newCategory, setNewCategory] = useState<QuickAccessCategory>("スプレッドシート");
-  const [newLabel, setNewLabel] = useState("");
-  const [newHref, setNewHref] = useState("");
-  const [newEmoji, setNewEmoji] = useState("");
-  const [newColor, setNewColor] = useState("text-blue-600");
-  const [newSortOrder, setNewSortOrder] = useState(0);
-
-  // 編集フォーム
-  const [editCategory, setEditCategory] = useState<QuickAccessCategory>("スプレッドシート");
-  const [editLabel, setEditLabel] = useState("");
-  const [editHref, setEditHref] = useState("");
-  const [editEmoji, setEditEmoji] = useState("");
-  const [editColor, setEditColor] = useState("text-blue-600");
-  const [editSortOrder, setEditSortOrder] = useState(0);
-
-  function resetForm() {
-    setNewCategory("スプレッドシート");
-    setNewLabel("");
-    setNewHref("");
-    setNewEmoji("");
-    setNewColor("text-blue-600");
-    setNewSortOrder(0);
-  }
-
-  function startEdit(link: { id: number; category: string; label: string; href: string; emoji: string; color: string; sortOrder: number }) {
-    setEditingId(link.id);
-    setEditCategory(link.category as QuickAccessCategory);
-    setEditLabel(link.label);
-    setEditHref(link.href);
-    setEditEmoji(link.emoji ?? "");
-    setEditColor(link.color);
-    setEditSortOrder(link.sortOrder);
-  }
-
-  const grouped = QUICK_ACCESS_CATEGORIES.map((cat) => ({
-    category: cat,
-    items: (links ?? []).filter((l) => l.category === cat),
-  }));
-
-  return (
-    <div className="space-y-4">
+      {/* スケジュール変更連絡 自動削除日数設定 */}
       <Card className="shadow-sm">
         <CardHeader className="pb-2 pt-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <Link className="w-4 h-4 text-primary" />
-              クイックアクセスリンク管理
-            </CardTitle>
-            <Button size="sm" onClick={() => { setShowAddForm(!showAddForm); setEditingId(null); }}>
-              <Plus className="w-3.5 h-3.5 mr-1" />
-              追加
-            </Button>
-          </div>
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <Settings className="w-4 h-4 text-primary" />
+            スケジュール変更連絡 自動削除設定
+          </CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            ホーム画面のクイックアクセスに表示するリンクを管理します。追加・編集・削除が即座に反映されます。
+            スケジュール変更連絡スプレッドシートの行を「変更後日時」から何日後に自動削除するかを設定します。
+            毎日0:05（日本時間）に自動実行されます。
           </p>
         </CardHeader>
-
-        {/* 追加フォーム */}
-        {showAddForm && (
-          <CardContent className="border-t border-border pt-4">
-            <p className="text-sm font-semibold mb-3">新しいリンクを追加</p>
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">カテゴリ</label>
-                  <select
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value as QuickAccessCategory)}
-                    className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    {QUICK_ACCESS_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">色</label>
-                  <select
-                    value={newColor}
-                    onChange={(e) => setNewColor(e.target.value)}
-                    className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    {COLOR_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">絵文字アイコン（任意）</label>
-                <input
-                  type="text"
-                  value={newEmoji}
-                  onChange={(e) => setNewEmoji(e.target.value)}
-                  placeholder="例：📄 📊 📝"
-                  className="w-full h-8 px-3 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">表示名</label>
-                <input
-                  type="text"
-                  value={newLabel}
-                  onChange={(e) => setNewLabel(e.target.value)}
-                  placeholder="例：業務日報"
-                  className="w-full h-8 px-3 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">URL</label>
-                <input
-                  type="url"
-                  value={newHref}
-                  onChange={(e) => setNewHref(e.target.value)}
-                  placeholder="https://docs.google.com/..."
-                  className="w-full h-8 px-3 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">表示順（数字が小さいほど上に表示）</label>
-                <input
-                  type="number"
-                  value={newSortOrder}
-                  onChange={(e) => setNewSortOrder(Number(e.target.value))}
-                  className="w-24 h-8 px-3 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-              <div className="flex gap-2 pt-1">
-                <Button
-                  size="sm"
-                  onClick={() => createMutation.mutate({ category: newCategory, label: newLabel, href: newHref, emoji: newEmoji, color: newColor, sortOrder: newSortOrder })}
-                  disabled={createMutation.isPending || !newLabel.trim() || !newHref.trim()}
-                >
-                  {createMutation.isPending ? "追加中..." : "追加する"}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => { setShowAddForm(false); resetForm(); }}>
-                  キャンセル
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        )}
-
-        {/* リスト */}
-        <CardContent className={showAddForm ? "border-t border-border pt-4" : "pt-0"}>
-          {isLoading ? (
-            <div className="space-y-2">
-              {[1, 2, 3].map((i) => <div key={i} className="h-10 bg-muted animate-pulse rounded-md" />)}
-            </div>
-          ) : (
-            <div className="space-y-5">
-              {grouped.map(({ category, items }) => (
-                <div key={category}>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{category}</p>
-                  {items.length === 0 ? (
-                    <p className="text-sm text-muted-foreground italic pl-2">登録なし</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {items.map((link) => (
-                        <div key={link.id} className="rounded-lg border border-border bg-card p-3">
-                          {editingId === link.id ? (
-                            // 編集フォーム
-                            <div className="space-y-2">
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <label className="text-xs text-muted-foreground block mb-1">カテゴリ</label>
-                                  <select
-                                    value={editCategory}
-                                    onChange={(e) => setEditCategory(e.target.value as QuickAccessCategory)}
-                                    className="w-full h-7 px-2 rounded border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                                  >
-                                    {QUICK_ACCESS_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                                  </select>
-                                </div>
-                                <div>
-                                  <label className="text-xs text-muted-foreground block mb-1">色</label>
-                                  <select
-                                    value={editColor}
-                                    onChange={(e) => setEditColor(e.target.value)}
-                                    className="w-full h-7 px-2 rounded border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                                  >
-                                    {COLOR_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-                                  </select>
-                                </div>
-                              </div>
-                              <input
-                                type="text"
-                                value={editEmoji}
-                                onChange={(e) => setEditEmoji(e.target.value)}
-                                placeholder="絵文字（任意）"
-                                className="w-full h-7 px-2 rounded border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                              />
-                              <input
-                                type="text"
-                                value={editLabel}
-                                onChange={(e) => setEditLabel(e.target.value)}
-                                placeholder="表示名"
-                                className="w-full h-7 px-2 rounded border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                              />
-                              <input
-                                type="url"
-                                value={editHref}
-                                onChange={(e) => setEditHref(e.target.value)}
-                                placeholder="URL"
-                                className="w-full h-7 px-2 rounded border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                              />
-                              <div className="flex items-center gap-2">
-                                <label className="text-xs text-muted-foreground">表示順</label>
-                                <input
-                                  type="number"
-                                  value={editSortOrder}
-                                  onChange={(e) => setEditSortOrder(Number(e.target.value))}
-                                  className="w-16 h-7 px-2 rounded border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                                />
-                              </div>
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  className="h-7 text-xs"
-                                  onClick={() => updateMutation.mutate({ id: link.id, category: editCategory, label: editLabel, href: editHref, emoji: editEmoji, color: editColor, sortOrder: editSortOrder })}
-                                  disabled={updateMutation.isPending || !editLabel.trim() || !editHref.trim()}
-                                >
-                                  {updateMutation.isPending ? "保存中..." : "保存"}
-                                </Button>
-                                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setEditingId(null)}>
-                                  キャンセル
-                                </Button>
-                              </div>
-                            </div>
-                          ) : (
-                            // 表示行
-                            <div className="flex items-center gap-3">
-                              {link.emoji && <span className="text-lg flex-shrink-0">{link.emoji}</span>}
-                              <div className="flex-1 min-w-0">
-                                <p className={cn("text-sm font-medium truncate", link.color)}>{link.label}</p>
-                                <p className="text-xs text-muted-foreground truncate">{link.href}</p>
-                              </div>
-                              <div className="flex items-center gap-1 flex-shrink-0">
-                                <span className="text-xs text-muted-foreground mr-1">順{link.sortOrder}</span>
-                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(link)}>
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-7 w-7 text-destructive hover:text-destructive"
-                                  onClick={() => { if (confirm(`「${link.label}」を削除しますか？`)) deleteMutation.mutate({ id: link.id }); }}
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+        <CardContent className="space-y-4">
+          <ScheduleChangeDeleteDaysSetting />
         </CardContent>
       </Card>
     </div>
   );
 }
 
-// ============================
-// 操作ログパネル
-// ============================
-function ToolAuditLogsPanel() {
-  const today = new Date();
-  const jst = new Date(today.getTime() + 9 * 60 * 60 * 1000);
-  const defaultEnd = jst.toISOString().slice(0, 10);
-  const defaultStart = new Date(jst.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-
-  const [activeTab, setActiveTab] = useState<"toolLogs" | "allLogs">("allLogs");
-  const [toolTypeFilter, setToolTypeFilter] = useState<"all" | "team" | "common">("all");
-  const [csvStartDate, setCsvStartDate] = useState(defaultStart);
-  const [csvEndDate, setCsvEndDate] = useState(defaultEnd);
-  const [csvUserId, setCsvUserId] = useState<number | undefined>(undefined);
-  const [csvEnabled, setCsvEnabled] = useState(false);
-
-  const { data: logs, isLoading, refetch } = trpc.toolAuditLogs.list.useQuery(
-    { limit: 200, toolType: toolTypeFilter },
-    { refetchOnWindowFocus: false }
-  );
-
-  const { data: staffList } = trpc.toolAuditLogs.getStaffList.useQuery(undefined, {
-    refetchOnWindowFocus: false,
+function ScheduleChangeDeleteDaysSetting() {
+  const utils = trpc.useUtils();
+  const { data, isLoading } = trpc.settings.getScheduleChangeDeleteDays.useQuery();
+  const [selectedDays, setSelectedDays] = React.useState<number>(3);
+  React.useEffect(() => {
+    if (data?.days !== undefined) setSelectedDays(data.days);
+  }, [data?.days]);
+  const saveMutation = trpc.settings.setScheduleChangeDeleteDays.useMutation({
+    onSuccess: () => { utils.settings.getScheduleChangeDeleteDays.invalidate(); toast.success("保存しました"); },
+    onError: (e) => toast.error(`保存失敗: ${e.message}`),
   });
-
-  const { data: allLogs, isLoading: allLogsLoading, refetch: refetchAll } = trpc.toolAuditLogs.exportAll.useQuery(
-    { startDate: csvStartDate, endDate: csvEndDate, userId: csvUserId },
-    { enabled: csvEnabled, refetchOnWindowFocus: false }
-  );
-
-  const handleLoadLogs = () => {
-    setCsvEnabled(true);
-    refetchAll();
-  };
-
-  const handleExportCsv = () => {
-    if (!allLogs || allLogs.length === 0) return;
-    const header = "日時,職員名,カテゴリ,操作,詳細";
-    const rows = allLogs.map((r) =>
-      [
-        `"${r.datetime}"`,
-        `"${r.userName}"`,
-        `"${r.category}"`,
-        `"${r.action}"`,
-        `"${r.detail.replace(/"/g, '""')}"`,
-      ].join(",")
-    );
-    const csv = "\uFEFF" + [header, ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `操作ログ_${csvStartDate}_${csvEndDate}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const actionLabel = (action: string) => {
-    if (action === "create") return { label: "追加", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" };
-    if (action === "update") return { label: "更新", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" };
-    if (action === "delete") return { label: "削除", color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300" };
-    return { label: action, color: "bg-gray-100 text-gray-800" };
-  };
-
-  const toolTypeLabel = (type: string) => {
-    if (type === "team") return "チームツール";
-    if (type === "common") return "全チーム共通";
-    return type;
-  };
-
-  const categoryColor = (cat: string) => {
-    if (cat === "出退勤") return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
-    if (cat === "残業申請") return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300";
-    if (cat === "アルコールチェック") return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300";
-    if (cat === "タスク") return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
-    if (cat === "メッセージ") return "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300";
-    if (cat === "スケジュール変更連絡") return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300";
-    if (cat === "ツール操作") return "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-300";
-    if (cat === "月次署名") return "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300";
-    return "bg-gray-100 text-gray-800";
-  };
-
+  const DELETE_DAY_OPTIONS = [
+    { value: 1, label: "1日後" },
+    { value: 2, label: "2日後" },
+    { value: 3, label: "3日後" },
+    { value: 5, label: "5日後" },
+    { value: 7, label: "7日後" },
+    { value: 14, label: "14日後" },
+    { value: 30, label: "30日後" },
+  ];
   return (
-    <Card className="shadow-sm">
-      <CardHeader className="pb-2 pt-4">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-semibold">操作ログ</CardTitle>
-        </div>
-        {/* タブ切り替え */}
-        <div className="flex gap-1 mt-3 border-b border-border">
-          <button
-            onClick={() => setActiveTab("allLogs")}
-            className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
-              activeTab === "allLogs" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            全操作ログ（CSV出力）
-          </button>
-          <button
-            onClick={() => setActiveTab("toolLogs")}
-            className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
-              activeTab === "toolLogs" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            ツール操作履歴
-          </button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {activeTab === "allLogs" && (
-          <div className="space-y-4">
-            <p className="text-xs text-muted-foreground">全職員の全操作（出退勤・残業申請・アルコールチェック・タスク・メッセージ・スケジュール変更・ツール操作・月次署名）をCSV形式で出力できます。</p>
-
-            {/* フィルター */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-lg bg-muted/40 border border-border">
-              <div>
-                <label className="text-xs font-medium text-foreground block mb-1">開始日</label>
-                <input
-                  type="date"
-                  value={csvStartDate}
-                  onChange={(e) => { setCsvStartDate(e.target.value); setCsvEnabled(false); }}
-                  className="w-full text-sm border border-border rounded-md px-2 py-1.5 bg-background text-foreground"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-foreground block mb-1">終了日</label>
-                <input
-                  type="date"
-                  value={csvEndDate}
-                  onChange={(e) => { setCsvEndDate(e.target.value); setCsvEnabled(false); }}
-                  className="w-full text-sm border border-border rounded-md px-2 py-1.5 bg-background text-foreground"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-foreground block mb-1">職員フィルター</label>
-                <select
-                  value={csvUserId ?? ""}
-                  onChange={(e) => { setCsvUserId(e.target.value ? Number(e.target.value) : undefined); setCsvEnabled(false); }}
-                  className="w-full text-sm border border-border rounded-md px-2 py-1.5 bg-background text-foreground"
-                >
-                  <option value="">全員</option>
-                  {staffList?.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <Button size="sm" onClick={handleLoadLogs} disabled={allLogsLoading} className="text-xs">
-                {allLogsLoading ? "読み込み中..." : "ログを読み込む"}
-              </Button>
-              {allLogs && allLogs.length > 0 && (
-                <Button size="sm" variant="outline" onClick={handleExportCsv} className="text-xs">
-                  CSVダウンロード（{allLogs.length}件）
-                </Button>
-              )}
-            </div>
-
-            {csvEnabled && (
-              allLogsLoading ? (
-                <div className="text-center py-8 text-muted-foreground text-sm">読み込み中...</div>
-              ) : !allLogs || allLogs.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground text-sm">該当する操作ログがありません</div>
-              ) : (
-                <div className="space-y-1.5 max-h-96 overflow-y-auto">
-                  {allLogs.map((row, i) => (
-                    <div key={i} className="flex items-start gap-2 p-2.5 rounded-lg border border-border bg-card hover:bg-accent/20 transition-colors">
-                      <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5 whitespace-nowrap", categoryColor(row.category))}>
-                        {row.category}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-medium text-foreground">{row.userName}</span>
-                          <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{row.action}</span>
-                        </div>
-                        {row.detail && <p className="text-xs text-muted-foreground mt-0.5 truncate">{row.detail}</p>}
-                        <p className="text-xs text-muted-foreground mt-0.5">{row.datetime}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )
-            )}
-          </div>
-        )}
-
-        {activeTab === "toolLogs" && (
-          <div>
-            <p className="text-xs text-muted-foreground mb-3">ツールの追加・更新・削除の操作履歴（最新200件）</p>
-            {/* フィルター */}
-            <div className="flex gap-2 mb-4 items-center">
-              {(["all", "team", "common"] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setToolTypeFilter(t)}
-                  className={cn(
-                    "px-3 py-1 text-xs rounded-full border transition-colors",
-                    toolTypeFilter === t
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "border-border text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {t === "all" ? "すべて" : t === "team" ? "チームツール" : "全チーム共通"}
-                </button>
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="flex-1">
+          <label className="text-sm font-medium text-foreground block mb-1.5">
+            削除するまでの日数
+          </label>
+          {isLoading ? (
+            <div className="h-9 bg-muted animate-pulse rounded-md" />
+          ) : (
+            <select
+              value={selectedDays}
+              onChange={(e) => setSelectedDays(Number(e.target.value))}
+              className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              {DELETE_DAY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
-              <Button variant="ghost" size="sm" onClick={() => refetch()} className="text-xs ml-auto">
-                <RotateCcw className="w-3.5 h-3.5 mr-1" />
-                更新
-              </Button>
-            </div>
-
-            {isLoading ? (
-              <div className="text-center py-8 text-muted-foreground text-sm">読み込み中...</div>
-            ) : !logs || logs.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground text-sm">操作ログがありません</div>
-            ) : (
-              <div className="space-y-2">
-                {logs.map((log) => {
-                  const { label, color } = actionLabel(log.action);
-                  return (
-                    <div
-                      key={log.id}
-                      className="flex items-start gap-3 p-3 rounded-lg border border-border bg-card hover:bg-accent/30 transition-colors"
-                    >
-                      <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5", color)}>
-                        {label}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-medium text-foreground truncate">{log.toolLabel}</span>
-                          <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                            {toolTypeLabel(log.toolType)}
-                          </span>
-                          {log.team && (
-                            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                              {log.team}
-                            </span>
-                          )}
-                          {log.category && (
-                            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                              {log.category}
-                            </span>
-                          )}
-                        </div>
-                        {log.action === "update" && log.previousLabel && log.previousLabel !== log.toolLabel && (
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            変更前: {log.previousLabel}
-                          </p>
-                        )}
-                        {log.toolHref && (
-                          <a
-                            href={log.toolHref}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-blue-500 hover:underline truncate block mt-0.5 max-w-xs"
-                          >
-                            {log.toolHref}
-                          </a>
-                        )}
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-muted-foreground">{log.operatedByName}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(log.createdAt).toLocaleString("ja-JP", {
-                              year: "numeric", month: "2-digit", day: "2-digit",
-                              hour: "2-digit", minute: "2-digit"
-                            })}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+            </select>
+          )}
+        </div>
+        <div className="pt-6">
+          <Button
+            size="sm"
+            onClick={() => saveMutation.mutate({ days: selectedDays })}
+            disabled={saveMutation.isPending || isLoading}
+          >
+            {saveMutation.isPending ? "保存中..." : "保存"}
+          </Button>
+        </div>
+      </div>
+      <div className="rounded-lg bg-muted/50 border border-border p-3 text-sm text-muted-foreground space-y-1">
+        <p className="font-medium text-foreground text-xs">動作の仕組み</p>
+        <p>・毎日0:05（日本時間）に自動実行されます</p>
+        <p>・「変更後日時」から設定した日数が経過した行を自動削除します</p>
+        <p>・例：3日後に設定した場合、変更後日時が3月1日の行は3月4日0:05に削除されます</p>
+        <p>・変更後日時が空欄の行は削除されません</p>
+      </div>
+    </div>
   );
 }
 
 // ============================
-// アルコールチェック月別スプレッドシート管理パネル
+// アルコールチェック月別スプレッドシート管理パネルル
 // ============================
 
 function AlcoholCheckSpreadsheetsPanel() {

@@ -1180,7 +1180,7 @@ export async function deleteStaffAccount(userId: number) {
 }
 
 /** スタッフのロールを変更する（管理者用） */
-export async function updateStaffRole(userId: number, role: "user" | "admin") {
+export async function updateStaffRole(userId: number, role: "user" | "admin" | "super_admin") {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.update(users).set({ role }).where(eq(users.id, userId));
@@ -1190,7 +1190,7 @@ export async function updateStaffRole(userId: number, role: "user" | "admin") {
 export async function updateStaffInfo(userId: number, data: {
   name: string;
   team: "身体" | "天理" | "郡山北部" | "郡山南部" | "事務員" | "全チーム";
-  role: "user" | "admin";
+  role: "user" | "admin" | "super_admin";
   numberPlate?: string;
 }) {
   const db = await getDb();
@@ -2697,4 +2697,17 @@ export async function deletePersonalTask(id: number, userId: number): Promise<vo
     deletedAt: new Date(),
     deletedBy: userId,
   }).where(eq(personalTasks.id, id));
+}
+
+/** super_adminロールのユーザーのメールアドレス一覧を取得する */
+export async function getSuperAdminEmails(): Promise<string[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const { users } = await import("../drizzle/schema");
+  const { eq, isNotNull } = await import("drizzle-orm");
+  const rows = await db
+    .select({ email: users.email })
+    .from(users)
+    .where(eq(users.role, "super_admin" as any));
+  return rows.map((r) => r.email).filter((e): e is string => !!e);
 }
