@@ -51,14 +51,12 @@ export default function TeamGoals() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formTeam, setFormTeam] = useState<TeamOption>("全チーム");
   const [formTitle, setFormTitle] = useState("");
-  const [formBody, setFormBody] = useState("");
   const [formStartDate, setFormStartDate] = useState("");
   const [formEndDate, setFormEndDate] = useState("");
 
   function resetForm() {
     setFormTeam("全チーム");
     setFormTitle("");
-    setFormBody("");
     setFormStartDate("");
     setFormEndDate("");
   }
@@ -67,7 +65,6 @@ export default function TeamGoals() {
     setEditingId(g.id);
     setFormTeam(g.team as TeamOption);
     setFormTitle(g.title);
-    setFormBody(g.body ?? "");
     setFormStartDate(g.startDate ? String(g.startDate).slice(0, 10) : "");
     setFormEndDate(g.endDate ? String(g.endDate).slice(0, 10) : "");
     setShowForm(false);
@@ -79,7 +76,7 @@ export default function TeamGoals() {
     const data = {
       team: formTeam,
       title: formTitle.trim(),
-      body: formBody.trim() || null,
+      body: null,
       startDate: formStartDate || null,
       endDate: formEndDate || null,
     };
@@ -161,28 +158,18 @@ export default function TeamGoals() {
                     {TEAM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">
-                    目標タイトル <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formTitle}
-                    onChange={e => setFormTitle(e.target.value)}
-                    placeholder="例：今月の訪問件数目標を達成しよう"
-                    className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
-                    required
-                  />
-                </div>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">詳細・メッセージ（任意）</label>
+                <label className="text-sm font-medium mb-1 block">
+                  目標内容 <span className="text-red-500">*</span>
+                </label>
                 <textarea
-                  value={formBody}
-                  onChange={e => setFormBody(e.target.value)}
-                  placeholder="目標の詳細や応援メッセージを入力..."
+                  value={formTitle}
+                  onChange={e => setFormTitle(e.target.value)}
+                  placeholder="例：今月の訪問件数目標を達成しよう"
                   rows={3}
                   className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background resize-none"
+                  required
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -261,24 +248,15 @@ export default function TeamGoals() {
                             {TEAM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
                           </select>
                         </div>
-                        <div>
-                          <label className="text-sm font-medium mb-1 block">目標タイトル</label>
-                          <input
-                            type="text"
-                            value={formTitle}
-                            onChange={e => setFormTitle(e.target.value)}
-                            className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
-                            required
-                          />
-                        </div>
                       </div>
                       <div>
-                        <label className="text-sm font-medium mb-1 block">詳細・メッセージ</label>
+                        <label className="text-sm font-medium mb-1 block">目標内容</label>
                         <textarea
-                          value={formBody}
-                          onChange={e => setFormBody(e.target.value)}
+                          value={formTitle}
+                          onChange={e => setFormTitle(e.target.value)}
                           rows={3}
                           className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background resize-none"
+                          required
                         />
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
