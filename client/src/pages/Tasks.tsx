@@ -264,7 +264,10 @@ export default function Tasks() {
       if (ctx?.prev) utils.tasks.getMine.setData(undefined, ctx.prev);
       toast.error("更新に失敗しました");
     },
-    onSettled: () => utils.tasks.getMine.invalidate(),
+    onSettled: () => {
+      utils.tasks.getMine.invalidate();
+      utils.tasks.getAll.invalidate();
+    },
   });
 
   // 削除済みタスクタブの表示状態

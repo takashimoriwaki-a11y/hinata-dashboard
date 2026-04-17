@@ -3685,7 +3685,7 @@ function PatientTasksCard() {
     staleTime: 0,
   });
 
-  // 今日の利用者タスク（patientNameが設定されていて、今日が期日 or 期日なし）
+  // 今日の利用者タスク（patientNameが設定されていて、今日が期日 or 期日なし or 次回訪問時）
   const todayPatientTasks = useMemo(() => {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -3694,6 +3694,8 @@ function PatientTasksCard() {
       .filter((t) => {
         if (t.done !== 0) return false;
         if (!(t as any).patientName) return false; // 利用者名なしは除外
+        // next_visitタスクは期日なしで登録されるため、assignTypeに関わらず常に表示
+        if ((t as any).taskKind === "next_visit") return true;
         // assignTypeフィルター（自分宛て or 自分のチーム or 全員）
         const userTeam = (user as any)?.team;
         if (t.assignType === "personal" && t.assignUserId !== user?.id) return false;
@@ -3728,7 +3730,10 @@ function PatientTasksCard() {
     onError: (_e, _v, ctx) => {
       if (ctx?.prev) utils.tasks.getMine.setData(undefined, ctx.prev);
     },
-    onSettled: () => utils.tasks.getMine.invalidate(),
+    onSettled: () => {
+      utils.tasks.getMine.invalidate();
+      utils.tasks.getAll.invalidate();
+    },
   });
 
   return (
