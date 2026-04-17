@@ -6691,9 +6691,12 @@ export const appRouter = router({
         taskKind: z.enum(["at_time", "by_deadline"]).default("by_deadline"),
         dueDate: z.date().optional(),
         assignType: z.enum(["self", "personal", "team", "all"]).default("self"),
-        assignTeam: z.enum(["身体", "天理", "郡山北部", "郡山南部"]).optional(),
+        assignTeam: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員"]).optional(),
+        assignTeams: z.array(z.string()).optional(),
         assignUserId: z.number().optional(),
+        assignUserIds: z.array(z.number()).optional(),
         assignUserName: z.string().optional(),
+        assignUserNames: z.array(z.string()).optional(),
         repeatType: z.enum(["none", "daily", "weekly", "biweekly", "monthly", "nth_weekday"]).default("none"),
         repeatDayOfWeek: z.number().min(0).max(6).optional(),
         repeatDayOfMonth: z.number().min(1).max(31).optional(),
@@ -6734,9 +6737,12 @@ export const appRouter = router({
         taskKind: z.enum(["at_time", "by_deadline"]).optional(),
         dueDate: z.date().nullable().optional(),
         assignType: z.enum(["self", "personal", "team", "all"]).optional(),
-        assignTeam: z.enum(["身体", "天理", "郡山北部", "郡山南部"]).nullable().optional(),
+        assignTeam: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員"]).nullable().optional(),
+        assignTeams: z.array(z.string()).nullable().optional(),
         assignUserId: z.number().nullable().optional(),
+        assignUserIds: z.array(z.number()).nullable().optional(),
         assignUserName: z.string().nullable().optional(),
+        assignUserNames: z.array(z.string()).nullable().optional(),
         repeatType: z.enum(["none", "daily", "weekly", "biweekly", "monthly", "nth_weekday"]).optional(),
         repeatDayOfWeek: z.number().nullable().optional(),
         repeatDayOfMonth: z.number().nullable().optional(),
@@ -6760,6 +6766,59 @@ export const appRouter = router({
         const result = await deletePersonalTask(input.id, ctx.user.id);
         broadcastEvent("personalTasks");
         return result;
+      }),
+
+    /** 音声入力テキストからタスクフィールドをAI解析する */
+    parseVoice: protectedProcedure
+      .input(z.object({
+        text: z.string(),
+        staffNames: z.array(z.string()).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { invokeLLM } = await import("./_core/llm");
+        const { TRPCError } = await import("@trpc/server");
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        const dayNames = ['\u65e5', '\u6708', '\u706b', '\u6c34', '\u6728', '\u91d1', '\u571f'];
+        const todayDayName = dayNames[today.getDay()];
+        const staffListStr = input.staffNames && input.staffNames.length > 0
+          ? `\n\n\u767b\u9332\u6e08\u307f\u30b9\u30bf\u30c3\u30d5\u30ea\u30b9\u30c8\uff08assignPersonName\u306f\u3053\u306e\u4e2d\u304b\u3089\u9078\u3076\u3053\u3068\uff09:\n${input.staffNames.join('\u3001')}` : '';
+        const systemPrompt = `\u3042\u306a\u305f\u306f\u8a2a\u554f\u770b\u8b77\u30b9\u30c6\u30fc\u30b7\u30e7\u30f3\u306e\u696d\u52d9\u30a2\u30b7\u30b9\u30bf\u30f3\u30c8\u3067\u3059\u3002\u30b9\u30bf\u30c3\u30d5\u304c\u97f3\u58f0\u3067\u4f1d\u3048\u305f\u5185\u5bb9\u304b\u3089\u3001\u500b\u4eba\u30bf\u30b9\u30af\u306e\u5404\u9805\u76ee\u3092\u62bd\u51fa\u3057\u3066JSON\u3067\u8fd4\u3057\u3066\u304f\u3060\u3055\u3044\u3002\n\u4eca\u65e5\u306f${todayStr}\uff08${todayDayName}\u66dc\u65e5\uff09\u3067\u3059\u3002\n\u65e5\u4ed8\u89e3\u6790\u30eb\u30fc\u30eb\uff08\u5fc5\u305a\u9075\u5b88\uff09:\n1. \u76f8\u5bfe\u8868\u73fe: \u300c\u4eca\u65e5\u300d\u300c\u660e\u65e5\u300d\u300c\u660e\u5f8c\u65e5\u300d\u300c\u660e\u3005\u5f8c\u65e5\u300d\u300c\u6628\u65e5\u300d\u2192 \u4eca\u65e5\u304b\u3089\u306e\u76f8\u5bfe\u65e5\u6570\u3067\u6b63\u78ba\u306b\u8a08\u7b97\n2. \u66dc\u65e5\u6307\u5b9a: \u300c\u6b21\u306e\u706b\u66dc\u65e5\u300d\u300c\u4eca\u9031\u306e\u91d1\u66dc\u65e5\u300d\u2192 \u4eca\u65e5\u304b\u3089\u6700\u3082\u8fd1\u3044\u305d\u306e\u66dc\u65e5\n3. \u65e5\u4ed8\u306e\u307f: \u300c4\u6708\u30fb7\u65e5\u300d\u300c4/7\u300d\u2192 \u5e74\u306f\u4eca\u5e74\u307e\u305f\u306f\u6765\u5e74\u306e\u8fd1\u3044\u65b9\u3092\u9078\u629e\n\u91cd\u8981\uff1a\u97f3\u58f0\u5165\u529b\u3067\u306f\u8a00\u3044\u9593\u9055\u3044\u3092\u8a02\u6b63\u3059\u308b\u5834\u5408\u304c\u3042\u308a\u307e\u3059\u3002\u300c\u3058\u3083\u306a\u304f\u3066\u300d\u300c\u3067\u306f\u306a\u304f\u300d\u300c\u9055\u3044\u307e\u3059\u300d\u300c\u3084\u3063\u3071\u308a\u300d\u306a\u3069\u306e\u8a02\u6b63\u8868\u73fe\u304c\u3042\u308b\u5834\u5408\u306f\u3001\u305d\u306e\u5f8c\u306b\u7d9a\u304f\u5185\u5bb9\uff08\u6700\u5f8c\u306b\u8a00\u53ca\u3055\u308c\u305f\u5185\u5bb9\uff09\u3092\u6b63\u3057\u3044\u5024\u3068\u3057\u3066\u63a1\u7528\u3057\u3066\u304f\u3060\u3055\u3044\u3002\n\u62bd\u51fa\u9805\u76ee:\n- text: \u30bf\u30b9\u30af\u5185\u5bb9\u30fb\u3084\u308b\u3053\u3068\u306e\u8aac\u660e\uff08\u5fc5\u9808\uff09\n- dueDateStr: \u671f\u65e5\u65e5\u4ed8\uff08YYYY-MM-DD\u5f62\u5f0f\uff09\u3002\u4e0d\u660e\u306a\u5834\u5408\u306fnull\n- dueTimeStr: \u671f\u65e5\u6642\u523b\uff08HH:MM\u5f62\u5f0f\uff09\u3002\u4e0d\u660e\u306a\u5834\u5408\u306fnull\n- assignType: \u6307\u5b9a\u5148\u306e\u7a2e\u5225\u3002\u300c\u5168\u54e1\u300d\u300c\u5168\u30b9\u30bf\u30c3\u30d5\u300d\u300c\u5168\u4f53\u300d\u2192all\u3001\u300c\u8eab\u4f53\u30c1\u30fc\u30e0\u300d\u300c\u8eab\u4f53\u300d\u300c\u5929\u7406\u30c1\u30fc\u30e0\u300d\u300c\u5929\u7406\u300d\u300c\u90e1\u5c71\u5317\u90e8\u300d\u300c\u5317\u90e8\u300d\u300c\u90e1\u5c71\u5357\u90e8\u300d\u300c\u5357\u90e8\u300d\u300c\u4e8b\u52d9\u54e1\u300d\u306a\u3069\u30c1\u30fc\u30e0\u3092\u6307\u3059\u8868\u73fe\u2192team\u3001\u767b\u9332\u6e08\u307f\u30b9\u30bf\u30c3\u30d5\u306e\u540d\u524d\u304c\u660e\u793a\u3055\u308c\u305f\u5834\u5408\u2192personal\u3002\u4e0d\u660e\u306a\u5834\u5408\u306fself\n- assignTeams: assignType\u304cteam\u306e\u5834\u5408\u306e\u30c1\u30fc\u30e0\u540d\u306e\u914d\u5217\u3002\u300c\u8eab\u4f53\u300d\u300c\u8eab\u4f53\u30c1\u30fc\u30e0\u300d\u2192["\u8eab\u4f53"]\u3001\u300c\u5929\u7406\u300d\u300c\u5929\u7406\u30c1\u30fc\u30e0\u300d\u2192["\u5929\u7406"]\u3001\u300c\u90e1\u5c71\u5317\u90e8\u300d\u300c\u5317\u90e8\u300d\u2192["\u90e1\u5c71\u5317\u90e8"]\u3001\u300c\u90e1\u5c71\u5357\u90e8\u300d\u300c\u5357\u90e8\u300d\u2192["\u90e1\u5c71\u5357\u90e8"]\u3001\u300c\u4e8b\u52d9\u54e1\u300d\u2192["\u4e8b\u52d9\u54e1"]\u3002\u8907\u6570\u30c1\u30fc\u30e0\u304c\u8a00\u53ca\u3055\u308c\u305f\u5834\u5408\u306f\u8907\u6570\u8fd4\u3059\u3002\u4e0d\u660e\u306a\u5834\u5408\u306fnull\n- assignPersonNames: assignType\u304cpersonal\u306e\u5834\u5408\u306e\u62c5\u5f53\u8005\u540d\u306e\u914d\u5217\uff08\u59d3\u306e\u307f\u3067\u53ef\uff09\u3002\u5fc5\u305a\u767b\u9332\u6e08\u307f\u30b9\u30bf\u30c3\u30d5\u30ea\u30b9\u30c8\u306b\u542b\u307e\u308c\u308b\u540d\u524d\u306e\u307f\u8a2d\u5b9a\u3059\u308b\u3053\u3068\u3002\u4e0d\u660e\u306a\u5834\u5408\u306fnull\n\u4e0d\u660e\u306a\u9805\u76ee\u306fnull\u3092\u8fd4\u3057\u3066\u304f\u3060\u3055\u3044\u3002\u5fc5\u305a\u6709\u52b9\u306aJSON\u306e\u307f\u3092\u8fd4\u3057\u3066\u304f\u3060\u3055\u3044\u3002${staffListStr}`;
+        const res = await invokeLLM({
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: input.text },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "personal_task_fields",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  text: { type: "string" },
+                  dueDateStr: { type: ["string", "null"] },
+                  dueTimeStr: { type: ["string", "null"] },
+                  assignType: { type: "string", enum: ["self", "personal", "team", "all"] },
+                  assignTeams: { type: ["array", "null"], items: { type: "string" } },
+                  assignPersonNames: { type: ["array", "null"], items: { type: "string" } },
+                },
+                required: ["text", "dueDateStr", "dueTimeStr", "assignType", "assignTeams", "assignPersonNames"],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+        const rawContent = res.choices?.[0]?.message?.content;
+        const content = typeof rawContent === "string" ? rawContent : null;
+        if (!content) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI\u89e3\u6790\u306b\u5931\u6557\u3057\u307e\u3057\u305f" });
+        try {
+          const parsed = JSON.parse(content);
+          return { success: true, fields: parsed };
+        } catch {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI\u306e\u5fdc\u7b54\u3092\u89e3\u6790\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f" });
+        }
       }),
   }),
 });

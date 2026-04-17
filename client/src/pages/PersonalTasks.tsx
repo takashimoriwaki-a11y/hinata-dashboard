@@ -1,33 +1,38 @@
 /**
  * PersonalTasks - 個人タスク管理ページ（利用者と無関係の個人タスク）
- * - 自分のみ / 個人指定 / チーム / 全職員 への指定
+ * - 自分のみ / 個人指定（複数）/ チーム（複数）/ 全職員 への指定
  * - この日時にする（at_time）/ この日時まで（by_deadline）の区別
  * - 繰り返し設定：毎日・毎週・隔週・毎月（N月毎）・第N曜日
  * - 期日順（直近から）表示
+ * - 音声入力によるAI自動転記
  */
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   ClipboardList, Plus, Check, Trash2, ChevronDown, ChevronUp,
   Clock, Repeat, Users, User, RefreshCw, X, Bell, AlertTriangle,
+  Mic, MicOff, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useVoiceInput, formatElapsedTime } from "@/hooks/useVoiceInput";
+import { cn } from "@/lib/utils";
 
 // ---- 型定義 ----
 type AssignType = "self" | "personal" | "team" | "all";
-type TeamName = "身体" | "天理" | "郡山北部" | "郡山南部";
+type TeamName = "身体" | "天理" | "郡山北部" | "郡山南部" | "事務員";
 type RepeatType = "none" | "daily" | "weekly" | "biweekly" | "monthly" | "nth_weekday";
 type TaskKind = "at_time" | "by_deadline";
 
-const TEAMS: TeamName[] = ["身体", "天理", "郡山北部", "郡山南部"];
+const TEAMS: TeamName[] = ["身体", "天理", "郡山北部", "郡山南部", "事務員"];
 const TEAM_COLORS: Record<TeamName, string> = {
   "身体": "bg-emerald-700/80 text-emerald-100",
   "天理": "bg-sky-700/80 text-sky-100",
   "郡山北部": "bg-orange-700/80 text-orange-100",
   "郡山南部": "bg-rose-700/80 text-rose-100",
+  "事務員": "bg-violet-700/80 text-violet-100",
 };
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
 const NTH_WEEK_LABELS = ["第1", "第2", "第3", "第4", "最終"];
@@ -109,9 +114,11 @@ export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps
   const [dueDate, setDueDate] = useState("");
   const [dueTime, setDueTime] = useState("");
   const [assignType, setAssignType] = useState<AssignType>("self");
-  const [assignTeam, setAssignTeam] = useState<TeamName | "">(userTeam as TeamName || "");
-  const [assignUserId, setAssignUserId] = useState<number | null>(null);
-  const [assignUserName, setAssignUserName] = useState("");
+  // 複数チーム選択
+  const [selectedTeams, setSelectedTeams] = useState<TeamName[]>([]);
+  // 複数個人指定
+  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+  const [selectedUserNames, setSelectedUserNames] = useState<string[]>([]);
   const [repeatType, setRepeatType] = useState<RepeatType>("none");
   const [repeatDayOfWeek, setRepeatDayOfWeek] = useState<number>(1);
   const [repeatDayOfMonth, setRepeatDayOfMonth] = useState<number>(1);
@@ -119,6 +126,11 @@ export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps
   const [repeatNthWeek, setRepeatNthWeek] = useState<number>(1);
   const [repeatNthDayOfWeek, setRepeatNthDayOfWeek] = useState<number>(1);
   const [repeatEndDate, setRepeatEndDate] = useState("");
+
+  // 音声入力状態
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [lastVoiceText, setLastVoiceText] = useState<string | null>(null);
 
   const staffQuery = trpc.staff.listForForm.useQuery();
   const staffList = (staffQuery.data ?? []) as any[];
@@ -131,6 +143,81 @@ export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps
     },
     onError: (e) => toast.error(e.message),
   });
+
+  // 音声解析ミューテーション
+  const parseVoiceMutation = trpc.personalTasks.parseVoice.useMutation({
+    onSuccess: (result) => {
+      setIsAnalyzing(false);
+      if (!result.success || !result.fields) return;
+      const f = result.fields as any;
+      // テキスト
+      if (f.text) setText(f.text);
+      // 期日
+      if (f.dueDateStr) setDueDate(f.dueDateStr);
+      if (f.dueTimeStr) setDueTime(f.dueTimeStr);
+      // 指定先
+      if (f.assignType) setAssignType(f.assignType as AssignType);
+      // 複数チーム
+      if (f.assignTeams && Array.isArray(f.assignTeams) && f.assignTeams.length > 0) {
+        const validTeams = f.assignTeams.filter((t: string) => TEAMS.includes(t as TeamName)) as TeamName[];
+        setSelectedTeams(validTeams);
+      }
+      // 複数個人
+      if (f.assignPersonNames && Array.isArray(f.assignPersonNames) && f.assignPersonNames.length > 0) {
+        const matched: { id: number; name: string }[] = [];
+        for (const name of f.assignPersonNames) {
+          const found = staffList.find((s: any) =>
+            s.name === name || s.name.includes(name) || name.includes(s.name.split(" ")[0])
+          );
+          if (found && !matched.find(m => m.id === found.id)) {
+            matched.push({ id: found.id, name: found.name });
+          }
+        }
+        if (matched.length > 0) {
+          setSelectedUserIds(matched.map(m => m.id));
+          setSelectedUserNames(matched.map(m => m.name));
+          toast.success(`担当者「${matched.map(m => m.name).join("・")}」を自動選択しました`);
+        }
+      }
+    },
+    onError: (e) => {
+      setIsAnalyzing(false);
+      setVoiceError(e.message ?? "AI解析に失敗しました");
+    },
+  });
+
+  // 音声入力フック
+  const voice = useVoiceInput({
+    onResult: (transcribedText: string) => {
+      setLastVoiceText(transcribedText);
+      setIsAnalyzing(true);
+      setVoiceError(null);
+      parseVoiceMutation.mutate({
+        text: transcribedText,
+        staffNames: staffList.map((s: any) => s.name).filter(Boolean) as string[],
+      });
+    },
+  });
+
+  // チーム選択トグル
+  const toggleTeam = useCallback((team: TeamName) => {
+    setSelectedTeams(prev =>
+      prev.includes(team) ? prev.filter(t => t !== team) : [...prev, team]
+    );
+  }, []);
+
+  // 個人指定トグル
+  const toggleUser = useCallback((id: number, name: string) => {
+    setSelectedUserIds(prev => {
+      if (prev.includes(id)) {
+        setSelectedUserNames(ns => ns.filter(n => n !== name));
+        return prev.filter(i => i !== id);
+      } else {
+        setSelectedUserNames(ns => [...ns, name]);
+        return [...prev, id];
+      }
+    });
+  }, []);
 
   const handleSubmit = useCallback(() => {
     if (!text.trim()) {
@@ -153,9 +240,14 @@ export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps
       taskKind,
       dueDate: dueDateObj,
       assignType,
-      assignTeam: assignType === "team" && assignTeam ? assignTeam as TeamName : undefined,
-      assignUserId: assignType === "personal" && assignUserId ? assignUserId : undefined,
-      assignUserName: assignType === "personal" && assignUserName ? assignUserName : undefined,
+      // 複数チーム
+      assignTeams: assignType === "team" && selectedTeams.length > 0 ? selectedTeams : undefined,
+      assignTeam: assignType === "team" && selectedTeams.length > 0 ? selectedTeams[0] as any : undefined,
+      // 複数個人
+      assignUserIds: assignType === "personal" && selectedUserIds.length > 0 ? selectedUserIds : undefined,
+      assignUserNames: assignType === "personal" && selectedUserNames.length > 0 ? selectedUserNames : undefined,
+      assignUserId: assignType === "personal" && selectedUserIds.length > 0 ? selectedUserIds[0] : undefined,
+      assignUserName: assignType === "personal" && selectedUserNames.length > 0 ? selectedUserNames[0] : undefined,
       repeatType,
       repeatDayOfWeek: ["weekly", "biweekly"].includes(repeatType) ? repeatDayOfWeek : undefined,
       repeatDayOfMonth: repeatType === "monthly" ? repeatDayOfMonth : undefined,
@@ -164,9 +256,9 @@ export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps
       repeatNthDayOfWeek: repeatType === "nth_weekday" ? repeatNthDayOfWeek : undefined,
       repeatEndDate: repeatType !== "none" ? repeatEndDateObj : undefined,
     });
-  }, [text, taskKind, dueDate, dueTime, assignType, assignTeam, assignUserId, assignUserName,
+  }, [text, taskKind, dueDate, dueTime, assignType, selectedTeams, selectedUserIds, selectedUserNames,
     repeatType, repeatDayOfWeek, repeatDayOfMonth, repeatMonthInterval, repeatNthWeek,
-    repeatNthDayOfWeek, repeatEndDate, createMutation, toast]);
+    repeatNthDayOfWeek, repeatEndDate, createMutation]);
 
   return (
     <div className="rounded-xl border border-blue-400/30 bg-card shadow-sm mb-3">
@@ -179,6 +271,97 @@ export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1">
             <X className="w-4 h-4" />
           </button>
+        </div>
+
+        {/* ===== 音声入力AIカード ===== */}
+        <div className={cn(
+          "rounded-xl border p-3 mb-4 space-y-2 transition-colors duration-300",
+          voice.isRecording
+            ? (voice.silenceCountdown !== null && voice.silenceCountdown <= 5
+                ? "border-orange-400/50 bg-orange-950/20"
+                : "border-red-400/50 bg-red-950/20")
+            : isAnalyzing
+              ? "border-blue-400/30 bg-blue-950/20"
+              : "border-blue-400/20 bg-blue-950/10"
+        )}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              {isAnalyzing ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
+                  <p className="text-xs text-blue-400 font-medium">AIが解析中...</p>
+                </div>
+              ) : voice.isRecording ? (
+                <div>
+                  <p className="text-xs font-semibold text-blue-300">音声入力でAI自動転記</p>
+                  <p className={cn(
+                    "text-xs font-medium mt-0.5",
+                    voice.silenceCountdown !== null && voice.silenceCountdown <= 5
+                      ? "text-orange-400"
+                      : "text-red-400 animate-pulse"
+                  )}>
+                    {voice.silenceCountdown !== null && voice.silenceCountdown <= 5
+                      ? `あと${voice.silenceCountdown}秒で自動停止`
+                      : `🎤 話してください... ${formatElapsedTime(voice.elapsedSeconds)}`}
+                  </p>
+                </div>
+              ) : voiceError ? (
+                <div>
+                  <p className="text-xs text-red-400 font-medium">{voiceError}</p>
+                  {lastVoiceText && (
+                    <button
+                      onClick={() => {
+                        setIsAnalyzing(true);
+                        setVoiceError(null);
+                        parseVoiceMutation.mutate({
+                          text: lastVoiceText,
+                          staffNames: staffList.map((s: any) => s.name).filter(Boolean) as string[],
+                        });
+                      }}
+                      className="text-xs text-blue-400 hover:underline mt-0.5"
+                    >
+                      再試行
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <p className="text-xs font-semibold text-blue-300">音声入力でAI自動転記</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">マイクをタップして話すと各項目に転記</p>
+                </div>
+              )}
+            </div>
+            {/* マイクボタン */}
+            <button
+              type="button"
+              onClick={() => { if (!isAnalyzing) voice.toggleVoice(); }}
+              disabled={isAnalyzing}
+              className={cn(
+                "relative flex items-center justify-center w-12 h-12 rounded-full border-2 transition-all duration-200 flex-shrink-0",
+                isAnalyzing
+                  ? "bg-muted border-muted-foreground/30 text-muted-foreground cursor-wait"
+                  : voice.isRecording
+                    ? (voice.silenceCountdown !== null && voice.silenceCountdown <= 5
+                        ? "bg-orange-500 border-orange-400 text-white shadow-lg shadow-orange-500/40"
+                        : "bg-red-500 border-red-400 text-white shadow-lg shadow-red-500/40 animate-pulse")
+                    : "bg-blue-600 border-blue-500 text-white hover:bg-blue-700 shadow-md shadow-blue-600/30"
+              )}
+            >
+              {isAnalyzing ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : voice.isRecording ? (
+                <MicOff className="w-5 h-5" />
+              ) : (
+                <Mic className="w-5 h-5" />
+              )}
+            </button>
+          </div>
+          {/* 認識中テキスト */}
+          {voice.isRecording && voice.interimText && (
+            <p className="text-xs text-muted-foreground italic bg-muted/30 rounded-lg px-2 py-1">
+              {voice.interimText}
+            </p>
+          )}
         </div>
 
         {/* 種別 */}
@@ -231,37 +414,68 @@ export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps
               </button>
             ))}
           </div>
+
+          {/* チーム複数選択 */}
           {assignType === "team" && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {TEAMS.map(team => (
-                <button
-                  key={team}
-                  onClick={() => setAssignTeam(team)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    assignTeam === team ? TEAM_COLORS[team] : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {team}
-                </button>
-              ))}
+            <div className="mt-2">
+              <p className="text-xs text-muted-foreground mb-1.5">複数選択可</p>
+              <div className="flex flex-wrap gap-1.5">
+                {TEAMS.map(team => (
+                  <button
+                    key={team}
+                    onClick={() => toggleTeam(team)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      selectedTeams.includes(team)
+                        ? TEAM_COLORS[team]
+                        : "bg-muted text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {selectedTeams.includes(team) && "✓ "}{team}
+                  </button>
+                ))}
+              </div>
+              {selectedTeams.length > 0 && (
+                <p className="text-xs text-blue-400 mt-1">
+                  選択中: {selectedTeams.join("・")}
+                </p>
+              )}
             </div>
           )}
+
+          {/* 個人指定複数選択 */}
           {assignType === "personal" && (
-            <select
-              className="mt-2 w-full bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm border border-border"
-              value={assignUserId ?? ""}
-              onChange={e => {
-                const id = Number(e.target.value);
-                setAssignUserId(id || null);
-                const staff = staffList.find((s: any) => s.id === id);
-                setAssignUserName(staff?.name ?? "");
-              }}
-            >
-              <option value="">スタッフを選択...</option>
-              {staffList.map((s: any) => (
-                <option key={s.id} value={s.id}>{s.name}（{s.team}）</option>
-              ))}
-            </select>
+            <div className="mt-2">
+              <p className="text-xs text-muted-foreground mb-1.5">複数選択可</p>
+              <div className="max-h-40 overflow-y-auto space-y-1 rounded-xl bg-muted/30 p-2 border border-border">
+                {staffList.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-2">読み込み中...</p>
+                ) : staffList.map((s: any) => (
+                  <button
+                    key={s.id}
+                    onClick={() => toggleUser(s.id, s.name)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${
+                      selectedUserIds.includes(s.id)
+                        ? "bg-indigo-600/30 text-indigo-200 border border-indigo-500/50"
+                        : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <User className="w-3.5 h-3.5" />
+                      {s.name}
+                    </span>
+                    <span className="text-xs opacity-60">{s.team}</span>
+                    {selectedUserIds.includes(s.id) && (
+                      <Check className="w-3.5 h-3.5 text-indigo-300 ml-1" />
+                    )}
+                  </button>
+                ))}
+              </div>
+              {selectedUserNames.length > 0 && (
+                <p className="text-xs text-blue-400 mt-1">
+                  選択中: {selectedUserNames.join("・")}
+                </p>
+              )}
+            </div>
           )}
         </div>
 
@@ -412,6 +626,21 @@ function TaskCard({
   const repeatStr = formatRepeat(task);
   const isOverdue = dueDateColor.includes("red");
 
+  // 複数チーム・複数個人の表示用データ
+  const assignTeams: string[] = useMemo(() => {
+    try {
+      if (task.assignTeams) return JSON.parse(task.assignTeams);
+    } catch {}
+    return task.assignTeam ? [task.assignTeam] : [];
+  }, [task.assignTeams, task.assignTeam]);
+
+  const assignUserNames: string[] = useMemo(() => {
+    try {
+      if (task.assignUserNames) return JSON.parse(task.assignUserNames);
+    } catch {}
+    return task.assignUserName ? [task.assignUserName] : [];
+  }, [task.assignUserNames, task.assignUserName]);
+
   return (
     <div className={`rounded-xl border transition-all ${
       isDone
@@ -470,16 +699,16 @@ function TaskCard({
                 <Users className="w-3 h-3" />全職員
               </span>
             )}
-            {task.assignType === "team" && task.assignTeam && (
-              <span className={`text-xs px-1.5 py-0.5 rounded-md flex items-center gap-1 ${TEAM_COLORS[task.assignTeam as TeamName] ?? "bg-gray-700 text-gray-300"}`}>
-                <Users className="w-3 h-3" />{task.assignTeam}
+            {task.assignType === "team" && assignTeams.map((team: string) => (
+              <span key={team} className={`text-xs px-1.5 py-0.5 rounded-md flex items-center gap-1 ${TEAM_COLORS[team as TeamName] ?? "bg-gray-700 text-gray-300"}`}>
+                <Users className="w-3 h-3" />{team}
               </span>
-            )}
-            {task.assignType === "personal" && task.assignUserName && (
-              <span className="text-xs px-1.5 py-0.5 rounded-md bg-indigo-900/50 text-indigo-300 flex items-center gap-1">
-                <User className="w-3 h-3" />{task.assignUserName}
+            ))}
+            {task.assignType === "personal" && assignUserNames.map((name: string) => (
+              <span key={name} className="text-xs px-1.5 py-0.5 rounded-md bg-indigo-900/50 text-indigo-300 flex items-center gap-1">
+                <User className="w-3 h-3" />{name}
               </span>
-            )}
+            ))}
             {/* 作成者（自分以外が作成したタスクの場合に目立つバッジで表示） */}
             {task.createdByName && task.createdBy !== currentUserId && (
               <span className="text-xs px-1.5 py-0.5 rounded-md bg-amber-900/50 text-amber-300 flex items-center gap-1">
@@ -550,12 +779,21 @@ export default function PersonalTasks() {
   const filteredTasks = useMemo(() => {
     if (filterKind === "all") return tasks;
     if (filterKind === "delegated") {
-      // 自分が作成して他のスタッフに依頼したタスク
-      return tasks.filter((t: any) =>
-        t.createdBy === user?.id &&
-        t.assignType === "personal" &&
-        t.assignUserId !== user?.id
-      );
+      // 自分が作成して他のスタッフに依頼したタスク（単一・複数個人指定両対応）
+      return tasks.filter((t: any) => {
+        if (t.createdBy !== user?.id) return false;
+        if (t.assignType !== "personal") return false;
+        // 複数個人指定の場合
+        if (t.assignUserIds) {
+          try {
+            const ids: number[] = JSON.parse(t.assignUserIds);
+            // 自分以外が含まれていれば「依頼した」
+            return ids.some((id: number) => id !== user?.id);
+          } catch {}
+        }
+        // 単一指定の場合
+        return t.assignUserId !== user?.id;
+      });
     }
     return tasks.filter((t: any) => t.taskKind === filterKind);
   }, [tasks, filterKind, user?.id]);

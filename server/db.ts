@@ -2465,6 +2465,7 @@ export async function getMyPersonalTasks(
   const db = await getDb();
   if (!db) return [];
 
+  const ALL_TEAMS = ["身体", "天理", "郡山北部", "郡山南部", "事務員"];
   const conditions = [
     isNull(personalTasks.deletedAt),
     or(
@@ -2473,8 +2474,13 @@ export async function getMyPersonalTasks(
       // 自分が作成して他スタッフに依頼したタスク（「依頼した」フィルター用）
       and(eq(personalTasks.assignType, "personal"), eq(personalTasks.createdBy, userId)),
       eq(personalTasks.assignType, "all"),
-      ...(userTeam && ["身体", "天理", "郡山北部", "郡山南部"].includes(userTeam)
+      // チーム指定（単一チーム・assignTeam）
+      ...(userTeam && ALL_TEAMS.includes(userTeam)
         ? [and(eq(personalTasks.assignType, "team"), eq(personalTasks.assignTeam, userTeam as any))]
+        : []),
+      // チーム指定（複数チーム・assignTeams JSON配列）
+      ...(userTeam && ALL_TEAMS.includes(userTeam)
+        ? [and(eq(personalTasks.assignType, "team"), like(personalTasks.assignTeams, `%"${userTeam}"%`))]
         : []),
     ),
   ];
@@ -2572,9 +2578,12 @@ export async function createPersonalTask(data: {
   createdBy: number;
   createdByName: string;
   assignType: "self" | "personal" | "team" | "all";
-  assignTeam?: "身体" | "天理" | "郡山北部" | "郡山南部";
+  assignTeam?: "身体" | "天理" | "郡山北部" | "郡山南部" | "事務員";
+  assignTeams?: string[];
   assignUserId?: number;
+  assignUserIds?: number[];
   assignUserName?: string;
+  assignUserNames?: string[];
   repeatType: "none" | "daily" | "weekly" | "biweekly" | "monthly" | "nth_weekday";
   repeatDayOfWeek?: number;
   repeatDayOfMonth?: number;
@@ -2594,8 +2603,11 @@ export async function createPersonalTask(data: {
     createdByName: data.createdByName,
     assignType: data.assignType,
     assignTeam: data.assignTeam ?? null,
+    assignTeams: data.assignTeams ? JSON.stringify(data.assignTeams) : null,
     assignUserId: data.assignUserId ?? null,
+    assignUserIds: data.assignUserIds ? JSON.stringify(data.assignUserIds) : null,
     assignUserName: data.assignUserName ?? null,
+    assignUserNames: data.assignUserNames ? JSON.stringify(data.assignUserNames) : null,
     repeatType: data.repeatType,
     repeatDayOfWeek: data.repeatDayOfWeek ?? null,
     repeatDayOfMonth: data.repeatDayOfMonth ?? null,
@@ -2633,9 +2645,12 @@ export async function updatePersonalTask(
     taskKind: "at_time" | "by_deadline";
     dueDate: Date | null;
     assignType: "self" | "personal" | "team" | "all";
-    assignTeam: "身体" | "天理" | "郡山北部" | "郡山南部" | null;
+    assignTeam: "身体" | "天理" | "郡山北部" | "郡山南部" | "事務員" | null;
+    assignTeams: string[] | null;
     assignUserId: number | null;
+    assignUserIds: number[] | null;
     assignUserName: string | null;
+    assignUserNames: string[] | null;
     repeatType: "none" | "daily" | "weekly" | "biweekly" | "monthly" | "nth_weekday";
     repeatDayOfWeek: number | null;
     repeatDayOfMonth: number | null;
@@ -2655,8 +2670,11 @@ export async function updatePersonalTask(
   if ("dueDate" in data) updateData.dueDate = data.dueDate;
   if (data.assignType !== undefined) updateData.assignType = data.assignType;
   if ("assignTeam" in data) updateData.assignTeam = data.assignTeam;
+  if ("assignTeams" in data) updateData.assignTeams = data.assignTeams ? JSON.stringify(data.assignTeams) : null;
   if ("assignUserId" in data) updateData.assignUserId = data.assignUserId;
+  if ("assignUserIds" in data) updateData.assignUserIds = data.assignUserIds ? JSON.stringify(data.assignUserIds) : null;
   if ("assignUserName" in data) updateData.assignUserName = data.assignUserName;
+  if ("assignUserNames" in data) updateData.assignUserNames = data.assignUserNames ? JSON.stringify(data.assignUserNames) : null;
   if (data.repeatType !== undefined) updateData.repeatType = data.repeatType;
   if ("repeatDayOfWeek" in data) updateData.repeatDayOfWeek = data.repeatDayOfWeek;
   if ("repeatDayOfMonth" in data) updateData.repeatDayOfMonth = data.repeatDayOfMonth;
