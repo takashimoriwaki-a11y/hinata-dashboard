@@ -587,10 +587,10 @@ export default function RecordInput() {
       <Card className="shadow-sm">
         <CardHeader className="pb-2">
           {/* 1行目：タイトル + 音声入力 + 全リセット */}
-          <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2 flex-1 min-w-0">
               <Users className="w-4 h-4 text-primary flex-shrink-0" />
-              <span className="truncate">今日の訪問予定</span>
+              <span className="whitespace-nowrap">今日の訪問予定</span>
               {filledSlots > 0 && (
                 <Badge variant="secondary" className="text-xs flex-shrink-0">
                   {filledSlots}名
@@ -603,7 +603,7 @@ export default function RecordInput() {
                 type="button"
                 onClick={startBulkVoiceInput}
                 className={cn(
-                  "flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-medium transition-colors",
+                  "flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-medium transition-colors whitespace-nowrap",
                   isBulkListening
                     ? "bg-red-500 border-red-500 text-white animate-pulse"
                     : "border-primary/40 text-primary hover:bg-primary/10"
@@ -616,7 +616,7 @@ export default function RecordInput() {
               <button
                 type="button"
                 onClick={handleResetAll}
-                className="flex items-center gap-1 px-2 py-1 rounded-lg border border-border text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded-lg border border-border text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-colors whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                 全リセット

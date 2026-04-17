@@ -3532,13 +3532,18 @@ function TasksCard() {
       )}
       <Card id="today-tasks" className="shadow-sm">
         <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
-              <ClipboardList className="w-5 h-5 text-primary" />
-              <span className="tracking-wide">今日の個人タスク</span>
+          <div className="flex items-center justify-between gap-1 flex-nowrap">
+            <CardTitle className="text-base font-bold flex items-center gap-1.5 text-foreground flex-shrink-0 min-w-0">
+              <ClipboardList className="w-4 h-4 text-primary flex-shrink-0" />
+              <span className="tracking-wide whitespace-nowrap">今日の個人タスク</span>
+              {todayPersonalTasks.length > 0 && (
+                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex-shrink-0">
+                  {todayPersonalTasks.length}
+                </span>
+              )}
             </CardTitle>
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer select-none">
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer select-none whitespace-nowrap">
                 <input
                   type="checkbox"
                   checked={hideCompleted}
@@ -3548,7 +3553,7 @@ function TasksCard() {
                 完了済みを非表示
               </label>
               <Link href="/personal-tasks">
-                <span className="text-xs text-primary hover:underline cursor-pointer">すべて見る</span>
+                <span className="text-xs text-primary hover:underline cursor-pointer whitespace-nowrap">すべて見る</span>
               </Link>
             </div>
           </div>
