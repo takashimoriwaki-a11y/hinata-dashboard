@@ -53,6 +53,103 @@ function extractUrls(text: string): string[] {
   return (text.match(urlRegex) ?? []).map((u) => u.replace(/[,;]+$/, "").trim());
 }
 function PatientManagementPanel() {
+  const utils = trpc.useUtils();
+  const { data: allPatients = [], isLoading } = trpc.patients.listAll.useQuery();
+  const activePatients = useMemo(() => allPatients.filter((p) => !p.isInactive), [allPatients]);
+  const inactivePatients = useMemo(() => allPatients.filter((p) => p.isInactive), [allPatients]);
+
+  // フィルター・ソート状態
+  const [filterTeam, setFilterTeam] = useState<string>("全て");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showInactive, setShowInactive] = useState(false);
+  const [sortKeys, setSortKeys] = useState<Array<"id" | "kana">>([]);
+  const toggleSort = useCallback((key: "id" | "kana") => {
+    setSortKeys((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  }, []);
+
+  // 追加フォーム状態
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [addName, setAddName] = useState("");
+  const [addKana, setAddKana] = useState("");
+  const [addTeam, setAddTeam] = useState<Team>("身体");
+  const [addCode, setAddCode] = useState("");
+
+  // 一括追加状態
+  const [bulkText, setBulkText] = useState("");
+  const [bulkTeam, setBulkTeam] = useState<Team>("身体");
+  const bulkParsed = useMemo(
+    () => bulkText.split(/[\n,、，]/).map((s) => s.trim()).filter(Boolean),
+    [bulkText]
+  );
+
+  // 編集状態
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editKana, setEditKana] = useState("");
+  const [editTeam, setEditTeam] = useState<Team>("身体");
+  const [editCode, setEditCode] = useState("");
+
+  // フィルター済みリスト
+  const filteredPatients = useMemo(() => {
+    let list = activePatients;
+    if (filterTeam !== "全て") list = list.filter((p) => p.team === filterTeam);
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          (p.nameKana ?? "").toLowerCase().includes(q) ||
+          (p.patientCode ?? "").toLowerCase().includes(q)
+      );
+    }
+    if (sortKeys.length > 0) {
+      list = [...list].sort((a, b) => {
+        for (const k of sortKeys) {
+          if (k === "id") { const d = a.id - b.id; if (d !== 0) return d; }
+          if (k === "kana") { const d = (a.nameKana ?? a.name).localeCompare(b.nameKana ?? b.name, "ja"); if (d !== 0) return d; }
+        }
+        return 0;
+      });
+    }
+    return list;
+  }, [activePatients, filterTeam, searchQuery, sortKeys]);
+
+  // チームカウント
+  const teamCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const p of activePatients) {
+      counts[p.team] = (counts[p.team] ?? 0) + 1;
+    }
+    return counts;
+  }, [activePatients]);
+
+  // mutations
+  const createPatient = trpc.patients.create.useMutation({
+    onSuccess: () => {
+      utils.patients.listAll.invalidate();
+      toast.success("利用者を追加しました");
+      setAddName(""); setAddKana(""); setAddCode(""); setShowAddForm(false);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const updatePatient = trpc.patients.update.useMutation({
+    onSuccess: () => {
+      utils.patients.listAll.invalidate();
+      toast.success("更新しました");
+      setEditingId(null);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const batchCreate = trpc.patients.batchCreate.useMutation({
+    onSuccess: () => {
+      utils.patients.listAll.invalidate();
+      toast.success(`${bulkParsed.length}名を登録しました`);
+      setBulkText("");
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   const deactivatePatient = trpc.patients.deactivate.useMutation({
     onSuccess: () => {
