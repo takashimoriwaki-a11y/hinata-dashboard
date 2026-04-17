@@ -5,7 +5,7 @@
  * - 繰り返し設定：毎日・毎週・隔週・毎月（N月毎）・第N曜日
  * - 期日順（直近から）表示
  */
-import { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -169,10 +169,16 @@ function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps) {
     repeatNthDayOfWeek, repeatEndDate, createMutation, toast]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70"
+      onClick={onClose}
+      style={{ touchAction: "none" }}
+    >
       <div
-        className="w-full max-w-lg bg-card rounded-t-2xl p-5 pb-8 max-h-[92vh] overflow-y-auto"
+        className="w-full max-w-lg bg-card rounded-t-2xl p-5 pb-8 overflow-y-auto overscroll-contain"
+        style={{ maxHeight: "92dvh", touchAction: "pan-y", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
         onClick={e => e.stopPropagation()}
+        onTouchMove={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-foreground font-bold text-lg flex items-center gap-2">
