@@ -94,7 +94,7 @@ export default function TeamGoalsTicker() {
         />
         {/* テロップ本体 */}
         <div
-          className="flex items-center gap-0 py-2 px-2 team-goals-ticker-track"
+          className="flex items-center gap-0 py-1 px-2 team-goals-ticker-track"
           style={{ animationDuration: `${duration}s` }}
         >
           {items.map((g, idx) => {
@@ -118,7 +118,7 @@ export default function TeamGoalsTicker() {
                 {/* チームバッジ */}
                 <span
                   className={cn(
-                    "text-xs font-bold px-2 py-0.5 rounded-full border flex-shrink-0",
+                    "text-xs font-bold px-1.5 py-0 rounded-full border flex-shrink-0 leading-5",
                     badgeColors[g.team] ?? (isNight
                       ? "bg-muted/60 text-foreground border-border"
                       : "bg-gray-100 text-gray-700 border-gray-300")
@@ -173,7 +173,7 @@ export default function TeamGoalsTicker() {
       />
       {/* テロップ本体（企業理念） */}
       <div
-        className="flex items-center gap-0 py-2 px-2 team-goals-ticker-track"
+        className="flex items-center gap-0 py-1 px-2 team-goals-ticker-track"
         style={{ animationDuration: `${fallbackDuration}s` }}
       >
         {fallbackItems.map((item, idx) => (
@@ -181,7 +181,7 @@ export default function TeamGoalsTicker() {
             {/* ラベルバッジ */}
             <span
               className={cn(
-                "text-xs font-bold px-2 py-0.5 rounded-full border flex-shrink-0",
+                "text-xs font-bold px-1.5 py-0 rounded-full border flex-shrink-0 leading-5",
                 labelColorClass
               )}
             >
