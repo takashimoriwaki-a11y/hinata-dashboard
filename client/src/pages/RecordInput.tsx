@@ -266,7 +266,7 @@ export default function RecordInput() {
     return found?.body ?? null;
   }, [selectedPromptIdData, allPrompts]);
 
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role === "admin" || user?.role === "super_admin";
 
   // 全枠リセット
   const handleResetAll = () => {

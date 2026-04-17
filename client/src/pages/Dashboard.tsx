@@ -2736,7 +2736,7 @@ function HinatasWayButton() {
 
 function ToolsCard() {
   const { user } = useAuth();
-  const canManageTools = user?.role === "admin";
+  const canManageTools = user?.role === "admin" || user?.role === "super_admin";
   const [activeTab, setActiveTab] = useState<ToolsTabId>("sheet");
 
   // 当月スプレッドシートリンク（tRPC + DB）
@@ -3250,7 +3250,7 @@ function TeamToolsCard() {
   }, [monthlyLinks, teamFeeKey]);
 
   // 管理者のみ: ツール追加・編集・削除
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role === "admin" || user?.role === "super_admin";
   const [showAddForm, setShowAddForm] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [newHref, setNewHref] = useState("");
@@ -4643,7 +4643,7 @@ function MessageBoard({ title }: { title: string }) {
                         送信予定: {new Date(msg.scheduledAt!).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                       </span>
                       {/* 自分または管理者の場合に編集・キャンセルボタンを表示 */}
-                      {(msg.createdBy === user?.id || user?.role === "admin") && (
+                      {(msg.createdBy === user?.id || user?.role === "admin" || user?.role === "super_admin") && (
                         <div className="ml-auto flex items-center gap-1">
                           <button
                             type="button"
