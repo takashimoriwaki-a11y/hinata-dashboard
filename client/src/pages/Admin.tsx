@@ -2411,14 +2411,14 @@ function TeamGoalsPanel() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formTeam, setFormTeam] = useState<TeamOption>("全チーム");
   const [formTitle, setFormTitle] = useState("");
-  const [formBody, setFormBody] = useState("");
+
   const [formStartDate, setFormStartDate] = useState("");
   const [formEndDate, setFormEndDate] = useState("");
 
   function resetForm() {
     setFormTeam("全チーム");
     setFormTitle("");
-    setFormBody("");
+
     setFormStartDate("");
     setFormEndDate("");
   }
@@ -2427,7 +2427,7 @@ function TeamGoalsPanel() {
     setEditingId(g.id);
     setFormTeam(g.team as TeamOption);
     setFormTitle(g.title);
-    setFormBody(g.body ?? "");
+
     setFormStartDate(g.startDate ? String(g.startDate).slice(0, 10) : "");
     setFormEndDate(g.endDate ? String(g.endDate).slice(0, 10) : "");
     setShowForm(false);
@@ -2439,7 +2439,7 @@ function TeamGoalsPanel() {
     const data = {
       team: formTeam,
       title: formTitle.trim(),
-      body: formBody.trim() || null,
+      body: null,
       startDate: formStartDate || null,
       endDate: formEndDate || null,
     };
