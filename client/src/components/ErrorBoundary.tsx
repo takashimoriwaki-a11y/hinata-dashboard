@@ -21,6 +21,13 @@ class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
+  componentDidCatch(error: Error, info: { componentStack: string }) {
+    // エラー内容をコンソールに出力（デバッグ用）
+    console.error("[ErrorBoundary] message:", error.message);
+    console.error("[ErrorBoundary] stack:", error.stack);
+    console.error("[ErrorBoundary] componentStack:", info.componentStack);
+  }
+
   render() {
     if (this.state.hasError) {
       return (
@@ -35,6 +42,9 @@ class ErrorBoundary extends Component<Props, State> {
 
             <div className="p-4 w-full rounded bg-muted overflow-auto mb-6">
               <pre className="text-sm text-muted-foreground whitespace-break-spaces">
+                {this.state.error?.message && (
+                  <span className="font-bold text-destructive block mb-2">{this.state.error.message}</span>
+                )}
                 {this.state.error?.stack}
               </pre>
             </div>
