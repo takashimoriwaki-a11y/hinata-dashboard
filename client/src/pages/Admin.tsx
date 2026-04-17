@@ -422,10 +422,26 @@ function PatientMasterPanel() {
               variant="outline"
               size="sm"
               className="h-8 text-xs gap-1 text-orange-600 border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950/20"
-              onClick={() => {
-                const a = document.createElement("a");
-                a.href = "/api/export/patients";
-                a.click();
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/export/patients", { credentials: "include" });
+                  if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    toast.error((err as { error?: string }).error || "エクスポートに失敗しました");
+                    return;
+                  }
+                  const blob = await res.blob();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  const cd = res.headers.get("content-disposition") ?? "";
+                  const match = cd.match(/filename[^;=\n]*=(['"])?(.*?)\1/);
+                  a.download = match?.[2] ?? "利用者一覧.xlsx";
+                  a.click();
+                  URL.revokeObjectURL(url);
+                } catch {
+                  toast.error("ダウンロードに失敗しました");
+                }
               }}
             >
               <Download className="w-3.5 h-3.5" />

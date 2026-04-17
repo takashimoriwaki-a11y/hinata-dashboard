@@ -121,7 +121,7 @@ export default function TeamGoals() {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6 min-h-full bg-muted/20">
       {/* ページヘッダー */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
