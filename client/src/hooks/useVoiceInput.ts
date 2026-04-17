@@ -245,6 +245,16 @@ export function useVoiceInput({
   // 暫定テキストをRefで保持（手動停止時にisFinal=falseのテキストを拾うため）
   const lastInterimTextRef = useRef("");
 
+  // ---- 連続複数人名認識のための追加Ref ----
+  // 録音セッション全体で確定テキストを蓄積（再起動をまたいでも保持）
+  const sessionConfirmedTextRef = useRef("");
+  // 再起動回数カウンター（無限ループ防止）
+  const restartCountRef = useRef(0);
+  // 現在録音中かどうかを追跡するRef（onend内での再起動判定に使用）
+  const isRecordingRef = useRef(false);
+  /** 最大再起動回数 */
+  const MAX_RESTART_COUNT = 50;
+
   // ---- 無音タイマー管理 ----
   const clearSilenceTimer = useCallback(() => {
     if (silenceTimerRef.current) {
@@ -313,7 +323,7 @@ export function useVoiceInput({
       recognition.interimResults = true;  // 暂定結果も取得（リアルタイムプレビュー）
       recognition.maxAlternatives = 1;
 
-      // 確定済テキストの累積（訂正サポート）
+      // 確定済テキストの累積（訂正サポート・このセッション内のみ）
       let confirmedText = "";   // 最後のブロック以前の確定済テキスト
       let lastBlockText = "";   // 最後の確定ブロック（訂正で上書きされる可能性あり）
       let lastFinalResultIndex = -1; // 最後の確定結果のresultIndex
@@ -323,6 +333,24 @@ export function useVoiceInput({
       const stopFromTimer = () => {
         if (recognitionRef.current) {
           recognitionRef.current.stop();
+        }
+      };
+
+      /**
+       * 現在のセッションで認識されたテキストをセッション全体の蓄積に追加する
+       * 再起動前に呼ぶことで、再起動をまたいでもテキストが保持される
+       */
+      const flushToSession = () => {
+        const sessionText = (confirmedText + lastBlockText).trim();
+        if (sessionText) {
+          if (sessionConfirmedTextRef.current) {
+            sessionConfirmedTextRef.current += " " + sessionText;
+          } else {
+            sessionConfirmedTextRef.current = sessionText;
+          }
+          confirmedText = "";
+          lastBlockText = "";
+          lastFinalResultIndex = -1;
         }
       };
 
@@ -353,29 +381,86 @@ export function useVoiceInput({
       };
 
       recognition.onend = () => {
-        // iOS Safariで continuous:false の場合、ユーザーが明示的に停止していなければ再起動する
-        if (isIOS && recognitionRef.current && !autoStoppedRef.current) {
-          // 確定済テキストを累積して再起動
-          if (lastBlockText) {
-            confirmedText += lastBlockText;
-            lastBlockText = "";
-          }
-          try {
-            recognitionRef.current.start();
-            return; // 再起動成功→onend完了処理をスキップ
-          } catch {
-            // 再起動失敗時は通常の完了処理へ
-          }
+        // 手動停止・タイムアウト停止でない場合（予期しない停止）は再起動を試みる
+        // iOS: continuous:false のため onend が頻繁に発火する → isRecordingRef で再起動判定
+        // PC/Android: continuous:true でも稀に onend が発火する → 同様に再起動
+        const shouldRestart =
+          isRecordingRef.current &&
+          !manuallyStoppedRef.current &&
+          !autoStoppedRef.current &&
+          restartCountRef.current < MAX_RESTART_COUNT;
+
+        if (shouldRestart) {
+          // 現在のセッションのテキストをセッション全体に蓄積
+          flushToSession();
+          restartCountRef.current += 1;
+
+          // 少し待ってから再起動（iOS Safariで即時再起動するとエラーになることがある）
+          setTimeout(() => {
+            // 再起動前に再度フラグを確認（その間に手動停止された可能性）
+            if (!isRecordingRef.current || manuallyStoppedRef.current) return;
+
+            try {
+              const newRecognition = new SpeechRecognitionClass();
+              newRecognition.lang = lang;
+              newRecognition.continuous = !isIOS;
+              newRecognition.interimResults = true;
+              newRecognition.maxAlternatives = 1;
+
+              // 新しいセッションの変数をリセット
+              confirmedText = "";
+              lastBlockText = "";
+              lastFinalResultIndex = -1;
+
+              // イベントハンドラを再設定
+              newRecognition.onresult = recognition.onresult;
+              newRecognition.onend = recognition.onend;
+              newRecognition.onerror = recognition.onerror;
+
+              newRecognition.start();
+              recognitionRef.current = newRecognition;
+            } catch {
+              // 再起動失敗 → 完全停止
+              isRecordingRef.current = false;
+              clearSilenceTimer();
+              stopElapsedTimer();
+              setRecording(false);
+              setInterimText("");
+              const allText = sessionConfirmedTextRef.current.trim();
+              const finalText = allText || lastInterimTextRef.current.trim();
+              lastInterimTextRef.current = "";
+              sessionConfirmedTextRef.current = "";
+              restartCountRef.current = 0;
+              if (finalText) {
+                onResult(finalText);
+                setLastTranscribedText(finalText);
+                setTranscriptionStatus("done");
+                toast.success("✅ 転記完了");
+                setTimeout(() => setTranscriptionStatus("idle"), 5000);
+              } else {
+                setTranscriptionStatus("idle");
+              }
+              recognitionRef.current = null;
+            }
+          }, 100);
+          return; // 再起動処理中 → onend完了処理をスキップ
         }
 
+        // 通常の停止処理（手動停止 or タイムアウト or 最大再起動回数超過）
         clearSilenceTimer();
         stopElapsedTimer();
+        isRecordingRef.current = false;
         setRecording(false);
         setInterimText("");
-        // isFinal=falseの暫定テキストが残っている場合（話し終えてすぐ手動停止した場合）はそれを使う
-        const rawFinal = (confirmedText + lastBlockText).trim();
+
+        // 現在のセッションのテキストをセッション全体に蓄積してから最終テキストを作成
+        flushToSession();
+        const rawFinal = sessionConfirmedTextRef.current.trim();
         const finalText = rawFinal || lastInterimTextRef.current.trim();
         lastInterimTextRef.current = "";
+        sessionConfirmedTextRef.current = "";
+        restartCountRef.current = 0;
+
         if (finalText) {
           onResult(finalText);
           setLastTranscribedText(finalText);
@@ -402,12 +487,30 @@ export function useVoiceInput({
       };
 
       recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+        // no-speech エラー: 名前と名前の間の無音で発生する可能性がある
+        // 録音中（タイマー生存中）かつ手動停止でない場合は onend に委ねて再起動させる
+        if (
+          event.error === "no-speech" &&
+          isRecordingRef.current &&
+          !manuallyStoppedRef.current &&
+          !autoStoppedRef.current &&
+          silenceTimerRef.current !== null &&
+          restartCountRef.current < MAX_RESTART_COUNT
+        ) {
+          // no-speech は onend の前に発火するため、onend に処理を委ねる（何もしない）
+          return;
+        }
+
+        // その他のエラー or 停止条件が揃っている場合は完全停止
         clearSilenceTimer();
         stopElapsedTimer();
+        isRecordingRef.current = false;
         setRecording(false);
         setInterimText("");
         setTranscriptionStatus("error");
         autoStoppedRef.current = false;
+        sessionConfirmedTextRef.current = "";
+        restartCountRef.current = 0;
         recognitionRef.current = null;
         setTimeout(() => setTranscriptionStatus("idle"), 3000);
         if (event.error === "not-allowed") {
@@ -437,6 +540,9 @@ export function useVoiceInput({
       }
 
       recognitionRef.current = recognition;
+      isRecordingRef.current = true;
+      sessionConfirmedTextRef.current = "";
+      restartCountRef.current = 0;
       setRecording(true);
       setTranscriptionStatus("recording");
 
@@ -452,11 +558,12 @@ export function useVoiceInput({
       setTimeout(() => setTranscriptionStatus("idle"), 3000);
       return false;
     }
-  }, [lang, onResult, resetSilenceTimer, clearSilenceTimer, stopElapsedTimer, startElapsedTimer, getAutoStopMessage]);
+  }, [lang, onResult, resetSilenceTimer, clearSilenceTimer, stopElapsedTimer, startElapsedTimer, getAutoStopMessage, isIOS]);
 
   const stopSpeechRecognition = useCallback(() => {
     clearSilenceTimer();
     stopElapsedTimer();
+    isRecordingRef.current = false; // 先にフラグを落として onend での再起動を防ぐ
     if (recognitionRef.current) {
       // iOS再起動ループを停止するために先にフラグを立てる
       autoStoppedRef.current = true;
@@ -468,6 +575,8 @@ export function useVoiceInput({
     } else {
       // recognitionRefがない場合（未録音状態）は直接idleに
       setTranscriptionStatus("idle");
+      sessionConfirmedTextRef.current = "";
+      restartCountRef.current = 0;
     }
     setRecording(false);
     setInterimText("");
