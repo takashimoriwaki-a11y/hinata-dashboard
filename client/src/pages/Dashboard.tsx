@@ -99,7 +99,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, openLink } from "@/lib/utils";
-import { getTeamButtonClass, getAllTeamButtonStyle, getTeamButtonStyle, getTeamTextStyle, getTeamTextStyleNight, TEAM_COLOR_VALUES } from "@shared/teamColors";
+import { getTeamButtonClass, getAllTeamButtonStyle, getTeamButtonStyle, getTeamTextStyle, getTeamTextStyleNight, TEAM_COLOR_VALUES, ALL_TEAM_COLOR } from "@shared/teamColors";
 import type { TeamName } from "@shared/teamColors";
 import { Link, useLocation } from "wouter";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -3674,6 +3674,7 @@ function PatientTasksCard() {
   const { isNight } = useTheme();
   const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState<string>("全チーム");
 
   const { data: tasks = [] } = trpc.tasks.getMine.useQuery(undefined, {
     refetchInterval: 15 * 1000,
@@ -3705,6 +3706,12 @@ function PatientTasksCard() {
       });
   }, [tasks, user?.id, (user as any)?.team]);
 
+  // チームフィルター後のタスク
+  const filteredPatientTasks = useMemo(() => {
+    if (selectedTeam === "全チーム") return todayPatientTasks;
+    return todayPatientTasks.filter((t) => t.assignTeam === selectedTeam);
+  }, [todayPatientTasks, selectedTeam]);
+
   const toggleTask = trpc.tasks.toggle.useMutation({
     onMutate: async ({ id, done }) => {
       await utils.tasks.getMine.cancel();
@@ -3732,15 +3739,62 @@ function PatientTasksCard() {
             <span className="text-xs text-primary hover:underline cursor-pointer">すべて見る</span>
           </Link>
         </div>
+        {/* チームフィルターボタン */}
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          <button
+            onClick={() => setSelectedTeam("全チーム")}
+            className={cn(
+              "px-2.5 py-1 rounded-full text-xs font-medium transition-all border",
+              selectedTeam === "全チーム"
+                ? "text-white border-transparent"
+                : "bg-muted/30 text-muted-foreground border-border/50 hover:bg-muted/50"
+            )}
+            style={selectedTeam === "全チーム" ? { backgroundColor: ALL_TEAM_COLOR.active, borderColor: ALL_TEAM_COLOR.active } : {}}
+          >
+            全チーム
+            {todayPatientTasks.length > 0 && (
+              <span className={cn(
+                "ml-1 rounded-full px-1",
+                selectedTeam === "全チーム" ? "bg-white/30" : "bg-muted text-foreground"
+              )}>{todayPatientTasks.length}</span>
+            )}
+          </button>
+          {TEAMS.map((team) => {
+            const count = todayPatientTasks.filter((t) => t.assignTeam === team).length;
+            const isActive = selectedTeam === team;
+            const colors = TEAM_COLOR_VALUES[team as TeamName];
+            return (
+              <button
+                key={team}
+                onClick={() => setSelectedTeam(team)}
+                className={cn(
+                  "px-2.5 py-1 rounded-full text-xs font-medium transition-all border",
+                  isActive
+                    ? "text-white border-transparent"
+                    : "bg-muted/30 text-muted-foreground border-border/50 hover:bg-muted/50"
+                )}
+                style={isActive ? { backgroundColor: colors?.active, borderColor: colors?.active } : {}}
+              >
+                {team}
+                {count > 0 && (
+                  <span className={cn(
+                    "ml-1 rounded-full px-1",
+                    isActive ? "bg-white/30" : "bg-muted text-foreground"
+                  )}>{count}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </CardHeader>
       <CardContent className="space-y-2">
         <div className="max-h-72 overflow-y-auto space-y-2 pr-0.5">
-          {todayPatientTasks.length === 0 ? (
+          {filteredPatientTasks.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-3">
-              今日の利用者タスクはありません ✓
+              {selectedTeam === "全チーム" ? "今日の利用者タスクはありません ✓" : `${selectedTeam}チームの今日の利用者タスクはありません ✓`}
             </p>
           ) : (
-            todayPatientTasks.map((task) => {
+            filteredPatientTasks.map((task) => {
               const taskKind = (task as any).taskKind as "at_time" | "by_deadline" | undefined;
               return (
                 <div key={task.id} className={cn(
