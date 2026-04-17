@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  ClipboardEdit, Search, Loader2, ChevronDown, X, Users, ExternalLink
+  ClipboardEdit, Search, Loader2, ChevronDown, X, Users, ExternalLink, Mic, MicOff
 } from "lucide-react";
 import { VoiceMicButton } from "@/components/VoiceMicButton";
 import { toast } from "sonner";
