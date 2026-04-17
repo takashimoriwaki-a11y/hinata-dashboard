@@ -3463,12 +3463,14 @@ function TasksCard() {
     { refetchInterval: 15 * 1000, staleTime: 0 }
   );
 
-  // 今日の個人タスク（期日あり未完了タスク全表示＋期日切れ含む、5件上限・他職員への依頼タスク除外）
+  // 今日の個人タスク（by_deadlineのみ表示・at_timeは非表示、期日切れ含む、5件上限・他職員への依頼タスク除外）
   const todayPersonalTasks = useMemo(() => {
     return personalTasksData
       .filter((t) => {
         if (t.isDone) return false;
         if (!t.dueDate) return false;
+        // at_time（この日時に行う）タスクは非表示
+        if (t.taskKind === "at_time") return false;
         // 自分が作成した他職員への依頼タスクを除外
         if (t.assignType === "personal" && t.assignUserId !== user?.id && t.createdBy === user?.id) return false;
         return true;
@@ -5115,11 +5117,11 @@ function TeamGoalsTicker() {
 
   return (
     <div
-      className="relative overflow-hidden rounded-xl bg-card border border-border sticky top-0 z-10 shadow-sm"
+      className="relative overflow-hidden rounded-xl bg-orange-50/70 dark:bg-card border border-orange-200/60 dark:border-border sticky top-0 z-10 shadow-sm"
     >
       {/* 左右のフェードマスク */}
-      <div className="absolute left-0 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-r from-card to-transparent" />
-      <div className="absolute right-0 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-l from-card to-transparent" />
+      <div className="absolute left-0 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-r from-orange-50/70 dark:from-card to-transparent" />
+      <div className="absolute right-0 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-l from-orange-50/70 dark:from-card to-transparent" />
 
       {/* テロップ本体 */}
       <div className="flex items-center gap-0 py-2.5 px-2 team-goals-ticker-track">
