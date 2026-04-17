@@ -3507,7 +3507,7 @@ export const appRouter = router({
     }),
     // スタッフ一覧を取得（管理者のみ）
     getAll: protectedProcedure.query(async ({ ctx }) => {
-      if (ctx.user.role !== "admin") {
+      if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
         throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
       }
       return getAllStaff();
@@ -3553,7 +3553,7 @@ export const appRouter = router({
         newPassword: z.string().min(6).max(100),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin") {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
         }
         const bcrypt = await import("bcryptjs");
@@ -3567,7 +3567,7 @@ export const appRouter = router({
     delete: protectedProcedure
       .input(z.object({ userId: z.number() }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin") {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
         }
         if (input.userId === ctx.user.id) {
@@ -3603,7 +3603,7 @@ export const appRouter = router({
         email: z.string().email(),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin") {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
         }
         try {
@@ -3702,7 +3702,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         // 管理者チェック
-        if (ctx.user.role !== "admin") {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ実行できます" });
         }
 
