@@ -2539,7 +2539,15 @@ export async function getTodayPersonalTasks(
   // 繰り返しタスクのフィルタリング（今日が該当するもの）
   const today = new Date(todayStart.getTime() + 9 * 60 * 60 * 1000);
   const allTasks = await getMyPersonalTasks(userId, userTeam, false);
-  const repeatTasks = allTasks.filter(t =>
+  // 「今日の個人タスク」では他の職員に依頼したタスクは除外する
+  // assignType=personal かつ assignUserId !== userId（自分が担当者でない）は除外
+  const filteredTasks = allTasks.filter(t => {
+    if (t.assignType === "personal") {
+      return t.assignUserId === userId; // 自分が担当者のもののみ
+    }
+    return true;
+  });
+  const repeatTasks = filteredTasks.filter(t =>
     t.repeatType !== "none" && isRepeatTaskDueToday(t, today)
   );
 
