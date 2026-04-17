@@ -125,6 +125,42 @@ function PatientManagementPanel() {
     return counts;
   }, [activePatients]);
 
+  // Excelインポート用ref・状態
+  const patientExcelRef = useRef<HTMLInputElement>(null);
+  const [importingPatients, setImportingPatients] = useState(false);
+  const [showBulkPanel, setShowBulkPanel] = useState(false);
+
+  const handlePatientExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportingPatients(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/import/patients", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error((json as { error?: string }).error || "インポートに失敗しました");
+      } else {
+        const r = json as { success?: number; skipped?: number; errors?: string[] };
+        toast.success(`${r.success ?? 0}名を登録しました（スキップ: ${r.skipped ?? 0}名）`);
+        if (r.errors && r.errors.length > 0) {
+          toast.error(r.errors.slice(0, 3).join("\n"));
+        }
+        utils.patients.listAll.invalidate();
+      }
+    } catch {
+      toast.error("インポートに失敗しました");
+    } finally {
+      setImportingPatients(false);
+      if (patientExcelRef.current) patientExcelRef.current.value = "";
+    }
+  };
+
   // mutations
   const createPatient = trpc.patients.create.useMutation({
     onSuccess: () => {
