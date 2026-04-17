@@ -427,7 +427,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <span>{pushLoading ? "処理中..." : isSubscribed ? "通知中" : "通知を有効に"}</span>
           )}
         </button>
-        {user?.role === "admin" && (
+        {(user?.role === "admin" || user?.role === "super_admin") && (
           <Link href="/admin">
             <div
               title={(collapsed && !mobile) ? "管理画面" : undefined}
