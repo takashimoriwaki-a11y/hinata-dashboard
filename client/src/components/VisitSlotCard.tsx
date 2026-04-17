@@ -178,7 +178,11 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
   const toggleTaskMutation = trpc.tasks.toggle.useMutation({
     onSuccess: () => {
       refetchPatientTasks();
+    },
+    onSettled: () => {
       utils.tasks.getMine.invalidate();
+      utils.tasks.getAll.invalidate();
+      utils.tasks.getByPatientName.invalidate({ patientName: slotData.patientName });
     },
     onError: (err) => toast.error(`タスク更新エラー: ${err.message}`),
   });

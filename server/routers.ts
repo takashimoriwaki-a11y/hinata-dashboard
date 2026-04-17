@@ -2559,7 +2559,6 @@ export const appRouter = router({
         return db.select().from(tasks).where(
           and(
             isNull(tasks.deletedAt),
-            eq(tasks.done, 0),
             eq(tasks.patientName, input.patientName)
           )
         ).orderBy(tasks.createdAt);
