@@ -497,7 +497,7 @@ export default function Tasks() {
       {/* ヘッダー */}
       <div className="flex items-center gap-2 mb-2">
         <CheckSquare className="w-5 h-5 text-primary" />
-        <h1 className="text-lg font-bold">タスク管理</h1>
+        <h1 className="text-lg font-bold">利用者タスク</h1>
         <Badge variant="secondary" className="ml-auto">{activeCount}件未完了</Badge>
       </div>
 
