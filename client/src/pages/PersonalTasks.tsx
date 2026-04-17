@@ -441,12 +441,19 @@ export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps
               onChange={e => setDueDate(e.target.value)}
               className="flex-1 bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm border border-border"
             />
-            <input
-              type="time"
+            <select
               value={dueTime}
               onChange={e => setDueTime(e.target.value)}
               className="w-28 bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm border border-border"
-            />
+            >
+              <option value="">時刻選択</option>
+              {Array.from({ length: 24 * 6 }, (_, i) => {
+                const h = Math.floor(i / 6);
+                const m = (i % 6) * 10;
+                const val = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                return <option key={val} value={val}>{val}</option>;
+              })}
+            </select>
             {(dueDate || dueTime) && (
               <button onClick={() => { setDueDate(""); setDueTime(""); }}
                 className="text-gray-500 hover:text-white px-1">

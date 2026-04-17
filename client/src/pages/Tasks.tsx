@@ -1099,13 +1099,17 @@ export default function Tasks() {
                         {task.text}
                       </p>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
-                        {/* 期日 */}
-                        {task.dueDate && (
+                        {/* 期日 / 次回訪問時 */}
+                        {(task as any).taskKind === "next_visit" ? (
+                          <span className="flex items-center gap-0.5 text-xs font-medium text-teal-600 dark:text-teal-400">
+                            🏥 次回訪問時
+                          </span>
+                        ) : task.dueDate ? (
                           <span className={cn("flex items-center gap-0.5 text-xs", getDueDateColor(task.dueDate))}>
                             <Calendar className="w-3 h-3" />
                             {formatDueDate(task.dueDate)}
                           </span>
-                        )}
+                        ) : null}
                         {/* 指定先 */}
                         <AssignBadge task={task} />
                         {/* 繰り返しアイコン */}
