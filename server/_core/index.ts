@@ -614,9 +614,14 @@ ${medicalPrompt}${feedbackSection}`;
   app.get("/api/export/patients", async (req, res) => {
     try {
       // 認証チェック
-      const { verifySession } = await import("./cookies");
-      const user = await verifySession(req);
-      if (!user) { res.status(401).json({ error: "認証が必要です" }); return; }
+      const { verifySessionToken } = await import("./localAuth");
+      const { parse: parseCookieHeader } = await import("cookie");
+      const { COOKIE_NAME } = await import("../../shared/const");
+      const cookieHeader = req.headers.cookie;
+      const cookies = cookieHeader ? parseCookieHeader(cookieHeader) : {};
+      const sessionToken = cookies[COOKIE_NAME];
+      const session = await verifySessionToken(sessionToken);
+      if (!session) { res.status(401).json({ error: "認証が必要です" }); return; }
 
       const { db } = await import("../db");
       const { patients } = await import("../../drizzle/schema");
