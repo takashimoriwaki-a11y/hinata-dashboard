@@ -3497,7 +3497,7 @@ export const appRouter = router({
     // スタッフ一覧を取得（変更連絡フォーム用：全ユーザー可）
     listForForm: protectedProcedure.query(async () => {
       const all = await getAllStaff();
-      return all.map(s => ({ id: s.id, name: s.name ?? "不明", team: s.team }));
+      return all.map(s => ({ id: s.id, name: s.name ?? "不明", nameKana: s.nameKana ?? "", team: s.team }));
     }),
     // スタッフ一覧を取得（管理者のみ）
     getAll: protectedProcedure.query(async ({ ctx }) => {
@@ -4628,6 +4628,22 @@ export const appRouter = router({
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
         }
         await setSetting("sheet_cleanup_days", String(input.days));
+        broadcastEvent("settings");
+        return { success: true, days: input.days };
+      }),
+    /** スケジュール変更連絡自動削除の保持期間（日数）を取得 */
+    getScheduleChangeDeleteDays: protectedProcedure.query(async () => {
+      const value = await getSetting("schedule_change_delete_days", "3");
+      return { days: parseInt(value, 10) };
+    }),
+    /** スケジュール変更連絡自動削除の保持期間（日数）を更新（adminのみ） */
+    setScheduleChangeDeleteDays: protectedProcedure
+      .input(z.object({ days: z.number().int().min(1).max(90) }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
+        }
+        await setSetting("schedule_change_delete_days", String(input.days));
         broadcastEvent("settings");
         return { success: true, days: input.days };
       }),

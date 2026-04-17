@@ -1394,30 +1394,32 @@ function scheduleScheduleChangeCleanup() {
     if (h === 0 && m === 5 && lastCleanedDate !== dateStr) {
       lastCleanedDate = dateStr;
       try {
-        console.log(`[ScheduleChangeCleanup] ${dateStr} 00:05 - toDatetimeから3日経過したスケジュール変更連絡を削除します`);
-        const db = await import("../db");
+        const dbModule = await import("../db");
+        // DB設定値から削除日数を取得（デフォルト: 3日）
+        const deleteDaysStr = await dbModule.getSetting("schedule_change_delete_days", "3");
+        const deleteDays = parseInt(deleteDaysStr, 10) || 3;
+        console.log(`[ScheduleChangeCleanup] ${dateStr} 00:05 - toDatetimeから${deleteDays}日経過したスケジュール変更連絡を削除します`);
         const { scheduleChanges } = await import("../../drizzle/schema");
         const { drizzle } = await import("drizzle-orm/mysql2");
         const mysql = await import("mysql2/promise");
-        const { lt, isNotNull } = await import("drizzle-orm");
+        const { lt } = await import("drizzle-orm");
 
         const connection = await mysql.default.createConnection(process.env.DATABASE_URL!);
         const drizzleDb = drizzle(connection);
 
-        // 3日前の日時（JST）
-        const threeDaysAgo = new Date(jstNow.getTime() - 3 * 24 * 60 * 60 * 1000);
-        const threeDaysAgoStr = threeDaysAgo.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:mm"
+        // 設定日数前の日時（JST）
+        const cutoffDate = new Date(jstNow.getTime() - deleteDays * 24 * 60 * 60 * 1000);
+        const cutoffStr = cutoffDate.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:mm"
 
-        // toDatetime が設定されていて、3日以上前のレコードを削除
-        // toDatetime は "YYYY-MM-DDTHH:mm" 形式の文字列
+        // toDatetime が設定されていて、設定日数以上前のレコードを削除
         const result = await drizzleDb
           .delete(scheduleChanges)
           .where(
-            lt(scheduleChanges.toDatetime, threeDaysAgoStr)
+            lt(scheduleChanges.toDatetime, cutoffStr)
           );
 
         const deletedCount = (result as any)[0]?.affectedRows ?? 0;
-        console.log(`[ScheduleChangeCleanup] ${deletedCount}件のスケジュール変更連絡を削除しました`);
+        console.log(`[ScheduleChangeCleanup] ${deletedCount}件のスケジュール変更連絡を削除しました（${deleteDays}日以前）`);
 
         await connection.end();
       } catch (e) {

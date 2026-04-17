@@ -470,6 +470,13 @@
       "when": 1776423960432,
       "tag": "0066_silky_lila_cheney",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "5",
+      "when": 1776426087818,
+      "tag": "0067_clever_wrecking_crew",
+      "breakpoints": true
     }
   ]
 }

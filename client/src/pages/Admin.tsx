@@ -1023,19 +1023,7 @@ export default function Admin() {
             スタッフ管理
           </button>
         )}
-        {currentUser?.role === "admin" && (
-          <button
-            onClick={() => setActiveSection("import")}
-            className={cn(
-            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
-            activeSection === "import"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            一括インポート
-          </button>
-        )}
+        {/* 一括インポートタブは削除（利用者マスタ・スタッフ管理から個別にインポート可能） */}
         {/* クイックアクセスはホーム画面から削除済みのため非表示 */}
         {currentUser?.role === "admin" && (
           <button
@@ -2517,30 +2505,22 @@ function TeamGoalsPanel() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium mb-1 block">対象チーム</label>
-                  <select value={formTeam} onChange={e => setFormTeam(e.target.value as TeamOption)} className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background">
-                    {TEAM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">目標タイトル <span className="text-red-500">*</span></label>
-                  <input type="text" value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="例：今月の訪問件数目標を達成しよう" className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background" required />
-                </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">チーム</label>
+                <select value={formTeam} onChange={e => setFormTeam(e.target.value as TeamOption)} className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background">
+                  {TEAM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">詳細・メッセージ（任意）</label>
-                <textarea value={formBody} onChange={e => setFormBody(e.target.value)} placeholder="目標の詳細や応援メッセージを入力..." rows={3} className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background resize-none" />
+                <label className="text-sm font-medium mb-1 block">目標内容 <span className="text-red-500">*</span></label>
+                <textarea value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="例：今月の訪問件数目標を達成しよう！チーム一丸となって頑張りましょう。" rows={3} className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background resize-none" required />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium mb-1 block">表示開始日（空欄=常時表示）</label>
-                  <input type="date" value={formStartDate} onChange={e => setFormStartDate(e.target.value)} className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">表示終了日（空欄=常時表示）</label>
-                  <input type="date" value={formEndDate} onChange={e => setFormEndDate(e.target.value)} className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background" />
+              <div>
+                <label className="text-sm font-medium mb-1 block">期間（空欄=常時表示）</label>
+                <div className="flex items-center gap-2">
+                  <input type="date" value={formStartDate} onChange={e => setFormStartDate(e.target.value)} className="flex-1 border border-border rounded-md px-3 py-2 text-sm bg-background" />
+                  <span className="text-sm text-muted-foreground">〜</span>
+                  <input type="date" value={formEndDate} onChange={e => setFormEndDate(e.target.value)} className="flex-1 border border-border rounded-md px-3 py-2 text-sm bg-background" />
                 </div>
               </div>
               <div className="flex gap-2 justify-end">
@@ -2568,30 +2548,22 @@ function TeamGoalsPanel() {
                 <div key={g.id} className={cn("border rounded-lg p-4 transition-all", editingId === g.id ? "border-primary/50 bg-primary/5" : "border-border")}>
                   {editingId === g.id ? (
                     <form onSubmit={handleSubmit} className="space-y-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm font-medium mb-1 block">対象チーム</label>
-                          <select value={formTeam} onChange={e => setFormTeam(e.target.value as TeamOption)} className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background">
-                            {TEAM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium mb-1 block">目標タイトル</label>
-                          <input type="text" value={formTitle} onChange={e => setFormTitle(e.target.value)} className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background" required />
-                        </div>
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">チーム</label>
+                        <select value={formTeam} onChange={e => setFormTeam(e.target.value as TeamOption)} className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background">
+                          {TEAM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
                       </div>
                       <div>
-                        <label className="text-sm font-medium mb-1 block">詳細・メッセージ</label>
-                        <textarea value={formBody} onChange={e => setFormBody(e.target.value)} rows={3} className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background resize-none" />
+                        <label className="text-sm font-medium mb-1 block">目標内容 <span className="text-red-500">*</span></label>
+                        <textarea value={formTitle} onChange={e => setFormTitle(e.target.value)} rows={3} className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background resize-none" required />
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm font-medium mb-1 block">表示開始日</label>
-                          <input type="date" value={formStartDate} onChange={e => setFormStartDate(e.target.value)} className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background" />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium mb-1 block">表示終了日</label>
-                          <input type="date" value={formEndDate} onChange={e => setFormEndDate(e.target.value)} className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background" />
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">期間（空欄=常時表示）</label>
+                        <div className="flex items-center gap-2">
+                          <input type="date" value={formStartDate} onChange={e => setFormStartDate(e.target.value)} className="flex-1 border border-border rounded-md px-3 py-2 text-sm bg-background" />
+                          <span className="text-sm text-muted-foreground">〜</span>
+                          <input type="date" value={formEndDate} onChange={e => setFormEndDate(e.target.value)} className="flex-1 border border-border rounded-md px-3 py-2 text-sm bg-background" />
                         </div>
                       </div>
                       <div className="flex gap-2 justify-end">
@@ -2651,6 +2623,7 @@ function TeamGoalsPanel() {
 function SystemSettingsPanel() {
   const { data: cleanupDaysData, isLoading } = trpc.settings.getSheetCleanupDays.useQuery();
   const { data: shareEmailsData, isLoading: isLoadingEmails } = trpc.settings.getShareEmails.useQuery();
+  const { data: scheduleChangeDeleteDaysData, isLoading: isLoadingScheduleDeleteDays } = trpc.settings.getScheduleChangeDeleteDays.useQuery();
   const utils = trpc.useUtils();
 
   // 次回訪問日時シートにフィルターを適用
@@ -2689,7 +2662,16 @@ function SystemSettingsPanel() {
     onError: (e) => toast.error(e.message),
   });
 
+  const setScheduleChangeDeleteDaysMutation = trpc.settings.setScheduleChangeDeleteDays.useMutation({
+    onSuccess: () => {
+      utils.settings.getScheduleChangeDeleteDays.invalidate();
+      toast.success("スケジュール変更連絡の保持期間を更新しました");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
   const [selectedDays, setSelectedDays] = useState<number>(7);
+  const [selectedScheduleChangeDays, setSelectedScheduleChangeDays] = useState<number>(3);
   const [emailInput, setEmailInput] = useState("");
   const [emailList, setEmailList] = useState<string[]>([]);
 
@@ -2699,6 +2681,12 @@ function SystemSettingsPanel() {
       setSelectedDays(cleanupDaysData.days);
     }
   }, [cleanupDaysData?.days]);
+
+  useEffect(() => {
+    if (scheduleChangeDeleteDaysData?.days) {
+      setSelectedScheduleChangeDays(scheduleChangeDeleteDaysData.days);
+    }
+  }, [scheduleChangeDeleteDaysData?.days]);
 
   useEffect(() => {
     if (shareEmailsData?.emails) {
@@ -2938,8 +2926,58 @@ function SystemSettingsPanel() {
             <p className="font-medium text-foreground text-xs">動作の仕組み</p>
             <p>・毎日0:00（日本時間）に自動実行されます</p>
             <p>・「次回訪問日時」列の日時から設定した日数が経過した行を削除します</p>
-            <p>・例：保持期間7日の場合、3月1日13:00の行は3月8日0:00に削除されます</p>
+            <p>・例：保持期陱4日の場合、3月1日13:00の行は3月8日0:00に削除されます</p>
             <p>・次回訪問日時が空欄の行は削除されません</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* スケジュール変更連絡自動削除日数設定 */}
+      <Card className="shadow-sm">
+        <CardHeader className="pb-2 pt-4">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <Settings className="w-4 h-4 text-primary" />
+            スケジュール変更連絡自動削除設定
+          </CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            スケジュール変更連絡の「変更後の日時」から設定日数を過ぎたレコードを毎日0:05（日本時間）に自動削除します。
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <label className="text-sm font-medium text-foreground block mb-1.5">
+                保持期間
+              </label>
+              {isLoadingScheduleDeleteDays ? (
+                <div className="h-9 bg-muted animate-pulse rounded-md" />
+              ) : (
+                <select
+                  value={selectedScheduleChangeDays}
+                  onChange={(e) => setSelectedScheduleChangeDays(Number(e.target.value))}
+                  className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  {[1, 2, 3, 5, 7, 14, 30].map((d) => (
+                    <option key={d} value={d}>{d}日{d === 3 ? "（デフォルト）" : ""}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <div className="pt-6">
+              <Button
+                size="sm"
+                onClick={() => setScheduleChangeDeleteDaysMutation.mutate({ days: selectedScheduleChangeDays })}
+                disabled={setScheduleChangeDeleteDaysMutation.isPending || isLoadingScheduleDeleteDays}
+              >
+                {setScheduleChangeDeleteDaysMutation.isPending ? "保存中..." : "保存"}
+              </Button>
+            </div>
+          </div>
+          <div className="rounded-lg bg-muted/50 border border-border p-3 text-sm text-muted-foreground space-y-1">
+            <p className="font-medium text-foreground text-xs">動作の仕組み</p>
+            <p>・毎日0:05（日本時間）に自動実行されます</p>
+            <p>・「変更後の日時」から設定日数以上前のスケジュール変更連絡を削除します</p>
+            <p>・例：3日の場合、4月1日の変更連絡は4月4日0:05に削除されます</p>
           </div>
         </CardContent>
       </Card>

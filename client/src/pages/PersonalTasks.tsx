@@ -7,16 +7,41 @@
  * - 「依頼した」フィルター：自分が他者に依頼したタスク
  * - 「すべて」フィルター：自分に関係するタスクのみ（他者への依頼は除外）
  */
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   ClipboardList, Plus, Check, Trash2, ChevronDown, ChevronUp,
-  Clock, Repeat, Users, User, RefreshCw, X, Bell, AlertTriangle,
+  Clock, Repeat, Users, User, RefreshCw, X, Bell, AlertTriangle, Mic, MicOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
+
+// ---- 音声入力でよみがな検索ユーティリティ ----
+function normalizeKana(s: string): string {
+  return s.normalize("NFKC").replace(/[\u30A1-\u30F6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60)).toLowerCase().replace(/\s+/g, "");
+}
+function matchStaffByKana(query: string, staffList: any[]): any[] {
+  const q = normalizeKana(query);
+  if (!q) return [];
+  // 完全一致（苗字のみ）優先
+  const exact = staffList.filter(s => {
+    const kana = normalizeKana(s.nameKana || "");
+    const name = normalizeKana(s.name || "");
+    // よみがなの苗字部分（最初のスペースまで）と比較
+    const kanaFamily = kana.split(/\s+/)[0];
+    const nameFamily = name.split(/\s+/)[0];
+    return kanaFamily === q || nameFamily === q || kana === q || name === q;
+  });
+  if (exact.length > 0) return exact;
+  // 部分一致
+  return staffList.filter(s => {
+    const kana = normalizeKana(s.nameKana || "");
+    const name = normalizeKana(s.name || "");
+    return kana.includes(q) || name.includes(q);
+  });
+}
 
 // ---- 型定義 ----
 type AssignType = "self" | "personal" | "team" | "all";
@@ -127,6 +152,55 @@ export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps
 
   const staffQuery = trpc.staff.listForForm.useQuery();
   const staffList = (staffQuery.data ?? []) as any[];
+
+  // 音声入力でよみがな職員選択
+  const [isVoiceListening, setIsVoiceListening] = useState(false);
+  const [voiceStaffCandidates, setVoiceStaffCandidates] = useState<any[]>([]);
+  const voiceRecognitionRef = useRef<any>(null);
+
+  const startStaffVoiceInput = useCallback(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error("このブラウザは音声入力に対応していません");
+      return;
+    }
+    if (isVoiceListening) {
+      voiceRecognitionRef.current?.stop();
+      setIsVoiceListening(false);
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = "ja-JP";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 5;
+    voiceRecognitionRef.current = recognition;
+    recognition.onstart = () => setIsVoiceListening(true);
+    recognition.onend = () => setIsVoiceListening(false);
+    recognition.onerror = () => {
+      setIsVoiceListening(false);
+      toast.error("音声認識に失敗しました");
+    };
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      const matches = matchStaffByKana(transcript, staffList);
+      if (matches.length === 1) {
+        const s = matches[0];
+        if (!assignUserIds.includes(s.id)) {
+          setAssignUserIds(prev => [...prev, s.id]);
+          setAssignUserNames(prev => [...prev, s.name]);
+        }
+        setVoiceStaffCandidates([]);
+        toast.success(`「${s.name}」を選択しました`);
+      } else if (matches.length > 1) {
+        setVoiceStaffCandidates(matches);
+        toast.info(`「${transcript}」の候補が${matches.length}件あります。選択してください`);
+      } else {
+        toast.warning(`「${transcript}」に一致する職員が見つかりません`);
+      }
+    };
+    recognition.start();
+  }, [isVoiceListening, staffList, assignUserIds]);
 
   const createMutation = trpc.personalTasks.create.useMutation({
     onSuccess: () => {
@@ -294,23 +368,63 @@ export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps
                   </span>
                 ))}
               </div>
-              <select
-                className="w-full bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm border border-border"
-                value=""
-                onChange={e => {
-                  const id = Number(e.target.value);
-                  if (!id) return;
-                  const staff = staffList.find((s: any) => s.id === id);
-                  if (staff && !assignUserIds.includes(id)) {
-                    toggleUser(id, staff.name);
-                  }
-                }}
-              >
-                <option value="">スタッフを追加...</option>
-                {staffList.filter((s: any) => !assignUserIds.includes(s.id)).map((s: any) => (
-                  <option key={s.id} value={s.id}>{s.name}（{s.team}）</option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select
+                  className="flex-1 bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm border border-border"
+                  value=""
+                  onChange={e => {
+                    const id = Number(e.target.value);
+                    if (!id) return;
+                    const staff = staffList.find((s: any) => s.id === id);
+                    if (staff && !assignUserIds.includes(id)) {
+                      toggleUser(id, staff.name);
+                    }
+                  }}
+                >
+                  <option value="">スタッフを追加...</option>
+                  {staffList.filter((s: any) => !assignUserIds.includes(s.id)).map((s: any) => (
+                    <option key={s.id} value={s.id}>{s.name}（{s.team}）</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={startStaffVoiceInput}
+                  className={`flex items-center justify-center w-10 h-10 rounded-xl border transition-colors flex-shrink-0 ${
+                    isVoiceListening
+                      ? "bg-red-500 border-red-500 text-white animate-pulse"
+                      : "border-border bg-muted text-muted-foreground hover:text-foreground"
+                  }`}
+                  title="よみがな（苗字）で音声検索"
+                >
+                  {isVoiceListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                </button>
+              </div>
+              {/* 音声候補リスト */}
+              {voiceStaffCandidates.length > 0 && (
+                <div className="bg-muted rounded-xl border border-border overflow-hidden mt-1">
+                  <div className="px-3 py-1.5 text-xs text-muted-foreground border-b border-border">候補から選択してください</div>
+                  {voiceStaffCandidates.map((s: any) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => {
+                        if (!assignUserIds.includes(s.id)) {
+                          setAssignUserIds(prev => [...prev, s.id]);
+                          setAssignUserNames(prev => [...prev, s.name]);
+                        }
+                        setVoiceStaffCandidates([]);
+                        toast.success(`「${s.name}」を選択しました`);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2"
+                    >
+                      <User className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                      <span>{s.name}</span>
+                      {s.team && <span className="text-xs text-muted-foreground">（{s.team}）</span>}
+                      {s.nameKana && <span className="text-xs text-muted-foreground ml-auto">{s.nameKana}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
