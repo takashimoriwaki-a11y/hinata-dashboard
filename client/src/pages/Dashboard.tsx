@@ -5108,40 +5108,79 @@ function PhilosophyCard() {
 }
 function TeamGoalsTicker() {
   const { data: goals = [] } = trpc.teamGoals.getActive.useQuery();
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
 
   // 目標がない場合は何も表示しない
   if (goals.length === 0) return null;
 
+  // 複数の目標がある場合は一定間隔で切り替え
+  useEffect(() => {
+    if (goals.length <= 1) return;
+    const interval = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setCurrentIndex(prev => (prev + 1) % goals.length);
+        setVisible(true);
+      }, 400);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [goals.length]);
+
+  const g = goals[currentIndex];
+  if (!g) return null;
+
+  const startStr = g.startDate ? (() => { const d = new Date(g.startDate); return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`; })() : null;
+  const endStr = g.endDate ? (() => { const d = new Date(g.endDate); return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`; })() : null;
+
   return (
     <div className="rounded-xl bg-orange-50/70 dark:bg-card border border-orange-200/60 dark:border-border shadow-sm">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5 px-4">
-        {goals.map((g) => {
-          const startStr = g.startDate ? (() => { const d = new Date(g.startDate); return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`; })() : null;
-          const endStr = g.endDate ? (() => { const d = new Date(g.endDate); return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`; })() : null;
-          return (
-            <div key={g.id} className="flex items-center gap-2 flex-wrap">
-              {/* チームバッジ */}
-              <span className={cn(
-                "text-xs font-bold px-2 py-0.5 rounded-full border flex-shrink-0",
-                TEAM_BADGE_COLORS[g.team] ?? "bg-muted/60 text-foreground border-border"
-              )}>
-                {g.team}
-              </span>
-              {/* 目標内容 */}
-              <span className="text-sm font-semibold text-foreground">{g.title}</span>
-              {/* 期間 */}
-              {(startStr || endStr) && (
-                <span className="text-xs text-muted-foreground flex-shrink-0">
-                  {startStr ?? ""}{startStr && endStr ? " 〜 " : ""}{endStr ?? ""}
-                </span>
-              )}
-              {/* 区切り（最後のアイテム以外） */}
-              {goals.indexOf(g) < goals.length - 1 && (
-                <span className="text-border text-base flex-shrink-0">｜</span>
-              )}
-            </div>
-          );
-        })}
+      <div className="flex items-center gap-3 py-2.5 px-4 min-h-[42px]">
+        {/* チームバッジ */}
+        <span
+          className={cn(
+            "text-xs font-bold px-2 py-0.5 rounded-full border flex-shrink-0 transition-opacity duration-300",
+            visible ? "opacity-100" : "opacity-0",
+            TEAM_BADGE_COLORS[g.team] ?? "bg-muted/60 text-foreground border-border"
+          )}
+        >
+          {g.team}
+        </span>
+        {/* 目標内容 */}
+        <span
+          className={cn(
+            "text-sm font-semibold text-foreground flex-1 transition-opacity duration-300",
+            visible ? "opacity-100" : "opacity-0"
+          )}
+        >
+          {g.title}
+        </span>
+        {/* 期間 */}
+        {(startStr || endStr) && (
+          <span
+            className={cn(
+              "text-xs text-muted-foreground flex-shrink-0 transition-opacity duration-300",
+              visible ? "opacity-100" : "opacity-0"
+            )}
+          >
+            {startStr ?? ""}{startStr && endStr ? " 〜 " : ""}{endStr ?? ""}
+          </span>
+        )}
+        {/* ページインジケータ（複数の場合のみ） */}
+        {goals.length > 1 && (
+          <div className="flex items-center gap-1 flex-shrink-0 ml-1">
+            {goals.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => { setVisible(false); setTimeout(() => { setCurrentIndex(i); setVisible(true); }, 400); }}
+                className={cn(
+                  "w-1.5 h-1.5 rounded-full transition-all duration-300",
+                  i === currentIndex ? "bg-orange-500 dark:bg-orange-400 w-3" : "bg-orange-300/60 dark:bg-muted-foreground/40"
+                )}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
