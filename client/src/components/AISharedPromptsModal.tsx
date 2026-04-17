@@ -243,56 +243,6 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
         {/* 一覧 + 追加フォーム（スクロール可能エリア） */}
         <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
 
-          {/* 管理者向け：スクショ用プロンプト選択 */}
-          {isAdmin && (
-            <div className="mb-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3">
-              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-2 flex items-center gap-1.5">
-                <Camera className="w-3.5 h-3.5" />
-                管理者設定：ボイスメモコピー用プロンプト選択
-              </p>
-              <p className="text-xs text-amber-600 dark:text-amber-500 mb-2">
-                選択したプロンプトが「ボイスメモをNotebookLMに...」のコピーボタンで取得できます
-              </p>
-              <div className="space-y-1.5">
-                <button
-                  type="button"
-                  className={cn(
-                    "w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors",
-                    !selectedPromptIdData?.promptId
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "border-border hover:bg-muted"
-                  )}
-                  onClick={() => setSelectedPromptIdMutation.mutate({ promptId: null })}
-                >
-                  選択なし
-                </button>
-                {(prompts as PromptItem[]).map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className={cn(
-                      "w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors",
-                      selectedPromptIdData?.promptId === p.id
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "border-border hover:bg-muted"
-                    )}
-                    onClick={() => setSelectedPromptIdMutation.mutate({ promptId: p.id })}
-                  >
-                    <span className="font-medium">{p.title}</span>
-                    {p.aiTool && (
-                      <span className="ml-2 text-[10px] opacity-70">[{p.aiTool}]</span>
-                    )}
-                  </button>
-                ))}
-                {(prompts as PromptItem[]).length === 0 && (
-                  <p className="text-xs text-muted-foreground py-2 text-center">
-                    AI共有プロンプトが登録されていません
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
           {/* 新規追加フォーム（スクロール内に配置） */}
           {showForm && (
             <div className="mb-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-4">
@@ -445,6 +395,56 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
               )}
             </div>
           ))}
+
+          {/* 管理者向け：スクショ用プロンプト選択（一番下） */}
+          {isAdmin && (
+            <div className="mt-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3">
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-2 flex items-center gap-1.5">
+                <Camera className="w-3.5 h-3.5" />
+                管理者設定：ボイスメモコピー用プロンプト選択
+              </p>
+              <p className="text-xs text-amber-600 dark:text-amber-500 mb-2">
+                選択したプロンプトが「ボイスメモをNotebookLMに...」のコピーボタンで取得できます
+              </p>
+              <div className="space-y-1.5">
+                <button
+                  type="button"
+                  className={cn(
+                    "w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors",
+                    !selectedPromptIdData?.promptId
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                  onClick={() => setSelectedPromptIdMutation.mutate({ promptId: null })}
+                >
+                  選択なし
+                </button>
+                {(prompts as PromptItem[]).map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className={cn(
+                      "w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors",
+                      selectedPromptIdData?.promptId === p.id
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "border-border hover:bg-muted"
+                    )}
+                    onClick={() => setSelectedPromptIdMutation.mutate({ promptId: p.id })}
+                  >
+                    <span className="font-medium">{p.title}</span>
+                    {p.aiTool && (
+                      <span className="ml-2 text-[10px] opacity-70">[{p.aiTool}]</span>
+                    )}
+                  </button>
+                ))}
+                {(prompts as PromptItem[]).length === 0 && (
+                  <p className="text-xs text-muted-foreground py-2 text-center">
+                    AI共有プロンプトが登録されていません
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* フッター */}
