@@ -417,7 +417,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               : "text-sidebar-foreground/80 hover:text-sidebar-foreground"
           )}
         >
-          <Bell className={cn("w-4 h-4 flex-shrink-0", isSubscribed && "fill-emerald-500")} />
+          <div className="relative flex-shrink-0">
+            <Bell className={cn("w-4 h-4", isSubscribed && "fill-emerald-500")} />
+            {isSubscribed && (
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full border border-sidebar" />
+            )}
+          </div>
           {(!collapsed || mobile) && (
             <span>{pushLoading ? "処理中..." : isSubscribed ? "通知中" : "通知を有効に"}</span>
           )}
