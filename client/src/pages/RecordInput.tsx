@@ -10,9 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  ClipboardEdit, Search, Loader2, ChevronDown, X, Users, ExternalLink, Mic, MicOff
+  ClipboardEdit, Search, Loader2, ChevronDown, X, Users, Mic, MicOff, ExternalLink
 } from "lucide-react";
-import { VoiceMicButton } from "@/components/VoiceMicButton";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getTeamButtonClass, getTeamButtonStyle } from "@shared/teamColors";
@@ -1108,18 +1107,19 @@ function SlotSelector({
                   />
                 </div>
                 {/* 音声入力ボタン */}
-                <VoiceMicButton
-                  externalState={{
-                    isRecording: isListening,
-                    isProcessing: false,
-                    toggleVoice: startVoiceInput,
-                    interimText: "",
-                    silenceCountdown: null,
-                  }}
-                  size="sm"
-                  previewMode="none"
-                  className="flex-shrink-0"
-                />
+                <button
+                  type="button"
+                  className={cn(
+                    "flex-shrink-0 h-8 w-8 flex items-center justify-center border rounded-md transition-colors",
+                    isListening
+                      ? "bg-red-500 border-red-500 text-white animate-pulse"
+                      : "hover:bg-muted text-muted-foreground"
+                  )}
+                  onClick={startVoiceInput}
+                  title={isListening ? "録音停止" : "音声で苗字を入力"}
+                >
+                  {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                </button>
                 <button
                   type="button"
                   className="flex-shrink-0 h-8 w-8 flex items-center justify-center border rounded-md hover:bg-muted transition-colors"

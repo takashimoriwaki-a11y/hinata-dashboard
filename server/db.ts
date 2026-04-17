@@ -1109,10 +1109,9 @@ export async function createStaffAccount(data: {
   name: string;
   email: string;
   passwordHash: string;
-  role: "user" | "admin" | "super_admin";
+  role: "user" | "admin";
   team: "身体" | "天理" | "郡山北部" | "郡山南部" | "事務員" | "全チーム";
   numberPlate?: string;
-  nameKana?: string;
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -1130,7 +1129,6 @@ export async function createStaffAccount(data: {
     role: data.role,
     team: data.team,
     numberPlate: data.numberPlate ?? null,
-    nameKana: data.nameKana ?? "",
     teamSetupDone: 1,
     loginMethod: "local",
     lastSignedIn: new Date(),
@@ -1194,7 +1192,6 @@ export async function updateStaffInfo(userId: number, data: {
   team: "身体" | "天理" | "郡山北部" | "郡山南部" | "事務員" | "全チーム";
   role: "user" | "admin" | "super_admin";
   numberPlate?: string;
-  nameKana?: string;
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -1203,7 +1200,6 @@ export async function updateStaffInfo(userId: number, data: {
     team: data.team,
     role: data.role,
     numberPlate: data.numberPlate !== undefined ? (data.numberPlate || null) : undefined,
-    nameKana: data.nameKana !== undefined ? data.nameKana : undefined,
     teamSetupDone: 1,
   }).where(eq(users.id, userId));
 }

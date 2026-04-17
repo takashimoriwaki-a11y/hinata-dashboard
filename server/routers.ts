@@ -2470,7 +2470,6 @@ export const appRouter = router({
         patientNames: z.array(z.string()).optional(),
         patientNamesWithKana: z.array(z.object({ name: z.string(), kana: z.string() })).optional(),
         staffNames: z.array(z.string()).optional(),
-        staffNamesWithKana: z.array(z.object({ name: z.string(), kana: z.string().optional() })).optional(),
       }))
       .mutation(async ({ input }) => {
         const { invokeLLM } = await import("./_core/llm");
@@ -2485,15 +2484,9 @@ export const appRouter = router({
         } else if (input.patientNames && input.patientNames.length > 0) {
           patientListStr = `\n\n登録済利用者リスト（この中から最も近い名前を選んでpatientNameに返すこと）:\n${input.patientNames.join('、')}`;
         }
-        let staffListStr = '';
-        if (input.staffNamesWithKana && input.staffNamesWithKana.length > 0) {
-          const entries = input.staffNamesWithKana
-            .map(s => s.kana ? `${s.name}（よみがな: ${s.kana}）` : s.name)
-            .join('、');
-          staffListStr = `\n\n登録済みスタッフリスト（assignPersonNameはこの中から選ぶこと。姓のみ・よみがな・苗字のよみがなで言及されても正式名を返すこと）:\n${entries}`;
-        } else if (input.staffNames && input.staffNames.length > 0) {
-          staffListStr = `\n\n登録済みスタッフリスト（assignPersonNameはこの中から選ぶこと）:\n${input.staffNames.join('、')}`;
-        }
+        const staffListStr = input.staffNames && input.staffNames.length > 0
+          ? `\n\n登録済みスタッフリスト（assignPersonNameはこの中から選ぶこと）:\n${input.staffNames.join('、')}`
+          : '';
         const today2 = new Date();
         const dayNames2 = ['日', '月', '火', '水', '木', '金', '土'];
         const todayDayName2 = dayNames2[today2.getDay()];
@@ -2633,7 +2626,7 @@ export const appRouter = router({
         const msg = await getMessageById(input.id);
         if (!msg) throw new TRPCError({ code: "NOT_FOUND", message: "メッセージが見つかりません" });
         // 管理者は全員分削除可能、それ以外は作成者のみ
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin" && msg.createdBy !== ctx.user.id) {
+        if (ctx.user.role !== "admin" && msg.createdBy !== ctx.user.id) {
           throw new TRPCError({ code: "FORBIDDEN", message: "作成者または管理者のみ削除できます" });
         }
         await softDeleteMessage(input.id, ctx.user.id);
@@ -2656,7 +2649,7 @@ export const appRouter = router({
         const msg = await getMessageById(input.id);
         if (!msg) throw new TRPCError({ code: "NOT_FOUND", message: "メッセージが見つかりません" });
         // 管理者は全員分編集可能、それ以外は作成者のみ
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin" && msg.createdBy !== ctx.user.id) {
+        if (ctx.user.role !== "admin" && msg.createdBy !== ctx.user.id) {
           throw new TRPCError({ code: "FORBIDDEN", message: "作成者または管理者のみ編集できます" });
         }
         await updateMessage(input.id, ctx.user.id, {
@@ -3363,7 +3356,7 @@ export const appRouter = router({
     applySheetFilter: protectedProcedure
       .input(z.object({ sheetName: z.string().optional() }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+        if (ctx.user.role !== "admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ実行できます" });
         }
 
@@ -3503,11 +3496,11 @@ export const appRouter = router({
     // スタッフ一覧を取得（変更連絡フォーム用：全ユーザー可）
     listForForm: protectedProcedure.query(async () => {
       const all = await getAllStaff();
-      return all.map(s => ({ id: s.id, name: s.name ?? "不明", team: s.team, nameKana: s.nameKana ?? null }));
+      return all.map(s => ({ id: s.id, name: s.name ?? "不明", team: s.team }));
     }),
     // スタッフ一覧を取得（管理者のみ）
     getAll: protectedProcedure.query(async ({ ctx }) => {
-      if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+      if (ctx.user.role !== "admin") {
         throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
       }
       return getAllStaff();
@@ -3522,7 +3515,6 @@ export const appRouter = router({
         role: z.enum(["user", "admin", "super_admin"]).default("user"),
         team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]).default("身体"),
         numberPlate: z.string().max(20).optional(),
-        nameKana: z.string().max(100).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
@@ -3538,7 +3530,6 @@ export const appRouter = router({
             role: input.role,
             team: input.team,
             numberPlate: input.numberPlate,
-            nameKana: input.nameKana,
           });
           return { success: true };
         } catch (err: any) {
@@ -3553,7 +3544,7 @@ export const appRouter = router({
         newPassword: z.string().min(6).max(100),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+        if (ctx.user.role !== "admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
         }
         const bcrypt = await import("bcryptjs");
@@ -3567,7 +3558,7 @@ export const appRouter = router({
     delete: protectedProcedure
       .input(z.object({ userId: z.number() }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+        if (ctx.user.role !== "admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
         }
         if (input.userId === ctx.user.id) {
@@ -3603,7 +3594,7 @@ export const appRouter = router({
         email: z.string().email(),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+        if (ctx.user.role !== "admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
         }
         try {
@@ -3623,7 +3614,6 @@ export const appRouter = router({
         team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]),
         role: z.enum(["user", "admin", "super_admin"]),
         numberPlate: z.string().max(20).optional(),
-        nameKana: z.string().max(100).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
@@ -3637,7 +3627,6 @@ export const appRouter = router({
           team: input.team,
           role: input.role,
           numberPlate: input.numberPlate,
-          nameKana: input.nameKana,
         });
         broadcastEvent("staff");
         return { success: true };
@@ -3659,7 +3648,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         // 管理者チェック
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+        if (ctx.user.role !== "admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ実行できます" });
         }
 
@@ -4472,7 +4461,7 @@ export const appRouter = router({
         sheetName: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+        if (ctx.user.role !== "admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ実行できます" });
         }
 
@@ -4608,7 +4597,7 @@ export const appRouter = router({
     setSheetCleanupDays: protectedProcedure
       .input(z.object({ days: z.number().int().min(1).max(90) }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+        if (ctx.user.role !== "admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
         }
         await setSetting("sheet_cleanup_days", String(input.days));
@@ -4641,7 +4630,7 @@ export const appRouter = router({
     setShareEmails: protectedProcedure
       .input(z.object({ emails: z.array(z.string().email()).max(20) }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+        if (ctx.user.role !== "admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
         }
         await setSetting("sheet_share_emails", input.emails.join(","));
@@ -4959,7 +4948,7 @@ export const appRouter = router({
         // 投稿者本人または管理者のみ編集可能
         const target = await db.select({ createdBy: minutes.createdBy }).from(minutes).where(eqOp(minutes.id, input.id)).limit(1);
         if (!target.length) throw new TRPCError({ code: "NOT_FOUND", message: "議事録が見つかりません" });
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin" && ctx.user.id !== target[0].createdBy) {
+        if (ctx.user.role !== "admin" && ctx.user.id !== target[0].createdBy) {
           throw new TRPCError({ code: "FORBIDDEN", message: "投稿者本人または管理者のみ編集できます" });
         }
         const updateData: Record<string, unknown> = {};
@@ -4976,7 +4965,7 @@ export const appRouter = router({
     sendReminder: protectedProcedure
       .input(z.object({ minutesId: z.number().int() }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+        if (ctx.user.role !== "admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ送信できます" });
         }
         const { getDb } = await import("./db");
@@ -5053,7 +5042,7 @@ export const appRouter = router({
     getReaders: protectedProcedure
       .input(z.object({ minutesId: z.number().int() }))
       .query(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+        if (ctx.user.role !== "admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ閲覧できます" });
         }
         const { getDb } = await import("./db");
@@ -5081,7 +5070,7 @@ export const appRouter = router({
         // 投稿者本人または管理者のみ削除可能
         const targetDel = await db.select({ createdBy: minutes.createdBy }).from(minutes).where(eqDel(minutes.id, input.id)).limit(1);
         if (!targetDel.length) throw new TRPCError({ code: "NOT_FOUND", message: "議事録が見つかりません" });
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin" && ctx.user.id !== targetDel[0].createdBy) {
+        if (ctx.user.role !== "admin" && ctx.user.id !== targetDel[0].createdBy) {
           throw new TRPCError({ code: "FORBIDDEN", message: "投稿者本人または管理者のみ削除できます" });
         }
         await db.delete(minutesChecks).where(eq(minutesChecks.minutesId, input.id));
@@ -6107,7 +6096,7 @@ export const appRouter = router({
     setSelectedId: protectedProcedure
       .input(z.object({ promptId: z.number().nullable() }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+        if (ctx.user.role !== "admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ操作できます" });
         }
         if (input.promptId === null) {
@@ -6138,7 +6127,7 @@ export const appRouter = router({
         sortOrder: z.number().int().optional().default(0),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+        if (ctx.user.role !== "admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ追加できます" });
         }
         const { createAccidentLink } = await import("./db");
@@ -6149,7 +6138,7 @@ export const appRouter = router({
     delete: protectedProcedure
       .input(z.object({ id: z.number().int() }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+        if (ctx.user.role !== "admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ削除できます" });
         }
         const { deleteAccidentLink } = await import("./db");
@@ -6163,7 +6152,7 @@ export const appRouter = router({
     /** 全スプレッドシートを取得する */
     getAll: protectedProcedure
       .query(async ({ ctx }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
         const { getAllTimesheetSpreadsheets } = await import("./db");
         return getAllTimesheetSpreadsheets();
       }),
@@ -6191,7 +6180,7 @@ export const appRouter = router({
     getByMonth: protectedProcedure
       .input(z.object({ year: z.number().int(), month: z.number().int().min(1).max(12) }))
       .query(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
         const { getTimesheetSpreadsheets } = await import("./db");
         return getTimesheetSpreadsheets(input.year, input.month);
       }),
@@ -6204,7 +6193,7 @@ export const appRouter = router({
         spreadsheetUrl: z.string().url(),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
         const { createTimesheetSpreadsheet } = await import("./db");
         await createTimesheetSpreadsheet(input);
         return { success: true };
@@ -6213,7 +6202,7 @@ export const appRouter = router({
     delete: protectedProcedure
       .input(z.object({ id: z.number().int() }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
         const { deleteTimesheetSpreadsheet } = await import("./db");
         await deleteTimesheetSpreadsheet(input.id);
         return { success: true };
@@ -6222,7 +6211,7 @@ export const appRouter = router({
     autoCreate: protectedProcedure
       .input(z.object({ year: z.number().int(), month: z.number().int().min(1).max(12) }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
         const { year, month } = input;
         let spreadsheetId: string | null = null;
         try {
@@ -6317,7 +6306,7 @@ export const appRouter = router({
     shareSpreadsheet: protectedProcedure
       .input(z.object({ id: z.number().int() }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
         const { getAllTimesheetSpreadsheets } = await import("./db");
         const all = await getAllTimesheetSpreadsheets();
         const sheet = all.find((s) => s.id === input.id);
@@ -6336,7 +6325,7 @@ export const appRouter = router({
         yearMonth: z.string().optional(), // YYYY-MM形式
       }).optional())
       .query(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
         const { getOvertimeApprovals } = await import("./db");
         const opts: { date?: string; status?: string; team?: string; yearMonth?: string } = {};
         if (input?.date) opts.date = input.date;
@@ -6378,7 +6367,7 @@ export const appRouter = router({
         approverComment: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
         const { approveOvertimeApproval, getOvertimeApprovalById, getTimesheetSpreadsheets } = await import("./db");
         const approvedAt = Date.now();
         await approveOvertimeApproval({

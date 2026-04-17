@@ -696,7 +696,7 @@ export default function Admin() {
         >
           利用者マスタ
         </button>
-        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") && (
+        {currentUser?.role === "admin" && (
           <button
             onClick={() => setActiveSection("staff")}
             className={cn(
@@ -710,7 +710,7 @@ export default function Admin() {
           </button>
         )}
         {/* クイックアクセスはホーム画面から削除済みのため非表示 */}
-        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") && (
+        {currentUser?.role === "admin" && (
           <button
             onClick={() => setActiveSection("settings")}
             className={cn(
@@ -723,7 +723,7 @@ export default function Admin() {
             システム設定
           </button>
         )}
-        {(currentUser?.role === "admin" || currentUser?.role === "super_admin" || (currentUser as any)?.team === "事務員") && (
+        {(currentUser?.role === "admin" || (currentUser as any)?.team === "事務員") && (
           <button
             onClick={() => setActiveSection("toolLogs")}
             className={cn(
@@ -736,7 +736,7 @@ export default function Admin() {
             操作ログ
           </button>
         )}
-        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") && (
+        {currentUser?.role === "admin" && (
           <button
             onClick={() => setActiveSection("alcoholSheets")}
             className={cn(
@@ -750,7 +750,7 @@ export default function Admin() {
           </button>
         )}
 
-        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") && (
+        {currentUser?.role === "admin" && (
           <button
             onClick={() => setActiveSection("detectorSettings")}
             className={cn(
@@ -763,7 +763,7 @@ export default function Admin() {
             検知器設定
           </button>
         )}
-        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") && (
+        {currentUser?.role === "admin" && (
           <button
             onClick={() => setActiveSection("timesheetSheets")}
             className={cn(
@@ -776,7 +776,7 @@ export default function Admin() {
             出退勤管理
           </button>
         )}
-        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") && [
+        {currentUser?.role === "admin" && [
           "takashimoriwaki@kokoronohinata.com",
           "hidekimoriwaki@kokoronohinata.com",
         ].includes((currentUser as any)?.email ?? "") && (
@@ -792,7 +792,7 @@ export default function Admin() {
             残業承認
           </button>
         )}
-        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") && (
+        {currentUser?.role === "admin" && (
           <button
             onClick={() => setActiveSection("monthlySignatures")}
             className={cn(
@@ -1144,7 +1144,6 @@ function StaffManagementPanel() {
   // 新規作成フォーム
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState("");
-  const [newNameKana, setNewNameKana] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newRole, setNewRole] = useState<"user" | "admin" | "super_admin">("user");
@@ -1159,7 +1158,7 @@ function StaffManagementPanel() {
     onSuccess: () => {
       utils.staff.getAll.invalidate();
       toast.success("スタッフアカウントを作成しました");
-      setNewName(""); setNewNameKana(""); setNewEmail(""); setNewPassword(""); setNewRole("user"); setNewTeam("身体"); setNewNumberPlate(""); setShowAddForm(false);
+      setNewName(""); setNewEmail(""); setNewPassword(""); setNewRole("user"); setNewTeam("身体"); setNewNumberPlate(""); setShowAddForm(false);
     },
     onError: (e) => toast.error(e.message),
   });
@@ -1194,9 +1193,8 @@ function StaffManagementPanel() {
   const [showNoPlateOnly, setShowNoPlateOnly] = useState(false);
 
   // スタッフ情報編集ダイアログ
-  const [editStaff, setEditStaff] = useState<{ id: number; name: string; team: TeamStaff; role: "user" | "admin" | "super_admin"; numberPlate: string; nameKana: string } | null>(null);
+  const [editStaff, setEditStaff] = useState<{ id: number; name: string; team: TeamStaff; role: "user" | "admin" | "super_admin"; numberPlate: string } | null>(null);
   const [editName, setEditName] = useState("");
-  const [editNameKana, setEditNameKana] = useState("");
   const [editTeam, setEditTeam] = useState<TeamStaff>("身体");
   const [editRole, setEditRole] = useState<"user" | "admin" | "super_admin">("user");
   const [editNumberPlate, setEditNumberPlate] = useState("");
@@ -1210,10 +1208,9 @@ function StaffManagementPanel() {
     onError: (e) => toast.error(e.message),
   });
 
-  const openEditDialog = (staff: { id: number; name: string | null; team: string | null; role: "user" | "admin" | "super_admin"; numberPlate?: string | null; nameKana?: string | null }) => {
-    setEditStaff({ id: staff.id, name: staff.name ?? "", team: (staff.team as TeamStaff) ?? "身体", role: staff.role, numberPlate: staff.numberPlate ?? "", nameKana: staff.nameKana ?? "" });
+  const openEditDialog = (staff: { id: number; name: string | null; team: string | null; role: "user" | "admin"; numberPlate?: string | null }) => {
+    setEditStaff({ id: staff.id, name: staff.name ?? "", team: (staff.team as TeamStaff) ?? "身体", role: staff.role, numberPlate: staff.numberPlate ?? "" });
     setEditName(staff.name ?? "");
-    setEditNameKana(staff.nameKana ?? "");
     setEditTeam((staff.team as TeamStaff) ?? "身体");
     setEditRole(staff.role);
     setEditNumberPlate(staff.numberPlate ?? "");
@@ -1237,7 +1234,7 @@ function StaffManagementPanel() {
     if (!newName.trim()) { toast.error("名前を入力してください"); return; }
     if (!newEmail.trim()) { toast.error("メールアドレスを入力してください"); return; }
     if (newPassword.length < 6) { toast.error("パスワードは6文字以上で入力してください"); return; }
-    createStaff.mutate({ name: newName.trim(), email: newEmail.trim(), password: newPassword, role: newRole, team: newTeam, numberPlate: newNumberPlate.trim() || undefined, nameKana: newNameKana.trim() || undefined });
+    createStaff.mutate({ name: newName.trim(), email: newEmail.trim(), password: newPassword, role: newRole, team: newTeam, numberPlate: newNumberPlate.trim() || undefined });
   };
 
   return (
@@ -1308,16 +1305,6 @@ function StaffManagementPanel() {
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="例：山田 花子"
-                  className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-foreground block mb-1">よみがな（任意）</label>
-                <input
-                  type="text"
-                  value={newNameKana}
-                  onChange={(e) => setNewNameKana(e.target.value)}
-                  placeholder="例：やまだ はなこ"
                   className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
@@ -1652,18 +1639,6 @@ function StaffManagementPanel() {
             />
           </div>
 
-          {/* よみがな */}
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">よみがな</label>
-            <input
-              type="text"
-              value={editNameKana}
-              onChange={(e) => setEditNameKana(e.target.value)}
-              placeholder="例：やまだ はなこ"
-              className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-            />
-          </div>
-
           {/* チーム */}
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">所属チーム</label>
@@ -1749,7 +1724,7 @@ function StaffManagementPanel() {
               className="flex-1 h-9 text-sm"
               onClick={() => {
                 if (!editName.trim()) { toast.error("名前を入力してください"); return; }
-                updateInfo.mutate({ userId: editStaff.id, name: editName.trim(), team: editTeam, role: editRole, numberPlate: editNumberPlate.trim() || undefined, nameKana: editNameKana.trim() || undefined });
+                updateInfo.mutate({ userId: editStaff.id, name: editName.trim(), team: editTeam, role: editRole, numberPlate: editNumberPlate.trim() || undefined });
               }}
               disabled={updateInfo.isPending}
             >
