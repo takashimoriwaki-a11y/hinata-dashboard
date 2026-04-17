@@ -205,11 +205,11 @@ type DayType = typeof DAYS[number];
 // チーム目標カード
 // ============================
 const TEAM_BADGE_COLORS: Record<string, string> = {
-  "身体": "bg-blue-500/20 text-blue-200 border-blue-400/40 dark:bg-blue-500/20 dark:text-blue-200 dark:border-blue-400/40",
-  "天理": "bg-purple-500/20 text-purple-200 border-purple-400/40 dark:bg-purple-500/20 dark:text-purple-200 dark:border-purple-400/40",
-  "郡山北部": "bg-green-500/20 text-green-200 border-green-400/40 dark:bg-green-500/20 dark:text-green-200 dark:border-green-400/40",
-  "郡山南部": "bg-orange-500/20 text-orange-200 border-orange-400/40 dark:bg-orange-500/20 dark:text-orange-200 dark:border-orange-400/40",
-  "全チーム": "bg-muted/60 text-foreground border-border",
+  "身体": "bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-500/25 dark:text-blue-300 dark:border-blue-400/50",
+  "天理": "bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-500/25 dark:text-purple-300 dark:border-purple-400/50",
+  "郡山北部": "bg-green-100 text-green-700 border-green-300 dark:bg-green-500/25 dark:text-green-300 dark:border-green-400/50",
+  "郡山南部": "bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-500/25 dark:text-orange-300 dark:border-orange-400/50",
+  "全チーム": "bg-muted text-foreground border-border",
 };
 
 // ============================
@@ -3647,6 +3647,7 @@ function PatientTasksCard() {
   const utils = trpc.useUtils();
   const { isNight } = useTheme();
   const { user } = useAuth();
+  const [showForm, setShowForm] = useState(false);
 
   const { data: tasks = [] } = trpc.tasks.getMine.useQuery(undefined, {
     refetchInterval: 15 * 1000,
@@ -3790,13 +3791,28 @@ function PatientTasksCard() {
             })
           )}
         </div>
+        {/* カード内の新規追加ボタン */}
+        <button
+          onClick={() => setShowForm((v) => !v)}
+          className="w-full flex items-center justify-center gap-2 py-2 mt-1 rounded-lg border border-dashed border-violet-400/50 text-violet-600 dark:text-violet-400 hover:border-violet-500 hover:bg-violet-50/30 dark:hover:bg-violet-950/20 transition-colors text-xs font-medium"
+        >
+          {showForm ? (
+            <><X className="w-3.5 h-3.5" />フォームを閉じる</>
+          ) : (
+            <><Plus className="w-3.5 h-3.5" />新しいタスクを追加</>
+          )}
+        </button>
+        {/* 詳細フォーム */}
+        {showForm && (
+          <TaskCreateForm
+            onClose={() => setShowForm(false)}
+            onSuccess={() => utils.tasks.getMine.invalidate()}
+          />
+        )}
       </CardContent>
     </Card>
   );
 }
-
-const REACTION_EMOJIS = ["❤️", "👍", "🙏", "✅", "👀"];
-
 function MessageBoard({ title }: { title: string }) {
   const utils = trpc.useUtils();
   const { user } = useAuth();
@@ -5087,7 +5103,7 @@ function TeamGoalsTicker() {
 
   return (
     <div
-      className="relative overflow-hidden rounded-xl bg-card border border-border"
+      className="relative overflow-hidden rounded-xl bg-card border border-border sticky top-0 z-10 shadow-sm"
     >
       {/* 左右のフェードマスク */}
       <div className="absolute left-0 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-r from-card to-transparent" />
