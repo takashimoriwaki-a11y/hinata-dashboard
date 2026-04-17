@@ -5119,11 +5119,11 @@ function TeamGoalsTicker() {
 
   return (
     <div
-      className="relative overflow-hidden rounded-xl bg-card border border-border sticky top-0 z-10 shadow-sm"
+      className="relative overflow-hidden rounded-xl sticky top-0 z-10 shadow-sm" style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 60%, #fed7aa 100%)", border: "1px solid #fdba74" }}
     >
       {/* 左右のフェードマスク */}
-      <div className="absolute left-0 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-r from-card to-transparent" />
-      <div className="absolute right-0 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-l from-card to-transparent" />
+      <div className="absolute left-0 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-r from-orange-50 to-transparent" />
+      <div className="absolute right-0 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-l from-orange-100 to-transparent" />
 
       {/* テロップ本体 */}
       <div className="flex items-center gap-0 py-2.5 px-2 team-goals-ticker-track">
@@ -5140,15 +5140,15 @@ function TeamGoalsTicker() {
                 {g.team}
               </span>
               {/* 目標タイトル */}
-              <span className="text-sm font-semibold text-foreground whitespace-nowrap">{g.title}</span>
+              <span className="text-sm font-semibold whitespace-nowrap" style={{ color: "#7c2d12" }}>{g.title}</span>
               {/* 期間 */}
               {(startStr || endStr) && (
-                <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
+                <span className="text-xs whitespace-nowrap flex-shrink-0" style={{ color: "#9a3412" }}>
                   {startStr ?? ""}{startStr && endStr ? " 〜 " : ""}{endStr ?? ""}
                 </span>
               )}
               {/* 区切り */}
-              <span className="text-border text-lg flex-shrink-0 ml-2">｜</span>
+              <span className="text-lg flex-shrink-0 ml-2" style={{ color: "#fdba74" }}>｜</span>
             </div>
           );
         })}

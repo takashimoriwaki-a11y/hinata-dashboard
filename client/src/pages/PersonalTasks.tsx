@@ -515,7 +515,7 @@ export default function PersonalTasks() {
   const { user, loading: authLoading } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showDone, setShowDone] = useState(false);
-  const [filterKind, setFilterKind] = useState<"all" | TaskKind>("all");
+  const [filterKind, setFilterKind] = useState<"all" | TaskKind | "delegated">("all");
 
   const tasksQuery = trpc.personalTasks.getMyTasks.useQuery(
     { showDone },
@@ -549,8 +549,16 @@ export default function PersonalTasks() {
 
   const filteredTasks = useMemo(() => {
     if (filterKind === "all") return tasks;
+    if (filterKind === "delegated") {
+      // 自分が作成して他のスタッフに依頼したタスク
+      return tasks.filter((t: any) =>
+        t.createdBy === user?.id &&
+        t.assignType === "personal" &&
+        t.assignUserId !== user?.id
+      );
+    }
     return tasks.filter((t: any) => t.taskKind === filterKind);
-  }, [tasks, filterKind]);
+  }, [tasks, filterKind, user?.id]);
 
   const sortedTasks = useMemo(() => {
     return [...filteredTasks].sort((a: any, b: any) => {
@@ -601,20 +609,21 @@ export default function PersonalTasks() {
         </div>
 
         {/* フィルター */}
-        <div className="flex gap-1.5 mb-4">
-          {(["all", "at_time", "by_deadline"] as const).map(kind => (
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          {(["all", "at_time", "by_deadline", "delegated"] as const).map(kind => (
             <button
               key={kind}
               onClick={() => setFilterKind(kind)}
               className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
                 filterKind === kind
-                  ? "bg-indigo-600 text-white"
+                  ? kind === "delegated" ? "bg-amber-500 text-white" : "bg-indigo-600 text-white"
                   : "bg-muted text-muted-foreground hover:text-foreground"
               }`}
             >
               {kind === "all" && "すべて"}
               {kind === "at_time" && "日時指定"}
               {kind === "by_deadline" && "期日"}
+              {kind === "delegated" && "👤 依頼した"}
             </button>
           ))}
           <button
