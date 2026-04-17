@@ -3463,7 +3463,7 @@ function TasksCard() {
     { refetchInterval: 15 * 1000, staleTime: 0 }
   );
 
-  // 今日の個人タスク（今日が期日のもの、または今日が指定日時のもの）
+  // 個人タスク（期日あり未完了タスクを全て表示。今日優先ソート）
   const todayPersonalTasks = useMemo(() => {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -3471,19 +3471,24 @@ function TasksCard() {
     return personalTasksData
       .filter((t) => {
         if (t.isDone) return false;
-        if (!t.dueDate) return false;
-        const due = new Date(t.dueDate).getTime();
-        const kind = (t.taskKind ?? "by_deadline") as string;
-        // by_deadline: 期日が今日以前（期日内）のタスクを表示
-        // at_time: 今日が期日のタスクのみ表示
-        if (kind === "by_deadline") return due <= todayEnd;
-        return due >= todayStart && due <= todayEnd;
+        if (!t.dueDate) return false; // 期日なしは表示しない
+        return true; // 期日あり未完了タスクを全て表示
       })
       .sort((a, b) => {
-        if (!a.dueDate && !b.dueDate) return 0;
-        if (!a.dueDate) return 1;
-        if (!b.dueDate) return -1;
-        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        const aTime = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+        const bTime = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+        const aIsToday = aTime >= todayStart && aTime <= todayEnd;
+        const bIsToday = bTime >= todayStart && bTime <= todayEnd;
+        const aIsOverdue = aTime < todayStart;
+        const bIsOverdue = bTime < todayStart;
+        // 今日のタスクを最優先
+        if (aIsToday && !bIsToday) return -1;
+        if (!aIsToday && bIsToday) return 1;
+        // 期日切れを次に（古い順）
+        if (aIsOverdue && !bIsOverdue) return -1;
+        if (!aIsOverdue && bIsOverdue) return 1;
+        // 同じカテゴリ内では期日順
+        return aTime - bTime;
       });
   }, [personalTasksData]);
 
@@ -3544,7 +3549,7 @@ function TasksCard() {
           <div className="max-h-72 overflow-y-auto space-y-2 pr-0.5">
           {todayPersonalTasks.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-3">
-              今日の個人タスクはありません ✓
+              期日ありの未完了タスクはありません ✓
             </p>
           ) : (
             todayPersonalTasks.map((task) => {

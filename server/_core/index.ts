@@ -620,9 +620,12 @@ ${medicalPrompt}${feedbackSection}`;
       const user = await authenticateRequest(req).catch(() => null);
       if (!user) { res.status(401).json({ error: "認証が必要です" }); return; }
 
-      const { db } = await import("../db");
+      const { getDb } = await import("../db");
       const { patients } = await import("../../drizzle/schema");
       const { asc } = await import("drizzle-orm");
+
+      const db = await getDb();
+      if (!db) { res.status(500).json({ error: "データベースに接続できません" }); return; }
 
       const allPatients = await db
         .select()
