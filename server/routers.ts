@@ -6704,11 +6704,13 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const { createPersonalTask } = await import("./db");
-        return await createPersonalTask({
+        const result = await createPersonalTask({
           ...input,
           createdBy: ctx.user.id,
           createdByName: ctx.user.name ?? "不明",
         });
+        broadcastEvent("personalTasks");
+        return result;
       }),
 
     /** タスクを完了/未完了にする */
@@ -6719,7 +6721,9 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const { togglePersonalTaskDone } = await import("./db");
-        return await togglePersonalTaskDone(input.id, input.done, ctx.user.id);
+        const result = await togglePersonalTaskDone(input.id, input.done, ctx.user.id);
+        broadcastEvent("personalTasks");
+        return result;
       }),
 
     /** タスクを更新する */
@@ -6743,7 +6747,9 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const { updatePersonalTask } = await import("./db");
-        return await updatePersonalTask(input.id, input, ctx.user.id);
+        const result = await updatePersonalTask(input.id, input, ctx.user.id);
+        broadcastEvent("personalTasks");
+        return result;
       }),
 
     /** タスクを削除する（ソフトデリート） */
@@ -6751,7 +6757,9 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         const { deletePersonalTask } = await import("./db");
-        return await deletePersonalTask(input.id, ctx.user.id);
+        const result = await deletePersonalTask(input.id, ctx.user.id);
+        broadcastEvent("personalTasks");
+        return result;
       }),
   }),
 });

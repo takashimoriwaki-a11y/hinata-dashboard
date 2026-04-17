@@ -3615,6 +3615,12 @@ function TasksCard() {
                         })()}
                       </span>
                     )}
+                    {/* 作成者バッジ（自分以外が作成したタスクのみ表示） */}
+                    {(task as any).createdByName && (task as any).createdBy !== user?.id && (
+                      <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 font-medium">
+                        👤{(task as any).createdByName}が作成
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

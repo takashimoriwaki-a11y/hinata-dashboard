@@ -397,10 +397,12 @@ function TaskCard({
   task,
   onToggle,
   onDelete,
+  currentUserId,
 }: {
   task: any;
   onToggle: (id: number, done: boolean) => void;
   onDelete: (id: number) => void;
+  currentUserId?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
   const isDone = task.done === 1;
@@ -478,9 +480,11 @@ function TaskCard({
                 <User className="w-3 h-3" />{task.assignUserName}
               </span>
             )}
-            {/* 作成者 */}
-            {task.createdByName && (
-              <span className="text-xs text-gray-600">by {task.createdByName}</span>
+            {/* 作成者（自分以外が作成したタスクの場合に目立つバッジで表示） */}
+            {task.createdByName && task.createdBy !== currentUserId && (
+              <span className="text-xs px-1.5 py-0.5 rounded-md bg-amber-900/50 text-amber-300 flex items-center gap-1">
+                <User className="w-3 h-3" />{task.createdByName}が作成
+              </span>
             )}
           </div>
         </div>
@@ -661,6 +665,7 @@ export default function PersonalTasks() {
                 task={task}
                 onToggle={(id, done) => toggleMutation.mutate({ id, done })}
                 onDelete={(id) => deleteMutation.mutate({ id })}
+                currentUserId={user?.id}
               />
             ))}
           </div>
@@ -679,6 +684,7 @@ export default function PersonalTasks() {
                   task={task}
                   onToggle={(id, done) => toggleMutation.mutate({ id, done })}
                   onDelete={(id) => deleteMutation.mutate({ id })}
+                  currentUserId={user?.id}
                 />
               ))}
             </div>

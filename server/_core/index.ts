@@ -506,6 +506,9 @@ ${medicalPrompt}${feedbackSection}`;
       // DB登録（同名氏名は上書き更新）
       const { batchCreatePatients } = await import("../db");
       const result = await batchCreatePatients(patients);
+      // 全職員の画面にリアルタイム反映
+      const { broadcastEvent } = await import("./sse");
+      broadcastEvent("patients", { action: "import", created: result.created, updated: result.updated });
       res.json({ success: true, created: result.created, updated: result.updated, count: result.created + result.updated, skipped, errors });
     } catch (e) {
       console.error("[import/patients] error:", e);
