@@ -16,7 +16,7 @@ export const users = mysqlTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  role: mysqlEnum("role", ["user", "admin", "super_admin"]).default("user").notNull(),
   /** ユーザーが所属するチーム（デフォルト選択に使用） */
   team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]).default("身体"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -28,6 +28,8 @@ export const users = mysqlTable("users", {
   teamSetupDone: tinyint("teamSetupDone").default(0).notNull(),
   /** 車両ナンバープレート（アルコールチェック記録に使用） */
   numberPlate: varchar("numberPlate", { length: 20 }).default(""),
+  /** 職員のよみがな（音声認識での自動選択に使用） */
+  nameKana: varchar("nameKana", { length: 100 }).default(""),
   /** Google Calendar用アクセストークン */
   googleAccessToken: text("googleAccessToken"),
   /** Google Calendar用リフレッシュトークン */

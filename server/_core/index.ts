@@ -1375,7 +1375,7 @@ function scheduleNextMonthTimesheetSheet() {
 }
 scheduleNextMonthTimesheetSheet();
 
-// ========== 毎日0:05（JST）にスケジュール変更連絡をtoDatetimeから3日後に自動削除 ==========
+// ========== 毎日0:05（JST）にスケジュール変更連絡をtoDatetimeから設定日数後に自動削除 ==========
 function scheduleScheduleChangeCleanup() {
   const checkInterval = 60 * 1000; // 1分ごとにチェック
   let lastCleanedDate = "";
@@ -1391,26 +1391,29 @@ function scheduleScheduleChangeCleanup() {
     if (h === 0 && m === 5 && lastCleanedDate !== dateStr) {
       lastCleanedDate = dateStr;
       try {
-        console.log(`[ScheduleChangeCleanup] ${dateStr} 00:05 - toDatetimeから3日経過したスケジュール変更連絡を削除します`);
-        const db = await import("../db");
+        // DB設定から削除日数を取得（デフォルト: 3日）
+        const { getSetting } = await import("../db");
+        const deleteDaysStr = await getSetting("schedule_change_delete_days", "3");
+        const deleteDays = parseInt(deleteDaysStr, 10);
+        console.log(`[ScheduleChangeCleanup] ${dateStr} 00:05 - toDatetimeから${deleteDays}日経過したスケジュール変更連絡を削除します`);
         const { scheduleChanges } = await import("../../drizzle/schema");
         const { drizzle } = await import("drizzle-orm/mysql2");
         const mysql = await import("mysql2/promise");
-        const { lt, isNotNull } = await import("drizzle-orm");
+        const { lt } = await import("drizzle-orm");
 
         const connection = await mysql.default.createConnection(process.env.DATABASE_URL!);
         const drizzleDb = drizzle(connection);
 
-        // 3日前の日時（JST）
-        const threeDaysAgo = new Date(jstNow.getTime() - 3 * 24 * 60 * 60 * 1000);
-        const threeDaysAgoStr = threeDaysAgo.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:mm"
+        // deleteDays日前の日時（JST）
+        const daysAgo = new Date(jstNow.getTime() - deleteDays * 24 * 60 * 60 * 1000);
+        const daysAgoStr = daysAgo.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:mm"
 
-        // toDatetime が設定されていて、3日以上前のレコードを削除
+        // toDatetime が設定されていて、deleteDays日以上前のレコードを削除
         // toDatetime は "YYYY-MM-DDTHH:mm" 形式の文字列
         const result = await drizzleDb
           .delete(scheduleChanges)
           .where(
-            lt(scheduleChanges.toDatetime, threeDaysAgoStr)
+            lt(scheduleChanges.toDatetime, daysAgoStr)
           );
 
         const deletedCount = (result as any)[0]?.affectedRows ?? 0;

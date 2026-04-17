@@ -30,8 +30,6 @@ import {
   Link as LinkIcon,
   Loader2,
   Info,
-  Mic,
-  MicOff,
   Users,
   ChevronDown,
   ChevronUp,
@@ -41,6 +39,8 @@ import {
   AlertTriangle,
   RotateCcw,
 } from "lucide-react";
+import { VoiceMicButton } from "@/components/VoiceMicButton";
+import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { toast } from "sonner";
 import { format, isPast, isToday, addDays } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -227,9 +227,13 @@ export default function Minutes() {
   // チェックボタンのみ押した状態（リスト移動なし、チェックマーク表示のみ）
   const [localPreCheckedIds, setLocalPreCheckedIds] = useState<Set<number>>(new Set());
   const [isFetchingTitle, setIsFetchingTitle] = useState(false);
-  const [isListening, setIsListening] = useState(false);
   const fetchTitleTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+
+  // 音声入力（統一フック使用）
+  const titleVoice = useVoiceInput({
+    onResult: (text) => setNewTitle((prev) => prev ? prev + text : text),
+    context: "general",
+  });
 
   // URLが有効かどうか確認
   const isValidUrl = (url: string) => {
@@ -254,40 +258,6 @@ export default function Minutes() {
         setIsFetchingTitle(false);
       }
     }, 800);
-  };
-
-  // 音声入力の開始・停止
-  const startVoiceInput = () => {
-    const SpeechRecognitionAPI =
-      (window as unknown as { SpeechRecognition?: SpeechRecognitionConstructor }).SpeechRecognition ||
-      (window as unknown as { webkitSpeechRecognition?: SpeechRecognitionConstructor }).webkitSpeechRecognition;
-
-    if (!SpeechRecognitionAPI) {
-      toast.error("このブラウザは音声入力に対応していません");
-      return;
-    }
-
-    if (isListening) {
-      recognitionRef.current?.stop();
-      return;
-    }
-
-    const recognition = new SpeechRecognitionAPI();
-    recognition.lang = "ja-JP";
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = () => {
-      setIsListening(false);
-      toast.error("音声入力に失敗しました。マイクの許可を確認してください。");
-    };
-    recognition.onresult = (e: { results: { [k: number]: { [k: number]: { transcript: string } } } }) => {
-      const transcript = e.results[0][0].transcript;
-      setNewTitle((prev) => prev ? prev + transcript : transcript);
-    };
-    recognitionRef.current = recognition;
-    recognition.start();
   };
 
   const createMutation = trpc.minutes.create.useMutation({
@@ -646,26 +616,23 @@ export default function Minutes() {
                   maxLength={300}
                   className="flex-1"
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={startVoiceInput}
-                  title={isListening ? "音声入力停止" : "音声入力開始"}
-                  className={isListening
-                    ? "bg-red-100 border-red-400 text-red-600 animate-pulse dark:bg-red-900/30 dark:border-red-600"
-                    : ""}
-                >
-                  {isListening
-                    ? <MicOff className="h-4 w-4" />
-                    : <Mic className="h-4 w-4" />
-                  }
-                </Button>
+                <VoiceMicButton
+                  externalState={{
+                    isRecording: titleVoice.isRecording,
+                    isProcessing: titleVoice.isProcessing,
+                    toggleVoice: titleVoice.toggleVoice,
+                    interimText: titleVoice.interimText,
+                    silenceCountdown: titleVoice.silenceCountdown,
+                    elapsedSeconds: titleVoice.elapsedSeconds,
+                  }}
+                  size="md"
+                  previewMode="none"
+                />
               </div>
-              {isListening && (
+              {titleVoice.isRecording && (
                 <p className="text-xs text-red-500 flex items-center gap-1">
                   <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                  録音中... もう一度押すと停止します
+                  {titleVoice.interimText ? titleVoice.interimText : "録音中... もう一度押すと停止します"}
                 </p>
               )}
             </div>

@@ -634,9 +634,8 @@ async function autoCreateAlcoholCheckSpreadsheet(year: number, month: number): P
       },
     });
 
-    // DBに登録された共有先メールアドレスに自動共有
-    const shareEmailsValue = await getSetting("sheet_share_emails", "");
-    const shareEmails = shareEmailsValue ? shareEmailsValue.split(",").map((e: string) => e.trim()).filter(Boolean) : [];
+    // super_adminロールのユーザーのメールアドレスに自動共有
+    const shareEmails = await getSuperAdminEmails();
     for (const email of shareEmails) {
       await drive.permissions.create({
         fileId: spreadsheetId,
@@ -645,7 +644,7 @@ async function autoCreateAlcoholCheckSpreadsheet(year: number, month: number): P
       }).catch((e: unknown) => console.warn(`[AutoSheet] Share to ${email} failed:`, e));
     }
     if (shareEmails.length > 0) {
-      console.log(`[AutoSheet] Shared spreadsheet with: ${shareEmails.join(", ")}`);
+      console.log(`[AutoSheet] Shared spreadsheet with super_admins: ${shareEmails.join(", ")}`);
     }
 
     // DBに登録
@@ -748,9 +747,8 @@ export async function autoCreateTimesheetSpreadsheet(year: number, month: number
       },
     });
 
-    // DBに登録された共有先メールアドレスに自動共有
-    const shareEmailsValue = await getSetting("sheet_share_emails", "");
-    const shareEmails = shareEmailsValue ? shareEmailsValue.split(",").map((e: string) => e.trim()).filter(Boolean) : [];
+    // super_adminロールのユーザーのメールアドレスに自動共有
+    const shareEmails = await getSuperAdminEmails();
     for (const email of shareEmails) {
       await drive.permissions.create({
         fileId: spreadsheetId,
@@ -759,7 +757,7 @@ export async function autoCreateTimesheetSpreadsheet(year: number, month: number
       }).catch((e: unknown) => console.warn(`[TimesheetAutoSheet] Share to ${email} failed:`, e));
     }
     if (shareEmails.length > 0) {
-      console.log(`[TimesheetAutoSheet] Shared spreadsheet with: ${shareEmails.join(", ")}`);
+      console.log(`[TimesheetAutoSheet] Shared spreadsheet with super_admins: ${shareEmails.join(", ")}`);
     }
 
     // DBに登録
@@ -1337,6 +1335,7 @@ import {
   deleteAlcoholDetector,
   getTimesheetSpreadsheets,
   upsertTimesheetSpreadsheet,
+  getSuperAdminEmails,
 } from "./db";
 import { storagePut } from "./storage";
 import { eq } from "drizzle-orm";
@@ -2471,6 +2470,7 @@ export const appRouter = router({
         patientNames: z.array(z.string()).optional(),
         patientNamesWithKana: z.array(z.object({ name: z.string(), kana: z.string() })).optional(),
         staffNames: z.array(z.string()).optional(),
+        staffNamesWithKana: z.array(z.object({ name: z.string(), kana: z.string().optional() })).optional(),
       }))
       .mutation(async ({ input }) => {
         const { invokeLLM } = await import("./_core/llm");
@@ -2485,9 +2485,15 @@ export const appRouter = router({
         } else if (input.patientNames && input.patientNames.length > 0) {
           patientListStr = `\n\n登録済利用者リスト（この中から最も近い名前を選んでpatientNameに返すこと）:\n${input.patientNames.join('、')}`;
         }
-        const staffListStr = input.staffNames && input.staffNames.length > 0
-          ? `\n\n登録済みスタッフリスト（assignPersonNameはこの中から選ぶこと）:\n${input.staffNames.join('、')}`
-          : '';
+        let staffListStr = '';
+        if (input.staffNamesWithKana && input.staffNamesWithKana.length > 0) {
+          const entries = input.staffNamesWithKana
+            .map(s => s.kana ? `${s.name}（よみがな: ${s.kana}）` : s.name)
+            .join('、');
+          staffListStr = `\n\n登録済みスタッフリスト（assignPersonNameはこの中から選ぶこと。姓のみ・よみがな・苗字のよみがなで言及されても正式名を返すこと）:\n${entries}`;
+        } else if (input.staffNames && input.staffNames.length > 0) {
+          staffListStr = `\n\n登録済みスタッフリスト（assignPersonNameはこの中から選ぶこと）:\n${input.staffNames.join('、')}`;
+        }
         const today2 = new Date();
         const dayNames2 = ['日', '月', '火', '水', '木', '金', '土'];
         const todayDayName2 = dayNames2[today2.getDay()];
@@ -3497,7 +3503,7 @@ export const appRouter = router({
     // スタッフ一覧を取得（変更連絡フォーム用：全ユーザー可）
     listForForm: protectedProcedure.query(async () => {
       const all = await getAllStaff();
-      return all.map(s => ({ id: s.id, name: s.name ?? "不明", team: s.team }));
+      return all.map(s => ({ id: s.id, name: s.name ?? "不明", team: s.team, nameKana: s.nameKana ?? null }));
     }),
     // スタッフ一覧を取得（管理者のみ）
     getAll: protectedProcedure.query(async ({ ctx }) => {
@@ -3513,12 +3519,13 @@ export const appRouter = router({
         name: z.string().min(1).max(50),
         email: z.string().email(),
         password: z.string().min(6).max(100),
-        role: z.enum(["user", "admin"]).default("user"),
+        role: z.enum(["user", "admin", "super_admin"]).default("user"),
         team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]).default("身体"),
         numberPlate: z.string().max(20).optional(),
+        nameKana: z.string().max(100).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin") {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
         }
         const bcrypt = await import("bcryptjs");
@@ -3531,6 +3538,7 @@ export const appRouter = router({
             role: input.role,
             team: input.team,
             numberPlate: input.numberPlate,
+            nameKana: input.nameKana,
           });
           return { success: true };
         } catch (err: any) {
@@ -3574,11 +3582,15 @@ export const appRouter = router({
     updateRole: protectedProcedure
       .input(z.object({
         userId: z.number(),
-        role: z.enum(["user", "admin"]),
+        role: z.enum(["user", "admin", "super_admin"]),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin") {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
+        }
+        // super_admin への昇格は super_admin のみ可能
+        if (input.role === "super_admin" && ctx.user.role !== "super_admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "特別管理者への昇格は特別管理者のみ可能です" });
         }
         await updateStaffRole(input.userId, input.role);
         broadcastEvent("staff");
@@ -3609,18 +3621,23 @@ export const appRouter = router({
         userId: z.number(),
         name: z.string().min(1).max(50),
         team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]),
-        role: z.enum(["user", "admin"]),
+        role: z.enum(["user", "admin", "super_admin"]),
         numberPlate: z.string().max(20).optional(),
+        nameKana: z.string().max(100).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin") {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
+        }
+        if (input.role === "super_admin" && ctx.user.role !== "super_admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "特別管理者への昇格は特別管理者のみ可能です" });
         }
         await updateStaffInfo(input.userId, {
           name: input.name,
           team: input.team,
           role: input.role,
           numberPlate: input.numberPlate,
+          nameKana: input.nameKana,
         });
         broadcastEvent("staff");
         return { success: true };
@@ -4595,6 +4612,22 @@ export const appRouter = router({
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
         }
         await setSetting("sheet_cleanup_days", String(input.days));
+        broadcastEvent("settings");
+        return { success: true, days: input.days };
+      }),
+    /** スケジュール変更連絡自動削除日数を取得 */
+    getScheduleChangeDeleteDays: protectedProcedure.query(async () => {
+      const value = await getSetting("schedule_change_delete_days", "3");
+      return { days: parseInt(value, 10) };
+    }),
+    /** スケジュール変更連絡自動削除日数を更新（adminまたはsuper_adminのみ） */
+    setScheduleChangeDeleteDays: protectedProcedure
+      .input(z.object({ days: z.number().int().min(1).max(90) }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && (ctx.user.role as string) !== "super_admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
+        }
+        await setSetting("schedule_change_delete_days", String(input.days));
         broadcastEvent("settings");
         return { success: true, days: input.days };
       }),

@@ -96,6 +96,7 @@ import {
   ThumbsUp,
   ThumbsDown,
   RotateCcw,
+  User,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, openLink } from "@/lib/utils";
@@ -3472,6 +3473,8 @@ function TasksCard() {
       .filter((t) => {
         if (t.isDone) return false;
         if (!t.dueDate) return false; // 期日なしは表示しない
+        // 他の職員に依頼したタスク（assignType=personal かつ自分が担当者でない）は除外
+        if (t.assignType === "personal" && t.assignUserId !== user?.id) return false;
         return true; // 期日あり未完了タスクを全て表示
       })
       .sort((a, b) => {
@@ -3628,8 +3631,8 @@ function TasksCard() {
                     )}
                     {/* 作成者バッジ（自分以外が作成したタスクのみ表示） */}
                     {(task as any).createdByName && (task as any).createdBy !== user?.id && (
-                      <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 font-medium">
-                        👤{(task as any).createdByName}が作成
+                      <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 font-medium">
+                        <User className="w-3 h-3 flex-shrink-0" />{(task as any).createdByName}から依頼
                       </span>
                     )}
                   </div>
@@ -3639,7 +3642,7 @@ function TasksCard() {
             })}
             {/* 5件を超える場合「他N件」リンクを表示 */}
             {todayPersonalTasks.length > 5 && (
-              <Link href="/tasks">
+              <Link href="/personal-tasks">
                 <div className="text-center py-1.5 text-xs text-primary hover:underline cursor-pointer font-medium">
                   他 {todayPersonalTasks.length - 5} 件のタスクを見る →
                 </div>
