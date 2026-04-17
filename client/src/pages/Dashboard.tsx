@@ -5111,10 +5111,7 @@ function TeamGoalsTicker() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [visible, setVisible] = useState(true);
 
-  // 目標がない場合は何も表示しない
-  if (goals.length === 0) return null;
-
-  // 複数の目標がある場合は一定間隔で切り替え
+  // 複数の目標がある場合は一定間隔で切り替え（useEffectはreturn nullより前に呼ぶ）
   useEffect(() => {
     if (goals.length <= 1) return;
     const interval = setInterval(() => {
@@ -5126,6 +5123,9 @@ function TeamGoalsTicker() {
     }, 4000);
     return () => clearInterval(interval);
   }, [goals.length]);
+
+  // 目標がない場合は何も表示しない
+  if (goals.length === 0) return null;
 
   const g = goals[currentIndex];
   if (!g) return null;
