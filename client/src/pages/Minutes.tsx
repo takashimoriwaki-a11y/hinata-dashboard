@@ -209,7 +209,7 @@ function ReadersPanel({ minutesId }: { minutesId: number }) {
 export default function Minutes() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
-  const isAdmin = user?.role === "admin" || user?.role === "super_admin";
+  const isAdmin = user?.role === "admin";
 
   // タブ: "unread" | "read"
   const [activeTab, setActiveTab] = useState<"unread" | "read">("unread");

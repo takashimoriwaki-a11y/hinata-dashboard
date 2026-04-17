@@ -26,7 +26,7 @@ function getIconForUrl(href: string) {
 
 export default function TrafficAccident() {
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin" || user?.role === "super_admin";
+  const isAdmin = user?.role === "admin";
   const utils = trpc.useUtils();
 
   const { data: links = [] } = trpc.accidentLinks.getAll.useQuery();

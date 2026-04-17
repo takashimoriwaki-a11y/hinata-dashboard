@@ -989,7 +989,7 @@ export default function Admin() {
       )}
 
       {/* 利用者マスタセクション */}
-      {activeSection === "patients" && <PatientManagementPanel />}
+      {activeSection === "patients" && <PatientMasterPanel />}
 
       {/* スタッフ管理セクション */}
       {activeSection === "staff" && <StaffManagementPanel />}

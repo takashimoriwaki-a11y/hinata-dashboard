@@ -69,7 +69,7 @@ interface PromptItem {
 export default function AISharedPromptsModal({ open, onClose }: Props) {
   const utils = trpc.useUtils();
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin" || user?.role === "super_admin";
+  const isAdmin = user?.role === "admin";
 
   // 一覧取得
   const { data: prompts = [], isLoading } = trpc.sharedPrompts.getAll.useQuery(undefined, {
