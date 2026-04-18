@@ -113,7 +113,7 @@ export default function TeamGoalsTicker() {
     >
       {/* コンテンツ */}
       <div
-        className="flex items-center justify-center gap-2.5 py-1 px-4 min-h-[28px]"
+        className="flex items-start flex-wrap justify-center gap-x-2.5 gap-y-1 py-1.5 px-4 min-h-[28px]"
         style={{
           opacity: visible ? 1 : 0,
           transition: "opacity 0.4s ease",
@@ -122,7 +122,7 @@ export default function TeamGoalsTicker() {
         {/* チームバッジ */}
         <span
           className={cn(
-            "text-xs font-bold px-1.5 py-0 rounded-full border flex-shrink-0 leading-5",
+            "text-xs font-bold px-1.5 py-0 rounded-full border flex-shrink-0 leading-5 mt-0.5",
             badgeColors[current.team] ?? (isNight
               ? "bg-muted/60 text-foreground border-border"
               : "bg-gray-100 text-gray-700 border-gray-300")
@@ -132,7 +132,7 @@ export default function TeamGoalsTicker() {
         </span>
 
         {/* 目標タイトル */}
-        <span className={cn("text-sm font-semibold truncate max-w-[60vw]", titleColor)}>
+        <span className={cn("text-sm font-semibold break-words flex-1 min-w-0 text-left", titleColor)}>
           {current.title}
         </span>
 
