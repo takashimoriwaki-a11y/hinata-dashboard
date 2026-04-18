@@ -190,6 +190,11 @@ export default function IrregularSchedules() {
     (text) => setForm(f => ({ ...f, notes: f.notes ? f.notes + " " + text : text }))
   );
 
+  // 音声入力（病院・施設名）
+  const { voiceState: facilityVoiceState, interimText: facilityInterimText, toggle: toggleFacilityVoice } = useVoiceInput(
+    (text) => setForm(f => ({ ...f, facilityName: f.facilityName ? f.facilityName + text : text }))
+  );
+
   // チームが変わったら利用者選択をリセット
   const handleTeamChange = (v: string) => {
     setForm(f => ({ ...f, team: v, patientId: "", patientName: "" }));
@@ -418,13 +423,45 @@ export default function IrregularSchedules() {
               {/* 病院・施設名（特別指示書は非表示） */}
               {fieldConfig.facilityName && (
                 <div>
-                  <Label className="text-xs font-medium">病院・施設名</Label>
+                  <div className="flex items-center justify-between mb-1">
+                    <Label className="text-xs font-medium">病院・施設名</Label>
+                    {/* 音声入力ボタン（施設名） */}
+                    <button
+                      type="button"
+                      onClick={toggleFacilityVoice}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-colors ${
+                        facilityVoiceState === "recording"
+                          ? "bg-red-500 text-white animate-pulse"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      }`}
+                    >
+                      {facilityVoiceState === "recording" ? (
+                        <><MicOff className="w-3 h-3" />停止</>
+                      ) : facilityVoiceState === "processing" ? (
+                        <><Loader2 className="w-3 h-3 animate-spin" />処理中</>
+                      ) : (
+                        <><Mic className="w-3 h-3" />音声入力</>
+                      )}
+                    </button>
+                  </div>
                   <Input
-                    className="mt-1 h-9 text-sm"
-                    placeholder="例：大和郡山市立病院"
-                    value={form.facilityName}
+                    className={`h-9 text-sm ${
+                      facilityVoiceState === "recording" ? "border-red-400 ring-1 ring-red-300" : ""
+                    }`}
+                    placeholder={facilityVoiceState === "recording" ? "🎤 話しかけてください..." : "例：大和郡山市立病院"}
+                    value={
+                      facilityVoiceState === "recording" && facilityInterimText
+                        ? form.facilityName + facilityInterimText
+                        : form.facilityName
+                    }
                     onChange={e => setForm(f => ({ ...f, facilityName: e.target.value }))}
                   />
+                  {facilityVoiceState === "recording" && (
+                    <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                      <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                      録音中... 話し終わったら停止ボタンを押してください
+                    </p>
+                  )}
                 </div>
               )}
 
