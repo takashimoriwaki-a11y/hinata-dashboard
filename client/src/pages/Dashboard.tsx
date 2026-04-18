@@ -3669,6 +3669,7 @@ function TasksCard() {
               onClose={() => setShowForm(false)}
               onCreated={() => {
                 utils.personalTasks.getMyTasks.invalidate();
+                utils.personalTasks.getTodayTasks.invalidate();
                 setShowForm(false);
               }}
               userTeam={user.team ?? null}

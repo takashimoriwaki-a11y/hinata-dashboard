@@ -133,6 +133,7 @@ interface CreateFormProps {
 }
 
 export function CreateTaskForm({ onClose, onCreated, userTeam, defaultDueDate }: CreateFormProps) {
+  const utils = trpc.useUtils();
   const [text, setText] = useState("");
   const [taskKind, setTaskKind] = useState<TaskKind>("by_deadline");
   const [dueDate, setDueDate] = useState(defaultDueDate ?? "");
@@ -205,6 +206,8 @@ export function CreateTaskForm({ onClose, onCreated, userTeam, defaultDueDate }:
 
   const createMutation = trpc.personalTasks.create.useMutation({
     onSuccess: () => {
+      utils.personalTasks.getMyTasks.invalidate();
+      utils.personalTasks.getTodayTasks.invalidate();
       toast.success("タスクを追加しました");
       onCreated();
       onClose();
