@@ -2582,3 +2582,6 @@
 ## PC版ホーム画面カード修正（2026-04-18 その11）
 - [x] Dashboard.tsxのグリッドコンテナ・左カラム・右カラムにoverflow-x-hidden/min-w-0を追加してPC版の横スクロールを無効化
 - [x] MessageBoardのCardContentのoverflow-autoをoverflow-x-hiddenに変更
+## 個人タスク楽観的更新＋タブ順変更（2026-04-18 その12）
+- [x] Dashboard.tsxのTasksCardのtoggleTaskMutationにonMutate（楽観的更新）とonError（ロールバック）を実装（既存実装を強化：refetchInterval 5秒・refetchOnWindowFocus追加）
+- [x] App.tsxのボトムナビタブ順を「議事録」「訪問」「ホーム」「個人タスク」「変更連絡」に変更

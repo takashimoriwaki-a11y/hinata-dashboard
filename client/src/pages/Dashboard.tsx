@@ -3461,7 +3461,7 @@ function TasksCard() {
   // 新しい personal_tasks テーブルから今日の個人タスクを取得
   const { data: personalTasksData = [] } = trpc.personalTasks.getMyTasks.useQuery(
     { showDone: true },
-    { refetchInterval: 15 * 1000, staleTime: 0 }
+    { refetchInterval: 5 * 1000, staleTime: 0, refetchOnWindowFocus: true }
   );
 
   // 今日の個人タスク（at_time・by_deadline両方表示、今日が期日のものを含む、5件上限・他職員への依頼タスク除外）
