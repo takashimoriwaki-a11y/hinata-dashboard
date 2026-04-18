@@ -2062,7 +2062,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
         {/* フッター（出勤時のみ） */}
         {isClockIn && (
-          <div className="attendance-scroll-container px-5 pt-2 pb-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 space-y-2 bg-white dark:bg-gray-900" style={{paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))'}}>
+          <>
+          <div className="attendance-scroll-container px-5 pt-2 space-y-2 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
             {/* 全完了バナー */}
             {allClockInTasksDone && (
               <div className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
@@ -2135,6 +2136,9 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 </>
               )}
             </button>
+          </div>
+          {/* キャンセルボタンは常に画面内に表示されるよう独立したブロックに */}
+          <div className="px-5 pb-3 flex-shrink-0 bg-white dark:bg-gray-900" style={{paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))'}}>
             <button
               type="button"
               onClick={handleCloseRequest}
@@ -2143,6 +2147,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
               キャンセル
             </button>
           </div>
+          </>
         )}
         {/* 退勤時フッター（閉じるのみ） */}
         {!isClockIn && (
