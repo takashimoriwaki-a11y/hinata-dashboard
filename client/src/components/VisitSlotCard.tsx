@@ -402,9 +402,9 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
             {isPatientSelected && (
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground font-medium">タスク</p>
-                {patientTasks.length > 0 ? (
+                {patientTasks.filter(t => !t.done).length > 0 ? (
                   <div className="space-y-1.5">
-                    {patientTasks.map((task) => (
+                    {patientTasks.filter(t => !t.done).map((task) => (
                       <label
                         key={task.id}
                         className={cn(
