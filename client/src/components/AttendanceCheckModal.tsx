@@ -360,19 +360,29 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     }
   }, [type, done, alcoholRecorded, alcoholSkipped, clockInDone, clockOutDone, hasOvertime, overtimeStartHour, overtimeStartMinute, overtimeReasonTypes, overtimeContactTarget, overtimeRecordCount, overtimeFreeText, voiceMemoDeleted]);
 
-  // モーダルが開いている間、bodyのスクロールをロックする（iOS対応）
+  // モーダルが開いている間、bodyとmainのスクロールをロックする（iOS対応）
   useEffect(() => {
     const scrollY = window.scrollY;
     document.body.style.overflow = "hidden";
     document.body.style.position = "fixed";
     document.body.style.top = `-${scrollY}px`;
     document.body.style.width = "100%";
+    // DashboardLayoutのmainタグもスクロールをロック
+    const mainEl = document.querySelector('main.main-content-safe') as HTMLElement | null;
+    const mainScrollY = mainEl ? mainEl.scrollTop : 0;
+    if (mainEl) {
+      mainEl.style.overflow = "hidden";
+    }
     return () => {
       document.body.style.overflow = "";
       document.body.style.position = "";
       document.body.style.top = "";
       document.body.style.width = "";
       window.scrollTo(0, scrollY);
+      if (mainEl) {
+        mainEl.style.overflow = "";
+        mainEl.scrollTop = mainScrollY;
+      }
     };
   }, []);
 
@@ -1901,7 +1911,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         </div>
 
         {/* コンテンツ */}
-        <div ref={scrollContainerRef} className="attendance-scroll-container pt-2 pb-6 overflow-y-auto flex-1 min-h-0 overscroll-contain touch-auto" style={{WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain'}}>
+        <div ref={scrollContainerRef} className="attendance-scroll-container pt-2 pb-2 overflow-y-auto flex-1 min-h-0 overscroll-contain touch-auto" style={{WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain'}}>
 
           {isClockIn ? (
             // ── 出勤画面レイアウト：手順チェック → アルコールチェック ──
