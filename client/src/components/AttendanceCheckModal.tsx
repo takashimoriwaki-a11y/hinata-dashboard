@@ -1834,7 +1834,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       </AlertDialogContent>
     </AlertDialog>
 
-    <div className="fixed inset-0 z-[100] flex flex-col items-stretch justify-start touch-none" style={{height: '100svh', overflow: 'hidden', maxHeight: '100svh', overscrollBehavior: 'none'}}>
+    <div className="fixed inset-0 z-[100] flex items-start justify-center touch-none" style={{height: '100svh', overflow: 'hidden', maxHeight: '100svh', overscrollBehavior: 'none'}}>
       {/* 背景オーバーレイ */}
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm"
@@ -1842,7 +1842,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       />
       {/* モーダル本体 */}
       <div
-        className="relative w-full sm:max-w-md mx-0 sm:mx-4 bg-white dark:bg-gray-900 rounded-b-2xl sm:rounded-2xl shadow-2xl flex flex-col flex-1 min-h-0 overflow-clip"
+        className="relative w-full sm:max-w-md mx-0 sm:mx-4 bg-white dark:bg-gray-900 rounded-b-2xl sm:rounded-2xl shadow-2xl flex flex-col h-full max-h-[100svh] overflow-hidden"
       >
         {/* スワイプインジケーターは削除（誤操作防止） */}
         {/* ヘッダー */}
@@ -2062,7 +2062,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
         {/* フッター（出勤時のみ） */}
         {isClockIn && (
-          <div className="border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-900 overflow-y-auto" style={{paddingBottom: 'env(safe-area-inset-bottom, 0px)', maxHeight: '50svh'}}>
+          <div className="border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-900 overflow-y-auto" style={{paddingBottom: 'env(safe-area-inset-bottom, 0px)', maxHeight: '48svh'}}>
             {/* ボタンエリア */}
             <div className="px-5 pt-2 pb-2 space-y-2">
             {/* 全完了バナー */}
@@ -2137,6 +2137,14 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 </>
               )}
             </button>
+            {/* キャンセルボタン */}
+            <button
+              type="button"
+              onClick={handleCloseRequest}
+              className="w-full py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-all active:scale-95 cursor-pointer"
+            >
+              キャンセル
+            </button>
             </div>
           </div>
         )}
@@ -2153,18 +2161,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           </div>
         )}
       </div>
-      {/* キャンセルボタン：モーダル本体の外側に配置してoverflow-clipの影響を受けないようにする */}
-      {isClockIn && (
-        <div className="relative z-10 bg-white dark:bg-gray-900 px-5 pb-3" style={{paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))'}}>
-          <button
-            type="button"
-            onClick={handleCloseRequest}
-            className="w-full py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-all active:scale-95 cursor-pointer"
-          >
-            キャンセル
-          </button>
-        </div>
-      )}
+
     </div>
     </>
   );
