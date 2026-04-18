@@ -82,6 +82,22 @@ function getTodayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+// 完了日時が今日かどうかを判定
+function isCompletedToday(completedAt: Date | string | null | undefined): boolean {
+  if (!completedAt) return false;
+  const d = new Date(completedAt);
+  const today = getTodayStr();
+  const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return dateStr === today;
+}
+
+// 利用者タスクを表示すべきか判定
+// 未完了 → 表示、当日完了 → 表示（取り消し線）、翌日以降完了 → 非表示
+function shouldShowTask(task: { done: number | boolean; completedAt?: Date | string | null }): boolean {
+  if (!task.done) return true; // 未完了は常に表示
+  return isCompletedToday(task.completedAt); // 完了済みは当日のみ表示
+}
+
 function getCardStorageKey(slotIndex: number) {
   return `hinata_visit_card_${slotIndex}`;
 }
@@ -402,15 +418,15 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
             {isPatientSelected && (
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground font-medium">タスク</p>
-                {patientTasks.filter(t => !t.done).length > 0 ? (
+                {patientTasks.filter(t => shouldShowTask(t as any)).length > 0 ? (
                   <div className="space-y-1.5">
-                    {patientTasks.filter(t => !t.done).map((task) => (
+                    {patientTasks.filter(t => shouldShowTask(t as any)).map((task) => (
                       <label
                         key={task.id}
                         className={cn(
                           "flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors select-none",
                           task.done
-                            ? "bg-primary/5 border-primary/30"
+                            ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
                             : "bg-background border-border hover:bg-muted/50"
                         )}
                       >
@@ -425,7 +441,7 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                         <div className="flex-1 min-w-0">
                           <span className={cn(
                             "text-sm leading-snug",
-                            task.done ? "line-through text-muted-foreground" : "text-foreground"
+                            task.done ? "line-through text-muted-foreground opacity-60" : "text-foreground"
                           )}>
                             {task.text}
                           </span>
