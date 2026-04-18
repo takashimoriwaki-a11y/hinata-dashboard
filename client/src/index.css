@@ -257,8 +257,9 @@
   }
 
   /* アニメーション要素のGPUレイヤー促進 */
-  .philosophy-card-animate,
-  .fade-in-up {
+  /* 注意: fade-in-upにwill-changeを設定すると新たなstacking contextが生成され、
+     後続要素のz-indexが正しく機能しなくなるため、設定しない */
+  .philosophy-card-animate {
     will-change: transform, opacity;
   }
 

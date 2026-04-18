@@ -1936,7 +1936,7 @@ function ScheduleScreenshotCard() {
 
   return (
     <>
-      <Card className="fade-in-up stagger-2 shadow-sm" style={{ position: "relative", zIndex: 1 }}>
+      <Card className="fade-in-up stagger-2 shadow-sm" style={{ position: "relative", zIndex: 3 }}>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
@@ -5263,7 +5263,7 @@ function PhilosophyCard() {
         "relative rounded-2xl overflow-hidden shadow-sm cursor-pointer select-none transition-[box-shadow,transform] duration-300 hover:shadow-md hover:scale-[1.01] active:scale-[0.99]",
         isVisible ? "philosophy-card-visible" : "philosophy-card-hidden"
       )}
-      style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fed7aa 100%)", border: "1px solid #fdba74", position: "relative", zIndex: 2 }}
+      style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fed7aa 100%)", border: "1px solid #fdba74", position: "relative", zIndex: 1 }}
       onClick={() => { navigate("/hinatas-way"); }}
     >
       {shimmerActive && <div className="philosophy-shimmer" />}
@@ -5566,7 +5566,7 @@ export default function Dashboard() {
   return (
     <div ref={scrollContainerRef as React.RefObject<HTMLDivElement>} className="p-3 md:p-4 pb-6 md:pb-4 space-y-3 md:space-y-4 max-w-screen-xl mx-auto">
       {/* ウェルカムバナー */}
-      <div className="relative rounded-2xl overflow-hidden shadow-md fade-in-up">
+      <div className="relative rounded-2xl overflow-hidden shadow-md fade-in-up isolate">
         {/* 月別背景画像 */}
         <div className="absolute inset-0" style={{backgroundImage: `url(${bannerBgImage})`, backgroundSize: 'cover', backgroundPosition: 'center'}} />
         {/* 時間帯オーバーレイ（文字の読みやすさを確保） */}
@@ -5744,11 +5744,14 @@ export default function Dashboard() {
       </div>
 
       {/* 企業理念カード（夜モード・昼モード両方表示・フェードインアニメーション付き） */}
-      <PhilosophyCard />
+      {/* isolateでstacking contextを閉じ込め、後続カードが理念カードの裏に潜り込まないようにする */}
+      <div className="isolate" style={{ position: "relative", zIndex: 0 }}>
+        <PhilosophyCard />
+      </div>
 
       {/* メインコンテンツ: PC版2カラム、モバイル1カラム */}
       {/* 並び順（モバイル）: 理念→訪問スケジュール→メッセージ→今日の個人タスク→今日の利用者タスク→チームツール→全チーム共通ツール→訪問件数→曜日別件数→新規契約 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4 items-start overflow-x-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4 items-start overflow-x-hidden isolate" style={{ position: "relative", zIndex: 0 }}>
         {/* 左カラム */}
         <div className="space-y-3 md:space-y-4 overflow-x-hidden min-w-0">
           {/* 1. 訪問スケジュール */}
