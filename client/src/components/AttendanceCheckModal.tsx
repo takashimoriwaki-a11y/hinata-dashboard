@@ -360,13 +360,11 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     }
   }, [type, done, alcoholRecorded, alcoholSkipped, clockInDone, clockOutDone, hasOvertime, overtimeStartHour, overtimeStartMinute, overtimeReasonTypes, overtimeContactTarget, overtimeRecordCount, overtimeFreeText, voiceMemoDeleted]);
 
-  // モーダルが開いている間、bodyとmainのスクロールをロックする（iOS対応）
+  // モーダルが開いている間、bodyとmainのスクロールをロックする
+  // ❗ position:fixedは使わない（iOSで100svhの計算が崩れてフッターが画面外になるため）
   useEffect(() => {
-    const scrollY = window.scrollY;
+    // bodyのover流を禁止（overflow:hiddenのみ）
     document.body.style.overflow = "hidden";
-    document.body.style.position = "fixed";
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = "100%";
     // DashboardLayoutのmainタグもスクロールをロック
     const mainEl = document.querySelector('main.main-content-safe') as HTMLElement | null;
     const mainScrollY = mainEl ? mainEl.scrollTop : 0;
@@ -375,10 +373,6 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     }
     return () => {
       document.body.style.overflow = "";
-      document.body.style.position = "";
-      document.body.style.top = "";
-      document.body.style.width = "";
-      window.scrollTo(0, scrollY);
       if (mainEl) {
         mainEl.style.overflow = "";
         mainEl.scrollTop = mainScrollY;
