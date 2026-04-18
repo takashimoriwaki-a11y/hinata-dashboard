@@ -109,7 +109,7 @@ export function HomeTableOfContents() {
       }}
     >
       <div
-        className="flex flex-col gap-0.5 bg-background/80 backdrop-blur-sm border border-border/50 rounded-xl p-1 shadow-lg"
+        className="flex flex-col gap-0.5 p-0.5"
         style={{ margin: "auto 0" }}
       >
         {visibleSections.map((section) => {
@@ -120,18 +120,18 @@ export function HomeTableOfContents() {
               type="button"
               onClick={() => scrollToSection(section.id)}
               className={cn(
-                "flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-lg transition-all duration-200 min-w-[40px]",
+                "flex flex-col items-center gap-0.5 px-1 py-1 rounded-lg transition-all duration-200 min-w-[36px]",
                 "touch-pan-y select-none",
                 isActive
-                  ? "bg-primary text-primary-foreground shadow-sm scale-105"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground active:scale-95"
+                  ? "opacity-100 scale-110"
+                  : "opacity-40 hover:opacity-80 active:scale-95"
               )}
               title={section.label}
             >
-              <span className="text-sm leading-none">{section.icon}</span>
+              <span className="text-sm leading-none drop-shadow-sm">{section.icon}</span>
               <span className={cn(
-                "text-[9px] leading-tight font-medium whitespace-nowrap",
-                isActive ? "text-primary-foreground" : "text-muted-foreground"
+                "text-[8px] leading-tight font-bold whitespace-nowrap drop-shadow-sm",
+                isActive ? "text-primary" : "text-foreground"
               )}>
                 {section.label}
               </span>
