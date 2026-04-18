@@ -251,8 +251,6 @@ export default function RecordInput() {
 
   // DBへの保存mutation
   const saveSlotsMutation = trpc.visitSlots.save.useMutation();
-  // デバウンス用タイマー
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ログインユーザーの所属チームを初期値に自動設定
   useEffect(() => {
@@ -268,19 +266,13 @@ export default function RecordInput() {
     }
   }, [user?.team]);
 
-  // スロットデータの変更をlocalStorageとDBに保存（デバウンス1.5秒）
+  // スロットデータの変更をlocalStorageとDBに即時保存
   useEffect(() => {
     try {
       localStorage.setItem(SLOTS_STORAGE_KEY, JSON.stringify(slots));
     } catch {}
     if (!user || !dbLoaded) return;
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
-      saveSlotsMutation.mutate({ dateKey: todayKey, slotsJson: JSON.stringify(slots) });
-    }, 1500);
-    return () => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    };
+    saveSlotsMutation.mutate({ dateKey: todayKey, slotsJson: JSON.stringify(slots) });
   }, [slots]);
 
   // スロットデータの更新ハンドラ

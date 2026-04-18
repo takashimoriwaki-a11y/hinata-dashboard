@@ -2555,3 +2555,11 @@
 - [x] server/routers.tsにvisitSlots.save/loadプロシージャ追加
 - [x] RecordInput.tsxにDB保存/復元ロジック追加（ドラッグ後・利用者変更後にDBへ保存、ページ読み込み時にDBから復元）
 - [x] テスト作成（12件合格）
+
+## visitSlotOrders自動クリーンアップ（2026-04-18 その5）
+- [ ] server/db.tsにcleanupOldVisitSlotOrdersヘルパーを追加（30日以上前のレコードを削除）
+- [ ] routers.tsの既存クリーンアップ処理（expireMessages等）にvisitSlotOrdersクリーンアップを組み込む
+- [ ] テスト作成・実行
+
+## 訪問予定即時保存化（2026-04-18 その6）
+- [x] RecordInput.tsxのデバウンス1.5秒を削除して即時保存に変更
