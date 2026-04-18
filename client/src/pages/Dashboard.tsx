@@ -4604,7 +4604,7 @@ function MessageBoard({ title }: { title: string }) {
         ) : messages.length === 0 ? (
           <p className="text-xs text-muted-foreground text-center py-3">メッセージはまだありません</p>
         ) : (
-          <div className="space-y-2 max-h-64 overflow-y-auto">
+          <div className="space-y-2 overflow-x-hidden">
             {messages.map((msg) => {
               const reactionCounts = getReactionCounts(msg.reactions ?? []);
               return (

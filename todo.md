@@ -2594,3 +2594,7 @@
 - [x] PersonalTasks.tsxのcreateTaskMutationにonMutate（仮追加）・onError（ロールバック）・onSettled（再同期）を実装
 - [x] PersonalTasks.tsxのTaskCardの削除ボタンをAlertDialog確認ダイアログに変更
 - [x] Dashboard.tsxのPatientTasksCardにdeleteMutation（楽観的削除）と削除確認ダイアログを追加
+
+## メッセージ全文表示・iPhone誤操作防止（2026-04-18 その15）
+- [x] Dashboard.tsxのMessageBoardCardの各メッセージをline-clamp削除・whitespace-pre-wrapで全文表示
+- [x] iPhone版スクロール中の誤タップ防止：onPointerDownでY座標記録、onPointerMoveで移動距離10px超でスクロール中フラグ、onClickでフラグ立っていればナビゲーションキャンセル

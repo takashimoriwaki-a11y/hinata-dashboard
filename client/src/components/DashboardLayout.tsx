@@ -206,6 +206,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   // ページ遷移時にスクロール位置を記憶・復元する（localStorageで永続化 - アプリ再起動後も復元）
   const mainRef = useRef<HTMLElement>(null);
   const prevLocationRef = useRef<string>(location);
+  // スクロール中の誤タップ防止
+  const touchStartYRef = useRef<number | null>(null);
+  const isScrollingRef = useRef(false);
   useEffect(() => {
     const el = mainRef.current;
     if (!el) return;
@@ -684,6 +687,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   href={item.href}
                   style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", WebkitTouchCallout: "none" }}
                   onPointerDown={(e) => {
+                    // スクロール判定用にタッチ開始Y座標を記録
+                    if (e.pointerType === 'touch') {
+                      touchStartYRef.current = e.clientY;
+                      isScrollingRef.current = false;
+                    }
                     try { navigator.vibrate?.(8); } catch {}
                     // アクティブなタブを再タップしたらページ最上部へスクロール
                     if (isActive) {
@@ -694,6 +702,22 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                       } else {
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       }
+                    }
+                  }}
+                  onPointerMove={(e) => {
+                    // 10px以上移動したらスクロール中フラグを立てる
+                    if (e.pointerType === 'touch' && touchStartYRef.current !== null) {
+                      if (Math.abs(e.clientY - touchStartYRef.current) > 10) {
+                        isScrollingRef.current = true;
+                      }
+                    }
+                  }}
+                  onClick={(e) => {
+                    // スクロール中はナビゲーションをキャンセル
+                    if (isScrollingRef.current) {
+                      e.preventDefault();
+                      isScrollingRef.current = false;
+                      return;
                     }
                   }}
                   className={cn(
