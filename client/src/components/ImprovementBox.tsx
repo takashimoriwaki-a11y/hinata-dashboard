@@ -149,7 +149,7 @@ export function ImprovementBox({ isNightMode }: ImprovementBoxProps) {
                   <VoiceMicButton
                     externalState={voiceState}
                     size="sm"
-                    previewMode="inline"
+                    previewMode="none"
                     context="general"
                   />
                 </div>

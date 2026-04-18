@@ -6,7 +6,7 @@
  * タブ: 「未確認」「確認済み」で切り替え可能。管理者は既読者一覧を確認できる。
  * 機能: 検索絞り込み・期限設定・未確認者へのリマインド通知
  */
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -40,10 +40,27 @@ import {
   Calendar,
   AlertTriangle,
   RotateCcw,
+  FolderOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, isPast, isToday, addDays } from "date-fns";
 import { ja } from "date-fns/locale";
+
+// Google Picker APIキー
+const PICKER_API_KEY = import.meta.env.VITE_GOOGLE_PICKER_API_KEY as string | undefined;
+
+// Google APIスクリプトを動的ロード
+function loadScript(id: string, src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (document.getElementById(id)) { resolve(); return; }
+    const script = document.createElement("script");
+    script.id = id;
+    script.src = src;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Failed to load: ${src}`));
+    document.head.appendChild(script);
+  });
+};
 
 // SpeechRecognition型定義（TypeScript用）
 type SpeechRecognitionInstance = {
@@ -222,6 +239,99 @@ export default function Minutes() {
   const [newDocumentUrl, setNewDocumentUrl] = useState("");
   const [newDeadline, setNewDeadline] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  // Google Picker関連
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const accessTokenRef = useRef<string | null>(null);
+  const tokenExpiryRef = useRef<number>(0);
+
+  // URLフラグメントからpicker_tokenを取得してPickerを開く（バックエンドOAuthコールバック後）
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash.includes("picker_token=")) return;
+    const params = new URLSearchParams(hash.replace("#", "?"));
+    const token = params.get("picker_token");
+    if (!token) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    accessTokenRef.current = decodeURIComponent(token);
+    tokenExpiryRef.current = Date.now() + 55 * 60 * 1000;
+    setCreateOpen(true);
+    openPickerWithToken(decodeURIComponent(token));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // URLQueryのpicker_errorを処理
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get("picker_error");
+    if (!err) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    toast.error("Driveの認証に失敗しました。再度お試しください。");
+  }, []);
+
+  // Google Picker APIでファイルを選択
+  const openPickerWithToken = useCallback(async (token: string) => {
+    if (!PICKER_API_KEY) {
+      toast.error("Picker APIキーが設定されていません");
+      return;
+    }
+    try {
+      setPickerLoading(true);
+      await loadScript("google-gapi-script", "https://apis.google.com/js/api.js");
+      await new Promise<void>((resolve, reject) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).gapi.load("picker", { callback: resolve, onerror: reject });
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const google = (window as any).google;
+      const myDriveView = new google.picker.DocsView()
+        .setIncludeFolders(false)
+        .setSelectFolderEnabled(false);
+      const sharedDriveView = new google.picker.DocsView(google.picker.ViewId.DOCS)
+        .setIncludeFolders(false)
+        .setSelectFolderEnabled(false)
+        .setEnableDrives(true);
+      const picker = new google.picker.PickerBuilder()
+        .setOAuthToken(token)
+        .setDeveloperKey(PICKER_API_KEY)
+        .setLocale("ja")
+        .enableFeature(google.picker.Feature.SUPPORT_DRIVES)
+        .addView(myDriveView)
+        .addView(sharedDriveView)
+        .setCallback((data: {
+          action: string;
+          docs?: Array<{ id: string; name: string; mimeType: string; url: string }>;
+        }) => {
+          if (data.action === google.picker.Action.PICKED && data.docs && data.docs.length > 0) {
+            const doc = data.docs[0];
+            const fileUrl = doc.url || `https://drive.google.com/open?id=${doc.id}`;
+            setNewDocumentUrl(fileUrl);
+            if (!newTitle) setNewTitle(doc.name);
+            toast.success(`「${doc.name}」を選択しました`);
+          }
+          setPickerLoading(false);
+        })
+        .build();
+      picker.setVisible(true);
+    } catch (err) {
+      console.error("[GooglePicker] Error:", err);
+      toast.error("Pickerの起動に失敗しました");
+      setPickerLoading(false);
+    }
+  }, [newTitle]);
+
+  // 「Driveから選択」ボタン押下時の処理
+  const handleDriveAdd = useCallback(() => {
+    if (!PICKER_API_KEY) {
+      toast.error("Picker APIキーが設定されていません");
+      return;
+    }
+    if (accessTokenRef.current && Date.now() < tokenExpiryRef.current) {
+      openPickerWithToken(accessTokenRef.current);
+      return;
+    }
+    const origin = window.location.origin;
+    window.location.href = `/api/auth/google/picker?origin=${encodeURIComponent(origin)}&returnPath=/minutes`;
+  }, [openPickerWithToken]);
   // 楽観的更新用: 添付を開いて確認済みになったID（リスト移動対象）
   const [localCheckedIds, setLocalCheckedIds] = useState<Set<number>>(new Set());
   // チェックボタンのみ押した状態（リスト移動なし、チェックマーク表示のみ）
@@ -700,13 +810,29 @@ export default function Minutes() {
 
             {/* ドキュメントURL（任意） */}
             <div className="space-y-1.5 p-3 bg-muted/30 rounded-lg border border-border">
-              <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                <LinkIcon className="w-3 h-3" />
-                ドキュメントURL（任意）
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <LinkIcon className="w-3 h-3" />
+                  ドキュメントURL（任意）
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDriveAdd}
+                  disabled={pickerLoading}
+                  className="h-7 text-xs gap-1.5 text-blue-600 border-blue-300 hover:bg-blue-50 dark:text-blue-400 dark:border-blue-700 dark:hover:bg-blue-950/30"
+                >
+                  {pickerLoading ? (
+                    <><Loader2 className="w-3 h-3 animate-spin" />認証中...</>
+                  ) : (
+                    <><FolderOpen className="w-3 h-3" />Driveから選択</>
+                  )}
+                </Button>
+              </div>
               <div className="relative">
                 <Input
-                  placeholder="Google Docs / Sheets / Forms 等のURL"
+                  placeholder="Google Docs / Sheets / Forms 等のURL（または上のボタンでDriveから選択）"
                   value={newDocumentUrl}
                   onChange={(e) => handleDocUrlChange(e.target.value)}
                   className="text-sm pr-8"
@@ -715,6 +841,11 @@ export default function Minutes() {
                   <Loader2 className="w-4 h-4 animate-spin absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 )}
               </div>
+              {newDocumentUrl && (
+                <p className="text-xs text-muted-foreground truncate">
+                  選択中: {newDocumentUrl}
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>

@@ -673,7 +673,7 @@ export default function RecordInput() {
           </div>
           <p className="text-xs text-muted-foreground mt-1">訪問する順番に利用者を選択してください（最大8名）</p>
           <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">ℹ️ 訪問利用者を選択したときに登録されている利用者タスクが反映されます</p>
-          </div>
+          </div>{/* end flex-col gap-1.5 */}
         </CardHeader>
         <CardContent className="space-y-3">
           {slots.map((slot, index) => (

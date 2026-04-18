@@ -389,7 +389,7 @@ function TeamGoalsCard() {
                 </span>
               )}
             </div>
-            <p className="text-sm font-semibold leading-snug">{g.title}</p>
+            <p className="text-sm font-semibold leading-snug line-clamp-2">{g.title}</p>
             {g.body && (
               <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">{g.body}</p>
             )}
@@ -3911,6 +3911,8 @@ function PatientTasksCard() {
           <TaskCreateForm
             onClose={() => setShowForm(false)}
             onSuccess={() => utils.tasks.getMine.invalidate()}
+            defaultDueDate={new Date().toISOString().split('T')[0]}
+            requirePatientName={true}
           />
         )}
       </CardContent>

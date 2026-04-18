@@ -34,6 +34,8 @@ export function AlcoholCheckModal({ clockType, onClose, clockInAt, clockOutAt, i
   const isClockIn = clockType === "clock_in";
   const { user } = useAuth();
   const utils = trpc.useUtils();
+  // アクティブな検知器一覧（プルダウン用）
+  const { data: activeDetectors = [] } = trpc.alcoholDetector.getActive.useQuery();
 
   // フォーム状態
   const [numberPlate, setNumberPlate] = useState("");
@@ -62,7 +64,8 @@ export function AlcoholCheckModal({ clockType, onClose, clockInAt, clockOutAt, i
 
   // 追加項目
   const [alcoholMeasuredValue, setAlcoholMeasuredValue] = useState(""); // 測定値（mg/L）
-  const [detectorType, setDetectorType] = useState(""); // 検知器種類・型番
+  const [detectorType, setDetectorType] = useState<string>("__auto__"); // 検知器種類・型番（__auto__=一覧から自動選択）
+  const [detectorFreeText, setDetectorFreeText] = useState<string>(""); // 「その他」選択時の自由入力
   const [drivingPurpose, setDrivingPurpose] = useState<"commute" | "visit" | "transport" | "errand" | "other">("visit"); // 運転目的
   const [hasPassenger, setHasPassenger] = useState<boolean>(false); // 同乗者の有無
   const [passengerCount, setPassengerCount] = useState<number>(1); // 同乗者人数
@@ -141,6 +144,14 @@ export function AlcoholCheckModal({ clockType, onClose, clockInAt, clockOutAt, i
     );
   };
 
+  // アクティブな検知器が読み込まれたら最初の検知器を自動選択する
+  useEffect(() => {
+    if (activeDetectors.length > 0 && detectorType === "__auto__") {
+      setDetectorType(activeDetectors[0].name);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeDetectors]);
+
   // モーダルを開いたら自動で位置情報を取得
   useEffect(() => {
     fetchLocation();
@@ -200,7 +211,7 @@ export function AlcoholCheckModal({ clockType, onClose, clockInAt, clockOutAt, i
       locationAddress: locationAddress ?? undefined,
       // 追加項目
       alcoholMeasuredValue: alcoholMeasuredValue.trim() || undefined,
-      detectorType: detectorType.trim() || undefined,
+      detectorType: (detectorType === "__auto__" ? activeDetectors[0]?.name : detectorType === "" ? detectorFreeText.trim() : detectorType) || undefined,
       drivingPurpose: drivingPurpose || undefined,
       hasPassenger,
       passengerCount: hasPassenger ? passengerCount : undefined,
@@ -627,13 +638,38 @@ export function AlcoholCheckModal({ clockType, onClose, clockInAt, clockOutAt, i
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                 検知器種類・型番
               </label>
-              <input
-                type="text"
-                value={detectorType}
-                onChange={(e) => setDetectorType(e.target.value)}
-                placeholder="例: アルコール検知器"
-                className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-400"
-              />
+              {activeDetectors.length > 0 ? (
+                <div className="relative">
+                  <select
+                    value={detectorType}
+                    onChange={(e) => setDetectorType(e.target.value)}
+                    className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-400 appearance-none pr-8"
+                  >
+                    {activeDetectors.map((d) => (
+                      <option key={d.id} value={d.name}>{d.name}</option>
+                    ))}
+                    <option value="">その他（入力）</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  value={detectorType === "__auto__" ? "" : detectorType}
+                  onChange={(e) => setDetectorType(e.target.value)}
+                  placeholder="例: アルコール検知器"
+                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-400"
+                />
+              )}
+              {detectorType === "" && (
+                <input
+                  type="text"
+                  value={detectorFreeText}
+                  placeholder="検知器名を入力"
+                  className="mt-1.5 w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-400"
+                  onChange={(e) => setDetectorFreeText(e.target.value)}
+                />
+              )}
             </div>
           </div>
 

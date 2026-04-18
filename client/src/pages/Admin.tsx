@@ -987,7 +987,7 @@ export default function Admin() {
       </div>
 
       {/* セクションタブ */}
-      <div className="flex gap-2 border-b border-border overflow-x-auto scrollbar-none" style={{ WebkitOverflowScrolling: 'touch' }}>
+      <div className="flex gap-2 border-b border-border overflow-x-auto overflow-y-hidden scrollbar-none" style={{ WebkitOverflowScrolling: 'touch' }}>
         <button
           onClick={() => setActiveSection("sheets")}
           className={cn(
@@ -2494,7 +2494,7 @@ function TeamGoalsPanel() {
           <CardHeader className="pb-2 pt-4">
             <CardTitle className="text-sm font-semibold text-primary">新規チーム目標を登録</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-hidden">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="text-sm font-medium mb-1 block">チーム</label>
@@ -2503,8 +2503,12 @@ function TeamGoalsPanel() {
                 </select>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">目標内容 <span className="text-red-500">*</span></label>
-                <textarea value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="例：今月の訪問件数目標を達成しよう！チーム一丸となって頑張りましょう。" rows={3} className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background resize-none" required />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-sm font-medium">目標内容 <span className="text-red-500">*</span></label>
+                  <span className={`text-xs ${formTitle.length > 40 ? 'text-red-500 font-semibold' : 'text-muted-foreground'}`}>{formTitle.length}/40文字以内</span>
+                </div>
+                <textarea value={formTitle} onChange={e => setFormTitle(e.target.value.slice(0, 40))} placeholder="例：今月の訪問件数目標を達成しよう！" rows={2} maxLength={40} className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background resize-none" required />
+                <p className="text-xs text-muted-foreground mt-0.5">ホーム画面に2行で表示されます（最大40文字）</p>
               </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">期間（空欄=常時表示）</label>
@@ -2546,8 +2550,12 @@ function TeamGoalsPanel() {
                         </select>
                       </div>
                       <div>
-                        <label className="text-sm font-medium mb-1 block">目標内容 <span className="text-red-500">*</span></label>
-                        <textarea value={formTitle} onChange={e => setFormTitle(e.target.value)} rows={3} className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background resize-none" required />
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-sm font-medium">目標内容 <span className="text-red-500">*</span></label>
+                          <span className={`text-xs ${formTitle.length > 40 ? 'text-red-500 font-semibold' : 'text-muted-foreground'}`}>{formTitle.length}/40文字以内</span>
+                        </div>
+                        <textarea value={formTitle} onChange={e => setFormTitle(e.target.value.slice(0, 40))} rows={2} maxLength={40} className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background resize-none" required />
+                        <p className="text-xs text-muted-foreground mt-0.5">ホーム画面に2行で表示されます（最大40文字）</p>
                       </div>
                       <div>
                         <label className="text-sm font-medium mb-1 block">期間（空欄=常時表示）</label>

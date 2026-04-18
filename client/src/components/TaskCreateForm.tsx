@@ -42,14 +42,18 @@ interface TaskCreateFormProps {
   onClose: () => void;
   /** 作成成功後に呼ばれるコールバック */
   onSuccess?: () => void;
+  /** デフォルトの期日（YYYY-MM-DD形式） */
+  defaultDueDate?: string;
+  /** 利用者名必須ヒントを表示するか */
+  requirePatientName?: boolean;
 }
 
-export default function TaskCreateForm({ onClose, onSuccess }: TaskCreateFormProps) {
+export default function TaskCreateForm({ onClose, onSuccess, defaultDueDate, requirePatientName }: TaskCreateFormProps) {
   const { user } = useAuth();
   const utils = trpc.useUtils();
 
   const [newText, setNewText] = useState("");
-  const [newDueDate, setNewDueDate] = useState("");
+  const [newDueDate, setNewDueDate] = useState(defaultDueDate ?? "");
   const [newDueTime, setNewDueTime] = useState("");
   const [_newAssignType, setNewAssignType] = useState<AssignType>("all");
   const [newAssignTeam, setNewAssignTeam] = useState<Team>("身体");

@@ -286,6 +286,7 @@ export function registerGoogleAuthRoutes(app: Express) {
       return;
     }
     const origin = req.query.origin as string | undefined;
+    const returnPath = (req.query.returnPath as string | undefined) ?? "/my-links";
     const callbackUrl = origin
       ? `${origin}/api/auth/google/picker/callback`
       : (() => {
@@ -294,7 +295,7 @@ export function registerGoogleAuthRoutes(app: Express) {
           return `${proto}://${host}/api/auth/google/picker/callback`;
         })();
     const oauth2Client = new OAuth2Client(clientId, process.env.GOOGLE_OAUTH_CLIENT_SECRET, callbackUrl);
-    const state = Buffer.from(JSON.stringify({ origin: origin ?? null, sessionToken })).toString("base64url");
+    const state = Buffer.from(JSON.stringify({ origin: origin ?? null, sessionToken, returnPath })).toString("base64url");
     const authUrl = oauth2Client.generateAuthUrl({
       access_type: "online",
       scope: [
@@ -319,10 +320,12 @@ export function registerGoogleAuthRoutes(app: Express) {
     }
     try {
       let originFromState: string | null = null;
+      let returnPathFromState = "/my-links";
       if (state) {
         try {
           const decoded = JSON.parse(Buffer.from(state, "base64url").toString());
           if (decoded.origin) originFromState = decoded.origin;
+          if (decoded.returnPath) returnPathFromState = decoded.returnPath;
         } catch { /* ignore */ }
       }
       const callbackUrl = originFromState
@@ -337,15 +340,15 @@ export function registerGoogleAuthRoutes(app: Express) {
       const oauth2Client = new OAuth2Client(clientId, clientSecret, callbackUrl);
       const { tokens } = await oauth2Client.getToken(code);
       if (!tokens.access_token) {
-        res.redirect(302, "/my-links?picker_error=no_token");
+        res.redirect(302, `${returnPathFromState}?picker_error=no_token`);
         return;
       }
       // access_tokenをURLフラグメントでフロントに渡す
       const redirectBase = originFromState ?? "";
-      res.redirect(302, `${redirectBase}/my-links#picker_token=${encodeURIComponent(tokens.access_token)}`);
+      res.redirect(302, `${redirectBase}${returnPathFromState}#picker_token=${encodeURIComponent(tokens.access_token)}`);
     } catch (error) {
       console.error("[GooglePicker] Callback failed", error);
-      res.redirect(302, "/my-links?picker_error=callback_failed");
+      res.redirect(302, `${(state ? (() => { try { const d = JSON.parse(Buffer.from(state, "base64url").toString()); return d.returnPath ?? "/my-links"; } catch { return "/my-links"; } })() : "/my-links")}?picker_error=callback_failed`);
     }
   });
 }
