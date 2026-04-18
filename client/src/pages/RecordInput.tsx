@@ -586,19 +586,20 @@ export default function RecordInput() {
       {/* ===== 今日の訪問予定セクション ===== */}
       <Card className="shadow-sm">
         <CardHeader className="pb-2">
-          {/* 1行目：タイトル */}
-          <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2 min-w-0">
-              <Users className="w-4 h-4 text-primary flex-shrink-0" />
-              <span className="whitespace-nowrap">今日の訪問予定</span>
-              {filledSlots > 0 && (
-                <Badge variant="secondary" className="text-xs flex-shrink-0">
-                  {filledSlots}名
-                </Badge>
-              )}
-            </CardTitle>
-            {/* 2行目：ボタン群（右寄せ） */}
-            <div className="flex items-center gap-1.5 flex-shrink-0">
+          {/* ヘッダー：1行目＝タイトル、→ 2行目＝ボタン群 */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2 min-w-0">
+                <Users className="w-4 h-4 text-primary flex-shrink-0" />
+                <span className="whitespace-nowrap">今日の訪問予定</span>
+                {filledSlots > 0 && (
+                  <Badge variant="secondary" className="text-xs flex-shrink-0">
+                    {filledSlots}名
+                  </Badge>
+                )}
+              </CardTitle>
+              {/* ボタン群（右寄せ） */}
+              <div className="flex items-center gap-1.5 flex-shrink-0">
               {/* 一括音声入力ボタン */}
               <button
                 type="button"
@@ -622,6 +623,7 @@ export default function RecordInput() {
                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                 全リセット
               </button>
+            </div>
             </div>
           </div>
           {/* 2行目：検索フィールド */}
