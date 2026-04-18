@@ -2588,3 +2588,5 @@
 ## 個人タスクページ楽観的更新確認・強化（2026-04-18 その13）
 - [x] PersonalTasks.tsxのtoggleMutationはonMutate/onError/onSettledが実装済みであることを確認
 - [x] getMyTasksクエリのrefetchIntervalを30秒→5秒に短縮、refetchOnWindowFocus:trueを追加
+## deleteMutation楽観的削除実装（2026-04-18 その14）
+- [x] PersonalTasks.tsxのdeleteMutationにonMutate（即時リストから除外）・onError（ロールバック）・onSettled（再同期）を追加

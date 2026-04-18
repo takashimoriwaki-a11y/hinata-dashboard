@@ -721,11 +721,25 @@ export default function PersonalTasks() {
   });
 
   const deleteMutation = trpc.personalTasks.delete.useMutation({
+    onMutate: async ({ id }) => {
+      await utils.personalTasks.getMyTasks.cancel();
+      const prev = utils.personalTasks.getMyTasks.getData({ showDone: true });
+      utils.personalTasks.getMyTasks.setData({ showDone: true }, (old: any) =>
+        old?.filter((t: any) => t.id !== id)
+      );
+      return { prev };
+    },
+    onError: (_e, _v, ctx: any) => {
+      utils.personalTasks.getMyTasks.setData({ showDone: true }, ctx?.prev);
+      toast.error("削除に失敗しました");
+    },
     onSuccess: () => {
       toast.success("タスクを削除しました");
-      utils.personalTasks.getMyTasks.invalidate();
     },
-    onError: (e) => toast.error(e.message),
+    onSettled: () => {
+      utils.personalTasks.getMyTasks.invalidate();
+      utils.personalTasks.getTodayTasks.invalidate();
+    },
   });
 
   const filteredTasks = useMemo(() => {
