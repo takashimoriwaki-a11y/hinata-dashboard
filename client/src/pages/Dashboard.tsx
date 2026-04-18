@@ -3533,7 +3533,7 @@ function TasksCard() {
           </div>
         </Link>
       )}
-      <Card id="today-tasks" className="shadow-sm">
+      <Card id="today-tasks" className="shadow-sm overflow-x-hidden">
         <CardHeader className="pb-2">
           {/* 1行目：タイトル + 「すべて見る」 */}
           <div className="flex items-center justify-between gap-2">
@@ -3563,9 +3563,9 @@ function TasksCard() {
             </label>
           </div>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-2 overflow-x-hidden">
           {/* 今日の個人タスクリスト */}
-          <div className="max-h-72 overflow-y-auto space-y-2 pr-0.5">
+          <div className="space-y-2">
           {todayPersonalTasks.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-3">
               今日の個人タスクはありません ✓
@@ -3761,7 +3761,7 @@ function PatientTasksCard() {
   });
 
   return (
-    <Card id="today-patient-tasks" className="shadow-sm">
+    <Card id="today-patient-tasks" className="shadow-sm overflow-x-hidden">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
@@ -3820,8 +3820,8 @@ function PatientTasksCard() {
           })}
         </div>
       </CardHeader>
-      <CardContent className="space-y-2">
-        <div className="max-h-72 overflow-y-auto space-y-2 pr-0.5">
+      <CardContent className="space-y-2 overflow-x-hidden">
+        <div className="space-y-2">
           {filteredPatientTasks.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-3">
               {selectedTeam === "全チーム" ? "今日の利用者タスクはありません ✓" : `${selectedTeam}チームの今日の利用者タスクはありません ✓`}
