@@ -2579,3 +2579,6 @@
 
 ## タスク完了楽観的更新（2026-04-18 その10）
 - [x] VisitSlotCard.tsxのtoggleTaskMutationにonMutate（楽観的更新）とonError（ロールバック）を実装
+## PC版ホーム画面カード修正（2026-04-18 その11）
+- [x] Dashboard.tsxのグリッドコンテナ・左カラム・右カラムにoverflow-x-hidden/min-w-0を追加してPC版の横スクロールを無効化
+- [x] MessageBoardのCardContentのoverflow-autoをoverflow-x-hiddenに変更

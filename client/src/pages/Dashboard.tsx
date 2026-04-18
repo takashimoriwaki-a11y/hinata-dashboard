@@ -4208,7 +4208,7 @@ function MessageBoard({ title }: { title: string }) {
           </CardTitle>
         </div>
       </CardHeader>
-      <CardContent className="space-y-2 overflow-auto">
+      <CardContent className="space-y-2 overflow-x-hidden">
         {/* 投稿フォーム */}
         {showForm && (
           <div className="border border-primary/20 rounded-xl p-4 space-y-3 bg-primary/5">
@@ -5630,9 +5630,9 @@ export default function Dashboard() {
 
       {/* メインコンテンツ: PC版2カラム、モバイル1カラム */}
       {/* 並び順（モバイル）: 理念→訪問スケジュール→メッセージ→今日の個人タスク→今日の利用者タスク→チームツール→全チーム共通ツール→訪問件数→曜日別件数→新規契約 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4 items-start overflow-x-hidden">
         {/* 左カラム */}
-        <div className="space-y-3 md:space-y-4">
+        <div className="space-y-3 md:space-y-4 overflow-x-hidden min-w-0">
           {/* 1. 訪問スケジュール */}
           <ScheduleScreenshotCard />
           {/* 2. メッセージ */}
@@ -5681,7 +5681,7 @@ export default function Dashboard() {
           </div>
         </div>
         {/* 右カラム（PCのみ）: 個人タスク・利用者タスク・チームツール・全チーム共通ツール */}
-        <div className="hidden lg:block space-y-3 md:space-y-4">
+        <div className="hidden lg:block space-y-3 md:space-y-4 overflow-x-hidden min-w-0">
           <TasksCard />
           <PatientTasksCard />
           <TeamToolsCard />
