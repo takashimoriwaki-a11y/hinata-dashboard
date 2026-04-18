@@ -1910,7 +1910,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             className="text-white/80 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-white/20 flex items-center gap-1 text-sm font-medium flex-shrink-0"
           >
             <X className="w-4 h-4" />
-            <span>キャンセル</span>
+            <span>{isClockIn ? 'キャンセル' : '閉じる'}</span>
           </button>
         </div>
 
