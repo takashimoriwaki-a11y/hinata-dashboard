@@ -3701,11 +3701,10 @@ function PatientTasksCard() {
     staleTime: 0,
   });
 
-  // 今日の利用者タスク（patientNameが設定されていて、今日が期日 or 期日なし or 次回訪問時）
+  // 今日の利用者タスク（patientNameが設定されていて、今日が期日 or 期日過ぎ or 期日なし or 次回訪問時）
   const todayPatientTasks = useMemo(() => {
     const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const todayEnd = todayStart + 24 * 60 * 60 * 1000 - 1;
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     return tasks
       .filter((t) => {
         if (t.done !== 0) return false;
@@ -3717,8 +3716,11 @@ function PatientTasksCard() {
         if (t.assignType === "personal" && t.assignUserId !== user?.id) return false;
         if (t.assignType === "team" && t.assignTeam !== userTeam) return false;
         if (!t.dueDate) return true; // 期日なしは表示
-        const due = new Date(t.dueDate).getTime();
-        return due >= todayStart && due <= todayEnd;
+        // ローカル時間でdiff計算（タイムゾーン問題を回避）
+        const d = new Date(t.dueDate);
+        const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const diff = Math.floor((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        return diff <= 0; // 今日以前（期日過ぎ含む）を表示
       })
       .sort((a, b) => {
         if (!a.dueDate && !b.dueDate) return 0;

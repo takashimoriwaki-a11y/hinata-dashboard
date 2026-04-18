@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  ClipboardEdit, Search, Loader2, ChevronDown, X, Users, Mic, MicOff, ExternalLink
+  ClipboardEdit, Search, Loader2, ChevronDown, ChevronUp, X, Users, Mic, MicOff, ExternalLink
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -227,6 +227,26 @@ export default function RecordInput() {
     setSlots(prev => {
       const next = [...prev];
       next[index] = { ...next[index], ...data };
+      return next;
+    });
+  };
+
+  // スロットの順番入れ替え
+  const swapSlots = (indexA: number, indexB: number) => {
+    if (indexA < 0 || indexB < 0 || indexA >= MAX_SLOTS || indexB >= MAX_SLOTS) return;
+    setSlots(prev => {
+      const next = [...prev];
+      [next[indexA], next[indexB]] = [next[indexB], next[indexA]];
+      return next;
+    });
+    setSlotSearchQueries(prev => {
+      const next = [...prev];
+      [next[indexA], next[indexB]] = [next[indexB], next[indexA]];
+      return next;
+    });
+    setSlotShowLists(prev => {
+      const next = [...prev];
+      [next[indexA], next[indexB]] = [next[indexB], next[indexA]];
       return next;
     });
   };
@@ -605,7 +625,7 @@ export default function RecordInput() {
                 type="button"
                 onClick={startBulkVoiceInput}
                 className={cn(
-                  "flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-medium transition-colors whitespace-nowrap",
+                  "flex items-center gap-1 px-2 py-1.5 rounded-lg border text-xs font-medium transition-colors whitespace-nowrap",
                   isBulkListening
                     ? "bg-red-500 border-red-500 text-white animate-pulse"
                     : "border-primary/40 text-primary hover:bg-primary/10"
@@ -618,7 +638,7 @@ export default function RecordInput() {
               <button
                 type="button"
                 onClick={handleResetAll}
-                className="flex items-center gap-1 px-2 py-1 rounded-lg border border-border text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-colors whitespace-nowrap"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-colors whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                 全リセット
@@ -675,29 +695,40 @@ export default function RecordInput() {
           </div>{/* end flex-col gap-1.5 */}
         </CardHeader>
         <CardContent className="space-y-3">
-          {slots.map((slot, index) => (
-            <SlotSelector
-              key={index}
-              index={index}
-              slot={slot}
-              allPatients={allPatients}
-              searchQuery={slotPatientQueries[index]}
-              showList={slotShowLists[index]}
-              onSearchChange={(q) => setSlotSearch(index, q)}
-              onShowListChange={(show) => setSlotShowList(index, show)}
-              onSlotChange={(data) => handleSlotChange(index, data)}
-              slotRef={(el) => { slotRefs.current[index] = el; }}
-              onCandidateSelected={() => {
-                // 次の空き枠にスクロール
-                const nextIdx = slots.findIndex((s, i) => i > index && !s.patientName);
-                if (nextIdx >= 0) {
-                  setTimeout(() => {
-                    slotRefs.current[nextIdx]?.scrollIntoView({ behavior: "smooth", block: "center" });
-                  }, 300);
-                }
-              }}
-            />
-          ))}
+          {slots.map((slot, index) => {
+            // 選択済みスロットのリスト（順番入れ替えの上下判定用）
+            const filledIndices = slots.map((s, i) => s.patientName ? i : -1).filter(i => i >= 0);
+            const posInFilled = filledIndices.indexOf(index);
+            const isFirstFilled = posInFilled === 0;
+            const isLastFilled = posInFilled === filledIndices.length - 1;
+            return (
+              <SlotSelector
+                key={index}
+                index={index}
+                slot={slot}
+                allPatients={allPatients}
+                searchQuery={slotPatientQueries[index]}
+                showList={slotShowLists[index]}
+                onSearchChange={(q) => setSlotSearch(index, q)}
+                onShowListChange={(show) => setSlotShowList(index, show)}
+                onSlotChange={(data) => handleSlotChange(index, data)}
+                slotRef={(el) => { slotRefs.current[index] = el; }}
+                onCandidateSelected={() => {
+                  // 次の空き枠にスクロール
+                  const nextIdx = slots.findIndex((s, i) => i > index && !s.patientName);
+                  if (nextIdx >= 0) {
+                    setTimeout(() => {
+                      slotRefs.current[nextIdx]?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }, 300);
+                  }
+                }}
+                onMoveUp={slot.patientName && posInFilled > 0 ? () => swapSlots(index, filledIndices[posInFilled - 1]) : undefined}
+                onMoveDown={slot.patientName && posInFilled >= 0 && posInFilled < filledIndices.length - 1 ? () => swapSlots(index, filledIndices[posInFilled + 1]) : undefined}
+                isFirst={isFirstFilled}
+                isLast={isLastFilled}
+              />
+            );
+          })}
         </CardContent>
       </Card>
 
@@ -888,12 +919,16 @@ type SlotSelectorProps = {
   onSlotChange: (data: Partial<VisitSlotData>) => void;
   slotRef?: (el: HTMLDivElement | null) => void;
   onCandidateSelected?: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  isFirst?: boolean;
+  isLast?: boolean;
 };
 
 function SlotSelector({
   index, slot, allPatients, searchQuery, showList,
   onSearchChange, onShowListChange, onSlotChange,
-  slotRef, onCandidateSelected
+  slotRef, onCandidateSelected, onMoveUp, onMoveDown, isFirst, isLast
 }: SlotSelectorProps) {
   const slotNumber = index + 1;
   const [isListening, setIsListening] = useState(false);
@@ -1047,6 +1082,27 @@ function SlotSelector({
             <span className="text-sm font-medium text-foreground truncate flex-1">
               {slot.patientName}
             </span>
+            {/* 順番入れ替えボタン */}
+            {!isFirst && onMoveUp && (
+              <button
+                type="button"
+                onClick={onMoveUp}
+                className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors p-1 rounded"
+                title="一つ上に移動"
+              >
+                <ChevronUp className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {!isLast && onMoveDown && (
+              <button
+                type="button"
+                onClick={onMoveDown}
+                className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors p-1 rounded"
+                title="一つ下に移動"
+              >
+                <ChevronDown className="w-3.5 h-3.5" />
+              </button>
+            )}
             {/* 訪問チェック項目カードへスクロール */}
             <button
               type="button"
