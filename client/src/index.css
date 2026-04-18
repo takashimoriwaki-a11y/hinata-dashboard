@@ -168,6 +168,9 @@
   html {
     /* ベースフォントサイズ: モバイル16px / PC17px */
     font-size: 16px;
+    /* 横スクロール禁止 */
+    overflow-x: hidden;
+    max-width: 100vw;
   }
   @media (min-width: 768px) {
     html {
@@ -180,6 +183,9 @@
     font-size: 1rem; /* = html font-size */
     font-weight: 500; /* medium: 本文全体の読みやすさを向上 */
     line-height: 1.7;
+    /* 横スクロール禁止 */
+    overflow-x: hidden;
+    max-width: 100vw;
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
@@ -191,6 +197,13 @@
   input[type="checkbox"]:not(:disabled),
   input[type="radio"]:not(:disabled) {
     @apply cursor-pointer;
+  }
+
+  /* #root要素の横スクロール禁止 */
+  #root {
+    overflow-x: hidden;
+    max-width: 100vw;
+    position: relative;
   }
 
   /* iOSのタップ遅延（300ms）を除去し、タップ反応を即時にする */
