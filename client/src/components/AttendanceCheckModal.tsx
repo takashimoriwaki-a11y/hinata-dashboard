@@ -1915,7 +1915,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         </div>
 
         {/* コンテンツ */}
-        <div ref={scrollContainerRef} className="attendance-scroll-container pt-2 pb-2 overflow-y-auto flex-1 min-h-0 overscroll-contain touch-auto" style={{WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain'}}>
+        <div ref={scrollContainerRef} className="attendance-scroll-container pt-2 pb-0 overflow-y-auto flex-1 min-h-0 overscroll-contain touch-auto" style={{WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain'}}>
 
           {isClockIn ? (
             // ── 出勤画面レイアウト：手順チェック → アルコールチェック ──
@@ -2063,9 +2063,9 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
         {/* フッター（出勤時のみ） */}
         {isClockIn && (
-          <div className="border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-900 overflow-y-auto" style={{paddingBottom: 'env(safe-area-inset-bottom, 0px)', maxHeight: '48svh'}}>
+          <div className="flex-shrink-0 bg-white dark:bg-gray-900 overflow-y-auto" style={{paddingBottom: 'env(safe-area-inset-bottom, 0px)', maxHeight: '48svh'}}>
             {/* ボタンエリア */}
-            <div className="px-5 pt-2 pb-2 space-y-2">
+            <div className="px-5 pt-1 pb-2 space-y-2">
             {/* 全完了バナー */}
             {allClockInTasksDone && (
               <div className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
