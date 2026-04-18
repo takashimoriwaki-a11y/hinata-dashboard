@@ -608,10 +608,11 @@
     filter: blur(2px);
   }
 
-  /* 理念カード本体: アニメーション実行（アニメーション中のみレイヤー促進、完了後は@keyframes内のwill-change:autoで解放） */
+  /* 理念カード本体: アニメーション実行
+     will-changeはアニメーション完了後もforwardsで保持されstacking contextを生成し続けるため
+     CSS側では設定しない（アニメーション自体はブラウザが最適化する） */
   .philosophy-card-visible {
     animation: philosophyCardReveal 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-    will-change: opacity, transform, filter;
   }
 
   /* 理念カード: アイコン */

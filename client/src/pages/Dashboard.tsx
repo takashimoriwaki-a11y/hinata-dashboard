@@ -1936,7 +1936,7 @@ function ScheduleScreenshotCard() {
 
   return (
     <>
-      <Card id="section-schedule" className="fade-in-up stagger-2 shadow-sm" style={{ position: "relative", zIndex: 3 }}>
+      <Card id="section-schedule" className="fade-in-up stagger-2 shadow-sm">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
@@ -5263,7 +5263,7 @@ function PhilosophyCard() {
         "relative rounded-2xl overflow-hidden shadow-sm cursor-pointer select-none transition-[box-shadow,transform] duration-300 hover:shadow-md hover:scale-[1.01] active:scale-[0.99]",
         isVisible ? "philosophy-card-visible" : "philosophy-card-hidden"
       )}
-      style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fed7aa 100%)", border: "1px solid #fdba74", position: "relative", zIndex: 1 }}
+      style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fed7aa 100%)", border: "1px solid #fdba74" }}
       onClick={() => { navigate("/hinatas-way"); }}
     >
       {shimmerActive && <div className="philosophy-shimmer" />}
@@ -5743,15 +5743,13 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 企業理念カード（夜モード・昼モード両方表示・フェードインアニメーション付き） */}
-      {/* isolateでstacking contextを閉じ込め、後続カードが理念カードの裏に潜り込まないようにする */}
-      <div id="section-philosophy" className="isolate" style={{ position: "relative", zIndex: 0 }}>
+       {/* 企業理念カード（夜モード・昼モード両方表示・フェードインアニメーション付き） */}
+      <div id="section-philosophy">
         <PhilosophyCard />
       </div>
-
-      {/* メインコンテンツ: PC版2カラム、モバイル1カラム */}
+      {/* メインコンテンツ: PC版２カラム、モバイル１カラム */}
       {/* 並び順（モバイル）: 理念→訪問スケジュール→メッセージ→今日の個人タスク→今日の利用者タスク→チームツール→全チーム共通ツール→訪問件数→曜日別件数→新規契約 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4 items-start overflow-x-hidden isolate" style={{ position: "relative", zIndex: 0 }}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4 items-start overflow-x-hidden">
         {/* 左カラム */}
         <div className="space-y-3 md:space-y-4 overflow-x-hidden min-w-0">
           {/* 1. 訪問スケジュール */}
