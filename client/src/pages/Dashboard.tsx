@@ -111,6 +111,7 @@ import { VoiceHelpDialog } from "@/components/VoiceHelpDialog";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useOfflineQueueContext } from "@/contexts/OfflineQueueContext";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
+import { HomeTableOfContents } from "@/components/HomeTableOfContents";
 import { SPREADSHEET_LINKS as spreadsheetLinks } from "@/lib/spreadsheetLinks";
 
 // ========== データ定義 ==========
@@ -517,7 +518,7 @@ function VisitCountCard() {
   return (
     <>
     <Confetti active={showConfetti} duration={4000} />
-    <Card className="fade-in-up stagger-1 shadow-sm flex flex-col">
+    <Card id="section-visit-count" className="fade-in-up stagger-1 shadow-sm flex flex-col">
       <CardHeader className="pb-1 pt-3 px-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
@@ -737,7 +738,7 @@ function DailyByTeamCard() {
   );
 
   return (
-    <Card className="fade-in-up shadow-sm">
+    <Card id="section-daily-by-team" className="fade-in-up shadow-sm">
       <CardHeader className="pb-2 pt-3 px-4">
         <CardTitle className="text-base font-semibold flex items-center justify-between gap-2">
           <span className="flex items-center gap-2 text-lg font-bold text-foreground tracking-wide">
@@ -1936,7 +1937,7 @@ function ScheduleScreenshotCard() {
 
   return (
     <>
-      <Card className="fade-in-up stagger-2 shadow-sm" style={{ position: "relative", zIndex: 3 }}>
+      <Card id="section-schedule" className="fade-in-up stagger-2 shadow-sm" style={{ position: "relative", zIndex: 3 }}>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
@@ -2877,7 +2878,7 @@ function ToolsCard() {
   };
 
   return (
-    <Card className="fade-in-up stagger-2 shadow-sm">
+    <Card id="section-tools" className="fade-in-up stagger-2 shadow-sm">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
           <LinkIcon className="w-5 h-5 text-primary" />
@@ -3314,7 +3315,7 @@ function TeamToolsCard() {
   };
 
   return (
-    <Card className="fade-in-up stagger-1 shadow-sm">
+    <Card id="section-team-tools" className="fade-in-up stagger-1 shadow-sm">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
           <Users className="w-5 h-5 text-primary" />
@@ -4286,7 +4287,7 @@ function MessageBoard({ title }: { title: string }) {
   };
 
   return (
-    <Card className="fade-in-up stagger-4 shadow-sm flex flex-col">
+    <Card id="section-message" className="fade-in-up stagger-4 shadow-sm flex flex-col">
       <CardHeader className="pb-2">
         <div className="flex items-center">
           <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
@@ -5745,7 +5746,7 @@ export default function Dashboard() {
 
       {/* 企業理念カード（夜モード・昼モード両方表示・フェードインアニメーション付き） */}
       {/* isolateでstacking contextを閉じ込め、後続カードが理念カードの裏に潜り込まないようにする */}
-      <div className="isolate" style={{ position: "relative", zIndex: 0 }}>
+      <div id="section-philosophy" className="isolate" style={{ position: "relative", zIndex: 0 }}>
         <PhilosophyCard />
       </div>
 
@@ -5831,6 +5832,8 @@ export default function Dashboard() {
           onClose={() => setAlcoholCheckModalType(null)}
         />
       )}
+      {/* 右サイド目次ナビ */}
+      <HomeTableOfContents />
     </div>
   );
 }

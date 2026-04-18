@@ -608,7 +608,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <TeamGoalsTicker />
 
         {/* ページコンテンツ（ボトムナビ分の余白） */}
-        <main ref={mainRef} className="flex-1 overflow-y-auto overflow-x-hidden bg-orange-50/40 dark:bg-background main-content-safe md:pb-4">
+        <main id="main-scroll-container" ref={mainRef} className="flex-1 overflow-y-auto overflow-x-hidden bg-orange-50/40 dark:bg-background main-content-safe md:pb-4">
           {children}
         </main>
 
