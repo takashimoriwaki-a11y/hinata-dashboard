@@ -129,12 +129,13 @@ interface CreateFormProps {
   onClose: () => void;
   onCreated: () => void;
   userTeam: string | null;
+  defaultDueDate?: string; // YYYY-MM-DD形式のデフォルト日付（ホーム画面から呼ぶ場合に今日の日付を渡す）
 }
 
-export function CreateTaskForm({ onClose, onCreated, userTeam }: CreateFormProps) {
+export function CreateTaskForm({ onClose, onCreated, userTeam, defaultDueDate }: CreateFormProps) {
   const [text, setText] = useState("");
   const [taskKind, setTaskKind] = useState<TaskKind>("by_deadline");
-  const [dueDate, setDueDate] = useState("");
+  const [dueDate, setDueDate] = useState(defaultDueDate ?? "");
   const [dueTime, setDueTime] = useState("");
   const [assignType, setAssignType] = useState<AssignType>("self");
   // 複数チーム選択
@@ -594,9 +595,7 @@ function TaskCard({
         ? "bg-muted/30 border-border/30 opacity-55"
         : isOverdue
           ? "bg-red-950/30 border-red-800/50"
-          : taskKind === "at_time"
-            ? "bg-blue-950/30 border-blue-800/40"
-            : "bg-card border-border"
+          : "bg-card border-border"
     }`}>
       <div className="flex items-start gap-3 p-3">
         {/* 完了ボタン */}
@@ -619,11 +618,11 @@ function TaskCard({
           <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
             {/* 種別 */}
             {taskKind === "at_time" ? (
-              <span className="text-xs px-1.5 py-0.5 rounded-md bg-blue-900/50 text-blue-300 flex items-center gap-1">
+              <span className="text-xs px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground flex items-center gap-1">
                 <Clock className="w-3 h-3" />日時指定
               </span>
             ) : (
-              <span className="text-xs px-1.5 py-0.5 rounded-md bg-orange-900/50 text-orange-300 flex items-center gap-1">
+              <span className="text-xs px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground flex items-center gap-1">
                 <Bell className="w-3 h-3" />期日
               </span>
             )}

@@ -625,7 +625,6 @@ export default function RecordInput() {
               </button>
             </div>
             </div>
-          </div>
           {/* 2行目：検索フィールド */}
           <div className="relative mt-1.5" ref={headerSearchRef}>
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
@@ -672,8 +671,9 @@ export default function RecordInput() {
               </div>
             )}
           </div>
-          <p className="text-xs text-muted-foreground mt-1">訪問する順番に利用者を選択してください（最大８名）</p>
+          <p className="text-xs text-muted-foreground mt-1">訪問する順番に利用者を選択してください（最大8名）</p>
           <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">ℹ️ 訪問利用者を選択したときに登録されている利用者タスクが反映されます</p>
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
           {slots.map((slot, index) => (

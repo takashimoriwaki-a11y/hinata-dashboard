@@ -3464,17 +3464,20 @@ function TasksCard() {
     { refetchInterval: 15 * 1000, staleTime: 0 }
   );
 
-  // 今日の個人タスク（by_deadlineのみ表示・at_timeは非表示、期日切れ含む、5件上限・他職員への依頼タスク除外）
+  // 今日の個人タスク（at_time・by_deadline両方表示、今日が期日のものを含む、5件上限・他職員への依頼タスク除外）
   const todayPersonalTasks = useMemo(() => {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const todayEnd = todayStart + 24 * 60 * 60 * 1000 - 1;
     return personalTasksData
       .filter((t) => {
         if (hideCompleted && t.done) return false;
         if (!t.dueDate) return false;
-        // at_time（この日時に行う）タスクは非表示
-        if (t.taskKind === "at_time") return false;
         // 自分が作成した他職員への依頼タスクを除外
         if (t.assignType === "personal" && t.assignUserId !== user?.id && t.createdBy === user?.id) return false;
-        return true;
+        // 今日が期日のタスク（at_time・by_deadline両方）または期限切れのタスクを表示
+        const due = new Date(t.dueDate).getTime();
+        return due <= todayEnd;
       })
       .sort((a, b) => {
         if (!a.dueDate && !b.dueDate) return 0;
@@ -3483,7 +3486,7 @@ function TasksCard() {
         return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
       })
       .slice(0, 5);
-  }, [personalTasksData, user?.id]);
+  }, [personalTasksData, user?.id, hideCompleted]);
 
   // 期限切れタスク（今日より前の期日で未完了）のカウント
   const overdueCount = useMemo(() => {
@@ -3573,9 +3576,7 @@ function TasksCard() {
               return (
               <div key={task.id} className={cn(
                 "flex items-start gap-2 group animate-list-item-in rounded-lg p-2 -mx-1",
-                taskKind === "at_time"
-                  ? "bg-orange-50/60 dark:bg-orange-950/20 border border-orange-200/60 dark:border-orange-800/40"
-                  : "bg-blue-50/40 dark:bg-blue-950/10 border border-blue-200/40 dark:border-blue-800/30"
+                "bg-muted/20 border border-border/40"
               )}>
                 <button
                   onClick={() => toggleTask.mutate({ id: task.id, done: task.done === 0 })}
@@ -3600,11 +3601,11 @@ function TasksCard() {
                     )}
                     {/* タスク種別バッジ */}
                     {taskKind === "at_time" ? (
-                      <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0 rounded-full bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 font-medium">
+                      <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0 rounded-full bg-muted text-muted-foreground font-medium">
                         📅この日時に
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-medium">
+                      <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0 rounded-full bg-muted text-muted-foreground font-medium">
                         ⏳この日時まで
                       </span>
                     )}
@@ -3671,6 +3672,13 @@ function TasksCard() {
                 setShowForm(false);
               }}
               userTeam={user.team ?? null}
+              defaultDueDate={(() => {
+                const now = new Date();
+                const y = now.getFullYear();
+                const m = String(now.getMonth() + 1).padStart(2, "0");
+                const d = String(now.getDate()).padStart(2, "0");
+                return `${y}-${m}-${d}`;
+              })()}
             />
           )}
         </CardContent>
