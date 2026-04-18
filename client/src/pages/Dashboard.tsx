@@ -4204,8 +4204,8 @@ function MessageBoard({ title }: { title: string }) {
                   ? "border-primary/30 bg-primary/10"
                   : "border-primary/20 bg-primary/5"
             )}>
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1 min-w-0 pr-2">
                   {isAnalyzingMsg ? (
                     <p className="text-xs text-primary font-medium animate-pulse">AIが解析中...</p>
                   ) : msgVoice.isRecording ? (
@@ -4228,7 +4228,7 @@ function MessageBoard({ title }: { title: string }) {
                         <p className="text-xs font-semibold text-primary">音声入力でAI自動転記</p>
                         <VoiceHelpDialog mode="message" />
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 whitespace-nowrap">マイクをタップして話すと各項目に転記</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">マイクをタップして話すと各項目に転記</p>
                     </div>
                   )}
                 </div>
@@ -4245,7 +4245,7 @@ function MessageBoard({ title }: { title: string }) {
                   onClick={(e) => { e.preventDefault(); if (!isAnalyzingMsg) msgVoice.toggleVoice(); }}
                   disabled={isAnalyzingMsg}
                   className={cn(
-                    "relative inline-flex items-center justify-center flex-shrink-0 h-14 w-14 rounded-full",
+                    "relative inline-flex items-center justify-center flex-shrink-0 h-12 w-12 rounded-full",
                     "border-2 transition-all duration-200 select-none touch-manipulation",
                     "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                     isAnalyzingMsg
