@@ -6820,6 +6820,96 @@ export const appRouter = router({
       }),
   }),
 
+  // ========== イレギュラー予定管理 ==========
+  irregularSchedules: router({
+    /** 一覧取得（削除済み除く） */
+    list: protectedProcedure
+      .input(z.object({
+        team: z.string().optional(),
+        scheduleType: z.string().optional(),
+        fromDate: z.string().optional(),
+        toDate: z.string().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        const { listIrregularSchedules } = await import("./db");
+        return listIrregularSchedules(input ?? {});
+      }),
+    /** 新規作成 + スプレッドシート同期 */
+    create: protectedProcedure
+      .input(z.object({
+        patientName: z.string().min(1),
+        team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]),
+        scheduleType: z.enum(["受診", "ショートステイ", "特別指示書", "入院", "退院", "新規契約・面談", "訪問診療同席"]),
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        endDate: z.string().nullable().optional(),
+        startTime: z.string().nullable().optional(),
+        endTime: z.string().nullable().optional(),
+        facilityName: z.string().nullable().optional(),
+        actionRequired: z.string().nullable().optional(),
+        postDischargeEndDate: z.string().nullable().optional(),
+        notes: z.string().nullable().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { createIrregularSchedule } = await import("./db");
+        const record = await createIrregularSchedule({
+          ...input,
+          createdBy: ctx.user.id,
+          createdByName: ctx.user.name ?? "不明",
+        });
+        try {
+          const { syncIrregularScheduleToSheet } = await import("./irregularScheduleSync");
+          await syncIrregularScheduleToSheet(record.id);
+        } catch (e) {
+          console.error("[irregularSchedules] sheet sync error:", e);
+        }
+        try { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("irregularSchedules"); } catch {}
+        return record;
+      }),
+    /** 更新 + スプレッドシート同期 */
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        patientName: z.string().min(1).optional(),
+        team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]).optional(),
+        scheduleType: z.enum(["受診", "ショートステイ", "特別指示書", "入院", "退院", "新規契約・面談", "訪問診療同席"]).optional(),
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        endDate: z.string().nullable().optional(),
+        startTime: z.string().nullable().optional(),
+        endTime: z.string().nullable().optional(),
+        facilityName: z.string().nullable().optional(),
+        actionRequired: z.string().nullable().optional(),
+        postDischargeEndDate: z.string().nullable().optional(),
+        notes: z.string().nullable().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { updateIrregularSchedule } = await import("./db");
+        const record = await updateIrregularSchedule(input.id, input, ctx.user.id);
+        try {
+          const { syncIrregularScheduleToSheet } = await import("./irregularScheduleSync");
+          await syncIrregularScheduleToSheet(input.id);
+        } catch (e) {
+          console.error("[irregularSchedules] sheet sync error:", e);
+        }
+        try { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("irregularSchedules"); } catch {}
+        return record;
+      }),
+    /** 削除（ソフトデリート） */
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const { deleteIrregularSchedule } = await import("./db");
+        await deleteIrregularSchedule(input.id, ctx.user.id);
+        try { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("irregularSchedules"); } catch {}
+        return { ok: true };
+      }),
+    /** スプレッドシートから全件再同期（管理者用） */
+    syncFromSheet: protectedProcedure
+      .mutation(async () => {
+        const { syncAllFromSheet } = await import("./irregularScheduleSync");
+        return syncAllFromSheet();
+      }),
+  }),
+
   // ========== 訪問予定スロット順番保存 ==========
   visitSlots: router({
     /** 訪問予定スロットの順番をDB に保存する */

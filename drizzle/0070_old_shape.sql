@@ -1,0 +1,22 @@
+CREATE TABLE `irregular_schedules` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`patientName` varchar(100) NOT NULL,
+	`team` enum('身体','天理','郡山北部','郡山南部') NOT NULL,
+	`scheduleType` enum('受診','ショートステイ','特別指示書','入院','退院','新規契約・面談','訪問診療同席') NOT NULL,
+	`startDate` varchar(10) NOT NULL,
+	`endDate` varchar(10),
+	`startTime` varchar(5),
+	`endTime` varchar(5),
+	`facilityName` varchar(200),
+	`actionRequired` text,
+	`postDischargeEndDate` varchar(10),
+	`notes` text,
+	`createdBy` int NOT NULL,
+	`createdByName` varchar(100) NOT NULL,
+	`syncedToSheet` tinyint NOT NULL DEFAULT 0,
+	`sheetRowIndex` int,
+	`deletedAt` timestamp,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `irregular_schedules_id` PRIMARY KEY(`id`)
+);

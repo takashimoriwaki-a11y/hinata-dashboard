@@ -1081,3 +1081,58 @@ export const visitSlotOrders = mysqlTable("visitSlotOrders", {
 });
 export type VisitSlotOrder = typeof visitSlotOrders.$inferSelect;
 export type InsertVisitSlotOrder = typeof visitSlotOrders.$inferInsert;
+
+// ========== イレギュラー予定管理 ==========
+/**
+ * イレギュラー予定管理テーブル
+ * 受診・ショートステイ・特別指示書・入院・退院・新規契約・面談・訪問診療同席の7種別を管理
+ * スプレッドシート（訪問看護_イレギュラー予定管理）と双方向同期
+ */
+export const irregularSchedules = mysqlTable("irregular_schedules", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 利用者名 */
+  patientName: varchar("patientName", { length: 100 }).notNull(),
+  /** 担当チーム */
+  team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部"]).notNull(),
+  /** 予定種別 */
+  scheduleType: mysqlEnum("scheduleType", [
+    "受診",
+    "ショートステイ",
+    "特別指示書",
+    "入院",
+    "退院",
+    "新規契約・面談",
+    "訪問診療同席",
+  ]).notNull(),
+  /** 開始日（YYYY-MM-DD） */
+  startDate: varchar("startDate", { length: 10 }).notNull(),
+  /** 終了日（YYYY-MM-DD、単日の場合はnull） */
+  endDate: varchar("endDate", { length: 10 }),
+  /** 開始時刻（HH:MM、任意） */
+  startTime: varchar("startTime", { length: 5 }),
+  /** 終了時刻（HH:MM、任意） */
+  endTime: varchar("endTime", { length: 5 }),
+  /** 病院・施設名（任意） */
+  facilityName: varchar("facilityName", { length: 200 }),
+  /** 必要な対応アクション（任意） */
+  actionRequired: text("actionRequired"),
+  /** 退院後週5日終了日（YYYY-MM-DD、退院時のみ） */
+  postDischargeEndDate: varchar("postDischargeEndDate", { length: 10 }),
+  /** 備考・申し送り（任意） */
+  notes: text("notes"),
+  /** 作成者のユーザーID */
+  createdBy: int("createdBy").notNull(),
+  /** 作成者の名前（表示用キャッシュ） */
+  createdByName: varchar("createdByName", { length: 100 }).notNull(),
+  /** スプレッドシートへの同期済みフラグ (0: 未同期, 1: 同期済み) */
+  syncedToSheet: tinyint("syncedToSheet").default(0).notNull(),
+  /** スプレッドシートの行番号（同期後に保存） */
+  sheetRowIndex: int("sheetRowIndex"),
+  /** ソフトデリート日時 */
+  deletedAt: timestamp("deletedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type IrregularSchedule = typeof irregularSchedules.$inferSelect;
+export type InsertIrregularSchedule = typeof irregularSchedules.$inferInsert;

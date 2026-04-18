@@ -27,6 +27,7 @@ import {
   improvementSpreadsheets, InsertImprovementSpreadsheet,
   personalTasks, PersonalTask,
   visitSlotOrders,
+  irregularSchedules, IrregularSchedule, InsertIrregularSchedule,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -2714,4 +2715,104 @@ export async function getVisitSlotOrder(userId: number, dateKey: string): Promis
     .where(and(eq(visitSlotOrders.userId, userId), eq(visitSlotOrders.dateKey, dateKey)))
     .limit(1);
   return result.length > 0 ? result[0].slotsJson : null;
+}
+
+// ========== イレギュラー予定管理 ==========
+
+/**
+ * イレギュラー予定一覧を取得する（削除済み除く）
+ */
+export async function listIrregularSchedules(filter: {
+  team?: string;
+  scheduleType?: string;
+  fromDate?: string;
+  toDate?: string;
+}): Promise<IrregularSchedule[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [isNull(irregularSchedules.deletedAt)];
+  if (filter.team) conditions.push(eq(irregularSchedules.team, filter.team as any));
+  if (filter.scheduleType) conditions.push(eq(irregularSchedules.scheduleType, filter.scheduleType as any));
+  if (filter.fromDate) conditions.push(gte(irregularSchedules.startDate, filter.fromDate));
+  if (filter.toDate) conditions.push(lte(irregularSchedules.startDate, filter.toDate));
+  return db
+    .select()
+    .from(irregularSchedules)
+    .where(and(...conditions))
+    .orderBy(irregularSchedules.startDate, irregularSchedules.createdAt);
+}
+
+/**
+ * イレギュラー予定を1件取得する
+ */
+export async function getIrregularSchedule(id: number): Promise<IrregularSchedule | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(irregularSchedules)
+    .where(eq(irregularSchedules.id, id))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+/**
+ * イレギュラー予定を新規作成する
+ */
+export async function createIrregularSchedule(
+  data: Omit<InsertIrregularSchedule, "id" | "createdAt" | "updatedAt">
+): Promise<IrregularSchedule> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(irregularSchedules).values({
+    ...data,
+    syncedToSheet: 0,
+  });
+  const insertId = (result as any)[0]?.insertId ?? 0;
+  const created = await getIrregularSchedule(insertId);
+  if (!created) throw new Error("Failed to retrieve created record");
+  return created;
+}
+
+/**
+ * イレギュラー予定を更新する
+ */
+export async function updateIrregularSchedule(
+  id: number,
+  data: Partial<Omit<InsertIrregularSchedule, "id" | "createdAt" | "updatedAt">>,
+  _userId: number
+): Promise<IrregularSchedule> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(irregularSchedules)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(irregularSchedules.id, id));
+  const updated = await getIrregularSchedule(id);
+  if (!updated) throw new Error("Record not found");
+  return updated;
+}
+
+/**
+ * イレギュラー予定をソフトデリートする
+ */
+export async function deleteIrregularSchedule(id: number, _userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(irregularSchedules)
+    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .where(eq(irregularSchedules.id, id));
+}
+
+/**
+ * スプレッドシート同期済みフラグと行番号を更新する
+ */
+export async function markIrregularScheduleSynced(id: number, sheetRowIndex: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(irregularSchedules)
+    .set({ syncedToSheet: 1, sheetRowIndex, updatedAt: new Date() })
+    .where(eq(irregularSchedules.id, id));
 }
