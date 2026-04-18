@@ -26,7 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  ClipboardEdit, Search, Loader2, ChevronDown, ChevronUp, X, Users, Mic, MicOff, ExternalLink, GripVertical
+  ClipboardEdit, Search, Loader2, ChevronDown, ChevronUp, X, Users, Mic, MicOff, ExternalLink, GripVertical, Check
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -687,6 +687,19 @@ export default function RecordInput() {
                 <Badge variant="secondary" className="text-xs flex-shrink-0">
                   {filledSlots}名
                 </Badge>
+              )}
+              {/* 保存状態インジケーター */}
+              {saveSlotsMutation.isPending && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground ml-1">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <span className="hidden sm:inline">保存中…</span>
+                </span>
+              )}
+              {!saveSlotsMutation.isPending && saveSlotsMutation.isSuccess && (
+                <span className="flex items-center gap-1 text-xs text-green-500 ml-1">
+                  <Check className="w-3 h-3" />
+                  <span className="hidden sm:inline">保存済</span>
+                </span>
               )}
             </CardTitle>
             {/* 2行目：ボタン群 */}
