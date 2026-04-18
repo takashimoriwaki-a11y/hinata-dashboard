@@ -26,6 +26,7 @@ import {
   improvementSuggestions, InsertImprovementSuggestion,
   improvementSpreadsheets, InsertImprovementSpreadsheet,
   personalTasks, PersonalTask,
+  visitSlotOrders,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -2676,4 +2677,41 @@ export async function deletePersonalTask(id: number, userId: number): Promise<vo
     deletedAt: new Date(),
     deletedBy: userId,
   }).where(eq(personalTasks.id, id));
+}
+
+// ========== 訪問予定スロット順番保存 ==========
+
+/**
+ * 訪問予定スロットの順番をupsertする（ユーザーID+日付キーで一意）
+ * @param userId ユーザーID
+ * @param dateKey 日付（YYYY-MM-DD形式、JSTベース）
+ * @param slotsJson スロットデータのJSON文字列
+ */
+export async function upsertVisitSlotOrder(userId: number, dateKey: string, slotsJson: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(visitSlotOrders).values({
+    userId,
+    dateKey,
+    slotsJson,
+  }).onDuplicateKeyUpdate({
+    set: { slotsJson, updatedAt: new Date() },
+  });
+}
+
+/**
+ * 訪問予定スロットの順番を取得する
+ * @param userId ユーザーID
+ * @param dateKey 日付（YYYY-MM-DD形式、JSTベース）
+ * @returns slotsJson文字列、または null
+ */
+export async function getVisitSlotOrder(userId: number, dateKey: string): Promise<string | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db
+    .select({ slotsJson: visitSlotOrders.slotsJson })
+    .from(visitSlotOrders)
+    .where(and(eq(visitSlotOrders.userId, userId), eq(visitSlotOrders.dateKey, dateKey)))
+    .limit(1);
+  return result.length > 0 ? result[0].slotsJson : null;
 }

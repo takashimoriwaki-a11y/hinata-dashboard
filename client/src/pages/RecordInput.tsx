@@ -201,11 +201,21 @@ const DEFAULT_SLOT: VisitSlotData = { team: "", patientId: null, patientName: ""
 
 const SLOTS_STORAGE_KEY = "hinata_visit_slots";
 
+/** JSTの今日の日付を YYYY-MM-DD 形式で返す */
+function getTodayJstKey(): string {
+  const now = new Date();
+  const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return jst.toISOString().slice(0, 10);
+}
+
 export default function RecordInput() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
 
-  // 8枠分の訪問予定データ
+  // 今日のJST日付キー（YYYY-MM-DD）
+  const todayKey = useMemo(() => getTodayJstKey(), []);
+
+  // 8枠分の訪問予定データ（初期値はlocalStorageから）
   const [slots, setSlots] = useState<VisitSlotData[]>(() => {
     try {
       const raw = localStorage.getItem(SLOTS_STORAGE_KEY);
@@ -216,6 +226,33 @@ export default function RecordInput() {
     } catch {}
     return Array.from({ length: MAX_SLOTS }, () => ({ ...DEFAULT_SLOT }));
   });
+
+  // DBから今日のスロット順番を復元する
+  const { data: dbSlotData } = trpc.visitSlots.load.useQuery(
+    { dateKey: todayKey },
+    { enabled: !!user }
+  );
+  const [dbLoaded, setDbLoaded] = useState(false);
+  useEffect(() => {
+    if (dbLoaded) return;
+    if (!dbSlotData) return;
+    if (dbSlotData.slotsJson) {
+      try {
+        const parsed = JSON.parse(dbSlotData.slotsJson);
+        if (Array.isArray(parsed) && parsed.length === MAX_SLOTS) {
+          setSlots(parsed);
+          setSlotSearchQueries(parsed.map((s: VisitSlotData) => s.patientName || ""));
+          localStorage.setItem(SLOTS_STORAGE_KEY, dbSlotData.slotsJson);
+        }
+      } catch {}
+    }
+    setDbLoaded(true);
+  }, [dbSlotData, dbLoaded]);
+
+  // DBへの保存mutation
+  const saveSlotsMutation = trpc.visitSlots.save.useMutation();
+  // デバウンス用タイマー
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ログインユーザーの所属チームを初期値に自動設定
   useEffect(() => {
@@ -231,11 +268,19 @@ export default function RecordInput() {
     }
   }, [user?.team]);
 
-  // スロットデータの変更をlocalStorageに保存
+  // スロットデータの変更をlocalStorageとDBに保存（デバウンス1.5秒）
   useEffect(() => {
     try {
       localStorage.setItem(SLOTS_STORAGE_KEY, JSON.stringify(slots));
     } catch {}
+    if (!user || !dbLoaded) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveSlotsMutation.mutate({ dateKey: todayKey, slotsJson: JSON.stringify(slots) });
+    }, 1500);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
   }, [slots]);
 
   // スロットデータの更新ハンドラ

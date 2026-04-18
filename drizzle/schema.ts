@@ -1062,3 +1062,22 @@ export const personalTasks = mysqlTable("personal_tasks", {
 
 export type PersonalTask = typeof personalTasks.$inferSelect;
 export type InsertPersonalTask = typeof personalTasks.$inferInsert;
+
+// ========== 訪問予定スロット順番保存 ==========
+/**
+ * 訪問予定スロットの順番をユーザー・日付別に保存するテーブル
+ * 1ユーザー1日につき1レコード（upsert）
+ */
+export const visitSlotOrders = mysqlTable("visitSlotOrders", {
+  id: int("id").autoincrement().primaryKey(),
+  /** ユーザーID */
+  userId: int("userId").notNull(),
+  /** 日付（YYYY-MM-DD形式、JSTベース） */
+  dateKey: varchar("dateKey", { length: 10 }).notNull(),
+  /** スロットデータ（JSON配列文字列） */
+  slotsJson: mediumtext("slotsJson").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type VisitSlotOrder = typeof visitSlotOrders.$inferSelect;
+export type InsertVisitSlotOrder = typeof visitSlotOrders.$inferInsert;

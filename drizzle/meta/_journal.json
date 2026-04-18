@@ -484,6 +484,13 @@
       "when": 1776431398039,
       "tag": "0068_secret_sentinel",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "5",
+      "when": 1776502323854,
+      "tag": "0069_mute_the_anarchist",
+      "breakpoints": true
     }
   ]
 }

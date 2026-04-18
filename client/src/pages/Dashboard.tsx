@@ -3711,10 +3711,16 @@ function PatientTasksCard() {
         if (!(t as any).patientName) return false; // 利用者名なしは除外
         // next_visitタスクは期日なしで登録されるため、assignTypeに関わらず常に表示
         if ((t as any).taskKind === "next_visit") return true;
-        // assignTypeフィルター（自分宛て or 自分のチーム or 全員）
-        const userTeam = (user as any)?.team;
-        if (t.assignType === "personal" && t.assignUserId !== user?.id) return false;
-        if (t.assignType === "team" && t.assignTeam !== userTeam) return false;
+        // personalタスクは自分宛てのみ表示（他人の個人タスクは除外）
+        // assignUserIdがnullの場合は作成者自身向けとして扱う
+        if (t.assignType === "personal") {
+          if (t.assignUserId != null) {
+            if (t.assignUserId !== user?.id) return false;
+          } else {
+            if ((t as any).createdBy !== user?.id) return false;
+          }
+        }
+        // team/all/未設定は全員に表示（チームフィルターボタンで絞り込む）
         if (!t.dueDate) return true; // 期日なしは表示
         // ローカル時間でdiff計算（タイムゾーン問題を回避）
         const d = new Date(t.dueDate);

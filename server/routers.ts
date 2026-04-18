@@ -6819,6 +6819,31 @@ export const appRouter = router({
         return result;
       }),
   }),
+
+  // ========== 訪問予定スロット順番保存 ==========
+  visitSlots: router({
+    /** 訪問予定スロットの順番をDB に保存する */
+    save: protectedProcedure
+      .input(z.object({
+        dateKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        slotsJson: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { upsertVisitSlotOrder } = await import("./db");
+        await upsertVisitSlotOrder(ctx.user.id, input.dateKey, input.slotsJson);
+        return { ok: true };
+      }),
+    /** 訪問予定スロットの順番をDBから取得する */
+    load: protectedProcedure
+      .input(z.object({
+        dateKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      }))
+      .query(async ({ ctx, input }) => {
+        const { getVisitSlotOrder } = await import("./db");
+        const slotsJson = await getVisitSlotOrder(ctx.user.id, input.dateKey);
+        return { slotsJson };
+      }),
+  }),
 });
 export type AppRouter = typeof appRouter;
 
