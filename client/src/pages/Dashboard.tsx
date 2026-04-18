@@ -1918,7 +1918,7 @@ function ScheduleScreenshotCard() {
 
   return (
     <>
-      <Card className="fade-in-up stagger-2 shadow-sm">
+      <Card className="fade-in-up stagger-2 shadow-sm" style={{ position: "relative", zIndex: 1 }}>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
@@ -5220,11 +5220,11 @@ function PhilosophyCard() {
         "relative rounded-2xl overflow-hidden shadow-sm cursor-pointer select-none transition-[box-shadow,transform] duration-300 hover:shadow-md hover:scale-[1.01] active:scale-[0.99]",
         isVisible ? "philosophy-card-visible" : "philosophy-card-hidden"
       )}
-      style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fed7aa 100%)", border: "1px solid #fdba74" }}
+      style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fed7aa 100%)", border: "1px solid #fdba74", position: "relative", zIndex: 2 }}
       onClick={() => { window.location.href = "/hinatas-way"; }}
     >
       {shimmerActive && <div className="philosophy-shimmer" />}
-      <div className="px-4 py-3 md:px-5 md:py-3.5 flex items-center justify-between gap-3">
+      <div className="px-4 py-1.5 md:px-5 md:py-2 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div
             className={cn(

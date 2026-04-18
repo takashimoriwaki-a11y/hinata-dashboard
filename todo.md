@@ -2602,3 +2602,7 @@
 - [x] Dashboard.tsxのMessageBoardCardに「もっと見る」折りたたみ機能を追加（デフォルト3件表示、展開で全件表示）
 - [x] DashboardLayout.tsxのボトムナビのスクロール判定閃値だ10px→8pxに調整（より敏感に誤タップ防止）
 - [x] PersonalTasks.tsxのTaskCardとDashboard.tsxのPatientTasksCardの削除確認ダイアログの削除ボタンを赤色（bg-red-600）で統一済みであることを確認
+
+## 理念バナー高さ縮小・訪問スケジュールカード裏潜り込み修正（2026-04-18 その17）
+- [x] iPhone版「私たちの理念」バナーの上下パディングを半分に縮小（py-3/py-3.5→py-1.5/py-2に変更）
+- [x] 訪問スケジュールカードが「私たちの理念」バナーの裏に潜り込む問題を修正（PhilosophyCardにz-index:2、ScheduleScreenshotCardにz-index:1を設定）
