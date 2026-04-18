@@ -2585,3 +2585,6 @@
 ## 個人タスク楽観的更新＋タブ順変更（2026-04-18 その12）
 - [x] Dashboard.tsxのTasksCardのtoggleTaskMutationにonMutate（楽観的更新）とonError（ロールバック）を実装（既存実装を強化：refetchInterval 5秒・refetchOnWindowFocus追加）
 - [x] App.tsxのボトムナビタブ順を「議事録」「訪問」「ホーム」「個人タスク」「変更連絡」に変更
+## 個人タスクページ楽観的更新確認・強化（2026-04-18 その13）
+- [x] PersonalTasks.tsxのtoggleMutationはonMutate/onError/onSettledが実装済みであることを確認
+- [x] getMyTasksクエリのrefetchIntervalを30秒→5秒に短縮、refetchOnWindowFocus:trueを追加

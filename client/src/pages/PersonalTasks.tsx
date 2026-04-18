@@ -696,7 +696,7 @@ export default function PersonalTasks() {
 
   const tasksQuery = trpc.personalTasks.getMyTasks.useQuery(
     { showDone: true },
-    { refetchInterval: 30000 }
+    { refetchInterval: 5000, refetchOnWindowFocus: true }
   );
   const tasks = (tasksQuery.data ?? []) as any[];
   const utils = trpc.useUtils();
