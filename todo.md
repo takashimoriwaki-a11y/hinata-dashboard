@@ -2576,3 +2576,6 @@
 
 ## 訪問予定→ホーム画面タスク完了同期修正（2026-04-18 その9）
 - [x] 「今日の訪問予定」でタスク完了にしてもホーム画面「今日の利用者タスク」に反映されない問題を修正（PatientTasksCardにrefetchInterval=5sとrefetchOnWindowFocus=trueを追加）
+
+## タスク完了楽観的更新（2026-04-18 その10）
+- [x] VisitSlotCard.tsxのtoggleTaskMutationにonMutate（楽観的更新）とonError（ロールバック）を実装

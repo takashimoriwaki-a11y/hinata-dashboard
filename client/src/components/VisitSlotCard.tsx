@@ -192,15 +192,44 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
 
   // タスク管理のタスクをチェック済みにする
   const toggleTaskMutation = trpc.tasks.toggle.useMutation({
-    onSuccess: () => {
-      refetchPatientTasks();
+    onMutate: async ({ id, done }) => {
+      // 進行中のリフェッチをキャンセルして楽観的更新が上書きされないようにする
+      await utils.tasks.getMine.cancel();
+      await utils.tasks.getByPatientName.cancel({ patientName: slotData.patientName });
+      // 現在のキャッシュを保存（ロールバック用）
+      const prevMine = utils.tasks.getMine.getData();
+      const prevByPatient = utils.tasks.getByPatientName.getData({ patientName: slotData.patientName });
+      // tasks.getMine キャッシュを楽観的に更新
+      utils.tasks.getMine.setData(undefined, (old) =>
+        old ? old.map((t) => t.id === id ? { ...t, done: done ? 1 : 0 } : t) : old
+      );
+      // tasks.getByPatientName キャッシュを楽観的に更新
+      utils.tasks.getByPatientName.setData(
+        { patientName: slotData.patientName },
+        (old) => old ? old.map((t) => t.id === id ? { ...t, done: done ? 1 : 0 } : t) : old
+      );
+      return { prevMine, prevByPatient };
+    },
+    onError: (err, _vars, context) => {
+      // エラー時はキャッシュをロールバック
+      if (context?.prevMine !== undefined) {
+        utils.tasks.getMine.setData(undefined, context.prevMine);
+      }
+      if (context?.prevByPatient !== undefined) {
+        utils.tasks.getByPatientName.setData(
+          { patientName: slotData.patientName },
+          context.prevByPatient
+        );
+      }
+      toast.error(`タスク更新エラー: ${err.message}`);
     },
     onSettled: () => {
+      // サーバーから最新データを取得して確定
       utils.tasks.getMine.invalidate();
       utils.tasks.getAll.invalidate();
       utils.tasks.getByPatientName.invalidate({ patientName: slotData.patientName });
+      refetchPatientTasks();
     },
-    onError: (err) => toast.error(`タスク更新エラー: ${err.message}`),
   });
 
   // 保存ミューテーション
