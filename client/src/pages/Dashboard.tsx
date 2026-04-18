@@ -111,7 +111,6 @@ import { VoiceHelpDialog } from "@/components/VoiceHelpDialog";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useOfflineQueueContext } from "@/contexts/OfflineQueueContext";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
-import { HomeTableOfContents } from "@/components/HomeTableOfContents";
 import { SPREADSHEET_LINKS as spreadsheetLinks } from "@/lib/spreadsheetLinks";
 
 // ========== データ定義 ==========
@@ -5832,8 +5831,6 @@ export default function Dashboard() {
           onClose={() => setAlcoholCheckModalType(null)}
         />
       )}
-      {/* 右サイド目次ナビ */}
-      <HomeTableOfContents />
     </div>
   );
 }

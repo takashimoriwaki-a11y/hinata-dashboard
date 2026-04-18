@@ -97,8 +97,8 @@ export function HomeTableOfContents() {
         visible ? "opacity-100 translate-x-0" : "opacity-0 translate-x-4"
       )}
       style={{
-        // ヘッダー高さ(約56px) + 余白8px
-        top: "64px",
+        // ヘッダー高さ(約52px) + TeamGoalsTicker(約28px) + 余白8px
+        top: "88px",
         // ボトムナビ(60px) + safe-area + 余白8px を避けて配置
         bottom: "calc(60px + env(safe-area-inset-bottom, 0px) + 8px)",
         // コンテンツが多い場合はスクロール可能に

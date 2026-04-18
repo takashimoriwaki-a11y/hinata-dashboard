@@ -69,6 +69,7 @@ import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import NotificationDropdown from "./NotificationDropdown";
 import GlobalLoadingIndicator from "./GlobalLoadingIndicator";
 import { useOfflineQueueContext } from "@/contexts/OfflineQueueContext";
+import { HomeTableOfContents } from "./HomeTableOfContents";
 
 // ロゴCDN URL
 const LOGO_MARK_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/ZgP48RW5U5uSAWGdBswK3V/hinata_logo_mark_bf1d0229.png";
@@ -853,6 +854,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </DialogContent>
       </Dialog>
+      {/* 右サイド目次ナビ（ホーム画面のみ表示） */}
+      {location === "/" && <HomeTableOfContents />}
     </div>
   );
 }
