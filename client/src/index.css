@@ -207,6 +207,9 @@
   }
 
   /* iOSのタップ遅延（300ms）を除去し、タップ反応を即時にする */
+  /* 注意: touch-action: manipulation はスクロール中に指がボタン上を通過したとき
+     ブラウザが「タップかスクロールか」の判断を行うため引っかかりが発生する。
+     スクロールコンテナ内の要素には pan-y を優先し、manipulation は最小限に留める */
   button,
   a,
   [role="button"],
@@ -224,7 +227,7 @@
   select,
   textarea,
   label {
-    touch-action: manipulation;
+    touch-action: pan-y;
     /* iOSでのダブルタップ問題を防ぐ */
     -webkit-touch-callout: none;
   }
@@ -232,18 +235,21 @@
   /* onClick が付いたカスタム要素にも touch-action を適用 */
   [onClick],
   [data-clickable] {
-    touch-action: manipulation;
+    touch-action: pan-y;
     -webkit-touch-callout: none;
   }
 
   /* iOSのスクロールコンテナに慣性スクロールを適用 */
   .overflow-y-auto,
   .overflow-y-scroll,
-  .overflow-x-auto,
-  .overflow-x-scroll,
   [data-radix-scroll-area-viewport] {
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
+    overscroll-behavior-y: contain;
+  }
+  .overflow-x-auto,
+  .overflow-x-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
   }
 
   /* タッチターゲットの最小サイズを44pxに確保（iOS HIG準拠） */
@@ -257,11 +263,9 @@
   }
 
   /* アニメーション要素のGPUレイヤー促進 */
-  /* 注意: fade-in-upにwill-changeを設定すると新たなstacking contextが生成され、
-     後続要素のz-indexが正しく機能しなくなるため、設定しない */
-  .philosophy-card-animate {
-    will-change: transform, opacity;
-  }
+  /* 注意: will-changeを常時設定すると新たなstacking contextが生成され、
+     スクロール性能に悪影響を与えるため、アニメーション実行中のみ設定する */
+  /* will-changeはアニメーション実行中にJSで導入・除去する方式に変更したため、CSS側の常時設定は不要 */
 
   /* ボタン・タブのテキスト選択を無効化（長押し誤動作防止） */
   button,
@@ -289,7 +293,7 @@
   /* iOSのボトムナビ・ウェルカムバナーボタンのタッチ反応を最優先にする */
   .bottom-nav-safe a,
   .bottom-nav-safe button {
-    touch-action: manipulation !important;
+    touch-action: pan-y !important;
     -webkit-tap-highlight-color: transparent !important;
     cursor: pointer;
     /* pointer-eventsを確実に有効化 */
@@ -304,6 +308,7 @@
   /* ===== 全ページ共通: iOS タップ反応の最終強化 =====
    * shadcn/ui Button・Radix UI ダイアログ・ドロップダウン・カスタムbutton
    * 全てに対して pointer-events を確実に有効化し、タップ遅延を完全除去する
+   * touch-action: pan-y を使用してスクロール中のカクつきを防ぐ
    */
   button:not(:disabled),
   [data-slot="button"]:not([data-disabled]),
@@ -321,7 +326,7 @@
   [data-slot="dropdown-menu-trigger"],
   [data-slot="accordion-trigger"],
   [data-slot="collapsible-trigger"] {
-    touch-action: manipulation !important;
+    touch-action: pan-y !important;
     -webkit-tap-highlight-color: transparent !important;
     pointer-events: auto !important;
     cursor: pointer;
@@ -465,10 +470,12 @@
     from {
       opacity: 0;
       transform: translateY(12px);
+      will-change: opacity, transform;
     }
     to {
       opacity: 1;
       transform: translateY(0);
+      will-change: auto;
     }
   }
 
@@ -533,6 +540,7 @@
       opacity: 1;
       transform: translateY(0) scale(1);
       filter: blur(0px);
+      will-change: auto;
     }
   }
 
@@ -600,9 +608,10 @@
     filter: blur(2px);
   }
 
-  /* 理念カード本体: アニメーション実行 */
+  /* 理念カード本体: アニメーション実行（アニメーション中のみレイヤー促進、完了後は@keyframes内のwill-change:autoで解放） */
   .philosophy-card-visible {
     animation: philosophyCardReveal 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    will-change: opacity, transform, filter;
   }
 
   /* 理念カード: アイコン */
@@ -678,6 +687,8 @@
 }
 .main-content-safe {
   padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+  /* スクロールコンテナにタッチアクションを明示的に設定し、スクロールを最優先にする */
+  touch-action: pan-y;
 }
 
 /* ===== UI反応性向上・視認性改善 ===== */
@@ -1104,7 +1115,7 @@ a[href] {
   transform: translateY(24px);
   transition: opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
               transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: opacity, transform;
+  /* will-changeを常時設定するとスクロール性能に悪影響のため削除 */
 }
 
 [data-scroll-reveal].scroll-revealed {
