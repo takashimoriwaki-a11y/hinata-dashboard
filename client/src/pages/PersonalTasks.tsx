@@ -621,6 +621,20 @@ function TaskCard({
   const [expanded, setExpanded] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const isDone = task.done === 1;
+  // スクロール中の誤タップ防止
+  const SCROLL_THRESHOLD_CARD = 8;
+  const cardPointerStartYRef = useRef<number | null>(null);
+  const cardIsScrollingRef = useRef(false);
+  const handleCardPointerDown = (e: React.PointerEvent) => {
+    cardPointerStartYRef.current = e.clientY;
+    cardIsScrollingRef.current = false;
+  };
+  const handleCardPointerMove = (e: React.PointerEvent) => {
+    if (cardPointerStartYRef.current === null) return;
+    if (Math.abs(e.clientY - cardPointerStartYRef.current) > SCROLL_THRESHOLD_CARD) {
+      cardIsScrollingRef.current = true;
+    }
+  };
   const taskKind: TaskKind = task.taskKind ?? "by_deadline";
   const dueDateStr = formatDueDate(task.dueDate, taskKind);
   const dueDateColor = getDueDateColor(task.dueDate, isDone);
@@ -641,7 +655,9 @@ function TaskCard({
       <div className="flex items-start gap-3 p-3">
         {/* 完了ボタン */}
         <button
-          onClick={() => onToggle(task.id, !isDone)}
+          onPointerDown={handleCardPointerDown}
+          onPointerMove={handleCardPointerMove}
+          onClick={(e) => { if (cardIsScrollingRef.current) { e.preventDefault(); return; } onToggle(task.id, !isDone); }}
           className={`mt-0.5 w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
             isDone
               ? "bg-green-600 border-green-600"

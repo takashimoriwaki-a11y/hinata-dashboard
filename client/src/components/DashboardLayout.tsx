@@ -693,10 +693,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                       isScrollingRef.current = false;
                     }
                     try { navigator.vibrate?.(8); } catch {}
+                    // タブ切り替え前に現在のスクロール位置を即座に保存（useEffectより確実）
+                    const mainEl = document.querySelector('main.main-content-safe') as HTMLElement | null;
+                    if (mainEl) {
+                      try { localStorage.setItem(`scroll:${location}`, String(mainEl.scrollTop)); } catch {}
+                    }
                     // アクティブなタブを再タップしたらページ最上部へスクロール
                     if (isActive) {
                       e.preventDefault();
-                      const mainEl = document.querySelector('main.main-content-safe');
                       if (mainEl) {
                         mainEl.scrollTo({ top: 0, behavior: 'smooth' });
                       } else {

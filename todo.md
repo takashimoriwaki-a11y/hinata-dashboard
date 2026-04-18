@@ -2611,3 +2611,8 @@
 - [x] PhilosophyCardのアイコンをw-10 h-10→w-8 h-8に縮小
 - [x] PhilosophyCardのwindow.location.hrefをwouterのnavigateに変更
 - [x] ScheduleScreenshotCardのチーム・日付ボタン全てにonPointerDown/onPointerMove誤タップ防止を追加（閾値8px）
+
+## 誤タップ防止拡張・理念バナーテキスト縮小・タブスクロール位置記憶（2026-04-18 その19）
+- [x] 理念バナーのテキストサイズを縮小してバナー高さとのバランスを整える
+- [x] メッセージカードのリアクションボタン・個人タスクのチェックボックスに誤タップ防止を追加
+- [x] DashboardLayout.tsxのボトムナビonPointerDownでスクロール位置を即座にlocalStorageに保存（既存のuseEffectベースの記憶・復元機能を強化）

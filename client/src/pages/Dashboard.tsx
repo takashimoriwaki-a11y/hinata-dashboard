@@ -4043,6 +4043,20 @@ function MessageBoard({ title }: { title: string }) {
   // バッジ点滅アニメーション用
   const [badgePulse, setBadgePulse] = useState(false);
   const prevMsgCountRef = useRef<number | null>(null);
+  // スクロール中の誤タップ防止
+  const SCROLL_THRESHOLD_MSG = 8;
+  const msgPointerStartYRef = useRef<number | null>(null);
+  const msgIsScrollingRef = useRef(false);
+  const handleMsgPointerDown = (e: React.PointerEvent) => {
+    msgPointerStartYRef.current = e.clientY;
+    msgIsScrollingRef.current = false;
+  };
+  const handleMsgPointerMove = (e: React.PointerEvent) => {
+    if (msgPointerStartYRef.current === null) return;
+    if (Math.abs(e.clientY - msgPointerStartYRef.current) > SCROLL_THRESHOLD_MSG) {
+      msgIsScrollingRef.current = true;
+    }
+  };
   useEffect(() => {
     if (isLoading) return;
     const prev = prevMsgCountRef.current;
@@ -4721,7 +4735,9 @@ function MessageBoard({ title }: { title: string }) {
                     {Object.entries(reactionCounts).map(([emoji, { count, hasMe }]) => (
                       <button
                         key={emoji}
-                        onClick={() => toggleReaction.mutate({ messageId: msg.id, emoji })}
+                        onPointerDown={handleMsgPointerDown}
+                        onPointerMove={handleMsgPointerMove}
+                        onClick={(e) => { if (msgIsScrollingRef.current) { e.preventDefault(); return; } toggleReaction.mutate({ messageId: msg.id, emoji }); }}
                         className={cn(
                           "flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-full border transition-colors",
                           hasMe
@@ -4741,7 +4757,9 @@ function MessageBoard({ title }: { title: string }) {
                         {REACTION_EMOJIS.map((e) => (
                           <button
                             key={e}
-                            onClick={() => toggleReaction.mutate({ messageId: msg.id, emoji: e })}
+                            onPointerDown={handleMsgPointerDown}
+                            onPointerMove={handleMsgPointerMove}
+                            onClick={(ev) => { if (msgIsScrollingRef.current) { ev.preventDefault(); return; } toggleReaction.mutate({ messageId: msg.id, emoji: e }); }}
                             className="text-base hover:scale-125 transition-transform"
                           >
                             {e}
@@ -5263,7 +5281,7 @@ function PhilosophyCard() {
           <div className="min-w-0 flex-1">
             <p
               className={cn(
-                "text-xs font-semibold tracking-widest",
+                "text-[10px] font-semibold tracking-widest",
                 isVisible ? "philosophy-text1-visible" : "philosophy-text1-hidden"
               )}
               style={{ color: "#c2410c" }}
@@ -5272,7 +5290,7 @@ function PhilosophyCard() {
             </p>
             <p
               className={cn(
-                "text-sm font-bold leading-snug",
+                "text-xs font-bold leading-snug",
                 isVisible ? "philosophy-text2-visible" : "philosophy-text2-hidden"
               )}
               style={{ color: "#7c2d12" }}
@@ -5281,7 +5299,7 @@ function PhilosophyCard() {
             </p>
             <p
               className={cn(
-                "text-xs leading-relaxed mt-0.5",
+                "text-[10px] leading-relaxed mt-0.5",
                 isVisible ? "philosophy-text3-visible" : "philosophy-text3-hidden"
               )}
               style={{ color: "#9a3412" }}
@@ -5290,7 +5308,7 @@ function PhilosophyCard() {
             </p>
             <p
               className={cn(
-                "text-xs font-semibold mt-1.5 flex items-center gap-0.5",
+                "text-[10px] font-semibold mt-1 flex items-center gap-0.5",
                 isVisible ? "philosophy-text4-visible" : "philosophy-text4-hidden"
               )}
               style={{ color: "#ea580c" }}
