@@ -3485,7 +3485,7 @@ function TasksCard() {
   // 新しい personal_tasks テーブルから今日の個人タスクを取得
   const { data: personalTasksData = [] } = trpc.personalTasks.getMyTasks.useQuery(
     { showDone: true },
-    { refetchInterval: 5 * 1000, staleTime: 0, refetchOnWindowFocus: true }
+    { refetchInterval: 60 * 1000, staleTime: 30 * 1000, refetchOnWindowFocus: true }
   );
 
   // 今日の個人タスク（at_time・by_deadline両方表示、今日が期日のものを含む、5件上限・他職員への依頼タスク除外）
@@ -3721,8 +3721,8 @@ function PatientTasksCard() {
   const [selectedTeam, setSelectedTeam] = useState<string>("全チーム");
 
   const { data: tasks = [] } = trpc.tasks.getMine.useQuery(undefined, {
-    refetchInterval: 5 * 1000,
-    staleTime: 0,
+    refetchInterval: 60 * 1000,
+    staleTime: 30 * 1000,
     refetchOnWindowFocus: true,
   });
   // 今日の利用者タスク（patientNameが設定されていて、今日が期日 or 期日過ぎ or 期日なし or 次回訪問時）
@@ -4016,12 +4016,14 @@ function MessageBoard({ title }: { title: string }) {
   const REACTION_EMOJIS = ["👍", "✅", "❤️", "🙏", "😊", "💪"];
   // DBからメッセージ取得得
   const { data: messages = [], isLoading } = trpc.messages.getActive.useQuery(undefined, {
-    refetchInterval: 15000, // 15秒ごとに自動更新
+    refetchInterval: 60 * 1000, // 60秒ごとに自動更新（スクロール中の引っかかり防止）
+    refetchOnWindowFocus: true,
   });
 
   // 予約送信待ちメッセージ
   const { data: pendingMessages = [] } = trpc.messages.getPending.useQuery(undefined, {
-    refetchInterval: 15000,
+    refetchInterval: 60 * 1000,
+    refetchOnWindowFocus: true,
   });
   const [showPending, setShowPending] = useState(false);
   const [showAllMessages, setShowAllMessages] = useState(false);
