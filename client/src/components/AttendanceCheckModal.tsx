@@ -1907,9 +1907,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           <button
             type="button"
             onClick={handleCloseRequest}
-            className="text-white/80 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/20"
+            className="text-white/80 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-white/20 flex items-center gap-1 text-sm font-medium flex-shrink-0"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
+            <span>キャンセル</span>
           </button>
         </div>
 
@@ -2137,14 +2138,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 </>
               )}
             </button>
-            {/* キャンセルボタン */}
-            <button
-              type="button"
-              onClick={handleCloseRequest}
-              className="w-full py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-all active:scale-95 cursor-pointer"
-            >
-              キャンセル
-            </button>
+
             </div>
           </div>
         )}
