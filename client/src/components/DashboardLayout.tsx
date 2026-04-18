@@ -666,7 +666,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     href={item.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", WebkitTouchCallout: "none" }}
+                    style={{ touchAction: "pan-y", WebkitTapHighlightColor: "transparent", WebkitTouchCallout: "none" }}
                     onPointerDown={() => { try { navigator.vibrate?.(8); } catch {} }}
                     className={cn(
                       "flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors select-none",
@@ -685,7 +685,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Link
                   key={item.label}
                   href={item.href}
-                  style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", WebkitTouchCallout: "none" }}
+                  style={{ touchAction: "pan-y", WebkitTapHighlightColor: "transparent", WebkitTouchCallout: "none" }}
                   onPointerDown={(e) => {
                     // スクロール判定用にタッチ開始Y座標を記録
                     if (e.pointerType === 'touch') {

@@ -314,7 +314,7 @@ function OvertimeApprovalCard() {
                       approverComment: commentInputs[a.id] || undefined,
                     })}
                     className="flex-1 flex items-center justify-center gap-1.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50 select-none"
-                    style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
+                    style={{ touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
                   >
                     <ThumbsUp className="w-4 h-4" />
                     承認
@@ -328,7 +328,7 @@ function OvertimeApprovalCard() {
                       approverComment: commentInputs[a.id] || undefined,
                     })}
                     className="flex-1 flex items-center justify-center gap-1.5 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50 select-none"
-                    style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
+                    style={{ touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
                   >
                     <ThumbsDown className="w-4 h-4" />
                     却下
@@ -2490,7 +2490,7 @@ function LinkRow({ href, label, color, colorStyle, emoji, onAddToMyLinks, isInMy
             ? ""
             : (isNight ? (nightColor ?? "text-foreground") : (color ?? "text-foreground")),
         )}
-        style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', ...resolvedStyle }}
+        style={{ touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent', ...resolvedStyle }}
       >
         {isOpening
           ? <span className="flex-shrink-0 w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -2699,10 +2699,10 @@ function SheetSubTabs({ quickLinks, isAdmin = false }: { quickLinks: { id: numbe
                       />
                       {isAdmin && (
                         <>
-                          <button onClick={() => startEditOther(link)} onPointerDown={() => {}} style={{ touchAction: 'manipulation' }} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95" title="編集">
+                          <button onClick={() => startEditOther(link)} onPointerDown={() => {}} style={{ touchAction: 'pan-y' }} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95" title="編集">
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                           </button>
-                          <button onClick={() => deleteSheetLink.mutate({ id: link.id })} onPointerDown={() => {}} style={{ touchAction: 'manipulation' }} className="text-muted-foreground hover:text-destructive p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95" title="削除">
+                          <button onClick={() => deleteSheetLink.mutate({ id: link.id })} onPointerDown={() => {}} style={{ touchAction: 'pan-y' }} className="text-muted-foreground hover:text-destructive p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95" title="削除">
                             <Trash2 className="w-3 h-3" />
                           </button>
                         </>
@@ -2748,7 +2748,7 @@ function HinatasWayButton() {
   return (
     <button
       onClick={() => navigate("/hinatas-way")}
-      className="flex items-center gap-2 text-sm py-2.5 px-3 rounded-md w-full text-left bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 border border-amber-200 transition-colors font-medium text-amber-700 select-none touch-manipulation active:scale-95"
+      className="flex items-center gap-2 text-sm py-2.5 px-3 rounded-md w-full text-left bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 border border-amber-200 transition-colors font-medium text-amber-700 select-none touch-pan-y active:scale-95"
     >
       <span className="flex-shrink-0">📖</span>
       <span className="truncate">Hinata's Way</span>
@@ -3343,7 +3343,7 @@ function TeamToolsCard() {
                 "flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-md text-xs font-bold transition-colors",
                 getTeamButtonClass(tab.id, activeTeam === tab.id)
               )}
-              style={{ ...getTeamButtonStyle(tab.id, activeTeam === tab.id), touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
+              style={{ ...getTeamButtonStyle(tab.id, activeTeam === tab.id), touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent' }}
             >
               <span className="text-base leading-none">{tab.label}</span>
               <span className="leading-none">{tab.title}</span>
@@ -3389,7 +3389,7 @@ function TeamToolsCard() {
           ) : tools.length === 0 && !showAddForm && !teamFeeLink && activeTeam !== "全チーム" ? (
             <p className="text-xs text-muted-foreground text-center py-4">
               {activeTeam}チームのツールはまだありません
-              {isAdmin && <span className="block mt-1 text-primary cursor-pointer" onClick={() => setShowAddForm(true)} onPointerDown={() => {}} style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>+ 追加する</span>}
+              {isAdmin && <span className="block mt-1 text-primary cursor-pointer" onClick={() => setShowAddForm(true)} onPointerDown={() => {}} style={{ touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>+ 追加する</span>}
             </p>
           ) : (
             tools
@@ -3420,10 +3420,10 @@ function TeamToolsCard() {
                     />
                     {isAdmin && (
                       <>
-                        <button onClick={() => startEdit(tool)} onPointerDown={() => {}} style={{ touchAction: 'manipulation' }} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95 touch-manipulation" title="編集">
+                        <button onClick={() => startEdit(tool)} onPointerDown={() => {}} style={{ touchAction: 'pan-y' }} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95 touch-pan-y" title="編集">
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </button>
-                        <button onClick={() => deleteTool.mutate({ id: tool.id })} onPointerDown={() => {}} style={{ touchAction: 'manipulation' }} className="text-muted-foreground hover:text-destructive p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95 touch-manipulation" title="削除">
+                        <button onClick={() => deleteTool.mutate({ id: tool.id })} onPointerDown={() => {}} style={{ touchAction: 'pan-y' }} className="text-muted-foreground hover:text-destructive p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95 touch-pan-y" title="削除">
                           <Trash2 className="w-3 h-3" />
                         </button>
                       </>
@@ -4361,7 +4361,7 @@ function MessageBoard({ title }: { title: string }) {
                   disabled={isAnalyzingMsg}
                   className={cn(
                     "relative inline-flex items-center justify-center flex-shrink-0 h-12 w-12 rounded-full",
-                    "border-2 transition-all duration-200 select-none touch-manipulation",
+                    "border-2 transition-all duration-200 select-none touch-pan-y",
                     "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                     isAnalyzingMsg
                       ? "bg-muted border-muted-foreground/30 text-muted-foreground cursor-wait"
@@ -4545,7 +4545,7 @@ function MessageBoard({ title }: { title: string }) {
                       <input id="msg-display-from" type="date" value={displayFrom} onChange={(e) => setDisplayFrom(e.target.value)}
                         className="flex-1 text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                       {displayFrom && (
-                        <button type="button" onClick={(e) => { e.preventDefault(); setDisplayFrom(""); setDisplayFromTime(""); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all active:scale-95 touch-manipulation" title="クリア">
+                        <button type="button" onClick={(e) => { e.preventDefault(); setDisplayFrom(""); setDisplayFromTime(""); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all active:scale-95 touch-pan-y" title="クリア">
                           <X className="w-4 h-4" />
                         </button>
                       )}
@@ -4558,7 +4558,7 @@ function MessageBoard({ title }: { title: string }) {
                         {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
                       </select>
                       {displayFromTime && (
-                        <button type="button" onClick={(e) => { e.preventDefault(); setDisplayFromTime(""); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all active:scale-95 touch-manipulation" title="時刻クリア">
+                        <button type="button" onClick={(e) => { e.preventDefault(); setDisplayFromTime(""); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all active:scale-95 touch-pan-y" title="時刻クリア">
                           <X className="w-4 h-4" />
                         </button>
                       )}
@@ -4571,7 +4571,7 @@ function MessageBoard({ title }: { title: string }) {
                       <input id="msg-display-until" type="date" value={displayUntil} onChange={(e) => setDisplayUntil(e.target.value)}
                         className="flex-1 text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                       {displayUntil && (
-                        <button type="button" onClick={(e) => { e.preventDefault(); setDisplayUntil(""); setDisplayUntilTime(""); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all active:scale-95 touch-manipulation" title="クリア">
+                        <button type="button" onClick={(e) => { e.preventDefault(); setDisplayUntil(""); setDisplayUntilTime(""); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all active:scale-95 touch-pan-y" title="クリア">
                           <X className="w-4 h-4" />
                         </button>
                       )}
@@ -4584,7 +4584,7 @@ function MessageBoard({ title }: { title: string }) {
                         {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
                       </select>
                       {displayUntilTime && (
-                        <button type="button" onClick={(e) => { e.preventDefault(); setDisplayUntilTime(""); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all active:scale-95 touch-manipulation" title="時刻クリア">
+                        <button type="button" onClick={(e) => { e.preventDefault(); setDisplayUntilTime(""); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all active:scale-95 touch-pan-y" title="時刻クリア">
                           <X className="w-4 h-4" />
                         </button>
                       )}
@@ -4597,7 +4597,7 @@ function MessageBoard({ title }: { title: string }) {
                       <input id="msg-scheduled-at" type="date" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)}
                         className="flex-1 text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                       {scheduledAt && (
-                        <button type="button" onClick={(e) => { e.preventDefault(); setScheduledAt(""); setScheduledAtTime(""); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all active:scale-95 touch-manipulation" title="クリア">
+                        <button type="button" onClick={(e) => { e.preventDefault(); setScheduledAt(""); setScheduledAtTime(""); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all active:scale-95 touch-pan-y" title="クリア">
                           <X className="w-4 h-4" />
                         </button>
                       )}
@@ -4610,7 +4610,7 @@ function MessageBoard({ title }: { title: string }) {
                         {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
                       </select>
                       {scheduledAtTime && (
-                        <button type="button" onClick={(e) => { e.preventDefault(); setScheduledAtTime(""); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all active:scale-95 touch-manipulation" title="時刻クリア">
+                        <button type="button" onClick={(e) => { e.preventDefault(); setScheduledAtTime(""); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all active:scale-95 touch-pan-y" title="時刻クリア">
                           <X className="w-4 h-4" />
                         </button>
                       )}
@@ -4707,8 +4707,8 @@ function MessageBoard({ title }: { title: string }) {
                               setEditingMsgId(msg.id);
                               setEditingText(msg.text);
                             }}
-                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors px-2 py-1 rounded-md hover:bg-primary/10 min-h-[32px] touch-manipulation"
-                            style={{ touchAction: 'manipulation' }}
+                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors px-2 py-1 rounded-md hover:bg-primary/10 min-h-[32px] touch-pan-y"
+                            style={{ touchAction: 'pan-y' }}
                           >
                             <Pencil className="w-3.5 h-3.5" />
                             編集
@@ -4719,8 +4719,8 @@ function MessageBoard({ title }: { title: string }) {
                               setDeleteMsgId(msg.id);
                               setDeleteMsgText(msg.text);
                             }}
-                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded-md hover:bg-destructive/10 min-h-[32px] touch-manipulation"
-                            style={{ touchAction: 'manipulation' }}
+                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded-md hover:bg-destructive/10 min-h-[32px] touch-pan-y"
+                            style={{ touchAction: 'pan-y' }}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                             削除
@@ -5591,7 +5591,7 @@ export default function Dashboard() {
               type="button"
               onPointerDown={() => {}}
               onClick={handleAlcoholCheckIn}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px] relative" style={{backgroundColor: clockInAllDone ? '#22c55e' : '#d95f5f', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px] relative" style={{backgroundColor: clockInAllDone ? '#22c55e' : '#d95f5f', touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent'}}
             >
               {clockInAllDone ? (
                 <>
@@ -5610,7 +5610,7 @@ export default function Dashboard() {
               type="button"
               onPointerDown={() => {}}
               onClick={handleAlcoholCheckOut}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px] relative" style={{backgroundColor: clockOutAllDone ? '#22c55e' : '#3b8fd4', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px] relative" style={{backgroundColor: clockOutAllDone ? '#22c55e' : '#3b8fd4', touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent'}}
             >
               {clockOutAllDone ? (
                 <>
@@ -5631,7 +5631,7 @@ export default function Dashboard() {
                 onPointerDown={() => {}}
                 onClick={handleEmergencyClockIn}
                 className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px] relative"
-                style={{backgroundColor: '#e07b39', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}}
+                style={{backgroundColor: '#e07b39', touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent'}}
                 title="緊急訪問看護などで再度出勤打刻が必要な場合"
               >
                 <LogIn className="w-3.5 h-3.5 md:w-4 md:h-4" />
@@ -5645,7 +5645,7 @@ export default function Dashboard() {
                 onPointerDown={() => {}}
                 onClick={handleEmergencyClockOut}
                 className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px] relative"
-                style={{backgroundColor: '#e07b39', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}}
+                style={{backgroundColor: '#e07b39', touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent'}}
                 title="緊急訪問看護後の退勤打刻"
               >
                 <LogOut className="w-3.5 h-3.5 md:w-4 md:h-4" />
@@ -5659,7 +5659,7 @@ export default function Dashboard() {
                 onPointerDown={() => {}}
                 onClick={handleResetAttendance}
                 className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px] relative"
-                style={{backgroundColor: '#6b7280', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}}
+                style={{backgroundColor: '#6b7280', touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent'}}
                 title="出勤・退勤の打刻済み表示をリセットします（テスト・誤操作時に使用）"
               >
                 <RotateCcw className="w-3.5 h-3.5 md:w-4 md:h-4" />
@@ -5670,7 +5670,7 @@ export default function Dashboard() {
             <button
               onClick={() => openLink("https://gemini.google.com/app")}
               onPointerDown={() => {}}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#7c6fcd', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#6a5eb8')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#7c6fcd')}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#7c6fcd', touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#6a5eb8')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#7c6fcd')}
             >
               <span className="text-sm leading-none">✨</span>
               Gemini
@@ -5679,7 +5679,7 @@ export default function Dashboard() {
             <button
               onClick={() => openLink("https://homecare.zest.jp/login")}
               onPointerDown={() => {}}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#0ea5a0', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#0c9490')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#0ea5a0')}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#0ea5a0', touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#0c9490')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#0ea5a0')}
             >
               <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4" />
               ZEST
@@ -5688,7 +5688,7 @@ export default function Dashboard() {
             <Link
               href="/schedule-management"
               onPointerDown={() => {}}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#3a9e6e', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#2e8a5c')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#3a9e6e')}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#3a9e6e', touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#2e8a5c')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#3a9e6e')}
             >
               <CalendarDays className="w-3.5 h-3.5 md:w-4 md:h-4" />
               日程管理
@@ -5697,7 +5697,7 @@ export default function Dashboard() {
             <Link
               href="/record#record-condition"
               onPointerDown={() => {}}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#b06a1a', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#9a5c14')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#b06a1a')}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#b06a1a', touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#9a5c14')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#b06a1a')}
             >
               <ClipboardEdit className="w-3.5 h-3.5 md:w-4 md:h-4" />
               訪問
@@ -5709,7 +5709,7 @@ export default function Dashboard() {
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
               }}
               onPointerDown={() => {}}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#c0392b', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#a93226')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#c0392b')}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#c0392b', touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#a93226')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#c0392b')}
             >
               <span className="text-sm leading-none">💡</span>
               業務改善
@@ -5718,7 +5718,7 @@ export default function Dashboard() {
             <Link
               href="/personal-tasks"
               onPointerDown={() => {}}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#1a6b9e', touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#155a87')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#1a6b9e')}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#1a6b9e', touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#155a87')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#1a6b9e')}
             >
               <ListTodo className="w-3.5 h-3.5 md:w-4 md:h-4" />
               個人タスク
