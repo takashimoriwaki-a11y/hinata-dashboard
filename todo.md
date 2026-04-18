@@ -2573,3 +2573,6 @@
 ## iPhone版タスクカード修正（2026-04-18 その8）
 - [x] ホーム画面「今日の利用者タスク」「今日の個人タスク」の横スクロールを無効化（CardとCardContentにoverflow-x-hiddenを追加）
 - [x] 全タスクをカード内に縦方向で全件表示（max-h-72 overflow-y-autoを削除し高さ制限を解除）
+
+## 訪問予定→ホーム画面タスク完了同期修正（2026-04-18 その9）
+- [x] 「今日の訪問予定」でタスク完了にしてもホーム画面「今日の利用者タスク」に反映されない問題を修正（PatientTasksCardにrefetchInterval=5sとrefetchOnWindowFocus=trueを追加）

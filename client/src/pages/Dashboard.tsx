@@ -3697,10 +3697,10 @@ function PatientTasksCard() {
   const [selectedTeam, setSelectedTeam] = useState<string>("全チーム");
 
   const { data: tasks = [] } = trpc.tasks.getMine.useQuery(undefined, {
-    refetchInterval: 15 * 1000,
+    refetchInterval: 5 * 1000,
     staleTime: 0,
+    refetchOnWindowFocus: true,
   });
-
   // 今日の利用者タスク（patientNameが設定されていて、今日が期日 or 期日過ぎ or 期日なし or 次回訪問時）
   const todayPatientTasks = useMemo(() => {
     const now = new Date();
