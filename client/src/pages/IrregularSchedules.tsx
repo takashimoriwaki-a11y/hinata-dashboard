@@ -4,8 +4,12 @@
  * - 登録するとスプレッドシートに自動転記
  * - 利用者名は登録済み利用者から選択
  * - 時間は10分単位
+ * - 予定種別選択後にリセットボタン表示
+ * - 備考欄に音声入力ボタン設置
+ * - 「必要な対応アクション」は全種別から削除
+ * - 「特別指示書」は病院・施設名を非表示
  */
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { CalendarPlus, CheckCircle2 } from "lucide-react";
+import { CalendarPlus, CheckCircle2, RotateCcw, Mic, MicOff, Loader2 } from "lucide-react";
 
 // ─── 定数 ───────────────────────────────────────────────
 const TEAMS = ["身体", "天理", "郡山北部", "郡山南部"] as const;
@@ -31,6 +35,8 @@ const SCHEDULE_TYPES = [
 type ScheduleType = typeof SCHEDULE_TYPES[number];
 
 // 予定種別ごとのフィールド表示設定
+// ※「必要な対応アクション」は全種別から削除
+// ※「特別指示書」の facilityName は false
 type FieldVisibility = {
   endDate: boolean;
   startTime: boolean;
@@ -42,7 +48,7 @@ type FieldVisibility = {
 const FIELD_CONFIG: Record<ScheduleType, FieldVisibility> = {
   受診:             { endDate: false, startTime: true,  endTime: true,  facilityName: true,  postDischargeEndDate: false },
   ショートステイ:   { endDate: true,  startTime: false, endTime: false, facilityName: true,  postDischargeEndDate: false },
-  特別指示書:       { endDate: true,  startTime: false, endTime: false, facilityName: true,  postDischargeEndDate: false },
+  特別指示書:       { endDate: true,  startTime: false, endTime: false, facilityName: false, postDischargeEndDate: false }, // 施設名なし
   入院:             { endDate: false, startTime: false, endTime: false, facilityName: true,  postDischargeEndDate: false },
   退院:             { endDate: false, startTime: false, endTime: false, facilityName: true,  postDischargeEndDate: true  },
   "新規契約・面談": { endDate: false, startTime: true,  endTime: true,  facilityName: false, postDischargeEndDate: false },
@@ -72,8 +78,8 @@ const TIME_OPTIONS: string[] = (() => {
 
 // ─── 型定義 ──────────────────────────────────────────────
 type FormData = {
-  patientId: string;   // 選択した利用者のID（文字列）
-  patientName: string; // 表示用（自動セット）
+  patientId: string;
+  patientName: string;
   team: string;
   scheduleType: string;
   startDate: string;
@@ -81,7 +87,6 @@ type FormData = {
   startTime: string;
   endTime: string;
   facilityName: string;
-  actionRequired: string;
   postDischargeEndDate: string;
   notes: string;
 };
@@ -96,10 +101,76 @@ const emptyForm: FormData = {
   startTime: "",
   endTime: "",
   facilityName: "",
-  actionRequired: "",
   postDischargeEndDate: "",
   notes: "",
 };
+
+// ─── 音声入力フック ──────────────────────────────────────
+type VoiceState = "idle" | "recording" | "processing";
+
+function useVoiceInput(onResult: (text: string) => void) {
+  const [voiceState, setVoiceState] = useState<VoiceState>("idle");
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const [interimText, setInterimText] = useState("");
+
+  const start = useCallback(() => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error("このブラウザは音声入力に対応していません");
+      return;
+    }
+    const rec = new SpeechRecognition();
+    rec.lang = "ja-JP";
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+
+    rec.onstart = () => setVoiceState("recording");
+    rec.onresult = (e: SpeechRecognitionEvent) => {
+      let interim = "";
+      let final = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) {
+          final += e.results[i][0].transcript;
+        } else {
+          interim += e.results[i][0].transcript;
+        }
+      }
+      setInterimText(interim);
+      if (final) {
+        onResult(final);
+        setInterimText("");
+      }
+    };
+    rec.onerror = (e: SpeechRecognitionErrorEvent) => {
+      console.error("音声認識エラー:", e.error);
+      setVoiceState("idle");
+      setInterimText("");
+      if (e.error !== "aborted") toast.error("音声認識エラー: " + e.error);
+    };
+    rec.onend = () => {
+      setVoiceState("idle");
+      setInterimText("");
+    };
+
+    recognitionRef.current = rec;
+    rec.start();
+  }, [onResult]);
+
+  const stop = useCallback(() => {
+    recognitionRef.current?.stop();
+    setVoiceState("idle");
+    setInterimText("");
+  }, []);
+
+  const toggle = useCallback(() => {
+    if (voiceState === "recording") stop();
+    else start();
+  }, [voiceState, start, stop]);
+
+  return { voiceState, interimText, toggle };
+}
 
 // ─── コンポーネント ──────────────────────────────────────
 export default function IrregularSchedules() {
@@ -108,10 +179,15 @@ export default function IrregularSchedules() {
 
   const utils = trpc.useUtils();
 
-  // 全利用者一覧（active=1のみ）
+  // 全利用者一覧（active=1のみ・チームで絞り込み）
   const { data: allPatients = [] } = trpc.patients.list.useQuery(
     { team: form.team as typeof TEAMS[number] | undefined },
     { enabled: !!form.team, refetchOnWindowFocus: false }
+  );
+
+  // 音声入力（備考欄に追記）
+  const { voiceState, interimText, toggle: toggleVoice } = useVoiceInput(
+    (text) => setForm(f => ({ ...f, notes: f.notes ? f.notes + " " + text : text }))
   );
 
   // チームが変わったら利用者選択をリセット
@@ -122,11 +198,7 @@ export default function IrregularSchedules() {
   // 利用者選択時に名前を自動セット
   const handlePatientChange = (id: string) => {
     const patient = allPatients.find(p => String(p.id) === id);
-    setForm(f => ({
-      ...f,
-      patientId: id,
-      patientName: patient?.name ?? "",
-    }));
+    setForm(f => ({ ...f, patientId: id, patientName: patient?.name ?? "" }));
   };
 
   // 予定種別変更時に関連フィールドをリセット
@@ -140,6 +212,27 @@ export default function IrregularSchedules() {
       facilityName: "",
       postDischargeEndDate: "",
     }));
+  };
+
+  // フォームリセット（チーム・利用者・種別選択後の入力内容のみリセット）
+  const handlePartialReset = () => {
+    setForm(f => ({
+      ...f,
+      startDate: "",
+      endDate: "",
+      startTime: "",
+      endTime: "",
+      facilityName: "",
+      postDischargeEndDate: "",
+      notes: "",
+    }));
+    toast.info("入力内容をリセットしました");
+  };
+
+  // 全リセット
+  const handleFullReset = () => {
+    setForm(emptyForm);
+    setSubmitted(false);
   };
 
   const fieldConfig: FieldVisibility | null =
@@ -162,10 +255,10 @@ export default function IrregularSchedules() {
   });
 
   const handleSubmit = () => {
-    if (!form.team)               { toast.error("担当チームを選択してください"); return; }
-    if (!form.patientId)          { toast.error("利用者名を選択してください"); return; }
-    if (!form.scheduleType)       { toast.error("予定種別を選択してください"); return; }
-    if (!form.startDate)          { toast.error(`${startDateLabel}を入力してください`); return; }
+    if (!form.team)         { toast.error("担当チームを選択してください"); return; }
+    if (!form.patientId)    { toast.error("利用者名を選択してください"); return; }
+    if (!form.scheduleType) { toast.error("予定種別を選択してください"); return; }
+    if (!form.startDate)    { toast.error(`${startDateLabel}を入力してください`); return; }
 
     const cfg = fieldConfig;
     createMutation.mutate({
@@ -173,19 +266,14 @@ export default function IrregularSchedules() {
       team: form.team as typeof TEAMS[number],
       scheduleType: form.scheduleType as ScheduleType,
       startDate: form.startDate,
-      endDate:              (cfg?.endDate             ? form.endDate             : null) || null,
-      startTime:            (cfg?.startTime           ? form.startTime           : null) || null,
-      endTime:              (cfg?.endTime             ? form.endTime             : null) || null,
-      facilityName:         (cfg?.facilityName        ? form.facilityName        : null) || null,
-      actionRequired:       form.actionRequired || null,
+      endDate:              (cfg?.endDate              ? form.endDate              : null) || null,
+      startTime:            (cfg?.startTime            ? form.startTime            : null) || null,
+      endTime:              (cfg?.endTime              ? form.endTime              : null) || null,
+      facilityName:         (cfg?.facilityName         ? form.facilityName         : null) || null,
+      actionRequired:       null, // 全種別から削除
       postDischargeEndDate: (cfg?.postDischargeEndDate ? form.postDischargeEndDate : null) || null,
       notes:                form.notes || null,
     });
-  };
-
-  const handleReset = () => {
-    setForm(emptyForm);
-    setSubmitted(false);
   };
 
   // ─── 登録完了画面 ───────────────────────────────────────
@@ -197,7 +285,7 @@ export default function IrregularSchedules() {
         <p className="text-sm text-muted-foreground text-center">
           スプレッドシートに自動転記されました
         </p>
-        <Button onClick={handleReset} className="mt-2">続けて登録する</Button>
+        <Button onClick={handleFullReset} className="mt-2">続けて登録する</Button>
       </div>
     );
   }
@@ -220,7 +308,7 @@ export default function IrregularSchedules() {
         </CardHeader>
         <CardContent className="px-4 pb-4 space-y-3">
 
-          {/* ── 担当チーム（先に選ぶと利用者一覧が絞られる） ── */}
+          {/* ── 担当チーム ── */}
           <div>
             <Label className="text-xs font-medium">担当チーム <span className="text-destructive">*</span></Label>
             <Select value={form.team} onValueChange={handleTeamChange}>
@@ -233,7 +321,7 @@ export default function IrregularSchedules() {
             </Select>
           </div>
 
-          {/* ── 利用者名（登録済み利用者から選択） ── */}
+          {/* ── 利用者名 ── */}
           <div>
             <Label className="text-xs font-medium">利用者名 <span className="text-destructive">*</span></Label>
             <Select
@@ -327,7 +415,7 @@ export default function IrregularSchedules() {
                 </div>
               )}
 
-              {/* 病院・施設名 */}
+              {/* 病院・施設名（特別指示書は非表示） */}
               {fieldConfig.facilityName && (
                 <div>
                   <Label className="text-xs font-medium">病院・施設名</Label>
@@ -339,18 +427,6 @@ export default function IrregularSchedules() {
                   />
                 </div>
               )}
-
-              {/* 必要な対応アクション */}
-              <div>
-                <Label className="text-xs font-medium">必要な対応アクション</Label>
-                <Textarea
-                  className="mt-1 text-sm resize-none"
-                  rows={2}
-                  placeholder="例：退院後の訪問調整、主治医への連絡"
-                  value={form.actionRequired}
-                  onChange={e => setForm(f => ({ ...f, actionRequired: e.target.value }))}
-                />
-              </div>
 
               {/* 退院後週5日終了日（退院のみ） */}
               {fieldConfig.postDischargeEndDate && (
@@ -365,17 +441,61 @@ export default function IrregularSchedules() {
                 </div>
               )}
 
-              {/* 備考・申し送り（全種別共通） */}
+              {/* 備考・申し送り ＋ 音声入力 */}
               <div>
-                <Label className="text-xs font-medium">備考・申し送り</Label>
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-xs font-medium">備考・申し送り</Label>
+                  {/* 音声入力ボタン */}
+                  <button
+                    type="button"
+                    onClick={toggleVoice}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-colors ${
+                      voiceState === "recording"
+                        ? "bg-red-500 text-white animate-pulse"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    }`}
+                  >
+                    {voiceState === "recording" ? (
+                      <><MicOff className="w-3 h-3" />停止</>
+                    ) : voiceState === "processing" ? (
+                      <><Loader2 className="w-3 h-3 animate-spin" />処理中</>
+                    ) : (
+                      <><Mic className="w-3 h-3" />音声入力</>
+                    )}
+                  </button>
+                </div>
                 <Textarea
-                  className="mt-1 text-sm resize-none"
-                  rows={2}
-                  placeholder="その他の申し送り事項"
-                  value={form.notes}
+                  className="text-sm resize-none"
+                  rows={3}
+                  placeholder={
+                    voiceState === "recording"
+                      ? "🎤 話しかけてください..."
+                      : "その他の申し送り事項（音声入力可）"
+                  }
+                  value={voiceState === "recording" && interimText
+                    ? form.notes + (form.notes ? " " : "") + interimText
+                    : form.notes}
                   onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                 />
+                {voiceState === "recording" && (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                    録音中... 話し終わったら停止ボタンを押してください
+                  </p>
+                )}
               </div>
+
+              {/* リセットボタン（種別選択後に表示） */}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full flex items-center gap-1 text-muted-foreground"
+                onClick={handlePartialReset}
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                入力内容をリセット
+              </Button>
             </>
           )}
 
