@@ -10,6 +10,17 @@
 import React, { useState, useMemo, useCallback, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import {
   ClipboardList, Plus, Check, Trash2, ChevronDown, ChevronUp,
@@ -205,14 +216,40 @@ export function CreateTaskForm({ onClose, onCreated, userTeam, defaultDueDate }:
   }, [isVoiceListening, staffList, assignUserIds]);
 
   const createMutation = trpc.personalTasks.create.useMutation({
+    onMutate: async (vars) => {
+      await utils.personalTasks.getMyTasks.cancel();
+      const prev = utils.personalTasks.getMyTasks.getData();
+      utils.personalTasks.getMyTasks.setData(undefined, (old) => [
+        ...(old ?? []),
+        {
+          id: -Date.now(),
+          text: vars.text,
+          done: 0,
+          taskKind: vars.taskKind ?? "by_deadline",
+          dueDate: vars.dueDate ? vars.dueDate.getTime() : null,
+          assignType: vars.assignType,
+          assignTeam: vars.assignTeam ?? null,
+          assignUserId: vars.assignUserId ?? null,
+          assignUserName: vars.assignUserName ?? null,
+          repeatType: vars.repeatType ?? "none",
+          createdAt: Date.now(),
+        } as any,
+      ]);
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) utils.personalTasks.getMyTasks.setData(undefined, ctx.prev);
+      toast.error("タスクの追加に失敗しました");
+    },
     onSuccess: () => {
-      utils.personalTasks.getMyTasks.invalidate();
-      utils.personalTasks.getTodayTasks.invalidate();
       toast.success("タスクを追加しました");
       onCreated();
       onClose();
     },
-    onError: (e) => toast.error(e.message),
+    onSettled: () => {
+      utils.personalTasks.getMyTasks.invalidate();
+      utils.personalTasks.getTodayTasks.invalidate();
+    },
   });
 
   const toggleTeam = useCallback((team: TeamName) => {
@@ -582,6 +619,7 @@ function TaskCard({
   currentUserId?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const isDone = task.done === 1;
   const taskKind: TaskKind = task.taskKind ?? "by_deadline";
   const dueDateStr = formatDueDate(task.dueDate, taskKind);
@@ -676,12 +714,32 @@ function TaskCard({
       {/* 展開時操作 */}
       {expanded && (
         <div className="px-3 pb-3 pt-0 border-t border-border/40">
-          <button
-            onClick={() => onDelete(task.id)}
-            className="mt-2 flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 px-2.5 py-1.5 rounded-lg bg-red-900/20 hover:bg-red-900/40 transition-colors"
-          >
-            <Trash2 className="w-3.5 h-3.5" />削除
-          </button>
+          <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <AlertDialogTrigger asChild>
+              <button
+                className="mt-2 flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 px-2.5 py-1.5 rounded-lg bg-red-900/20 hover:bg-red-900/40 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />削除
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>タスクを削除しますか？</AlertDialogTitle>
+                <AlertDialogDescription>
+                  「{task.text}」を削除します。この操作は元に戻せません。
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>キャンセル</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => onDelete(task.id)}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  削除する
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       )}
     </div>

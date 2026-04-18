@@ -3754,12 +3754,32 @@ function PatientTasksCard() {
     onError: (_e, _v, ctx) => {
       if (ctx?.prev) utils.tasks.getMine.setData(undefined, ctx.prev);
     },
+     onSettled: () => {
+      utils.tasks.getMine.invalidate();
+      utils.tasks.getAll.invalidate();
+    },
+  });
+  const [deleteDialogTaskId, setDeleteDialogTaskId] = useState<number | null>(null);
+  const [deleteDialogTaskText, setDeleteDialogTaskText] = useState<string>("");
+  const deleteTask = trpc.tasks.delete.useMutation({
+    onMutate: async ({ id }) => {
+      await utils.tasks.getMine.cancel();
+      const prev = utils.tasks.getMine.getData();
+      utils.tasks.getMine.setData(undefined, (old) =>
+        old?.filter((t) => t.id !== id)
+      );
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) utils.tasks.getMine.setData(undefined, ctx.prev);
+      toast.error("削除に失敗しました");
+    },
+    onSuccess: () => toast.success("タスクを削除しました"),
     onSettled: () => {
       utils.tasks.getMine.invalidate();
       utils.tasks.getAll.invalidate();
     },
   });
-
   return (
     <Card id="today-patient-tasks" className="shadow-sm overflow-x-hidden">
       <CardHeader className="pb-2">
@@ -3899,11 +3919,47 @@ function PatientTasksCard() {
                       </span>
                     )}
                   </div>
+                  {/* 削除ボタン */}
+                  <button
+                    onClick={() => {
+                      setDeleteDialogTaskId(task.id);
+                      setDeleteDialogTaskText(task.text);
+                    }}
+                    className="flex-shrink-0 ml-1 p-1 text-muted-foreground hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                    title="削除"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               );
             })
           )}
         </div>
+        {/* 削除確認ダイアログ */}
+        <AlertDialog open={deleteDialogTaskId !== null} onOpenChange={(open) => !open && setDeleteDialogTaskId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>タスクを削除しますか？</AlertDialogTitle>
+              <AlertDialogDescription>
+                「{deleteDialogTaskText}」を削除します。この操作は元に戻せません。
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>キャンセル</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (deleteDialogTaskId !== null) {
+                    deleteTask.mutate({ id: deleteDialogTaskId });
+                    setDeleteDialogTaskId(null);
+                  }
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                削除する
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         {/* カード内の新規追加ボタン */}
         <button
           onClick={() => setShowForm((v) => !v)}

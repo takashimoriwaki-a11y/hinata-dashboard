@@ -2590,3 +2590,7 @@
 - [x] getMyTasksクエリのrefetchIntervalを30秒→5秒に短縮、refetchOnWindowFocus:trueを追加
 ## deleteMutation楽観的削除実装（2026-04-18 その14）
 - [x] PersonalTasks.tsxのdeleteMutationにonMutate（即時リストから除外）・onError（ロールバック）・onSettled（再同期）を追加
+## タスク追加楽観的更新・削除確認ダイアログ・利用者タスク楽観的削除（2026-04-18 その15）
+- [x] PersonalTasks.tsxのcreateTaskMutationにonMutate（仮追加）・onError（ロールバック）・onSettled（再同期）を実装
+- [x] PersonalTasks.tsxのTaskCardの削除ボタンをAlertDialog確認ダイアログに変更
+- [x] Dashboard.tsxのPatientTasksCardにdeleteMutation（楽観的削除）と削除確認ダイアログを追加
