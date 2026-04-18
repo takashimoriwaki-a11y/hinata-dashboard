@@ -705,9 +705,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     }
                   }}
                   onPointerMove={(e) => {
-                    // 10px以上移動したらスクロール中フラグを立てる
+                    // 8px以上移動したらスクロール中フラグを立てる（誤タップ防止のため敗感に設定）
                     if (e.pointerType === 'touch' && touchStartYRef.current !== null) {
-                      if (Math.abs(e.clientY - touchStartYRef.current) > 10) {
+                      if (Math.abs(e.clientY - touchStartYRef.current) > 8) {
                         isScrollingRef.current = true;
                       }
                     }

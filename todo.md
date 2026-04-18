@@ -2598,3 +2598,7 @@
 ## メッセージ全文表示・iPhone誤操作防止（2026-04-18 その15）
 - [x] Dashboard.tsxのMessageBoardCardの各メッセージをline-clamp削除・whitespace-pre-wrapで全文表示
 - [x] iPhone版スクロール中の誤タップ防止：onPointerDownでY座標記録、onPointerMoveで移動距離10px超でスクロール中フラグ、onClickでフラグ立っていればナビゲーションキャンセル
+## メッセージ折りたたみ・スクロール閾値・削除ダイアログデザイン統一（2026-04-18 その16）
+- [x] Dashboard.tsxのMessageBoardCardに「もっと見る」折りたたみ機能を追加（デフォルト3件表示、展開で全件表示）
+- [x] DashboardLayout.tsxのボトムナビのスクロール判定閃値だ10px→8pxに調整（より敏感に誤タップ防止）
+- [x] PersonalTasks.tsxのTaskCardとDashboard.tsxのPatientTasksCardの削除確認ダイアログの削除ボタンを赤色（bg-red-600）で統一済みであることを確認

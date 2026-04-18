@@ -4000,6 +4000,8 @@ function MessageBoard({ title }: { title: string }) {
     refetchInterval: 15000,
   });
   const [showPending, setShowPending] = useState(false);
+  const [showAllMessages, setShowAllMessages] = useState(false);
+  const MESSAGE_PREVIEW_COUNT = 3;
 
   const [newMsg, setNewMsg] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -4605,7 +4607,7 @@ function MessageBoard({ title }: { title: string }) {
           <p className="text-xs text-muted-foreground text-center py-3">メッセージはまだありません</p>
         ) : (
           <div className="space-y-2 overflow-x-hidden">
-            {messages.map((msg) => {
+            {(showAllMessages ? messages : messages.slice(0, MESSAGE_PREVIEW_COUNT)).map((msg) => {
               const reactionCounts = getReactionCounts(msg.reactions ?? []);
               return (
                 <div key={msg.id} className={cn("p-2.5 rounded-xl group animate-list-item-in", isNight ? "bg-red-950/30" : "bg-red-50")}>
@@ -4727,6 +4729,23 @@ function MessageBoard({ title }: { title: string }) {
                 </div>
               );
             })}
+            {messages.length > MESSAGE_PREVIEW_COUNT && (
+              <button
+                onClick={() => setShowAllMessages((v) => !v)}
+                className={cn(
+                  "w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium transition-colors mt-1",
+                  isNight
+                    ? "bg-red-900/20 text-red-300 hover:bg-red-900/40"
+                    : "bg-red-50 text-red-600 hover:bg-red-100"
+                )}
+              >
+                {showAllMessages ? (
+                  <><ChevronUp className="w-3.5 h-3.5" />折りたたむ</>
+                ) : (
+                  <><ChevronDown className="w-3.5 h-3.5" />もっと見る（残り{messages.length - MESSAGE_PREVIEW_COUNT}件）</>
+                )}
+              </button>
+            )}
           </div>
         )}
         {/* 予約送信確認セクション */}
