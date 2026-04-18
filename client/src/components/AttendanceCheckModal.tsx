@@ -371,11 +371,20 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     if (mainEl) {
       mainEl.style.overflow = "hidden";
     }
+    // ボトムナビゲーションバーを非表示にしてモーダルが全画面を使えるようにする
+    const bottomNav = document.querySelector('nav.bottom-nav-safe') as HTMLElement | null;
+    if (bottomNav) {
+      bottomNav.style.display = "none";
+    }
     return () => {
       document.body.style.overflow = "";
       if (mainEl) {
         mainEl.style.overflow = "";
         mainEl.scrollTop = mainScrollY;
+      }
+      // ボトムナビを再表示
+      if (bottomNav) {
+        bottomNav.style.display = "";
       }
     };
   }, []);
@@ -1825,7 +1834,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       </AlertDialogContent>
     </AlertDialog>
 
-    <div className="fixed inset-0 z-[60] flex items-start justify-center touch-none" style={{height: '100svh', overflow: 'hidden', maxHeight: '100svh', overscrollBehavior: 'none'}}>
+    <div className="fixed inset-0 z-[100] flex items-start justify-center touch-none" style={{height: '100svh', overflow: 'hidden', maxHeight: '100svh', overscrollBehavior: 'none'}}>
       {/* 背景オーバーレイ */}
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm"
