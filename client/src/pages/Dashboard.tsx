@@ -1623,6 +1623,24 @@ function getDayLabel(offset: number): string {
 
 function ScheduleScreenshotCard() {
   const { user } = useAuth();
+  // スクロール中の誤タップ防止
+  const pointerStartYRef = useRef<number | null>(null);
+  const isScrollingRef = useRef(false);
+  const SCROLL_THRESHOLD = 8;
+  const handleNavPointerDown = (e: React.PointerEvent) => {
+    pointerStartYRef.current = e.clientY;
+    isScrollingRef.current = false;
+  };
+  const handleNavPointerMove = (e: React.PointerEvent) => {
+    if (pointerStartYRef.current === null) return;
+    if (Math.abs(e.clientY - pointerStartYRef.current) > SCROLL_THRESHOLD) {
+      isScrollingRef.current = true;
+    }
+  };
+  const makeNavClickHandler = (fn: () => void) => (e: React.MouseEvent) => {
+    if (isScrollingRef.current) { e.preventDefault(); return; }
+    fn();
+  };
   const SCHEDULE_TEAM_KEY = "hinata_schedule_team";
   const SCHEDULE_ALL_TEAMS_KEY = "hinata_schedule_all_teams";
   const VALID_SCHEDULE_TEAMS: TeamType[] = ["身体", "天理", "郡山北部", "郡山南部"];
@@ -1939,10 +1957,12 @@ function ScheduleScreenshotCard() {
             <div className="grid grid-cols-5 gap-1 w-full">
               {/* 全チームボタン */}
               <button
-                onClick={() => {
+                onPointerDown={handleNavPointerDown}
+                onPointerMove={handleNavPointerMove}
+                onClick={makeNavClickHandler(() => {
                   setShowAllTeams(true);
                   setSwipeIndex(0);
-                }}
+                })}
                 className={cn(
                   "text-xs px-1 py-1.5 rounded-md border transition-all font-medium text-center",
                   getTeamButtonClass("全チーム", showAllTeams)
@@ -1954,11 +1974,13 @@ function ScheduleScreenshotCard() {
               {TEAMS.map((t) => (
                 <button
                   key={t}
-                  onClick={() => {
+                  onPointerDown={handleNavPointerDown}
+                  onPointerMove={handleNavPointerMove}
+                  onClick={makeNavClickHandler(() => {
                     setShowAllTeams(false);
                     setSwipeIndex(DAYS.indexOf(selectedDay));
                     handleTeamChange(t);
-                  }}
+                  })}
                   className={cn(
                     "text-xs px-1 py-1.5 rounded-md transition-all font-medium text-center",
                     getTeamButtonClass(t, !showAllTeams && selectedTeam === t)
@@ -1977,10 +1999,12 @@ function ScheduleScreenshotCard() {
                   return (
                     <button
                       key={d}
-                      onClick={() => {
+                      onPointerDown={handleNavPointerDown}
+                      onPointerMove={handleNavPointerMove}
+                      onClick={makeNavClickHandler(() => {
                         setSelectedDay(d);
                         setSwipeIndex(DAYS.indexOf(d));
-                      }}
+                      })}
                       className={cn(
                         "text-xs px-2 py-1 rounded-md border transition-colors",
                         selectedDay === d
@@ -5195,6 +5219,7 @@ function PhilosophyCard() {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [shimmerActive, setShimmerActive] = useState(false);
+  const [, navigate] = useLocation();
   useEffect(() => {
     const el = cardRef.current;
     if (!el) return;
@@ -5221,14 +5246,14 @@ function PhilosophyCard() {
         isVisible ? "philosophy-card-visible" : "philosophy-card-hidden"
       )}
       style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fed7aa 100%)", border: "1px solid #fdba74", position: "relative", zIndex: 2 }}
-      onClick={() => { window.location.href = "/hinatas-way"; }}
+      onClick={() => { navigate("/hinatas-way"); }}
     >
       {shimmerActive && <div className="philosophy-shimmer" />}
       <div className="px-4 py-1.5 md:px-5 md:py-2 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div
             className={cn(
-              "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center",
+              "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
               isVisible ? "philosophy-icon-visible" : "philosophy-icon-hidden"
             )}
             style={{ background: "linear-gradient(135deg, #f97316, #fbbf24)" }}

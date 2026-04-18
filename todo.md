@@ -2606,3 +2606,8 @@
 ## 理念バナー高さ縮小・訪問スケジュールカード裏潜り込み修正（2026-04-18 その17）
 - [x] iPhone版「私たちの理念」バナーの上下パディングを半分に縮小（py-3/py-3.5→py-1.5/py-2に変更）
 - [x] 訪問スケジュールカードが「私たちの理念」バナーの裏に潜り込む問題を修正（PhilosophyCardにz-index:2、ScheduleScreenshotCardにz-index:1を設定）
+
+## 理念バナーアイコン縮小・wouter遷移・訪問スケジュール誤タップ防止（2026-04-18 その18）
+- [x] PhilosophyCardのアイコンをw-10 h-10→w-8 h-8に縮小
+- [x] PhilosophyCardのwindow.location.hrefをwouterのnavigateに変更
+- [x] ScheduleScreenshotCardのチーム・日付ボタン全てにonPointerDown/onPointerMove誤タップ防止を追加（閾値8px）
