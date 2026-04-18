@@ -586,9 +586,9 @@ export default function RecordInput() {
       {/* ===== 今日の訪問予定セクション ===== */}
       <Card className="shadow-sm">
         <CardHeader className="pb-2">
-          {/* 1行目：タイトル + 音声入力 + 全リセット */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2 flex-1 min-w-0">
+          {/* 1行目：タイトル */}
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2 min-w-0">
               <Users className="w-4 h-4 text-primary flex-shrink-0" />
               <span className="whitespace-nowrap">今日の訪問予定</span>
               {filledSlots > 0 && (
@@ -597,6 +597,7 @@ export default function RecordInput() {
                 </Badge>
               )}
             </CardTitle>
+            {/* 2行目：ボタン群（右寄せ） */}
             <div className="flex items-center gap-1.5 flex-shrink-0">
               {/* 一括音声入力ボタン */}
               <button
