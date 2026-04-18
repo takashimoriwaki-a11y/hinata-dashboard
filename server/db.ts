@@ -2816,3 +2816,37 @@ export async function markIrregularScheduleSynced(id: number, sheetRowIndex: num
     .set({ syncedToSheet: 1, sheetRowIndex, updatedAt: new Date() })
     .where(eq(irregularSchedules.id, id));
 }
+
+/**
+ * super_adminロールを持つユーザー一覧を取得する（残業申請通知用）
+ */
+export async function getSuperAdminUsers(): Promise<Array<{ id: number; name: string | null; email: string | null }>> {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({ id: users.id, name: users.name, email: users.email })
+    .from(users)
+    .where(eq(users.role, "super_admin" as any));
+}
+
+/**
+ * 特定ユーザーへのアプリ内通知を作成する（残業申請通知用）
+ */
+export async function createOvertimeNotification(params: {
+  targetUserId: number;
+  type: "overtime_request" | "overtime_approved" | "overtime_rejected";
+  title: string;
+  body: string;
+  resourceId?: number;
+}): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(appNotifications).values({
+    type: params.type as any,
+    title: params.title,
+    body: params.body,
+    resourceId: params.resourceId ?? null,
+    targetUserId: params.targetUserId,
+    isRead: 0,
+  });
+}

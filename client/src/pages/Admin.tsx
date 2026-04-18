@@ -1091,10 +1091,7 @@ export default function Admin() {
             出退勤管理
           </button>
         )}
-        {currentUser?.role === "admin" && [
-          "takashimoriwaki@kokoronohinata.com",
-          "hidekimoriwaki@kokoronohinata.com",
-        ].includes((currentUser as any)?.email ?? "") && (
+        {currentUser?.role === "super_admin" && (
           <button
             onClick={() => setActiveSection("overtimeApprovals")}
             className={cn(

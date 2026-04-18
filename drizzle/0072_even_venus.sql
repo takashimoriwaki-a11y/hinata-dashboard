@@ -1,0 +1,1 @@
+ALTER TABLE `app_notifications` MODIFY COLUMN `type` enum('schedule_updated','task_today','new_message','minutes_reminder','minutes_posted','overtime_request','overtime_approved','overtime_rejected') NOT NULL;

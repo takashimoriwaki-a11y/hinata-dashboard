@@ -6377,12 +6377,30 @@ export const appRouter = router({
         requestedReason: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const { createOvertimeApproval } = await import("./db");
-        await createOvertimeApproval({
+        const { createOvertimeApproval, getSuperAdminUsers, createOvertimeNotification } = await import("./db");
+        const record = await createOvertimeApproval({
           applicantUserId: ctx.user.id,
           applicantName: ctx.user.name ?? "不明",
           ...input,
         });
+        // 特級管理者全員に残業申請のアプリ内通知を送信
+        try {
+          const superAdmins = await getSuperAdminUsers();
+          const startTime = new Date(input.requestedStartAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
+          const endTime = new Date(input.requestedEndAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
+          const notifyPromises = superAdmins.map((admin) =>
+            createOvertimeNotification({
+              targetUserId: admin.id,
+              type: "overtime_request",
+              title: `残業申請：${ctx.user.name ?? "不明"}`,
+              body: `${input.applicationDate} ${startTime}～${endTime}\n理由：${input.requestedReason ?? "（理由なし）"}\n承認または却下をお願いします。`,
+              resourceId: (record as any)?.insertId ?? undefined,
+            }).catch((e) => console.error(`[Overtime] notify failed for userId=${admin.id}:`, e))
+          );
+          await Promise.allSettled(notifyPromises);
+        } catch (e) {
+          console.error("[Overtime] Super admin notification failed:", e);
+        }
         return { success: true };
       }),
     /** 残業申請を承認・却下する（管理者用） */
@@ -6395,8 +6413,8 @@ export const appRouter = router({
         approverComment: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
-        const { approveOvertimeApproval, getOvertimeApprovalById, getTimesheetSpreadsheets } = await import("./db");
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const { approveOvertimeApproval, getOvertimeApprovalById, getTimesheetSpreadsheets, createOvertimeNotification } = await import("./db");
         const approvedAt = Date.now();
         await approveOvertimeApproval({
           id: input.id,
@@ -6451,6 +6469,19 @@ export const appRouter = router({
             }, sheet.spreadsheetId).catch((err) => {
               console.error("[Timesheet] Approval status update failed:", err);
             });
+          }
+          // 申請者へ承認・却下の通知を送信
+          if (record.applicantUserId) {
+            const statusLabel = input.status === "approved" ? "承認" : "却下";
+            const startStr = new Date(record.requestedStartAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
+            const endStr = new Date(record.requestedEndAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
+            createOvertimeNotification({
+              targetUserId: record.applicantUserId,
+              type: input.status === "approved" ? "overtime_approved" : "overtime_rejected",
+              title: `残業申請が${statusLabel}されました`,
+              body: `${record.applicationDate} ${startStr}～${endStr}\n${statusLabel}者：${ctx.user.name ?? "不明"}${input.approverComment ? `\nコメント：${input.approverComment}` : ""}`,
+              resourceId: input.id,
+            }).catch((e) => console.error("[Overtime] notify applicant failed:", e));
           }
         }).catch((err) => {
           console.error("[Overtime] getOvertimeApprovalById failed:", err);

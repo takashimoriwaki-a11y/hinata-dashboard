@@ -16,7 +16,7 @@ export const users = mysqlTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  role: mysqlEnum("role", ["user", "admin", "super_admin"]).default("user").notNull(),
   /** ユーザーが所属するチーム（デフォルト選択に使用） */
   team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]).default("身体"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -298,7 +298,7 @@ export type InsertVisitRecord = typeof visitRecords.$inferInsert;
 export const appNotifications = mysqlTable("app_notifications", {
   id: int("id").autoincrement().primaryKey(),
   /** 通知の種類 */
-  type: mysqlEnum("type", ["schedule_updated", "task_today", "new_message", "minutes_reminder", "minutes_posted"]).notNull(),
+  type: mysqlEnum("type", ["schedule_updated", "task_today", "new_message", "minutes_reminder", "minutes_posted", "overtime_request", "overtime_approved", "overtime_rejected"]).notNull(),
   /** 通知のタイトル */
   title: varchar("title", { length: 200 }).notNull(),
   /** 通知の本文 */
