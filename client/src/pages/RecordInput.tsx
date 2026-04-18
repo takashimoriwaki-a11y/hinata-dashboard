@@ -213,7 +213,7 @@ export default function RecordInput() {
   const utils = trpc.useUtils();
 
   // 今日のJST日付キー（YYYY-MM-DD）
-  const todayKey = useMemo(() => getTodayJstKey(), []);
+  const [todayKey, setTodayKey] = useState(() => getTodayJstKey());
 
   // 8枠分の訪問予定データ（初期値はlocalStorageから）
   const [slots, setSlots] = useState<VisitSlotData[]>(() => {
@@ -333,7 +333,28 @@ export default function RecordInput() {
     () => Array.from({ length: MAX_SLOTS }, () => false)
   );
 
-  // 各枠の利用者検索クエリ
+  // 日付変更検知（JST基準、1分ごとにチェック）
+  useEffect(() => {
+    const checkDateChange = () => {
+      const newKey = getTodayJstKey();
+      setTodayKey(prev => {
+        if (prev === newKey) return prev;
+        // 日付が変わったらスロットをリセット
+        const empty = Array.from({ length: MAX_SLOTS }, () => ({ ...DEFAULT_SLOT }));
+        setSlots(empty);
+        setSlotSearchQueries(Array.from({ length: MAX_SLOTS }, () => ""));
+        setSlotShowLists(Array.from({ length: MAX_SLOTS }, () => false));
+        localStorage.removeItem(SLOTS_STORAGE_KEY);
+        setDbLoaded(false); // 新しい日付のDBデータを再取得
+        toast.success(`日付が変わりました（${newKey}）。訪問予定をリセットしました。`);
+        return newKey;
+      });
+    };
+    const timer = setInterval(checkDateChange, 60_000); // 1分ごとに日付変更を検知
+    return () => clearInterval(timer);
+  }, []);
+
+  // 各枠の利用者検索クエリリ
   const slotPatientQueries = useMemo(() => slotSearchQueries, [slotSearchQueries]);
 
   // 管理者が選択したプロンプトを取得

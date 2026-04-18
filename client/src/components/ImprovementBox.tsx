@@ -153,12 +153,16 @@ export function ImprovementBox({ isNightMode }: ImprovementBoxProps) {
                     context="general"
                   />
                 </div>
-                {/* 音声認識中の暫定テキスト表示 */}
-                {voiceState.isRecording && voiceState.interimText && (
-                  <div className={`mb-1 px-2 py-1 rounded text-xs italic ${isNightMode ? "bg-amber-900/30 text-amber-300" : "bg-amber-50 text-amber-700"}`}>
-                    🎙️ {voiceState.interimText}
-                  </div>
-                )}
+                {/* 音声認識中の暫定テキスト表示（常に領域を確保しレイアウトシフトを防止） */}
+                <div
+                  className={`min-h-[24px] mb-1 px-2 py-1 rounded text-xs italic transition-opacity ${
+                    voiceState.isRecording && voiceState.interimText
+                      ? (isNightMode ? "bg-amber-900/30 text-amber-300 opacity-100" : "bg-amber-50 text-amber-700 opacity-100")
+                      : "opacity-0 pointer-events-none"
+                  }`}
+                >
+                  {voiceState.isRecording && voiceState.interimText ? `🎤 ${voiceState.interimText}` : " "}
+                </div>
                 <textarea
                   value={content}
                   onChange={e => setContent(e.target.value)}
