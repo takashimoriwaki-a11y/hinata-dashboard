@@ -692,11 +692,10 @@ function TaskCard({
 export default function PersonalTasks() {
   const { user, loading: authLoading } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [showDone, setShowDone] = useState(false);
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
 
   const tasksQuery = trpc.personalTasks.getMyTasks.useQuery(
-    { showDone },
+    { showDone: true },
     { refetchInterval: 30000 }
   );
   const tasks = (tasksQuery.data ?? []) as any[];
@@ -705,14 +704,14 @@ export default function PersonalTasks() {
   const toggleMutation = trpc.personalTasks.toggleDone.useMutation({
     onMutate: async ({ id, done }) => {
       await utils.personalTasks.getMyTasks.cancel();
-      const prev = utils.personalTasks.getMyTasks.getData({ showDone });
-      utils.personalTasks.getMyTasks.setData({ showDone }, (old: any) =>
+      const prev = utils.personalTasks.getMyTasks.getData({ showDone: true });
+      utils.personalTasks.getMyTasks.setData({ showDone: true }, (old: any) =>
         old?.map((t: any) => t.id === id ? { ...t, done: done ? 1 : 0 } : t)
       );
       return { prev };
     },
     onError: (_e, _v, ctx: any) => {
-      utils.personalTasks.getMyTasks.setData({ showDone }, ctx?.prev);
+      utils.personalTasks.getMyTasks.setData({ showDone: true }, ctx?.prev);
     },
     onSettled: () => {
       // 全キャッシュを無効化してホーム画面の「今日の個人タスク」とも同期
@@ -828,14 +827,7 @@ export default function PersonalTasks() {
               {mode === "delegated" && "依頼した"}
             </button>
           ))}
-          <button
-            onClick={() => setShowDone(!showDone)}
-            className={`ml-auto px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
-              showDone ? "bg-secondary text-secondary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {showDone ? "完了を非表示" : "完了を表示"}
-          </button>
+
         </div>
 
         {/* 作成フォーム（インライン展開） */}
@@ -887,7 +879,7 @@ export default function PersonalTasks() {
         )}
 
         {/* 完了済みタスク */}
-        {showDone && doneTasks.length > 0 && (
+        {doneTasks.length > 0 && (
           <div className="mt-6">
             <h2 className="text-gray-600 text-xs font-medium mb-2 flex items-center gap-1">
               <Check className="w-3.5 h-3.5" />完了済み（{doneTasks.length}件）

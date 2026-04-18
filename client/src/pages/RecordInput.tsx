@@ -5,12 +5,28 @@
  * - タスク管理との連携（利用者のタスクを取得・チェックで自動完了）
  */
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  ClipboardEdit, Search, Loader2, ChevronDown, ChevronUp, X, Users, Mic, MicOff, ExternalLink
+  ClipboardEdit, Search, Loader2, ChevronDown, ChevronUp, X, Users, Mic, MicOff, ExternalLink, GripVertical
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -249,6 +265,24 @@ export default function RecordInput() {
       [next[indexA], next[indexB]] = [next[indexB], next[indexA]];
       return next;
     });
+  };
+
+  // dnd-kit センサー設定（タッチ対応）
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } })
+  );
+
+  // ドラッグ終了時の処理
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const activeIndex = Number(active.id);
+    const overIndex = Number(over.id);
+    if (activeIndex < 0 || overIndex < 0 || activeIndex >= MAX_SLOTS || overIndex >= MAX_SLOTS) return;
+    setSlots(prev => arrayMove(prev, activeIndex, overIndex));
+    setSlotSearchQueries(prev => arrayMove(prev, activeIndex, overIndex));
+    setSlotShowLists(prev => arrayMove(prev, activeIndex, overIndex));
   };
 
   // 全利用者リスト（利用者選択UI用）
@@ -695,40 +729,39 @@ export default function RecordInput() {
           </div>{/* end flex-col gap-1.5 */}
         </CardHeader>
         <CardContent className="space-y-3">
-          {slots.map((slot, index) => {
-            // 選択済みスロットのリスト（順番入れ替えの上下判定用）
-            const filledIndices = slots.map((s, i) => s.patientName ? i : -1).filter(i => i >= 0);
-            const posInFilled = filledIndices.indexOf(index);
-            const isFirstFilled = posInFilled === 0;
-            const isLastFilled = posInFilled === filledIndices.length - 1;
-            return (
-              <SlotSelector
-                key={index}
-                index={index}
-                slot={slot}
-                allPatients={allPatients}
-                searchQuery={slotPatientQueries[index]}
-                showList={slotShowLists[index]}
-                onSearchChange={(q) => setSlotSearch(index, q)}
-                onShowListChange={(show) => setSlotShowList(index, show)}
-                onSlotChange={(data) => handleSlotChange(index, data)}
-                slotRef={(el) => { slotRefs.current[index] = el; }}
-                onCandidateSelected={() => {
-                  // 次の空き枠にスクロール
-                  const nextIdx = slots.findIndex((s, i) => i > index && !s.patientName);
-                  if (nextIdx >= 0) {
-                    setTimeout(() => {
-                      slotRefs.current[nextIdx]?.scrollIntoView({ behavior: "smooth", block: "center" });
-                    }, 300);
-                  }
-                }}
-                onMoveUp={slot.patientName && posInFilled > 0 ? () => swapSlots(index, filledIndices[posInFilled - 1]) : undefined}
-                onMoveDown={slot.patientName && posInFilled >= 0 && posInFilled < filledIndices.length - 1 ? () => swapSlots(index, filledIndices[posInFilled + 1]) : undefined}
-                isFirst={isFirstFilled}
-                isLast={isLastFilled}
-              />
-            );
-          })}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={slots.map((_, i) => i)}
+              strategy={verticalListSortingStrategy}
+            >
+              {slots.map((slot, index) => (
+                <SlotSelector
+                  key={index}
+                  index={index}
+                  slot={slot}
+                  allPatients={allPatients}
+                  searchQuery={slotPatientQueries[index]}
+                  showList={slotShowLists[index]}
+                  onSearchChange={(q) => setSlotSearch(index, q)}
+                  onShowListChange={(show) => setSlotShowList(index, show)}
+                  onSlotChange={(data) => handleSlotChange(index, data)}
+                  slotRef={(el) => { slotRefs.current[index] = el; }}
+                  onCandidateSelected={() => {
+                    const nextIdx = slots.findIndex((s, i) => i > index && !s.patientName);
+                    if (nextIdx >= 0) {
+                      setTimeout(() => {
+                        slotRefs.current[nextIdx]?.scrollIntoView({ behavior: "smooth", block: "center" });
+                      }, 300);
+                    }
+                  }}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
         </CardContent>
       </Card>
 
@@ -919,17 +952,22 @@ type SlotSelectorProps = {
   onSlotChange: (data: Partial<VisitSlotData>) => void;
   slotRef?: (el: HTMLDivElement | null) => void;
   onCandidateSelected?: () => void;
-  onMoveUp?: () => void;
-  onMoveDown?: () => void;
-  isFirst?: boolean;
-  isLast?: boolean;
 };
 
 function SlotSelector({
   index, slot, allPatients, searchQuery, showList,
   onSearchChange, onShowListChange, onSlotChange,
-  slotRef, onCandidateSelected, onMoveUp, onMoveDown, isFirst, isLast
+  slotRef, onCandidateSelected
 }: SlotSelectorProps) {
+  const isSelected = !!slot.patientName;
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: index, disabled: !isSelected });
   const slotNumber = index + 1;
   const [isListening, setIsListening] = useState(false);
   const [voiceCandidates, setVoiceCandidates] = useState<Array<{ id: number; name: string; team: string | null }>>([]);
@@ -1049,14 +1087,24 @@ function SlotSelector({
     recognition.start();
   }, [isListening, allPatients, slot.team, onSlotChange, onSearchChange, onShowListChange]);
 
-  const isSelected = !!slot.patientName;
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  };
 
   return (
     <div
-      ref={slotRef}
+      ref={(el) => {
+        setNodeRef(el);
+        slotRef?.(el);
+      }}
+      style={style}
       className={cn(
         "rounded-lg border p-2.5 transition-colors",
-        isSelected ? "border-primary/40 bg-primary/5" : "border-border bg-background"
+        isSelected ? "border-primary/40 bg-primary/5" : "border-border bg-background",
+        isDragging && "shadow-lg"
       )}
     >
       <div className="flex items-center gap-2">
@@ -1082,27 +1130,16 @@ function SlotSelector({
             <span className="text-sm font-medium text-foreground truncate flex-1">
               {slot.patientName}
             </span>
-            {/* 順番入れ替えボタン */}
-            {!isFirst && onMoveUp && (
-              <button
-                type="button"
-                onClick={onMoveUp}
-                className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors p-1 rounded"
-                title="一つ上に移動"
-              >
-                <ChevronUp className="w-3.5 h-3.5" />
-              </button>
-            )}
-            {!isLast && onMoveDown && (
-              <button
-                type="button"
-                onClick={onMoveDown}
-                className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors p-1 rounded"
-                title="一つ下に移動"
-              >
-                <ChevronDown className="w-3.5 h-3.5" />
-              </button>
-            )}
+            {/* ドラッグハンドル（選択済みスロットのみ） */}
+            <button
+              type="button"
+              className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors p-1 rounded cursor-grab active:cursor-grabbing touch-none"
+              title="ドラッグして順番を変更"
+              {...attributes}
+              {...listeners}
+            >
+              <GripVertical className="w-3.5 h-3.5" />
+            </button>
             {/* 訪問チェック項目カードへスクロール */}
             <button
               type="button"
