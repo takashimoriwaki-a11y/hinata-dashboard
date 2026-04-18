@@ -5566,7 +5566,7 @@ export default function Dashboard() {
     : "linear-gradient(135deg, rgba(249,115,22,0.55) 0%, rgba(251,146,60,0.45) 50%, rgba(251,191,36,0.50) 100%)";
 
   return (
-    <div ref={scrollContainerRef as React.RefObject<HTMLDivElement>} className="p-3 md:p-4 pb-6 md:pb-4 pr-12 md:pr-14 space-y-3 md:space-y-4 max-w-screen-xl mx-auto">
+    <div ref={scrollContainerRef as React.RefObject<HTMLDivElement>} className="p-3 md:p-4 pb-6 md:pb-4 pr-4 space-y-3 md:space-y-4 max-w-screen-xl mx-auto">
       {/* ウェルカムバナー */}
       <div className="relative rounded-2xl overflow-hidden shadow-md fade-in-up isolate">
         {/* 月別背景画像 */}
