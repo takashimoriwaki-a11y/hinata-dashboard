@@ -3532,8 +3532,9 @@ function TasksCard() {
       )}
       <Card id="today-tasks" className="shadow-sm">
         <CardHeader className="pb-2">
-          <div className="flex items-center justify-between gap-1 flex-nowrap">
-            <CardTitle className="text-base font-bold flex items-center gap-1.5 text-foreground flex-shrink-0 min-w-0">
+          {/* 1行目：タイトル + 「すべて見る」 */}
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base font-bold flex items-center gap-1.5 text-foreground min-w-0">
               <ClipboardList className="w-4 h-4 text-primary flex-shrink-0" />
               <span className="tracking-wide whitespace-nowrap">今日の個人タスク</span>
               {todayPersonalTasks.length > 0 && (
@@ -3542,20 +3543,21 @@ function TasksCard() {
                 </span>
               )}
             </CardTitle>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer select-none whitespace-nowrap">
-                <input
-                  type="checkbox"
-                  checked={hideCompleted}
-                  onChange={(e) => setHideCompleted(e.target.checked)}
-                  className="w-3 h-3 cursor-pointer"
-                />
-                完了済みを非表示
-              </label>
-              <Link href="/personal-tasks">
-                <span className="text-xs text-primary hover:underline cursor-pointer whitespace-nowrap">すべて見る</span>
-              </Link>
-            </div>
+            <Link href="/personal-tasks">
+              <span className="text-xs text-primary hover:underline cursor-pointer whitespace-nowrap flex-shrink-0">すべて見る</span>
+            </Link>
+          </div>
+          {/* 2行目：「完了済みを非表示」チェックボックス */}
+          <div className="flex items-center gap-1 mt-1">
+            <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer select-none whitespace-nowrap">
+              <input
+                type="checkbox"
+                checked={hideCompleted}
+                onChange={(e) => setHideCompleted(e.target.checked)}
+                className="w-3 h-3 cursor-pointer"
+              />
+              完了済みを非表示
+            </label>
           </div>
         </CardHeader>
         <CardContent className="space-y-2">
