@@ -34,6 +34,7 @@ import { getTeamButtonClass, getTeamButtonStyle } from "@shared/teamColors";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { VisitSlotCard } from "@/components/VisitSlotCard";
+import { VoiceMicButton } from "@/components/VoiceMicButton";
 
 // Web Speech API の型定義
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -726,20 +727,18 @@ export default function RecordInput() {
             {/* 2行目：ボタン群 */}
             <div className="flex items-center gap-1.5">
               {/* 一括音声入力ボタン */}
-              <button
-                type="button"
-                onClick={startBulkVoiceInput}
-                className={cn(
-                  "flex items-center gap-1 px-2 py-1.5 rounded-lg border text-xs font-medium transition-colors whitespace-nowrap",
-                  isBulkListening
-                    ? "bg-red-500 border-red-500 text-white animate-pulse"
-                    : "border-primary/40 text-primary hover:bg-primary/10"
-                )}
-                title={isBulkListening ? "録音停止（連続音声入力中）" : "音声で利用者を連続入力"}
-              >
-                {isBulkListening ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
-                {isBulkListening ? `停止${bulkRecognizedCount > 0 ? ` (${bulkRecognizedCount}名)` : ""}` : "音声入力"}
-              </button>
+              <VoiceMicButton
+                size="sm"
+                previewMode="tooltip"
+                context="general"
+                externalState={{
+                  isRecording: isBulkListening,
+                  isProcessing: false,
+                  toggleVoice: startBulkVoiceInput,
+                  interimText: "",
+                  silenceCountdown: null,
+                }}
+              />
               <button
                 type="button"
                 onClick={handleResetAll}
