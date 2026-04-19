@@ -782,7 +782,7 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                     selectedPromptBody
                       ? copied
                         ? "bg-emerald-500 dark:bg-emerald-600 text-white shadow-sm"
-                        : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white shadow-md hover:shadow-lg active:scale-95"
+                        : "bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg active:scale-95"
                       : "bg-muted border border-border text-muted-foreground cursor-not-allowed opacity-60"
                   )}
                 >
