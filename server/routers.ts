@@ -3573,11 +3573,15 @@ export const appRouter = router({
     updateRole: protectedProcedure
       .input(z.object({
         userId: z.number(),
-        role: z.enum(["user", "admin"]),
+        role: z.enum(["user", "admin", "super_admin"]),
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
+        }
+        // super_adminへの昇格・降格は特級管理者のみ可能
+        if (input.role === "super_admin" && ctx.user.role !== "super_admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "特級管理者への昇格は特級管理者のみ可能です" });
         }
         await updateStaffRole(input.userId, input.role);
         broadcastEvent("staff");
@@ -3609,7 +3613,7 @@ export const appRouter = router({
         name: z.string().min(1).max(50),
         nameKana: z.string().max(100).optional(),
         team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]),
-        role: z.enum(["user", "admin"]),
+        role: z.enum(["user", "admin", "super_admin"]),
         numberPlate: z.string().max(20).optional(),
       }))
       .mutation(async ({ ctx, input }) => {

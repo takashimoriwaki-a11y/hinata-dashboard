@@ -1890,7 +1890,7 @@ function StaffManagementPanel() {
                     >
                       <Key className="w-3.5 h-3.5" />
                     </button>
-                    {/* 権限切り替え */}
+                    {/* 権限切り替え（user↔adminの切り替え：super_admin以外のスタッフに表示） */}
                     {staff.role !== "super_admin" && (
                       <button
                         onClick={() => updateRole.mutate({ userId: staff.id, role: staff.role === "admin" ? "user" : "admin" })}
@@ -1900,7 +1900,36 @@ function StaffManagementPanel() {
                         {staff.role === "admin" ? <Shield className="w-3.5 h-3.5" /> : <ShieldCheck className="w-3.5 h-3.5" />}
                       </button>
                     )}
-                    {staff.role === "super_admin" && (
+                    {/* 特級管理者への昇格（super_adminのみ操作可能、super_admin以外のスタッフに表示） */}
+                    {currentUser?.role === "super_admin" && staff.role !== "super_admin" && (
+                      <button
+                        onClick={() => {
+                          if (confirm(`${staff.name ?? "このスタッフ"}を特級管理者に昇格しますか？`)) {
+                            updateRole.mutate({ userId: staff.id, role: "super_admin" });
+                          }
+                        }}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-purple-600 hover:bg-purple-50 transition-colors"
+                        title="特級管理者に昇格"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5 text-purple-300" />
+                      </button>
+                    )}
+                    {/* 特級管理者から降格（super_adminのみ操作可能、super_adminスタッフに表示） */}
+                    {currentUser?.role === "super_admin" && staff.role === "super_admin" && (
+                      <button
+                        onClick={() => {
+                          if (confirm(`${staff.name ?? "このスタッフ"}を特級管理者から降格しますか？（管理者に変更）`)) {
+                            updateRole.mutate({ userId: staff.id, role: "admin" });
+                          }
+                        }}
+                        className="p-1.5 rounded-lg text-purple-500 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                        title="特級管理者から降格（管理者に変更）"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {/* 特級管理者は権限変更不可（一般管理者から見た場合） */}
+                    {currentUser?.role !== "super_admin" && staff.role === "super_admin" && (
                       <div
                         className="p-1.5 rounded-lg text-purple-500 cursor-default"
                         title="特級管理者（権限変更不可）"

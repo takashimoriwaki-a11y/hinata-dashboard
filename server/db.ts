@@ -1185,7 +1185,7 @@ export async function deleteStaffAccount(userId: number) {
 }
 
 /** スタッフのロールを変更する（管理者用） */
-export async function updateStaffRole(userId: number, role: "user" | "admin") {
+export async function updateStaffRole(userId: number, role: "user" | "admin" | "super_admin") {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.update(users).set({ role }).where(eq(users.id, userId));
