@@ -1682,12 +1682,13 @@ export default function ScheduleChange() {
         }
       }
 
-      // 利用者名処理: patientLastName または patientName で登録利用者から検索して連携
+        // 利用者名処理: patientLastName または patientName で登録利用者から検索して連携
       // ※ 苗字だけ伝えた場合も含め、常に登録利用者から検索し、直接転記しない
+      // ※ 新規契約・面談は利用者DB連携不要（対象者名は直接入力）
       const lastName = (f as Record<string, unknown>).patientLastName as string | null;
       const searchKey = lastName || f.patientName || null;
 
-      if (searchKey) {
+      if (searchKey && changeType !== "schedule_new_contract") {
         // patientListRef.currentを使用（クロージャ問題回避・最新リストを参照）
         const currentPatientList = patientListRef.current;
         // 1. 苗字の先頭一致検索（スペース区切りの最初のトークン）
@@ -2259,7 +2260,8 @@ export default function ScheduleChange() {
                 sub: "対象者名・対応スタッフ名・日時を一緒に伝えると自動転記されます。",
               },
               schedule_visit_doctor: {
-                main: "○○チームの○○さん、○月○日の14時に訪問診療に同席。",
+                main: "○○チームの○○さん、○月○日の14時に○○クリニックの訪問診療に同席。",
+                sub: "施設名（クリニック名）も一緒に伝えると自動転記されます。",
               },
             };
             const example = exampleMap[changeType] ?? exampleMap[""];
@@ -2840,6 +2842,7 @@ export default function ScheduleChange() {
                   type="date"
                   value={scheduleEndDate}
                   onChange={(e) => setScheduleEndDate(e.target.value)}
+                  className="w-auto"
                 />
               </CardContent>
             </Card>
@@ -2898,7 +2901,7 @@ export default function ScheduleChange() {
                     type="date"
                     value={schedulePostDischargeEndDate}
                     onChange={(e) => setSchedulePostDischargeEndDate(e.target.value)}
-                    className={schedulePostDischargeEndDate && scheduleStartDate ? "bg-primary/5 border-primary/30" : ""}
+                    className={`w-auto ${schedulePostDischargeEndDate && scheduleStartDate ? "bg-primary/5 border-primary/30" : ""}`}
                   />
                   {scheduleStartDate && schedulePostDischargeEndDate && (
                     <p className="text-xs text-muted-foreground">退院日（{scheduleStartDate}）から自動計算しました。手動で変更も可能です。</p>
