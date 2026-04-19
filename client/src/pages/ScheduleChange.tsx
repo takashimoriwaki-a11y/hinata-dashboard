@@ -1074,6 +1074,15 @@ export default function ScheduleChange() {
       const day = String(d.getDate()).padStart(2, "0");
       setSchedulePostDischargeEndDate(`${y}-${m}-${day}`);
     }
+    // 特別指示書: 開始日から14日後を終了日に自動設定
+    if (changeType === "schedule_special_instruction" && value) {
+      const d = new Date(value);
+      d.setDate(d.getDate() + 13); // 開始日を含めて14日後 = 開始日+13日
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      setScheduleEndDate(`${y}-${m}-${day}`);
+    }
   };
   // ログインユーザーの所属チームをデフォルトに設定（初回のみ）
   useEffect(() => {
@@ -1457,7 +1466,22 @@ export default function ScheduleChange() {
               if (prev.trim()) return prev; // 既に入力済みなら上書きしない
               try {
                 const d = new Date(f.fromDatetime!);
-                d.setDate(d.getDate() + 89); // 退院日を含めゆ90日後
+                d.setDate(d.getDate() + 89); // 退院日を含めてﾔ90日後
+                const y = d.getFullYear();
+                const mo = String(d.getMonth() + 1).padStart(2, "0");
+                const day = String(d.getDate()).padStart(2, "0");
+                return `${y}-${mo}-${day}`;
+              } catch { return prev; }
+            });
+          }
+          // 特別指示書の場合、開始日から14日後を終了日に自動計算（未入力の場合のみ）
+          const voiceChangeType = f.changeType || changeType;
+          if (voiceChangeType === "schedule_special_instruction" && f.fromDatetime) {
+            setScheduleEndDate(prev => {
+              if (prev.trim()) return prev; // 既に入力済みなら上書きしない
+              try {
+                const d = new Date(f.fromDatetime!);
+                d.setDate(d.getDate() + 13); // 開始日を含めて14日後
                 const y = d.getFullYear();
                 const mo = String(d.getMonth() + 1).padStart(2, "0");
                 const day = String(d.getDate()).padStart(2, "0");
@@ -1478,8 +1502,9 @@ export default function ScheduleChange() {
 
       if (f.toDatetime) {
         if (isScheduleTypeVoice) {
-          // 予定登録系: toDatetimeをscheduleEndDateに転記
-          setScheduleEndDate(prev => prev.trim() ? prev : f.toDatetime!);
+          // 予定登録系: toDatetimeをscheduleEndDateに転記（日付部分のみ YYYY-MM-DD）
+          const endDateOnly = f.toDatetime!.split('T')[0];
+          setScheduleEndDate(prev => prev.trim() ? prev : endDateOnly);
         } else {
           setToDatetime(prev => prev.trim() ? prev : f.toDatetime!);
         }
