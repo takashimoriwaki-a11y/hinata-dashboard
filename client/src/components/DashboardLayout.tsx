@@ -87,13 +87,12 @@ const externalTools = [
 
 ];
 
-// ボトムナビゲーション（順: 議事録・訪問・ホーム・予定管理・変更連絡）
+// ボトムナビゲーション（順: 議事録・訪問・ホーム・変更連絡）
 const bottomNavItems = [
   { type: "internal", href: "/minutes", icon: BookOpen, label: "議事録", badge: true },
   { type: "internal", href: "/record", icon: MapPin, label: "訪問" },
   { type: "internal", href: "/", icon: LayoutDashboard, label: "ホーム", monthlySignatureBadge: true },
-  { type: "internal", href: "/irregular-schedules", icon: CalendarCheck, label: "予定管理" },
-  { type: "internal", href: "/schedule-change", icon: CalendarClock, label: "変更連絡" },
+  { type: "internal", href: "/schedule-change", icon: CalendarClock, label: "連絡・予定" },
 ];
 
 interface DashboardLayoutProps {

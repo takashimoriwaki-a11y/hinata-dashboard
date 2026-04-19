@@ -47,14 +47,48 @@ import { getTeamButtonClass, getTeamButtonStyle } from "@shared/teamColors";
 
 // 変更種別の定義
 const CHANGE_TYPES = [
-  { value: "visit_change", label: "訪問日時変更", icon: "🔄", color: "bg-blue-100 text-blue-800 border-blue-200" },
-  { value: "visit_cancel", label: "訪問キャンセル", icon: "❌", color: "bg-red-100 text-red-800 border-red-200" },
-  { value: "visit_add", label: "訪問追加", icon: "✅", color: "bg-green-100 text-green-800 border-green-200" },
-  { value: "meeting_add", label: "会議追加", icon: "📅", color: "bg-purple-100 text-purple-800 border-purple-200" },
-  { value: "meeting_change", label: "会議変更", icon: "📝", color: "bg-orange-100 text-orange-800 border-orange-200" },
+  { value: "visit_change", label: "訪問日時変更", icon: "🔄", color: "bg-blue-100 text-blue-800 border-blue-200", group: "visit" },
+  { value: "visit_cancel", label: "訪問キャンセル", icon: "❌", color: "bg-red-100 text-red-800 border-red-200", group: "visit" },
+  { value: "visit_add", label: "訪問追加", icon: "✅", color: "bg-green-100 text-green-800 border-green-200", group: "visit" },
+  { value: "meeting_add", label: "会議追加", icon: "📅", color: "bg-purple-100 text-purple-800 border-purple-200", group: "meeting" },
+  { value: "meeting_change", label: "会議変更", icon: "📝", color: "bg-orange-100 text-orange-800 border-orange-200", group: "meeting" },
+  { value: "schedule_shindan", label: "受診", icon: "🏥", color: "bg-cyan-100 text-cyan-800 border-cyan-200", group: "schedule" },
+  { value: "schedule_short_stay", label: "ショートステイ", icon: "🏨", color: "bg-teal-100 text-teal-800 border-teal-200", group: "schedule" },
+  { value: "schedule_tokubetsu", label: "特別指示書", icon: "📋", color: "bg-amber-100 text-amber-800 border-amber-200", group: "schedule" },
+  { value: "schedule_nyuin", label: "入院", icon: "🏩", color: "bg-rose-100 text-rose-800 border-rose-200", group: "schedule" },
+  { value: "schedule_taiin", label: "退院", icon: "🚶", color: "bg-emerald-100 text-emerald-800 border-emerald-200", group: "schedule" },
+  { value: "schedule_shinki", label: "新規契約・面談", icon: "🤝", color: "bg-indigo-100 text-indigo-800 border-indigo-200", group: "schedule" },
+  { value: "schedule_houmon_shinryo", label: "訪問診療同席", icon: "👨‍⚕️", color: "bg-violet-100 text-violet-800 border-violet-200", group: "schedule" },
 ] as const;
 
 type ChangeType = (typeof CHANGE_TYPES)[number]["value"];
+
+// 予定管理種別の固有フィールド設定
+type ScheduleFieldVisibility = {
+  endDate: boolean;
+  startTime: boolean;
+  endTime: boolean;
+  facilityName: boolean;
+  postDischargeEndDate: boolean;
+};
+const SCHEDULE_FIELD_CONFIG: Partial<Record<ChangeType, ScheduleFieldVisibility>> = {
+  schedule_shindan:          { endDate: false, startTime: true,  endTime: true,  facilityName: true,  postDischargeEndDate: false },
+  schedule_short_stay:       { endDate: true,  startTime: false, endTime: false, facilityName: true,  postDischargeEndDate: false },
+  schedule_tokubetsu:        { endDate: true,  startTime: false, endTime: false, facilityName: false, postDischargeEndDate: false },
+  schedule_nyuin:            { endDate: false, startTime: false, endTime: false, facilityName: true,  postDischargeEndDate: false },
+  schedule_taiin:            { endDate: false, startTime: false, endTime: false, facilityName: true,  postDischargeEndDate: true  },
+  schedule_shinki:           { endDate: false, startTime: true,  endTime: true,  facilityName: false, postDischargeEndDate: false },
+  schedule_houmon_shinryo:   { endDate: false, startTime: true,  endTime: true,  facilityName: false, postDischargeEndDate: false },
+};
+const SCHEDULE_START_DATE_LABEL: Partial<Record<ChangeType, string>> = {
+  schedule_shindan:        "受診日",
+  schedule_short_stay:     "開始日",
+  schedule_tokubetsu:      "開始日",
+  schedule_nyuin:          "入院日",
+  schedule_taiin:          "退院日",
+  schedule_shinki:         "予定日",
+  schedule_houmon_shinryo: "予定日",
+};
 
 const TEAMS = ["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"] as const;
 type Team = (typeof TEAMS)[number];
@@ -1019,6 +1053,13 @@ export default function ScheduleChange() {
   const [meetingStaff, setMeetingStaff] = useState<string[]>([]);
   const [reason, setReason] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  // 予定管理固有フィールド
+  const [scheduleStartDate, setScheduleStartDate] = useState("");
+  const [scheduleEndDate, setScheduleEndDate] = useState("");
+  const [scheduleStartTime, setScheduleStartTime] = useState("");
+  const [scheduleEndTime, setScheduleEndTime] = useState("");
+  const [scheduleFacilityName, setScheduleFacilityName] = useState("");
+  const [schedulePostDischargeEndDate, setSchedulePostDischargeEndDate] = useState("");
   // ログインユーザーの所属チームをデフォルトに設定（初回のみ）
   useEffect(() => {
     if (!user?.team) return;
@@ -1099,7 +1140,7 @@ export default function ScheduleChange() {
   }, [team]);
   const { data: patientList = [] } = trpc.patients.list.useQuery(
     { team: patientTeam },
-    { enabled: changeType === "visit_change" || changeType === "visit_cancel" || changeType === "visit_add" }
+    { enabled: changeType === "visit_change" || changeType === "visit_cancel" || changeType === "visit_add" || changeType.startsWith("schedule_") }
   );
 
   // 下書き保存のトリガー（各入力変更時に呼び出す）
@@ -1173,6 +1214,12 @@ export default function ScheduleChange() {
       setMeetingName("");
       setMeetingStaff([]);
       setReason("");
+      setScheduleStartDate("");
+      setScheduleEndDate("");
+      setScheduleStartTime("");
+      setScheduleEndTime("");
+      setScheduleFacilityName("");
+      setSchedulePostDischargeEndDate("");
       // 音声入力関連のstateも全てリセット
       setVoiceText("");
       setVoiceError(null);
@@ -1189,6 +1236,9 @@ export default function ScheduleChange() {
 
   const isVisitType = changeType === "visit_change" || changeType === "visit_cancel" || changeType === "visit_add";
   const isMeetingType = changeType === "meeting_add" || changeType === "meeting_change";
+  const isScheduleType = changeType.startsWith("schedule_");
+  const scheduleFieldConfig = isScheduleType ? SCHEDULE_FIELD_CONFIG[changeType as ChangeType] : undefined;
+  const scheduleStartDateLabel = isScheduleType ? (SCHEDULE_START_DATE_LABEL[changeType as ChangeType] ?? "予定日") : "予定日";
 
   const handleSubmit = () => {
     if (!changeType) {
@@ -1207,18 +1257,40 @@ export default function ScheduleChange() {
       toast.error("変更前の日時を入力してください");
       return;
     }
+    if (isScheduleType && !patientName) {
+      toast.error("利用者名を入力してください");
+      return;
+    }
+    if (isScheduleType && !scheduleStartDate) {
+      toast.error(`${scheduleStartDateLabel}を入力してください`);
+      return;
+    }
+
+    // 予定管理固有フィールドを備考欄にまとめる
+    let scheduleNotes = "";
+    if (isScheduleType) {
+      const parts: string[] = [];
+      if (scheduleStartDate) parts.push(`${scheduleStartDateLabel}: ${scheduleStartDate}`);
+      if (scheduleFieldConfig?.endDate && scheduleEndDate) parts.push(`終了日: ${scheduleEndDate}`);
+      if (scheduleFieldConfig?.startTime && scheduleStartTime) parts.push(`開始時刻: ${scheduleStartTime}`);
+      if (scheduleFieldConfig?.endTime && scheduleEndTime) parts.push(`終了時刻: ${scheduleEndTime}`);
+      if (scheduleFieldConfig?.facilityName && scheduleFacilityName) parts.push(`施設名: ${scheduleFacilityName}`);
+      if (scheduleFieldConfig?.postDischargeEndDate && schedulePostDischargeEndDate) parts.push(`退院後特別指示書期間終了: ${schedulePostDischargeEndDate}`);
+      if (reason) parts.push(`備考: ${reason}`);
+      scheduleNotes = parts.join(" / ");
+    }
 
     const payload = {
       changeType,
       team: team || undefined,
-      patientName: isVisitType ? patientName : undefined,
+      patientName: (isVisitType || isScheduleType) ? patientName : undefined,
       fromDatetime: fromDatetime ? new Date(fromDatetime).toISOString() : undefined,
       toDatetime: toDatetime ? new Date(toDatetime).toISOString() : undefined,
       staffBefore: staffBefore || undefined,
       staffAfter: staffAfter || undefined,
       meetingName: isMeetingType ? meetingName : undefined,
       meetingStaff: isMeetingType && meetingStaff.length > 0 ? JSON.stringify(meetingStaff) : undefined,
-      reason: reason || undefined,
+      reason: isScheduleType ? (scheduleNotes || undefined) : (reason || undefined),
     };
 
     setLastRecord({
@@ -1251,6 +1323,12 @@ export default function ScheduleChange() {
       setMeetingName("");
       setMeetingStaff([]);
       setReason("");
+      setScheduleStartDate("");
+      setScheduleEndDate("");
+      setScheduleStartTime("");
+      setScheduleEndTime("");
+      setScheduleFacilityName("");
+      setSchedulePostDischargeEndDate("");
       setVoiceTranscribed(false);
       setFeedbackSent(false);
       return;
@@ -1274,6 +1352,12 @@ export default function ScheduleChange() {
     setMeetingName("");
     setMeetingStaff([]);
     setReason("");
+    setScheduleStartDate("");
+    setScheduleEndDate("");
+    setScheduleStartTime("");
+    setScheduleEndTime("");
+    setScheduleFacilityName("");
+    setSchedulePostDischargeEndDate("");
     setSubmitted(false);
     setLastRecord(null);
     setMissingVoiceFields([]);
@@ -1578,7 +1662,7 @@ export default function ScheduleChange() {
           <CalendarClock className="w-5 h-5 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-bold text-foreground">スケジュール変更連絡</h1>
+          <h1 className="text-lg font-bold text-foreground">連絡・予定登録</h1>
           <p className="text-xs text-muted-foreground">入力後、スプレッドシートに自動転記されます</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -1963,44 +2047,84 @@ export default function ScheduleChange() {
       {/* 変更種別選択 */}
       <Card id="sc-change-type-card">
         <CardHeader className="pb-2 pt-4">
-          <CardTitle className="text-sm font-semibold">変更の種別を選択</CardTitle>
+          <CardTitle className="text-sm font-semibold">種別を選択</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-2">
-          {CHANGE_TYPES.map((type) => (
-            <button
-              key={type.value}
-              onClick={() => {
-                setChangeType(type.value);
-                // 種別変更時に関連フィールドをリセット
-                setPatientName("");
-                setFromDatetime("");
-                setToDatetime("");
-                setStaffBefore("");
-                setStaffAfter("");
-                setMeetingName("");
-                setMeetingStaff([]);
-                setReason("");
-                triggerDraftSave({ changeType: type.value, patientName: "", fromDatetime: "", toDatetime: "", staffBefore: "", staffAfter: "", meetingName: "", meetingStaff: [], reason: "" });
-              }}
-              className={cn(
-                "flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all",
-                changeType === type.value
-                  ? "border-primary bg-primary/5 shadow-sm"
-                  : "border-border bg-card hover:bg-muted/50"
-              )}
-            >
-              <span className="text-xl">{type.icon}</span>
-              <span className={cn(
-                "text-sm font-medium",
-                changeType === type.value ? "text-primary" : "text-foreground"
-              )}>
-                {type.label}
-              </span>
-              {changeType === type.value && (
-                <CheckCircle2 className="w-4 h-4 text-primary ml-auto" />
-              )}
-            </button>
-          ))}
+        <CardContent className="space-y-4">
+          {/* 訪問系 */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">📅 訪問変更</p>
+            <div className="grid grid-cols-1 gap-2">
+              {CHANGE_TYPES.filter(t => t.group === "visit").map((type) => (
+                <button
+                  key={type.value}
+                  onClick={() => {
+                    setChangeType(type.value);
+                    setPatientName(""); setFromDatetime(""); setToDatetime(""); setStaffBefore(""); setStaffAfter(""); setMeetingName(""); setMeetingStaff([]); setReason("");
+                    setScheduleStartDate(""); setScheduleEndDate(""); setScheduleStartTime(""); setScheduleEndTime(""); setScheduleFacilityName(""); setSchedulePostDischargeEndDate("");
+                    triggerDraftSave({ changeType: type.value, patientName: "", fromDatetime: "", toDatetime: "", staffBefore: "", staffAfter: "", meetingName: "", meetingStaff: [], reason: "" });
+                  }}
+                  className={cn(
+                    "flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all",
+                    changeType === type.value ? "border-primary bg-primary/5 shadow-sm" : "border-border bg-card hover:bg-muted/50"
+                  )}
+                >
+                  <span className="text-xl">{type.icon}</span>
+                  <span className={cn("text-sm font-medium", changeType === type.value ? "text-primary" : "text-foreground")}>{type.label}</span>
+                  {changeType === type.value && <CheckCircle2 className="w-4 h-4 text-primary ml-auto" />}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* 会議系 */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">📝 会議</p>
+            <div className="grid grid-cols-1 gap-2">
+              {CHANGE_TYPES.filter(t => t.group === "meeting").map((type) => (
+                <button
+                  key={type.value}
+                  onClick={() => {
+                    setChangeType(type.value);
+                    setPatientName(""); setFromDatetime(""); setToDatetime(""); setStaffBefore(""); setStaffAfter(""); setMeetingName(""); setMeetingStaff([]); setReason("");
+                    setScheduleStartDate(""); setScheduleEndDate(""); setScheduleStartTime(""); setScheduleEndTime(""); setScheduleFacilityName(""); setSchedulePostDischargeEndDate("");
+                    triggerDraftSave({ changeType: type.value, patientName: "", fromDatetime: "", toDatetime: "", staffBefore: "", staffAfter: "", meetingName: "", meetingStaff: [], reason: "" });
+                  }}
+                  className={cn(
+                    "flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all",
+                    changeType === type.value ? "border-primary bg-primary/5 shadow-sm" : "border-border bg-card hover:bg-muted/50"
+                  )}
+                >
+                  <span className="text-xl">{type.icon}</span>
+                  <span className={cn("text-sm font-medium", changeType === type.value ? "text-primary" : "text-foreground")}>{type.label}</span>
+                  {changeType === type.value && <CheckCircle2 className="w-4 h-4 text-primary ml-auto" />}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* 予定管理系 */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">📆 予定登録</p>
+            <div className="grid grid-cols-2 gap-2">
+              {CHANGE_TYPES.filter(t => t.group === "schedule").map((type) => (
+                <button
+                  key={type.value}
+                  onClick={() => {
+                    setChangeType(type.value);
+                    setPatientName(""); setFromDatetime(""); setToDatetime(""); setStaffBefore(""); setStaffAfter(""); setMeetingName(""); setMeetingStaff([]); setReason("");
+                    setScheduleStartDate(""); setScheduleEndDate(""); setScheduleStartTime(""); setScheduleEndTime(""); setScheduleFacilityName(""); setSchedulePostDischargeEndDate("");
+                    triggerDraftSave({ changeType: type.value, patientName: "", fromDatetime: "", toDatetime: "", staffBefore: "", staffAfter: "", meetingName: "", meetingStaff: [], reason: "" });
+                  }}
+                  className={cn(
+                    "flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all",
+                    changeType === type.value ? "border-primary bg-primary/5 shadow-sm" : "border-border bg-card hover:bg-muted/50"
+                  )}
+                >
+                  <span className="text-xl">{type.icon}</span>
+                  <span className={cn("text-sm font-medium", changeType === type.value ? "text-primary" : "text-foreground")}>{type.label}</span>
+                  {changeType === type.value && <CheckCircle2 className="w-4 h-4 text-primary ml-auto" />}
+                </button>
+              ))}
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -2249,6 +2373,147 @@ export default function ScheduleChange() {
         </>
       )}
 
+      {/* 予定管理系フォーム */}
+      {isScheduleType && (
+        <>
+          {/* チーム選択 */}
+          <Card id="sc-team-card">
+            <CardHeader className="pb-2 pt-4">
+              <CardTitle className="text-sm font-semibold">担当チーム</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {TEAMS.filter(t => t !== "事務員" && t !== "全チーム").map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => { setTeam(t); setPatientName(""); }}
+                    className={cn(
+                      "px-3 py-1.5 rounded-full text-sm font-medium border transition-all",
+                      getTeamButtonClass(t, team === t)
+                    )}
+                    style={getTeamButtonStyle(t, team === t)}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 利用者名 */}
+          <PatientAutocomplete
+            patientList={patientList}
+            value={patientName}
+            onChange={(name) => setPatientName(name)}
+            onTeamSelect={(t) => setTeam(t as Team)}
+            id="sc-patient-name"
+          />
+
+          {/* 開始日 */}
+          <Card>
+            <CardHeader className="pb-2 pt-4">
+              <CardTitle className="text-sm font-semibold">
+                {scheduleStartDateLabel} <span className="text-destructive">*</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Input
+                type="date"
+                value={scheduleStartDate}
+                onChange={(e) => setScheduleStartDate(e.target.value)}
+              />
+            </CardContent>
+          </Card>
+
+          {/* 終了日（必要な種別のみ） */}
+          {scheduleFieldConfig?.endDate && (
+            <Card>
+              <CardHeader className="pb-2 pt-4">
+                <CardTitle className="text-sm font-semibold">終了日</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Input
+                  type="date"
+                  value={scheduleEndDate}
+                  onChange={(e) => setScheduleEndDate(e.target.value)}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 開始時刻・終了時刻（必要な種別のみ） */}
+          {(scheduleFieldConfig?.startTime || scheduleFieldConfig?.endTime) && (
+            <Card>
+              <CardHeader className="pb-2 pt-4">
+                <CardTitle className="text-sm font-semibold">時刻</CardTitle>
+              </CardHeader>
+              <CardContent className="flex gap-3">
+                {scheduleFieldConfig?.startTime && (
+                  <div className="flex-1">
+                    <Label className="text-xs text-muted-foreground mb-1 block">開始</Label>
+                    <Input type="time" value={scheduleStartTime} onChange={(e) => setScheduleStartTime(e.target.value)} />
+                  </div>
+                )}
+                {scheduleFieldConfig?.endTime && (
+                  <div className="flex-1">
+                    <Label className="text-xs text-muted-foreground mb-1 block">終了</Label>
+                    <Input type="time" value={scheduleEndTime} onChange={(e) => setScheduleEndTime(e.target.value)} />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 施設名（必要な種別のみ） */}
+          {scheduleFieldConfig?.facilityName && (
+            <Card>
+              <CardHeader className="pb-2 pt-4">
+                <CardTitle className="text-sm font-semibold">施設名</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Input
+                  placeholder="例：こころクリニック、大和郡山市立病院..."
+                  value={scheduleFacilityName}
+                  onChange={(e) => setScheduleFacilityName(e.target.value)}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 退院後特別指示書期間終了日（退院のみ） */}
+          {scheduleFieldConfig?.postDischargeEndDate && (
+            <Card>
+              <CardHeader className="pb-2 pt-4">
+                <CardTitle className="text-sm font-semibold">退院後特別指示書期間終了日</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Input
+                  type="date"
+                  value={schedulePostDischargeEndDate}
+                  onChange={(e) => setSchedulePostDischargeEndDate(e.target.value)}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 備考 */}
+          <Card>
+            <CardHeader className="pb-2 pt-4">
+              <CardTitle className="text-sm font-semibold">備考</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                placeholder="特記事項があれば入力してください..."
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                rows={3}
+                className="resize-none"
+              />
+            </CardContent>
+          </Card>
+        </>
+      )}
+
       {/* 入力内容プレビュー（変更種別が選択されている場合） */}
       {changeType && (
         <Card className="border-primary/20 bg-primary/5">
@@ -2338,8 +2603,22 @@ export default function ScheduleChange() {
               </div>
             )}
 
+            {/* 予定管理情報 */}
+            {isScheduleType && scheduleStartDate && (
+              <div className="rounded-xl border border-border bg-background p-3 space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">予定情報</p>
+                {scheduleStartDate && <p className="text-sm text-foreground">{scheduleStartDateLabel}: {scheduleStartDate}</p>}
+                {scheduleFieldConfig?.endDate && scheduleEndDate && <p className="text-sm text-foreground">終了日: {scheduleEndDate}</p>}
+                {scheduleFieldConfig?.startTime && scheduleStartTime && <p className="text-sm text-foreground">開始: {scheduleStartTime}</p>}
+                {scheduleFieldConfig?.endTime && scheduleEndTime && <p className="text-sm text-foreground">終了: {scheduleEndTime}</p>}
+                {scheduleFieldConfig?.facilityName && scheduleFacilityName && <p className="text-sm text-foreground">施設名: {scheduleFacilityName}</p>}
+                {scheduleFieldConfig?.postDischargeEndDate && schedulePostDischargeEndDate && <p className="text-sm text-foreground">退院後特別指示書期間終了: {schedulePostDischargeEndDate}</p>}
+                {reason && <p className="text-sm text-foreground">備考: {reason}</p>}
+              </div>
+            )}
+
             {/* 変更理由 */}
-            {reason && (
+            {reason && !isScheduleType && (
               <div className="rounded-xl border border-border bg-background p-3">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{changeType === "visit_cancel" ? "キャンセル理由・備考" : isMeetingType ? "備考" : "変更理由・備考"}</p>
                 <p className="text-sm text-foreground">{reason}</p>

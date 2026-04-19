@@ -407,8 +407,8 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                 className={cn(
                   "flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border transition-all",
                   completed
-                    ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400"
-                    : "bg-background border-border hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:border-emerald-300 dark:hover:border-emerald-700 hover:text-emerald-600 dark:hover:text-emerald-400 text-muted-foreground"
+                    ? "bg-primary/10 border-primary/40 text-primary"
+                    : "bg-background border-border hover:bg-primary/10 hover:border-primary/40 hover:text-primary text-muted-foreground"
                 )}
                 title={completed ? "完了を取り消す" : "訪問完了にする"}
               >

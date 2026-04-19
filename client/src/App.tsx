@@ -14,7 +14,7 @@ import Admin from "./pages/Admin";
 import ScheduleChange from "./pages/ScheduleChange";
 import ScheduleChangeHistory from "./pages/ScheduleChangeHistory";
 import PersonalTasks from "./pages/PersonalTasks";
-import IrregularSchedules from "./pages/IrregularSchedules";
+// IrregularSchedules is now merged into ScheduleChange
 import NewContract from "./pages/NewContract";
 import ScheduleManagement from "./pages/ScheduleManagement";
 import Minutes from "./pages/Minutes";
@@ -80,7 +80,7 @@ function Router() {
               <Route path={"/schedule-change"} component={ScheduleChange} />
               <Route path={"/schedule-change-history"} component={ScheduleChangeHistory} />
               <Route path={"/personal-tasks"} component={PersonalTasks} />
-              <Route path={"/irregular-schedules"} component={IrregularSchedules} />
+              <Route path={"/irregular-schedules"} component={() => { window.location.replace("/schedule-change"); return null; }} />
               <Route path={"/new-contract"} component={NewContract} />
               <Route path={"/schedule-management"} component={ScheduleManagement} />
               <Route path={"/minutes"} component={Minutes} />
