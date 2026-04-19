@@ -1489,13 +1489,17 @@ export default function ScheduleChange() {
       // 予定登録系の固有フィールド転記
       const scheduleFacility = (f as Record<string, unknown>).scheduleFacilityName as string | null;
       const schedulePostDischarge = (f as Record<string, unknown>).schedulePostDischargeEndDate as string | null;
+      const scheduleTargetNameFromLLM = (f as Record<string, unknown>).scheduleTargetName as string | null;
       if (isScheduleTypeVoice) {
         if (scheduleFacility) { setScheduleFacilityName(prev => prev.trim() ? prev : scheduleFacility); applied++; }
         if (schedulePostDischarge) { setSchedulePostDischargeEndDate(prev => prev.trim() ? prev : schedulePostDischarge); applied++; }
-        // 新規契約・面談の対象者名はpatientNameフィールドに入れる（直接入力）
-        if (f.changeType === "schedule_new_contract" && f.patientName) {
-          setScheduleNewContractTargetName(prev => prev.trim() ? prev : f.patientName!);
-          applied++;
+        // 新規契約・面談の対象者名：LLMがscheduleTargetNameを返した場合はそちらを優先し、なければpatientNameを使用
+        if (f.changeType === "schedule_new_contract") {
+          const targetName = scheduleTargetNameFromLLM || f.patientName || null;
+          if (targetName) {
+            setScheduleNewContractTargetName(prev => prev.trim() ? prev : targetName);
+            applied++;
+          }
         }
       }
 

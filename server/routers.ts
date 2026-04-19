@@ -3950,6 +3950,14 @@ export const appRouter = router({
             return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
           } catch { return dt; }
         };
+        // 日付のみ（YYYY-MM-DD → YYYY/MM/DD）に変換する関数
+        const fmtDate = (d: string | null | undefined): string => {
+          if (!d) return "";
+          // YYYY-MM-DD形式の場合はスラッシュ切り替えのみ
+          const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+          if (m) return `${m[1]}/${m[2]}/${m[3]}`;
+          return d;
+        };
 
         // 入力日時
         const createdAt = record.createdAt ? fmtDt(record.createdAt.toISOString()) : "";
@@ -3969,7 +3977,7 @@ export const appRouter = router({
           record.meetingStaff ? (() => { try { return JSON.parse(record.meetingStaff!).join("、"); } catch { return record.meetingStaff ?? ""; } })() : "", // K: 会議参加スタッフ
           record.reason ?? "",                          // L: 変更理由・備考
           record.scheduleFacility ?? "",                 // M: 施設名
-          record.schedulePostDischargeEndDate ?? "",     // N: 退院後3か月終了日
+          fmtDate(record.schedulePostDischargeEndDate),   // N: 退院後3か月終了日（YYYY/MM/DD）
           record.scheduleTargetName ?? "",               // O: 対象者名
           record.scheduleStaff ? (() => { try { return JSON.parse(record.scheduleStaff!).join("、"); } catch { return record.scheduleStaff ?? ""; } })() : "", // P: 対応スタッフ
         ];
@@ -4169,7 +4177,17 @@ export const appRouter = router({
 - meetingName: 会議名
 - meetingStaff: 参加スタッフ名または対応スタッフ名の配列（例: ["森脇", "田中"]）。新規契約・面談の「対応スタッフ」もここに入れる
 - reason: 変更理由・備考。「～のため」「～なので」「～だから」「～の都合」「体調不良」「急用」「病院受診」「家族の都合」「仕事の都合」「訪問拒否」「入院」「外出中」「デイサービス」「通院」「受診」「施設入所」など、理由・事情を示す語句や文を抽出してください。理由が明示されていない場合はnullを返してください。
-- scheduleFacilityName: 予定登録系の施設名・病院名・クリニック名（例：「大和郡山病院」「〇〇クリニック」）。変更連絡系ではnull
+- scheduleFacilityName: 予定登録系の施設名・病院名・クリニック名。変更連絡系ではnull。
+  抽出例：
+  「大和郡山病院に受診」→ scheduleFacilityName="大和郡山病院"
+  「山田クリニックで診察」→ scheduleFacilityName="山田クリニック"
+  「天理市立病院に入院」→ scheduleFacilityName="天理市立病院"
+  「施設名がない」→ scheduleFacilityName=null
+- scheduleTargetName: 新規契約・面談（schedule_new_contract）の対象者名。「対象者」「相手」「方」「名前」「新規」などと共に言及された人物名。それ以外はnull。
+  抽出例：
+  「山田さんの初回面談」→ scheduleTargetName="山田"（patientNameと別項目に設定）
+  「田中花子さんの新規契約」→ scheduleTargetName="田中花子"
+  「対象者名がない」→ scheduleTargetName=null
 - schedulePostDischargeEndDate: 退院後3か月終了日（退院日から90日後）。退院（schedule_discharge）のみ使用。ISO 8601の日付文字列（YYYY-MM-DD）。退院日が分かる場合は自動計算して返す。それ以外はnull
 - fromDatetimeConfidence: fromDatetimeの解析信頼度。「high」「medium」「low」のいずれか。fromDatetimeがなければnull
 - toDatetimeConfidence: toDatetimeの解析信頼度。「high」「medium」「low」のいずれか。toDatetimeがなければnull
@@ -4201,11 +4219,12 @@ export const appRouter = router({
                   meetingStaff: { type: ["array", "null"], items: { type: "string" } },
                   reason: { type: ["string", "null"] },
                   scheduleFacilityName: { type: ["string", "null"] },
+                  scheduleTargetName: { type: ["string", "null"] },
                   schedulePostDischargeEndDate: { type: ["string", "null"] },
                   fromDatetimeConfidence: { type: ["string", "null"] },
                   toDatetimeConfidence: { type: ["string", "null"] },
                 },
-                required: ["changeType", "team", "patientName", "patientLastName", "fromDatetime", "toDatetime", "staffBefore", "staffAfter", "meetingName", "meetingStaff", "reason", "scheduleFacilityName", "schedulePostDischargeEndDate", "fromDatetimeConfidence", "toDatetimeConfidence"],
+                required: ["changeType", "team", "patientName", "patientLastName", "fromDatetime", "toDatetime", "staffBefore", "staffAfter", "meetingName", "meetingStaff", "reason", "scheduleFacilityName", "scheduleTargetName", "schedulePostDischargeEndDate", "fromDatetimeConfidence", "toDatetimeConfidence"],
                 additionalProperties: false,
               },
             },
@@ -4325,6 +4344,13 @@ export const appRouter = router({
               return `${jst.getUTCFullYear()}/${String(jst.getUTCMonth()+1).padStart(2,"0")}/${String(jst.getUTCDate()).padStart(2,"0")} ${String(jst.getUTCHours()).padStart(2,"0")}:${String(jst.getUTCMinutes()).padStart(2,"0")}`;
             } catch { return String(dt ?? ""); }
           };
+          // 日付のみ（YYYY-MM-DD → YYYY/MM/DD）に変換する関数
+          const fmtDate = (d: string | null | undefined): string => {
+            if (!d) return "";
+            const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (m) return `${m[1]}/${m[2]}/${m[3]}`;
+            return d;
+          };
 
           const createdAt = record.createdAt ? fmtDt(record.createdAt) : "";
 
@@ -4344,7 +4370,7 @@ export const appRouter = router({
             // M列：施設名
             record.scheduleFacility ?? "",
             // N列：退院後3か月終了日（週5訪問）
-            record.schedulePostDischargeEndDate ?? "",
+            fmtDate(record.schedulePostDischargeEndDate),
             // O列：対象者名（新規契約・面談用）
             record.scheduleTargetName ?? "",
             // P列：対応スタッフ
@@ -4589,6 +4615,23 @@ export const appRouter = router({
           }
           const sheetId = sheet.properties.sheetId;
 
+          // ① ヘッダー行の値を16列分に更新
+          const newHeaderRow = ["入力日時", "入力者", "変更種別", "チーム", "利用者名", "変更前日時", "変更後日時", "変更前担当スタッフ", "変更後担当スタッフ", "会議名", "会議参加スタッフ", "変更理由・備考", "施設名", "退院後3か月終了日（週5訪問）", "対象者名", "対応スタッフ"];
+          const headerUpdateRes = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}/values/${encodeURIComponent(targetName + "!A1:P1")}?valueInputOption=RAW`,
+            {
+              method: "PUT",
+              headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ values: [newHeaderRow] }),
+            }
+          );
+          if (!headerUpdateRes.ok) {
+            const errText = await headerUpdateRes.text();
+            results.push({ sheetName: targetName, success: false, message: `ヘッダー更新失敗: ${errText.slice(0, 200)}` });
+            continue;
+          }
+
+          // ② 書式・フィルター・列幅を16列対応に更新
           const batchRes = await fetch(
             `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}:batchUpdate`,
             {
@@ -4596,7 +4639,7 @@ export const appRouter = router({
               headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
               body: JSON.stringify({
                 requests: [
-                  // オートフィルターを設定（A〜L列）
+                  // オートフィルターを設定（A〜P列: 16列）
                   {
                     setBasicFilter: {
                       filter: {
@@ -4605,7 +4648,7 @@ export const appRouter = router({
                           startRowIndex: 0,
                           endRowIndex: 1,
                           startColumnIndex: 0,
-                          endColumnIndex: 12,
+                          endColumnIndex: 16,
                         }
                       }
                     }
@@ -4618,7 +4661,7 @@ export const appRouter = router({
                         startRowIndex: 0,
                         endRowIndex: 1,
                         startColumnIndex: 0,
-                        endColumnIndex: 12,
+                        endColumnIndex: 16,
                       },
                       cell: {
                         userEnteredFormat: {
@@ -4631,19 +4674,23 @@ export const appRouter = router({
                       fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,wrapStrategy)",
                     }
                   },
-                  // 列幅の設定
-                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 140 }, fields: "pixelSize" } },
-                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 1, endIndex: 2 }, properties: { pixelSize: 90 }, fields: "pixelSize" } },
-                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 2, endIndex: 3 }, properties: { pixelSize: 110 }, fields: "pixelSize" } },
-                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 3, endIndex: 4 }, properties: { pixelSize: 80 }, fields: "pixelSize" } },
-                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 4, endIndex: 5 }, properties: { pixelSize: 100 }, fields: "pixelSize" } },
-                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 5, endIndex: 6 }, properties: { pixelSize: 140 }, fields: "pixelSize" } },
-                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 6, endIndex: 7 }, properties: { pixelSize: 140 }, fields: "pixelSize" } },
-                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 7, endIndex: 8 }, properties: { pixelSize: 130 }, fields: "pixelSize" } },
-                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 8, endIndex: 9 }, properties: { pixelSize: 130 }, fields: "pixelSize" } },
-                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 9, endIndex: 10 }, properties: { pixelSize: 120 }, fields: "pixelSize" } },
-                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 10, endIndex: 11 }, properties: { pixelSize: 130 }, fields: "pixelSize" } },
-                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 11, endIndex: 12 }, properties: { pixelSize: 200 }, fields: "pixelSize" } },
+                  // 列幅の設定（A〜P: 16列）
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 140 }, fields: "pixelSize" } },   // A: 入力日時
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 1, endIndex: 2 }, properties: { pixelSize: 90 }, fields: "pixelSize" } },    // B: 入力者
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 2, endIndex: 3 }, properties: { pixelSize: 110 }, fields: "pixelSize" } },   // C: 変更種別
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 3, endIndex: 4 }, properties: { pixelSize: 80 }, fields: "pixelSize" } },    // D: チーム
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 4, endIndex: 5 }, properties: { pixelSize: 100 }, fields: "pixelSize" } },   // E: 利用者名
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 5, endIndex: 6 }, properties: { pixelSize: 140 }, fields: "pixelSize" } },   // F: 変更前日時
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 6, endIndex: 7 }, properties: { pixelSize: 140 }, fields: "pixelSize" } },   // G: 変更後日時
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 7, endIndex: 8 }, properties: { pixelSize: 130 }, fields: "pixelSize" } },   // H: 変更前担当スタッフ
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 8, endIndex: 9 }, properties: { pixelSize: 130 }, fields: "pixelSize" } },   // I: 変更後担当スタッフ
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 9, endIndex: 10 }, properties: { pixelSize: 120 }, fields: "pixelSize" } },  // J: 会議名
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 10, endIndex: 11 }, properties: { pixelSize: 130 }, fields: "pixelSize" } }, // K: 会議参加スタッフ
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 11, endIndex: 12 }, properties: { pixelSize: 200 }, fields: "pixelSize" } }, // L: 変更理由・備考
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 12, endIndex: 13 }, properties: { pixelSize: 130 }, fields: "pixelSize" } }, // M: 施設名
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 13, endIndex: 14 }, properties: { pixelSize: 180 }, fields: "pixelSize" } }, // N: 退院後3か月終了日
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 14, endIndex: 15 }, properties: { pixelSize: 120 }, fields: "pixelSize" } }, // O: 対象者名
+                  { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 15, endIndex: 16 }, properties: { pixelSize: 120 }, fields: "pixelSize" } }, // P: 対応スタッフ
                   // 1行目を固定
                   {
                     updateSheetProperties: {
@@ -4659,7 +4706,7 @@ export const appRouter = router({
             }
           );
           if (batchRes.ok) {
-            results.push({ sheetName: targetName, success: true, message: "フィルター・書式を適用しました" });
+            results.push({ sheetName: targetName, success: true, message: "ヘッダー更新・フィルター・書式を適用しました（16列対応）" });
           } else {
             const errText = await batchRes.text();
             results.push({ sheetName: targetName, success: false, message: `適用失敗: ${errText.slice(0, 200)}` });
