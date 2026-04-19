@@ -26,9 +26,9 @@ import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
 /** 無音自動停止までのミリ秒（通常モード） */
-const SILENCE_TIMEOUT_MS = 30_000;
+const SILENCE_TIMEOUT_MS = 45_000;
 /** 無音自動停止までのミリ秒（長文モード） */
-const SILENCE_TIMEOUT_LONG_MS = 60_000;
+const SILENCE_TIMEOUT_LONG_MS = 90_000;
 /** 最大録音時間（ミリ秒） */
 const MAX_RECORDING_MS = 180_000;
 
@@ -271,8 +271,8 @@ export function useVoiceInput({
   // 無音タイムアウト時のメッセージ
   const getAutoStopMessage = useCallback(() => {
     return longTextMode
-      ? "60秒間無音のため自動停止しました"
-      : "30秒間無音のため自動停止しました";
+      ? "90秒間無音のため自動停止しました"
+      : "45秒間無音のため自動停止しました";
   }, [longTextMode]);
 
   /**
@@ -396,6 +396,7 @@ export function useVoiceInput({
           restartCountRef.current += 1;
 
           // 少し待ってから再起動（iOS Safariで即時再起動するとエラーになることがある）
+          // 遅延を短くすることで「途切れ感」を軽減
           setTimeout(() => {
             // 再起動前に再度フラグを確認（その間に手動停止された可能性）
             if (!isRecordingRef.current || manuallyStoppedRef.current) return;
@@ -442,7 +443,7 @@ export function useVoiceInput({
               }
               recognitionRef.current = null;
             }
-          }, 100);
+          }, 30);
           return; // 再起動処理中 → onend完了処理をスキップ
         }
 
@@ -494,10 +495,10 @@ export function useVoiceInput({
           isRecordingRef.current &&
           !manuallyStoppedRef.current &&
           !autoStoppedRef.current &&
-          silenceTimerRef.current !== null &&
           restartCountRef.current < MAX_RESTART_COUNT
         ) {
           // no-speech は onend の前に発火するため、onend に処理を委ねる（何もしない）
+          // silenceTimerRef.current が null でも（無音タイマーが切れていても）再起動を試みる
           return;
         }
 
