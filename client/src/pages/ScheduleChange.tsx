@@ -1450,6 +1450,20 @@ export default function ScheduleChange() {
         if (isScheduleTypeVoice) {
           // 予定登録系: fromDatetimeをscheduleStartDateに転記
           setScheduleStartDate(prev => prev.trim() ? prev : f.fromDatetime!);
+          // 退院の場合、退院後3か月終了日を自動計算（未入力の場合のみ）
+          if (f.changeType === "schedule_discharge" && f.fromDatetime) {
+            setSchedulePostDischargeEndDate(prev => {
+              if (prev.trim()) return prev; // 既に入力済みなら上書きしない
+              try {
+                const d = new Date(f.fromDatetime!);
+                d.setDate(d.getDate() + 89); // 退院日を含めゆ90日後
+                const y = d.getFullYear();
+                const mo = String(d.getMonth() + 1).padStart(2, "0");
+                const day = String(d.getDate()).padStart(2, "0");
+                return `${y}-${mo}-${day}`;
+              } catch { return prev; }
+            });
+          }
         } else {
           setFromDatetime(prev => prev.trim() ? prev : f.fromDatetime!);
         }

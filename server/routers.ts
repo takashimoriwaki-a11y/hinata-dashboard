@@ -4689,6 +4689,23 @@ export const appRouter = router({
                   { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 11, endIndex: 12 }, properties: { pixelSize: 200 }, fields: "pixelSize" } }, // L: 変更理由・備考
                   { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 12, endIndex: 13 }, properties: { pixelSize: 130 }, fields: "pixelSize" } }, // M: 施設名
                   { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 13, endIndex: 14 }, properties: { pixelSize: 180 }, fields: "pixelSize" } }, // N: 退院後3か月終了日
+                  // N列（2行目以降）をテキスト形式（@）に設定（日付として自動解釈されないように）
+                  {
+                    repeatCell: {
+                      range: {
+                        sheetId,
+                        startRowIndex: 1, // 2行目以降（ヘッダー除く）
+                        startColumnIndex: 13, // N列
+                        endColumnIndex: 14,
+                      },
+                      cell: {
+                        userEnteredFormat: {
+                          numberFormat: { type: "TEXT", pattern: "@" },
+                        }
+                      },
+                      fields: "userEnteredFormat.numberFormat",
+                    }
+                  },
                   { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 14, endIndex: 15 }, properties: { pixelSize: 120 }, fields: "pixelSize" } }, // O: 対象者名
                   { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 15, endIndex: 16 }, properties: { pixelSize: 120 }, fields: "pixelSize" } }, // P: 対応スタッフ
                   // 1行目を固定
