@@ -1834,10 +1834,11 @@ function StaffManagementPanel() {
                         variant="outline"
                         className={cn(
                           "text-xs px-1.5 py-0",
+                          staff.role === "super_admin" ? "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-700" :
                           staff.role === "admin" ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-700" : "bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-700"
                         )}
                       >
-                        {staff.role === "admin" ? "管理者" : "スタッフ"}
+                        {staff.role === "super_admin" ? "特級管理者" : staff.role === "admin" ? "管理者" : "スタッフ"}
                       </Badge>
                       {staff.team && (
                         <Badge variant="outline" className="text-xs px-1.5 py-0 bg-muted text-muted-foreground">{staff.team}</Badge>
@@ -1890,13 +1891,23 @@ function StaffManagementPanel() {
                       <Key className="w-3.5 h-3.5" />
                     </button>
                     {/* 権限切り替え */}
-                    <button
-                      onClick={() => updateRole.mutate({ userId: staff.id, role: staff.role === "admin" ? "user" : "admin" })}
-                      className="p-1.5 rounded-lg text-muted-foreground hover:text-amber-600 hover:bg-amber-50 transition-colors"
-                      title={staff.role === "admin" ? "一般スタッフに変更" : "管理者に変更"}
-                    >
-                      {staff.role === "admin" ? <Shield className="w-3.5 h-3.5" /> : <ShieldCheck className="w-3.5 h-3.5" />}
-                    </button>
+                    {staff.role !== "super_admin" && (
+                      <button
+                        onClick={() => updateRole.mutate({ userId: staff.id, role: staff.role === "admin" ? "user" : "admin" })}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                        title={staff.role === "admin" ? "一般スタッフに変更" : "管理者に変更"}
+                      >
+                        {staff.role === "admin" ? <Shield className="w-3.5 h-3.5" /> : <ShieldCheck className="w-3.5 h-3.5" />}
+                      </button>
+                    )}
+                    {staff.role === "super_admin" && (
+                      <div
+                        className="p-1.5 rounded-lg text-purple-500 cursor-default"
+                        title="特級管理者（権限変更不可）"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                      </div>
+                    )}
                     {/* 削除 */}
                     <button
                       onClick={() => {
