@@ -1907,15 +1907,69 @@ export default function ScheduleChange() {
           )}
 
           {/* 例文（常時表示） */}
-          {true && (
-            <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1.5">話しかけの例</p>
-              <div className="rounded-lg bg-background/70 border border-border px-3 py-2 space-y-1.5">
-                <p className="text-xs text-muted-foreground leading-snug">○○チームの○○さん、次回の訪問は明後日の14時から来週火曜の15時に変更。本人の受診のため。</p>
-                <p className="text-xs text-muted-foreground/70 leading-snug border-t border-border pt-1.5">日時の言い方の例：「明日の14時」「来週火曜の午後3時」「再来週月曜の午前10時半」「今週金曜の午後」「4月・十六日の15時」</p>
+          {(() => {
+            // 種別に応じた例文を定義
+            const exampleMap: Record<string, { main: string; sub?: string }> = {
+              "": {
+                main: "○○チームの○○さん、次回の訪問は明後日の14時から来週火曜の15時に変更。本人の受診のため。",
+                sub: "日時の言い方の例：「明日の14時」「来週火曜の午後3時」「再来週月曜の午前10時半」「今週金曜の午後」「4月・十六日の15時」",
+              },
+              visit_change: {
+                main: "○○チームの○○さん、次回の訪問は明後日の14時から来週火曜の15時に変更。本人の受診のため。",
+                sub: "日時の言い方の例：「明日の14時」「来週火曜の午後3時」「再来週月曜の午前10時半」「今週金曜の午後」「4月・十六日の15時」",
+              },
+              visit_cancel: {
+                main: "○○チームの○○さん、今週金曜の訪問はキャンセル。本人の体調不良のため。",
+              },
+              visit_add: {
+                main: "○○チームの○○さん、来週月曜の午前10時に訪問を追加。",
+              },
+              meeting_add: {
+                main: "来月の担当者会議、○月○日の14時から、場所は○○事業所。",
+              },
+              meeting_change: {
+                main: "○月○日の担当者会議、○月○日の15時に変更。",
+              },
+              schedule_medical: {
+                main: "○○チームの○○さん、来週火曜日に○○クリニックに受診。",
+                sub: "施設名（病院・クリニック名）も一緒に伝えると自動転記されます。",
+              },
+              schedule_short_stay: {
+                main: "○○チームの○○さん、○月○日から○月○日まで○○施設にショートステイ。",
+                sub: "開始日・終了日・施設名を一緒に伝えると自動転記されます。",
+              },
+              schedule_special_instruction: {
+                main: "○○チームの○○さん、○月○日から特別指示書の期間が始まります。終了は○月○日。",
+              },
+              schedule_hospitalization: {
+                main: "○○チームの○○さん、○月○日から○○病院に入院。退院予定は○月○日。",
+                sub: "入院先の病院名・退院予定日も一緒に伝えると自動転記されます。",
+              },
+              schedule_discharge: {
+                main: "○○チームの○○さん、○月○日に○○病院を退院。退院後3か月の週5訪問は○月○日まで。",
+                sub: "退院日を伝えると退院後3か月終了日（週5訪問）が自動計算されます。",
+              },
+              schedule_new_contract: {
+                main: "新規契約の面談、○月○日の14時から。対象者は○○さん。対応スタッフは○○と○○。",
+                sub: "対象者名・対応スタッフ名・日時を一緒に伝えると自動転記されます。",
+              },
+              schedule_home_visit_doctor: {
+                main: "○○チームの○○さん、○月○日の14時に訪問診療に同席。",
+              },
+            };
+            const example = exampleMap[changeType] ?? exampleMap[""];
+            return (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">話しかけの例</p>
+                <div className="rounded-lg bg-background/70 border border-border px-3 py-2 space-y-1.5">
+                  <p className="text-xs text-muted-foreground leading-snug">{example.main}</p>
+                  {example.sub && (
+                    <p className="text-xs text-muted-foreground/70 leading-snug border-t border-border pt-1.5">{example.sub}</p>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {isParsingVoice && (
             <div className="flex items-center gap-2 text-xs text-primary">
