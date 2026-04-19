@@ -637,15 +637,20 @@ async function autoCreateAlcoholCheckSpreadsheet(year: number, month: number): P
     // DBに登録された共有先メールアドレスに自動共有
     const shareEmailsValue = await getSetting("sheet_share_emails", "");
     const shareEmails = shareEmailsValue ? shareEmailsValue.split(",").map((e: string) => e.trim()).filter(Boolean) : [];
-    for (const email of shareEmails) {
+    // 特級管理者のメールアドレスを取得して共有リストに追加
+    const { getSuperAdminUsers } = await import("./db");
+    const superAdmins = await getSuperAdminUsers();
+    const superAdminEmails = superAdmins.map((u) => u.email).filter((e): e is string => !!e);
+    const allShareEmails = [...new Set([...shareEmails, ...superAdminEmails])];
+    for (const email of allShareEmails) {
       await drive.permissions.create({
         fileId: spreadsheetId,
         requestBody: { type: "user", role: "writer", emailAddress: email },
         sendNotificationEmail: false,
       }).catch((e: unknown) => console.warn(`[AutoSheet] Share to ${email} failed:`, e));
     }
-    if (shareEmails.length > 0) {
-      console.log(`[AutoSheet] Shared spreadsheet with: ${shareEmails.join(", ")}`);
+    if (allShareEmails.length > 0) {
+      console.log(`[AutoSheet] Shared spreadsheet with: ${allShareEmails.join(", ")} (including ${superAdminEmails.length} super admin(s))`);
     }
 
     // DBに登録
@@ -751,15 +756,20 @@ export async function autoCreateTimesheetSpreadsheet(year: number, month: number
     // DBに登録された共有先メールアドレスに自動共有
     const shareEmailsValue = await getSetting("sheet_share_emails", "");
     const shareEmails = shareEmailsValue ? shareEmailsValue.split(",").map((e: string) => e.trim()).filter(Boolean) : [];
-    for (const email of shareEmails) {
+    // 特級管理者のメールアドレスを取得して共有リストに追加
+    const { getSuperAdminUsers: getSuperAdminsForTimesheet } = await import("./db");
+    const superAdminsForTimesheet = await getSuperAdminsForTimesheet();
+    const superAdminEmailsForTimesheet = superAdminsForTimesheet.map((u) => u.email).filter((e): e is string => !!e);
+    const allShareEmailsForTimesheet = [...new Set([...shareEmails, ...superAdminEmailsForTimesheet])];
+    for (const email of allShareEmailsForTimesheet) {
       await drive.permissions.create({
         fileId: spreadsheetId,
         requestBody: { type: "user", role: "writer", emailAddress: email },
         sendNotificationEmail: false,
       }).catch((e: unknown) => console.warn(`[TimesheetAutoSheet] Share to ${email} failed:`, e));
     }
-    if (shareEmails.length > 0) {
-      console.log(`[TimesheetAutoSheet] Shared spreadsheet with: ${shareEmails.join(", ")}`);
+    if (allShareEmailsForTimesheet.length > 0) {
+      console.log(`[TimesheetAutoSheet] Shared spreadsheet with: ${allShareEmailsForTimesheet.join(", ")} (including ${superAdminEmailsForTimesheet.length} super admin(s))`);
     }
 
     // DBに登録

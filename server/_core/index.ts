@@ -1412,15 +1412,64 @@ function scheduleScheduleChangeCleanup() {
         const cutoffDate = new Date(jstNow.getTime() - deleteDays * 24 * 60 * 60 * 1000);
         const cutoffStr = cutoffDate.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:mm"
 
-        // toDatetime が設定されていて、設定日数以上前のレコードを削除
-        const result = await drizzleDb
+        const { or, and, isNotNull, inArray, notInArray } = await import("drizzle-orm");
+
+        // 予定登録系の種別リスト
+        const scheduleTypes = [
+          "schedule_visit",
+          "schedule_short_stay",
+          "schedule_special_instruction",
+          "schedule_hospitalization",
+          "schedule_discharge",
+          "schedule_new_contract",
+          "schedule_visit_doctor",
+        ] as const;
+
+        // 終了日基準の種別（ショートステイ・特別指示書）
+        const endDateTypes = ["schedule_short_stay", "schedule_special_instruction"] as const;
+        // 開始日基準の種別（受診・入院・退院・新規契約・訪問診療同席）
+        const startDateTypes = ["schedule_visit", "schedule_hospitalization", "schedule_discharge", "schedule_new_contract", "schedule_visit_doctor"] as const;
+
+        // (1) 通常の変更連絡: toDatetime が設定されていて、設定日数以上前のレコードを削除（予定登録系は除外）
+        const result1 = await drizzleDb
           .delete(scheduleChanges)
           .where(
-            lt(scheduleChanges.toDatetime, cutoffStr)
+            and(
+              lt(scheduleChanges.toDatetime, cutoffStr),
+              // @ts-ignore
+              notInArray(scheduleChanges.changeType, [...scheduleTypes]),
+            )
           );
 
-        const deletedCount = (result as any)[0]?.affectedRows ?? 0;
-        console.log(`[ScheduleChangeCleanup] ${deletedCount}件のスケジュール変更連絡を削除しました（${deleteDays}日以前）`);
+        // (2) 終了日基準の種別（ショートステイ・特別指示書）: scheduleEndDate から削除日数以上前
+        const result2 = await drizzleDb
+          .delete(scheduleChanges)
+          .where(
+            and(
+              // @ts-ignore
+              inArray(scheduleChanges.changeType, [...endDateTypes]),
+              isNotNull(scheduleChanges.scheduleEndDate),
+              lt(scheduleChanges.scheduleEndDate, cutoffStr),
+            )
+          );
+
+        // (3) 開始日基準の種別（受診・入院・退院・新規契約・訪問診療同席）: scheduleStartDate から削除日数以上前
+        const result3 = await drizzleDb
+          .delete(scheduleChanges)
+          .where(
+            and(
+              // @ts-ignore
+              inArray(scheduleChanges.changeType, [...startDateTypes]),
+              isNotNull(scheduleChanges.scheduleStartDate),
+              lt(scheduleChanges.scheduleStartDate, cutoffStr),
+            )
+          );
+
+        const deletedCount1 = (result1 as any)[0]?.affectedRows ?? 0;
+        const deletedCount2 = (result2 as any)[0]?.affectedRows ?? 0;
+        const deletedCount3 = (result3 as any)[0]?.affectedRows ?? 0;
+        const totalDeleted = deletedCount1 + deletedCount2 + deletedCount3;
+        console.log(`[ScheduleChangeCleanup] ${totalDeleted}件削除（通常:${deletedCount1}件, 終了日基準:${deletedCount2}件, 開始日基準:${deletedCount3}件）（${deleteDays}日以前）`);
 
         await connection.end();
       } catch (e) {

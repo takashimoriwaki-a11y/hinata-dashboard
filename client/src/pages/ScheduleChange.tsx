@@ -1987,7 +1987,19 @@ export default function ScheduleChange() {
             </div>
             <VoiceMicButton
               onResult={handleVoiceResult}
-              onRecordingChange={(rec) => { setIsVoiceRecording(rec); if (!rec) setVoiceInterimText(""); }}
+              onRecordingChange={(rec) => {
+                setIsVoiceRecording(rec);
+                if (!rec) {
+                  setVoiceInterimText("");
+                } else {
+                  // 録音開始時に前回の転記内容をリセット（やり直し対応）
+                  setVoiceText("");
+                  setVoiceTranscribed(false);
+                  setVoiceError(null);
+                  setMissingVoiceFields([]);
+                  setFeedbackSent(false);
+                }
+              }}
               onInterimTextChange={setVoiceInterimText}
               size="lg"
               disabled={isParsingVoice}
@@ -2245,23 +2257,7 @@ export default function ScheduleChange() {
                   誤変換を報告する
                 </button>
               )}
-              {/* もう一度話すボタン（転記結果の直下に配置） */}
-              <button
-                type="button"
-                onClick={() => {
-                  setVoiceError(null);
-                  if (voiceText) {
-                    setIsParsingVoice(true);
-                    const namesWithKana2 = patientListRef.current.map((p) => ({ name: p.name, kana: (p as { nameKana?: string | null }).nameKana ?? '' }));
-                    const staffNames2 = staffListRef.current.map((s: { name: string }) => s.name);
-                    parseVoice.mutate({ text: voiceText, patientNamesWithKana: namesWithKana2, staffNames: staffNames2 });
-                  }
-                }}
-                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-xs font-medium rounded-lg hover:bg-primary/90 active:scale-95 transition-all"
-              >
-                <span className="text-sm">🎤</span>
-                もう一度話す
-              </button>
+              {/* マイクbotanに統合済み：録音開始時に自動リセットされるため、別途「もう一度話す」ボタンは不要 */}
             </div>
           )}
 
