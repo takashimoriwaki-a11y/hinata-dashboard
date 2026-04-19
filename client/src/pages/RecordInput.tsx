@@ -1224,6 +1224,7 @@ function SlotSelector({
             >
               <ExternalLink className="w-3.5 h-3.5" />
             </button>
+            {/* リセットボタン（選択済み） */}
             <button
               type="button"
               onClick={() => {
@@ -1240,8 +1241,8 @@ function SlotSelector({
         ) : (
           // 未選択：チーム選択 + 利用者検索
           <div className="flex-1 space-y-2">
-            {/* チーム選択 */}
-            <div className="flex gap-1">
+            {/* チーム選択行 + 音声入力ボタン（右端）+ リセットボタン */}
+            <div className="flex gap-1 items-center">
               {(["身体", "天理", "郡山北部", "郡山南部"] as Team[]).map((teamId) => (
                 <button
                   key={teamId}
@@ -1261,6 +1262,37 @@ function SlotSelector({
                   {teamId}
                 </button>
               ))}
+              {/* 音声入力ボタン（右端） */}
+              <button
+                type="button"
+                className={cn(
+                  "flex-shrink-0 h-7 w-7 flex items-center justify-center border rounded-md transition-colors",
+                  isListening
+                    ? "bg-red-500 border-red-500 text-white animate-pulse"
+                    : "hover:bg-muted text-muted-foreground"
+                )}
+                onClick={startVoiceInput}
+                title={isListening ? "録音停止" : "音声で苗字を入力"}
+              >
+                {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+              </button>
+              {/* リセットボタン（チーム選択済みの場合のみ表示） */}
+              {slot.team && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSlotChange({ team: "", patientId: null, patientName: "" });
+                    onSearchChange("");
+                    onShowListChange(false);
+                    setSuggestCandidates([]);
+                    setVoiceCandidates([]);
+                  }}
+                  className="flex-shrink-0 h-7 w-7 flex items-center justify-center border rounded-md hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-colors text-muted-foreground"
+                  title="リセット"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
               {/* 利用者検索 */}
@@ -1281,20 +1313,6 @@ function SlotSelector({
                     onFocus={() => onShowListChange(true)}
                   />
                 </div>
-                {/* 音声入力ボタン */}
-                <button
-                  type="button"
-                  className={cn(
-                    "flex-shrink-0 h-8 w-8 flex items-center justify-center border rounded-md transition-colors",
-                    isListening
-                      ? "bg-red-500 border-red-500 text-white animate-pulse"
-                      : "hover:bg-muted text-muted-foreground"
-                  )}
-                  onClick={startVoiceInput}
-                  title={isListening ? "録音停止" : "音声で苗字を入力"}
-                >
-                  {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-                </button>
                 <button
                   type="button"
                   className="flex-shrink-0 h-8 w-8 flex items-center justify-center border rounded-md hover:bg-muted transition-colors"
