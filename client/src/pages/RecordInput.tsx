@@ -1243,56 +1243,61 @@ function SlotSelector({
           <div className="flex-1 space-y-2">
             {/* チーム選択行 + 音声入力ボタン（右端）+ リセットボタン */}
             <div className="flex gap-1 items-center">
-              {(["身体", "天理", "郡山北部", "郡山南部"] as Team[]).map((teamId) => (
+              {/* チームボタン群 */}
+              <div className="flex gap-1 flex-1 min-w-0">
+                {(["身体", "天理", "郡山北部", "郡山南部"] as Team[]).map((teamId) => (
+                  <button
+                    key={teamId}
+                    type="button"
+                    onClick={() => {
+                      onSlotChange({ team: teamId, patientId: null, patientName: "" });
+                      onSearchChange("");
+                      onShowListChange(true);
+                      setSuggestCandidates([]);
+                    }}
+                    className={cn(
+                      "flex-1 text-xs py-1 rounded-md font-medium transition-all",
+                      getTeamButtonClass(teamId, slot.team === teamId)
+                    )}
+                    style={getTeamButtonStyle(teamId, slot.team === teamId)}
+                  >
+                    {teamId}
+                  </button>
+                ))}
+              </div>
+              {/* 音声入力ボタン＋リセットボタン（右端） */}
+              <div className="flex gap-1 flex-shrink-0 ml-1">
                 <button
-                  key={teamId}
                   type="button"
-                  onClick={() => {
-                    onSlotChange({ team: teamId, patientId: null, patientName: "" });
-                    onSearchChange("");
-                    onShowListChange(true);
-                    setSuggestCandidates([]);
-                  }}
                   className={cn(
-                    "flex-1 text-xs py-1 rounded-md font-medium transition-all",
-                    getTeamButtonClass(teamId, slot.team === teamId)
+                    "h-7 w-7 flex items-center justify-center border rounded-md transition-colors",
+                    isListening
+                      ? "bg-red-500 border-red-500 text-white animate-pulse"
+                      : "hover:bg-muted text-muted-foreground"
                   )}
-                  style={getTeamButtonStyle(teamId, slot.team === teamId)}
+                  onClick={startVoiceInput}
+                  title={isListening ? "録音停止" : "音声で苗字を入力"}
                 >
-                  {teamId}
+                  {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
                 </button>
-              ))}
-              {/* 音声入力ボタン（右端） */}
-              <button
-                type="button"
-                className={cn(
-                  "flex-shrink-0 h-7 w-7 flex items-center justify-center border rounded-md transition-colors",
-                  isListening
-                    ? "bg-red-500 border-red-500 text-white animate-pulse"
-                    : "hover:bg-muted text-muted-foreground"
+                {/* リセットボタン（チーム選択済みの場合のみ表示） */}
+                {slot.team && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSlotChange({ team: "", patientId: null, patientName: "" });
+                      onSearchChange("");
+                      onShowListChange(false);
+                      setSuggestCandidates([]);
+                      setVoiceCandidates([]);
+                    }}
+                    className="h-7 w-7 flex items-center justify-center border rounded-md hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-colors text-muted-foreground"
+                    title="リセット"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
                 )}
-                onClick={startVoiceInput}
-                title={isListening ? "録音停止" : "音声で苗字を入力"}
-              >
-                {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-              </button>
-              {/* リセットボタン（チーム選択済みの場合のみ表示） */}
-              {slot.team && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onSlotChange({ team: "", patientId: null, patientName: "" });
-                    onSearchChange("");
-                    onShowListChange(false);
-                    setSuggestCandidates([]);
-                    setVoiceCandidates([]);
-                  }}
-                  className="flex-shrink-0 h-7 w-7 flex items-center justify-center border rounded-md hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-colors text-muted-foreground"
-                  title="リセット"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
+              </div>
             </div>
 
               {/* 利用者検索 */}
