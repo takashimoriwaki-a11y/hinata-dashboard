@@ -1198,6 +1198,11 @@ export default function ScheduleChange() {
     { team: patientTeam },
     { enabled: changeType === "visit_change" || changeType === "visit_cancel" || changeType === "visit_add" || changeType.startsWith("schedule_") }
   );
+  // 音声入力用: チーム絞り込みなしで全利用者を常時取得（changeType未選択時でも苗字マッチングできるように）
+  const { data: allPatientListForVoice = [] } = trpc.patients.list.useQuery(
+    { team: undefined },
+    { staleTime: 60_000 }
+  );
 
   // 下書き保存のトリガー（各入力変更時に呼び出す）
   const triggerDraftSave = useCallback((overrides?: Partial<Omit<DraftData, "savedAt">>) => {
@@ -1604,15 +1609,17 @@ export default function ScheduleChange() {
       const searchKey = lastName || f.patientName || null;
 
       if (searchKey) {
+        // patientListRef.currentを使用（クロージャ問題回避・最新リストを参照）
+        const currentPatientList = patientListRef.current;
         // 1. 苗字の先頭一致検索（スペース区切りの最初のトークン）
-        const exactMatches = patientList.filter((p: PatientItem) => {
+        const exactMatches = currentPatientList.filter((p: PatientItem) => {
           const parts = p.name.split(/[　 ]/);
           return parts[0] === searchKey;
         });
         // 2. 完全一致検索（フルネームが渡された場合）
-        const fullNameMatches = patientList.filter((p: PatientItem) => p.name === searchKey);
+        const fullNameMatches = currentPatientList.filter((p: PatientItem) => p.name === searchKey);
         // 3. 部分一致検索（フォールバック）
-        const partialMatches = patientList.filter((p: PatientItem) => p.name.includes(searchKey));
+        const partialMatches = currentPatientList.filter((p: PatientItem) => p.name.includes(searchKey));
 
         // 優先順位: フルネーム完全一致 > 苗字先頭一致 > 部分一致
         const candidates = fullNameMatches.length > 0
@@ -1695,9 +1702,9 @@ export default function ScheduleChange() {
     },
   });
 
-  // patientListをrefで保持（クロージャ問題回避）
-  const patientListRef = useRef(patientList);
-  useEffect(() => { patientListRef.current = patientList; }, [patientList]);
+  // patientListRef: 音声入力用に全利用者リスト（チーム絞り込みなし）を使用
+  const patientListRef = useRef(allPatientListForVoice);
+  useEffect(() => { patientListRef.current = allPatientListForVoice; }, [allPatientListForVoice]);
   const staffListRef = useRef(staffList);
   useEffect(() => { staffListRef.current = staffList; }, [staffList]);
 
@@ -1715,6 +1722,7 @@ export default function ScheduleChange() {
     setVoiceError(null);
     setVoiceText(text);
     setIsParsingVoice(true);
+    // patientListRef.currentは全利用者リスト（チーム絞り込みなし）を参照
     const namesWithKana = patientListRef.current.map((p) => ({ name: p.name, kana: (p as { nameKana?: string | null }).nameKana ?? '' }));
     const staffNames = staffListRef.current.map((s: { name: string }) => s.name);
     parseVoice.mutate({ text, patientNamesWithKana: namesWithKana, staffNames });
