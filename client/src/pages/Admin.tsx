@@ -1010,7 +1010,7 @@ export default function Admin() {
         >
           利用者マスタ
         </button>
-        {currentUser?.role === "admin" && (
+        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") && (
           <button
             onClick={() => setActiveSection("staff")}
             className={cn(
@@ -1025,7 +1025,7 @@ export default function Admin() {
         )}
         {/* 一括インポートタブは削除（利用者マスタ・スタッフ管理から個別にインポート可能） */}
         {/* クイックアクセスはホーム画面から削除済みのため非表示 */}
-        {currentUser?.role === "admin" && (
+        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") && (
           <button
             onClick={() => setActiveSection("settings")}
             className={cn(
@@ -1038,7 +1038,7 @@ export default function Admin() {
             システム設定
           </button>
         )}
-        {(currentUser?.role === "admin" || (currentUser as any)?.team === "事務員") && (
+        {(currentUser?.role === "admin" || currentUser?.role === "super_admin" || (currentUser as any)?.team === "事務員") && (
           <button
             onClick={() => setActiveSection("toolLogs")}
             className={cn(
@@ -1051,7 +1051,7 @@ export default function Admin() {
             操作ログ
           </button>
         )}
-        {currentUser?.role === "admin" && (
+        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") && (
           <button
             onClick={() => setActiveSection("alcoholSheets")}
             className={cn(
@@ -1065,7 +1065,7 @@ export default function Admin() {
           </button>
         )}
 
-        {currentUser?.role === "admin" && (
+        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") && (
           <button
             onClick={() => setActiveSection("detectorSettings")}
             className={cn(
@@ -1078,7 +1078,7 @@ export default function Admin() {
             検知器設定
           </button>
         )}
-        {currentUser?.role === "admin" && (
+        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") && (
           <button
             onClick={() => setActiveSection("timesheetSheets")}
             className={cn(
@@ -1104,7 +1104,7 @@ export default function Admin() {
             残業承認
           </button>
         )}
-        {currentUser?.role === "admin" && (
+        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") && (
           <button
             onClick={() => setActiveSection("monthlySignatures")}
             className={cn(
