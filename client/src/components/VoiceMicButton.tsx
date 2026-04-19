@@ -57,6 +57,16 @@ interface VoiceMicButtonProps {
    */
   context?: string;
   /**
+   * 長文モード（trueの場合、無音タイムアウトを60秒に延長し最大3分まで録音可能）
+   * デフォルト: false
+   */
+  longTextMode?: boolean;
+  /**
+   * 無音自動停止までのミリ秒（明示指定する場合）
+   * 省略時は longTextMode に応じて自動設定
+   */
+  silenceTimeoutMs?: number;
+  /**
    * 外部フック状態（useVoiceInput の戻り値）。
    * 指定すると内部で useVoiceInput を呼ばず、この状態を使用する。
    * notesVoice など既存フックのボタンをこのコンポーネントに統一する際に使用。
@@ -114,12 +124,16 @@ export function VoiceMicButton({
   context = "general",
   externalState,
   elapsedPosition = "below",
+  longTextMode = false,
+  silenceTimeoutMs,
 }: VoiceMicButtonProps) {
   // externalState が指定されていない場合のみ内部フックを使用
   const internalHook = useVoiceInput({
     onResult: onResult ?? (() => {}),
     onRecordingChange,
     context,
+    longTextMode,
+    silenceTimeoutMs,
   });
 
   // 使用する状態を決定（外部 > 内部）

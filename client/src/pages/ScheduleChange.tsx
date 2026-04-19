@@ -1552,12 +1552,32 @@ export default function ScheduleChange() {
       if (f.meetingName) { setMeetingName(prev => prev.trim() ? prev : f.meetingName!); applied++; }
       if (f.meetingStaff && Array.isArray(f.meetingStaff) && f.meetingStaff.length > 0) {
         if (isScheduleTypeVoice && f.changeType === "schedule_new_contract") {
-          // 新規契約・面談の対応スタッフ
-          setScheduleNewContractStaff(prev => prev.length > 0 ? prev : f.meetingStaff!);
+          // 新規契約・面談の対応スタッフ：スタッフリストとファジーマッチング
+          const resolvedStaff: string[] = [];
+          for (const voiceName of f.meetingStaff!) {
+            // 1. 完全一致
+            const exactMatch = staffList.find((s: { name: string }) => s.name === voiceName);
+            if (exactMatch) { resolvedStaff.push(exactMatch.name); continue; }
+            // 2. 苗字先頭一致（苗字のみ言った場合）
+            const lastNameMatches = staffList.filter((s: { name: string }) => {
+              const parts = s.name.split(/[\s　]/);
+              return parts[0] === voiceName;
+            });
+            if (lastNameMatches.length === 1) { resolvedStaff.push(lastNameMatches[0].name); continue; }
+            // 3. 部分一致
+            const partialMatches = staffList.filter((s: { name: string }) => s.name.includes(voiceName));
+            if (partialMatches.length === 1) { resolvedStaff.push(partialMatches[0].name); continue; }
+            // 4. 一致なしの場合は音声認識結果をそのまま使用
+            resolvedStaff.push(voiceName);
+          }
+          if (resolvedStaff.length > 0) {
+            setScheduleNewContractStaff(prev => prev.length > 0 ? prev : resolvedStaff);
+            applied++;
+          }
         } else {
           setMeetingStaff(prev => prev.length > 0 ? prev : f.meetingStaff!);
+          applied++;
         }
-        applied++;
       }
       if (f.reason) { setReason(prev => prev.trim() ? prev : f.reason!); applied++; }
 
@@ -1678,6 +1698,8 @@ export default function ScheduleChange() {
   // patientListをrefで保持（クロージャ問題回避）
   const patientListRef = useRef(patientList);
   useEffect(() => { patientListRef.current = patientList; }, [patientList]);
+  const staffListRef = useRef(staffList);
+  useEffect(() => { staffListRef.current = staffList; }, [staffList]);
 
   // 音声解析完了後に音声入力カードへ自動スクロール
   useEffect(() => {
@@ -1694,7 +1716,8 @@ export default function ScheduleChange() {
     setVoiceText(text);
     setIsParsingVoice(true);
     const namesWithKana = patientListRef.current.map((p) => ({ name: p.name, kana: (p as { nameKana?: string | null }).nameKana ?? '' }));
-    parseVoice.mutate({ text, patientNamesWithKana: namesWithKana });
+    const staffNames = staffListRef.current.map((s: { name: string }) => s.name);
+    parseVoice.mutate({ text, patientNamesWithKana: namesWithKana, staffNames });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1940,7 +1963,14 @@ export default function ScheduleChange() {
                   </span>
                 </div>
               ) : isParsingVoice ? (
-                <p className="text-xs text-primary font-medium animate-pulse mt-0.5">AIが解析中...</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <div className="flex gap-0.5">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{animationDelay: '0ms'}} />
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{animationDelay: '150ms'}} />
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{animationDelay: '300ms'}} />
+                  </div>
+                  <p className="text-xs text-primary font-semibold">AI解析中... 各項目に転記しています</p>
+                </div>
               ) : voiceText ? (
                 <p className="text-xs text-muted-foreground mt-0.5 truncate">「{voiceText.slice(0, 40)}{voiceText.length > 40 ? "..." : ""}」</p>
               ) : (
@@ -1955,6 +1985,7 @@ export default function ScheduleChange() {
               disabled={isParsingVoice}
               previewMode="none"
               context="schedule_change"
+              longTextMode={true}
             />
           </div>
 
@@ -2078,7 +2109,8 @@ export default function ScheduleChange() {
                   if (voiceText) {
                     setIsParsingVoice(true);
                     const namesWithKana2 = patientListRef.current.map((p) => ({ name: p.name, kana: (p as { nameKana?: string | null }).nameKana ?? '' }));
-                    parseVoice.mutate({ text: voiceText, patientNamesWithKana: namesWithKana2 });
+                    const staffNames2 = staffListRef.current.map((s: { name: string }) => s.name);
+                    parseVoice.mutate({ text: voiceText, patientNamesWithKana: namesWithKana2, staffNames: staffNames2 });
                   }
                 }}
                 className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-xs font-medium rounded-lg hover:bg-primary/90 active:scale-95 transition-all"

@@ -4128,6 +4128,7 @@ export const appRouter = router({
         text: z.string().min(1),
         patientNamesWithKana: z.array(z.object({ name: z.string(), kana: z.string() })).optional(),
         patientNames: z.array(z.string()).optional(),
+        staffNames: z.array(z.string()).optional(),
       }))
       .mutation(async ({ input }) => {
         const { invokeLLM } = await import("./_core/llm");
@@ -4142,6 +4143,9 @@ export const appRouter = router({
         } else if (input.patientNames && input.patientNames.length > 0) {
           patientListStr = `\n\n登録済利用者リスト（この中から最も近い名前を選んでpatientName/patientLastNameに返すこと）:\n${input.patientNames.join('、')}`;
         }
+        const staffListStr = input.staffNames && input.staffNames.length > 0
+          ? `\n\n登録済みスタッフリスト（meetingStaffはこの中から正式名を選ぶこと。姓のみで言及された場合も正式名を返すこと）:\n${input.staffNames.join('、')}`
+          : '';
         const today2 = new Date();
         const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
         const todayDayName = dayNames[today2.getDay()];
@@ -4192,7 +4196,7 @@ export const appRouter = router({
 - fromDatetimeConfidence: fromDatetimeの解析信頼度。「high」「medium」「low」のいずれか。fromDatetimeがなければnull
 - toDatetimeConfidence: toDatetimeの解析信頼度。「high」「medium」「low」のいずれか。toDatetimeがなければnull
 
-不明な項目はnullを返してください。必ず有効なJSONのみを返してください。${patientListStr}`;
+不明な項目はnullを返してください。必ず有効なJSONのみを返してください。${patientListStr}${staffListStr}`;
 
         const res = await invokeLLM({
           messages: [
