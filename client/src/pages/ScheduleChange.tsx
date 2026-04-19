@@ -1925,8 +1925,8 @@ export default function ScheduleChange() {
           <CalendarClock className="w-5 h-5 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-bold text-foreground">連絡・予定登録</h1>
-          <p className="text-xs text-muted-foreground">入力後、スプレッドシートに自動転記されます</p>
+          <h1 className="text-lg font-bold text-foreground whitespace-nowrap">連絡・予定登録</h1>
+          <p className="text-xs text-muted-foreground truncate">入力後、スプレッドシートに自動転記されます</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {/* 自動保存インジケーター */}
