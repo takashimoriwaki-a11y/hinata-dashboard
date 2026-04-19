@@ -750,7 +750,7 @@ export default function RecordInput() {
                     "flex items-center gap-1 h-8 px-2.5 rounded-full border text-xs font-medium transition-colors flex-shrink-0",
                     isBulkListening
                       ? "bg-orange-500 border-orange-500 text-white animate-pulse"
-                      : "border-border text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/40"
+                      : "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 hover:border-primary/50 active:scale-95"
                   )}
                   title="一括音声入力"
                 >
