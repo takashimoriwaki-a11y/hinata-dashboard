@@ -2977,7 +2977,7 @@ function SystemSettingsPanel() {
             スケジュール変更連絡自動削除設定
           </CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            スケジュール変更連絡の「変更後の日時」から設定日数を過ぎたレコードを毎日0:05（日本時間）に自動削除します。
+            スケジュール変更連絡および予定登録の「種別ごとの基準日」から設定日数を過ぎたレコードを毎日0:05（日本時間）に自動削除します。
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -3013,8 +3013,9 @@ function SystemSettingsPanel() {
           <div className="rounded-lg bg-muted/50 border border-border p-3 text-sm text-muted-foreground space-y-1">
             <p className="font-medium text-foreground text-xs">動作の仕組み</p>
             <p>・毎日0:05（日本時間）に自動実行されます</p>
-            <p>・「変更後の日時」から設定日数以上前のスケジュール変更連絡を削除します</p>
-            <p>・例：3日の場合、4月1日の変更連絡は4月4日0:05に削除されます</p>
+            <p>・スケジュール変更連絡は「変更後の日時」、予定登録は種別ごとの基準日から設定日数以上経過したレコードを削除します</p>
+            <p>・基準日の種別：受診→受診日、ショートステイ・特別指示書→終了日、入院→入院日、退院→退院日、新規契約・面談・訪問診療同席→予定日</p>
+            <p>・例：3日の場合、4月1日が基準日のレコードは4月4日0:05に削除されます</p>
           </div>
         </CardContent>
       </Card>
