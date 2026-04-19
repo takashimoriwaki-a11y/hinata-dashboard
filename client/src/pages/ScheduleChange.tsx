@@ -1426,7 +1426,8 @@ export default function ScheduleChange() {
         "schedule_hospitalization", "schedule_discharge", "schedule_new_contract",
         "schedule_visit_doctor"
       ];
-      const isScheduleTypeVoice = f.changeType?.startsWith("schedule_") ?? false;
+      // 音声入力時のschedule判定: LLMが返したchangeType、または現在選択中のchangeTypeがschedule_系なら予定登録系として扱う
+      const isScheduleTypeVoice = (f.changeType?.startsWith("schedule_") ?? false) || changeType.startsWith("schedule_");
       if (f.changeType && allValidChangeTypes.includes(f.changeType)) {
         setChangeType(prev => prev === "" ? f.changeType as ChangeType : prev);
         applied++;
@@ -2616,19 +2617,21 @@ export default function ScheduleChange() {
               <CardHeader className="pb-2 pt-4">
                 <CardTitle className="text-sm font-semibold">時刻</CardTitle>
               </CardHeader>
-              <CardContent className="flex gap-3">
-                {scheduleFieldConfig?.startTime && (
-                  <div className="flex-1">
-                    <Label className="text-xs text-muted-foreground mb-1 block">開始</Label>
-                    <Input type="time" value={scheduleStartTime} onChange={(e) => setScheduleStartTime(e.target.value)} />
-                  </div>
-                )}
-                {scheduleFieldConfig?.endTime && (
-                  <div className="flex-1">
-                    <Label className="text-xs text-muted-foreground mb-1 block">終了</Label>
-                    <Input type="time" value={scheduleEndTime} onChange={(e) => setScheduleEndTime(e.target.value)} />
-                  </div>
-                )}
+              <CardContent>
+                <div className="grid grid-cols-2 gap-3">
+                  {scheduleFieldConfig?.startTime && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1 block">開始</Label>
+                      <Input type="time" step={600} value={scheduleStartTime} onChange={(e) => setScheduleStartTime(e.target.value)} className="w-full" />
+                    </div>
+                  )}
+                  {scheduleFieldConfig?.endTime && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1 block">終了</Label>
+                      <Input type="time" step={600} value={scheduleEndTime} onChange={(e) => setScheduleEndTime(e.target.value)} className="w-full" />
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}
