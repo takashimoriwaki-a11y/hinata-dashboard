@@ -743,10 +743,10 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
               <button
                 type="button"
                 className={cn(
-                  "w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 shadow-md",
+                  "w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200",
                   (!nextVisitDate || !isPatientSelected || createRecord.isPending || exportToSheet.isPending)
                     ? "bg-muted border border-border text-muted-foreground cursor-not-allowed opacity-60"
-                    : "bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-white hover:shadow-lg active:scale-95"
+                    : "bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg active:scale-95"
                 )}
                 onClick={handleSaveAndExport}
                 disabled={!nextVisitDate || !isPatientSelected || createRecord.isPending || exportToSheet.isPending}
