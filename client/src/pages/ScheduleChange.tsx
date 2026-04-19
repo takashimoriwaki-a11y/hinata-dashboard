@@ -727,9 +727,14 @@ function DateTimePicker({
     applyDateTime(selectedDate, hour, m);
   };
 
+  // 時刻未指定かどうかを判定（YYYY-MM-DD形式 or T00:00:00の場合）
+  const isTimeUnspecified = value ? (
+    !value.includes('T') || value.split('T')[1]?.startsWith('00:00:00') || value.split('T')[1]?.startsWith('00:00')
+  ) : false;
+
   const displayValue = value
-    ? (dateOnly
-        ? (() => { const [y, mo, d] = value.split('-'); return `${y}/${mo}/${d}`; })()
+    ? (dateOnly || isTimeUnspecified
+        ? (() => { const datePart = value.split('T')[0]; const [y, mo, d] = datePart.split('-'); return `${y}/${mo}/${d}`; })()
         : formatDatetime(value.includes("T") ? new Date(value).toISOString() : value))
     : "";
 
@@ -874,7 +879,7 @@ function DateTimePicker({
             onClick={() => adjustDay(1)}
             className="text-xs px-2 py-0.5 rounded border border-border bg-muted/50 hover:bg-muted text-foreground transition-colors"
           >+1日</button>
-          {!dateOnly && (
+          {!dateOnly && !isTimeUnspecified && (
             <>
               <span className="text-xs text-muted-foreground ml-2">時刻:</span>
               <button
@@ -1530,7 +1535,17 @@ export default function ScheduleChange() {
             });
           }
         } else {
-          setFromDatetime(prev => prev.trim() ? prev : f.fromDatetime!);
+          // 時刻未指定の場合（T00:00:00）は日付のみを転記（時刻は未定に）
+          const fromIso = f.fromDatetime!;
+          const fromTimeStr = fromIso.split('T')[1] || '';
+          const fromIsTimeUnspecified = fromTimeStr.startsWith('00:00:00') || fromTimeStr.startsWith('00:00');
+          if (fromIsTimeUnspecified) {
+            // 日付のみをYYYY-MM-DD形式で転記（DateTimePickerは日付のみを表示、時刻は空欄）
+            const dateOnly = fromIso.split('T')[0];
+            setFromDatetime(prev => prev.trim() ? prev : dateOnly);
+          } else {
+            setFromDatetime(prev => prev.trim() ? prev : fromIso);
+          }
         }
         applied++;
       } else if (!isScheduleTypeVoice) { missing.push("変更前日時"); }
@@ -1546,7 +1561,16 @@ export default function ScheduleChange() {
           const endDateOnly = f.toDatetime!.split('T')[0];
           setScheduleEndDate(prev => prev.trim() ? prev : endDateOnly);
         } else {
-          setToDatetime(prev => prev.trim() ? prev : f.toDatetime!);
+          // 時刻未指定の場合（T00:00:00）は日付のみを転記
+          const toIso = f.toDatetime!;
+          const toTimeStr = toIso.split('T')[1] || '';
+          const toIsTimeUnspecified = toTimeStr.startsWith('00:00:00') || toTimeStr.startsWith('00:00');
+          if (toIsTimeUnspecified) {
+            const dateOnly = toIso.split('T')[0];
+            setToDatetime(prev => prev.trim() ? prev : dateOnly);
+          } else {
+            setToDatetime(prev => prev.trim() ? prev : toIso);
+          }
         }
         applied++;
       }
