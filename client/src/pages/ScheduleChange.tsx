@@ -2213,7 +2213,7 @@ export default function ScheduleChange() {
           )}
           {/* 誤変換報告ボタン（報告済みの場合は再報告リンクに変化） */}
           {voiceTranscribed && !isParsingVoice && (
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between gap-2">
               {feedbackSent ? (
                 <button
                   type="button"
@@ -2245,6 +2245,23 @@ export default function ScheduleChange() {
                   誤変換を報告する
                 </button>
               )}
+              {/* もう一度話すボタン（転記結果の直下に配置） */}
+              <button
+                type="button"
+                onClick={() => {
+                  setVoiceError(null);
+                  if (voiceText) {
+                    setIsParsingVoice(true);
+                    const namesWithKana2 = patientListRef.current.map((p) => ({ name: p.name, kana: (p as { nameKana?: string | null }).nameKana ?? '' }));
+                    const staffNames2 = staffListRef.current.map((s: { name: string }) => s.name);
+                    parseVoice.mutate({ text: voiceText, patientNamesWithKana: namesWithKana2, staffNames: staffNames2 });
+                  }
+                }}
+                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-xs font-medium rounded-lg hover:bg-primary/90 active:scale-95 transition-all"
+              >
+                <span className="text-sm">🎤</span>
+                もう一度話す
+              </button>
             </div>
           )}
 
