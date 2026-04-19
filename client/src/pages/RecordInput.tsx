@@ -725,7 +725,7 @@ export default function RecordInput() {
               )}
             </CardTitle>
             {/* 2行目：ボタン群 */}
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 justify-end">
               {/* 一括音声入力ボタン */}
               <VoiceMicButton
                 size="sm"
