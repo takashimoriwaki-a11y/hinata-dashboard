@@ -1060,6 +1060,21 @@ export default function ScheduleChange() {
   const [scheduleEndTime, setScheduleEndTime] = useState("");
   const [scheduleFacilityName, setScheduleFacilityName] = useState("");
   const [schedulePostDischargeEndDate, setSchedulePostDischargeEndDate] = useState("");
+  const [scheduleNewContractTargetName, setScheduleNewContractTargetName] = useState(""); // 新規契約・面談の対象者名（直接入力）
+  const [scheduleNewContractStaff, setScheduleNewContractStaff] = useState<string[]>([]); // 新規契約・面談の対応スタッフ（複数選択）
+
+  // 退院日が変更されたら退院後90日後（週５訪問終了日）を自動計算
+  const handleScheduleStartDateChange = (value: string) => {
+    setScheduleStartDate(value);
+    if (changeType === "schedule_taiin" && value) {
+      const d = new Date(value);
+      d.setDate(d.getDate() + 89); // 退院日を含めて90日後 = 退院日+89日
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      setSchedulePostDischargeEndDate(`${y}-${m}-${day}`);
+    }
+  };
   // ログインユーザーの所属チームをデフォルトに設定（初回のみ）
   useEffect(() => {
     if (!user?.team) return;
@@ -1220,6 +1235,8 @@ export default function ScheduleChange() {
       setScheduleEndTime("");
       setScheduleFacilityName("");
       setSchedulePostDischargeEndDate("");
+      setScheduleNewContractTargetName("");
+      setScheduleNewContractStaff([]);
       // 音声入力関連のstateも全てリセット
       setVoiceText("");
       setVoiceError(null);
@@ -1257,7 +1274,11 @@ export default function ScheduleChange() {
       toast.error("変更前の日時を入力してください");
       return;
     }
-    if (isScheduleType && !patientName) {
+    if (isScheduleType && changeType === "schedule_shinki" && !scheduleNewContractTargetName) {
+      toast.error("対象者名を入力してください");
+      return;
+    }
+    if (isScheduleType && changeType !== "schedule_shinki" && !patientName) {
       toast.error("利用者名を入力してください");
       return;
     }
@@ -1275,7 +1296,8 @@ export default function ScheduleChange() {
       if (scheduleFieldConfig?.startTime && scheduleStartTime) parts.push(`開始時刻: ${scheduleStartTime}`);
       if (scheduleFieldConfig?.endTime && scheduleEndTime) parts.push(`終了時刻: ${scheduleEndTime}`);
       if (scheduleFieldConfig?.facilityName && scheduleFacilityName) parts.push(`施設名: ${scheduleFacilityName}`);
-      if (scheduleFieldConfig?.postDischargeEndDate && schedulePostDischargeEndDate) parts.push(`退院後特別指示書期間終了: ${schedulePostDischargeEndDate}`);
+      if (scheduleFieldConfig?.postDischargeEndDate && schedulePostDischargeEndDate) parts.push(`退院後3か月終了日（週５訪問）: ${schedulePostDischargeEndDate}`);
+      if (changeType === "schedule_shinki" && scheduleNewContractStaff.length > 0) parts.push(`対応スタッフ: ${scheduleNewContractStaff.join("、")}`);
       if (reason) parts.push(`備考: ${reason}`);
       scheduleNotes = parts.join(" / ");
     }
@@ -1283,7 +1305,7 @@ export default function ScheduleChange() {
     const payload = {
       changeType,
       team: team || undefined,
-      patientName: (isVisitType || isScheduleType) ? patientName : undefined,
+      patientName: isVisitType ? patientName : (isScheduleType && changeType !== "schedule_shinki") ? patientName : (changeType === "schedule_shinki" ? scheduleNewContractTargetName : undefined),
       fromDatetime: fromDatetime ? new Date(fromDatetime).toISOString() : undefined,
       toDatetime: toDatetime ? new Date(toDatetime).toISOString() : undefined,
       staffBefore: staffBefore || undefined,
@@ -1329,6 +1351,8 @@ export default function ScheduleChange() {
       setScheduleEndTime("");
       setScheduleFacilityName("");
       setSchedulePostDischargeEndDate("");
+      setScheduleNewContractTargetName("");
+      setScheduleNewContractStaff([]);
       setVoiceTranscribed(false);
       setFeedbackSent(false);
       return;
@@ -1358,6 +1382,8 @@ export default function ScheduleChange() {
     setScheduleEndTime("");
     setScheduleFacilityName("");
     setSchedulePostDischargeEndDate("");
+    setScheduleNewContractTargetName("");
+    setScheduleNewContractStaff([]);
     setSubmitted(false);
     setLastRecord(null);
     setMissingVoiceFields([]);
@@ -2400,16 +2426,32 @@ export default function ScheduleChange() {
             </CardContent>
           </Card>
 
-          {/* 利用者名 */}
-          <PatientAutocomplete
-            patientList={patientList}
-            value={patientName}
-            onChange={(name) => setPatientName(name)}
-            onTeamSelect={(t) => setTeam(t as Team)}
-            id="sc-patient-name"
-          />
-
-          {/* 開始日 */}
+           {/* 利用者名（新規契約・面談は対象者名として直接入力、それ以外は利用者DBから選択） */}
+          {changeType === "schedule_shinki" ? (
+            <Card>
+              <CardHeader className="pb-2 pt-4">
+                <CardTitle className="text-sm font-semibold">
+                  対象者名 <span className="text-destructive">*</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Input
+                  placeholder="対象者名を入力してください..."
+                  value={scheduleNewContractTargetName}
+                  onChange={(e) => setScheduleNewContractTargetName(e.target.value)}
+                />
+              </CardContent>
+            </Card>
+          ) : (
+            <PatientAutocomplete
+              patientList={patientList}
+              value={patientName}
+              onChange={(name) => setPatientName(name)}
+              onTeamSelect={(t) => setTeam(t as Team)}
+              id="sc-patient-name"
+            />
+          )}
+          {/* 開始日（DateTimePickerで日時選択） */}
           <Card>
             <CardHeader className="pb-2 pt-4">
               <CardTitle className="text-sm font-semibold">
@@ -2417,10 +2459,18 @@ export default function ScheduleChange() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Input
-                type="date"
+              <DateTimePicker
                 value={scheduleStartDate}
-                onChange={(e) => setScheduleStartDate(e.target.value)}
+                onChange={(v) => {
+                  // ISO datetime文字列から日付部分を抽出
+                  const dateOnly = v ? v.split("T")[0] : "";
+                  const timeOnly = v && v.includes("T") ? v.split("T")[1]?.substring(0, 5) : "";
+                  handleScheduleStartDateChange(dateOnly);
+                  setScheduleStartTime(timeOnly || "");
+                  setScheduleStartDate(dateOnly);
+                }}
+                label=""
+                placeholder={`${scheduleStartDateLabel}を選択`}
               />
             </CardContent>
           </Card>
@@ -2480,22 +2530,53 @@ export default function ScheduleChange() {
             </Card>
           )}
 
-          {/* 退院後特別指示書期間終了日（退院のみ） */}
+          {/* 退院後３か月終了日（週５訪問）（退院のみ） */}
           {scheduleFieldConfig?.postDischargeEndDate && (
             <Card>
               <CardHeader className="pb-2 pt-4">
-                <CardTitle className="text-sm font-semibold">退院後特別指示書期間終了日</CardTitle>
+                <CardTitle className="text-sm font-semibold">退院後３か月終了日（週５訪問）</CardTitle>
               </CardHeader>
               <CardContent>
-                <Input
-                  type="date"
-                  value={schedulePostDischargeEndDate}
-                  onChange={(e) => setSchedulePostDischargeEndDate(e.target.value)}
+                <div className="space-y-1">
+                  <Input
+                    type="date"
+                    value={schedulePostDischargeEndDate}
+                    onChange={(e) => setSchedulePostDischargeEndDate(e.target.value)}
+                    className={schedulePostDischargeEndDate && scheduleStartDate ? "bg-primary/5 border-primary/30" : ""}
+                  />
+                  {scheduleStartDate && schedulePostDischargeEndDate && (
+                    <p className="text-xs text-muted-foreground">退院日（{scheduleStartDate}）から自動計算しました。手動で変更も可能です。</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {/* 対応スタッフ（新規契約・面談のみ） */}
+          {changeType === "schedule_shinki" && (
+            <Card>
+              <CardHeader className="pb-2 pt-4">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  対応スタッフ
+                  {scheduleNewContractStaff.length > 0 && (
+                    <Badge variant="secondary" className="text-xs">{scheduleNewContractStaff.length}名選択中</Badge>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <MultiStaffAutocomplete
+                  staffList={staffList}
+                  selected={scheduleNewContractStaff}
+                  selectedTeam={team || undefined}
+                  onToggle={(name) => {
+                    setScheduleNewContractStaff(prev =>
+                      prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
+                    );
+                  }}
                 />
               </CardContent>
             </Card>
           )}
-
           {/* 備考 */}
           <Card>
             <CardHeader className="pb-2 pt-4">
@@ -2607,12 +2688,14 @@ export default function ScheduleChange() {
             {isScheduleType && scheduleStartDate && (
               <div className="rounded-xl border border-border bg-background p-3 space-y-1">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">予定情報</p>
+                {changeType === "schedule_shinki" && scheduleNewContractTargetName && <p className="text-sm text-foreground">対象者名: {scheduleNewContractTargetName}</p>}
                 {scheduleStartDate && <p className="text-sm text-foreground">{scheduleStartDateLabel}: {scheduleStartDate}</p>}
                 {scheduleFieldConfig?.endDate && scheduleEndDate && <p className="text-sm text-foreground">終了日: {scheduleEndDate}</p>}
                 {scheduleFieldConfig?.startTime && scheduleStartTime && <p className="text-sm text-foreground">開始: {scheduleStartTime}</p>}
                 {scheduleFieldConfig?.endTime && scheduleEndTime && <p className="text-sm text-foreground">終了: {scheduleEndTime}</p>}
                 {scheduleFieldConfig?.facilityName && scheduleFacilityName && <p className="text-sm text-foreground">施設名: {scheduleFacilityName}</p>}
-                {scheduleFieldConfig?.postDischargeEndDate && schedulePostDischargeEndDate && <p className="text-sm text-foreground">退院後特別指示書期間終了: {schedulePostDischargeEndDate}</p>}
+                {scheduleFieldConfig?.postDischargeEndDate && schedulePostDischargeEndDate && <p className="text-sm text-foreground">退院後3か月終了日（週５訪問）: {schedulePostDischargeEndDate}</p>}
+                {changeType === "schedule_shinki" && scheduleNewContractStaff.length > 0 && <p className="text-sm text-foreground">対応スタッフ: {scheduleNewContractStaff.join("、")}</p>}
                 {reason && <p className="text-sm text-foreground">備考: {reason}</p>}
               </div>
             )}
