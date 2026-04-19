@@ -769,8 +769,8 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
               </div>
 
               {/* ボイスメモをNotebookLMに... + コピーボタン */}
-              <div className="flex items-start gap-3 p-2.5 rounded-lg border border-border bg-background">
-                <span className="text-sm text-foreground flex-1 leading-snug">
+              <div className="flex flex-col gap-2 p-2.5 rounded-lg border border-border bg-background">
+                <span className="text-sm text-foreground leading-snug">
                   ボイスメモをNotebookLMにソースとして追加し、指定のプロンプトで文章を作成
                 </span>
                 <button
@@ -778,18 +778,18 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                   onClick={handleCopyPrompt}
                   title={selectedPromptBody ? "プロンプトをコピー" : "管理者がプロンプトを選択していません"}
                   className={cn(
-                    "flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border transition-colors",
+                    "w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200",
                     selectedPromptBody
                       ? copied
-                        ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400"
-                        : "bg-background border-border hover:bg-primary/10 hover:border-primary/40 text-foreground"
-                      : "bg-muted border-border text-muted-foreground cursor-not-allowed opacity-60"
+                        ? "bg-emerald-500 dark:bg-emerald-600 text-white shadow-sm"
+                        : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white shadow-md hover:shadow-lg active:scale-95"
+                      : "bg-muted border border-border text-muted-foreground cursor-not-allowed opacity-60"
                   )}
                 >
                   {copied ? (
-                    <><Check className="w-3 h-3" />コピー済み</>
+                    <><Check className="w-4 h-4" />コピー済み</>
                   ) : (
-                    <><Copy className="w-3 h-3" />コピー</>
+                    <><Copy className="w-4 h-4" />プロンプトをコピー</>
                   )}
                 </button>
               </div>
