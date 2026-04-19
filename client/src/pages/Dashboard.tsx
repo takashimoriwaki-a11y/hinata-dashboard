@@ -3547,16 +3547,7 @@ function TasksCard() {
 
   return (
     <div className="fade-in-up stagger-3 space-y-2">
-      {/* 期限切れタスク警告バッジ */}
-      {overdueCount > 0 && (
-        <Link href="/tasks">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/15 border border-red-500/40 text-red-400 cursor-pointer hover:bg-red-500/25 transition-colors">
-            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-            <span className="text-xs font-semibold">期限切れ {overdueCount}件の未完了タスクがあります</span>
-            <span className="ml-auto text-xs opacity-70">確認 &rsaquo;</span>
-          </div>
-        </Link>
-      )}
+      {/* 期限切れタスク警告バッジ（非表示） */}
       <Card id="today-tasks" className="shadow-sm overflow-x-hidden">
         <CardHeader className="pb-2">
           {/* 1行目：タイトル + 「すべて見る」 */}
