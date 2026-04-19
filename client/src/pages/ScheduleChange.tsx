@@ -655,6 +655,7 @@ function DateTimePicker({
   required,
   placeholder = "日時を選択",
   confidence,
+  dateOnly = false,
 }: {
   value: string;
   onChange: (val: string) => void;
@@ -662,6 +663,7 @@ function DateTimePicker({
   required?: boolean;
   placeholder?: string;
   confidence?: 'high' | 'medium' | 'low' | null;
+  dateOnly?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [hour, setHour] = useState(() => {
@@ -692,12 +694,26 @@ function DateTimePicker({
     if (!date) return;
     const d = new Date(date);
     d.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
-    const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${h}:${m}`;
-    onChange(iso);
+    if (dateOnly) {
+      // 日付のみモード: YYYY-MM-DD形式で返す
+      const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      onChange(iso);
+    } else {
+      const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${h}:${m}`;
+      onChange(iso);
+    }
   };
 
   const handleDaySelect = (day: Date | undefined) => {
     setSelectedDate(day);
+    if (dateOnly && day) {
+      // 日付のみモード: 日付選択後すぐに確定してポップオーバーを閉じる
+      const d = new Date(day);
+      const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      onChange(iso);
+      setOpen(false);
+      return;
+    }
     applyDateTime(day, hour, minute);
   };
 
@@ -712,7 +728,9 @@ function DateTimePicker({
   };
 
   const displayValue = value
-    ? formatDatetime(value.includes("T") ? new Date(value).toISOString() : value)
+    ? (dateOnly
+        ? (() => { const [y, mo, d] = value.split('-'); return `${y}/${mo}/${d}`; })()
+        : formatDatetime(value.includes("T") ? new Date(value).toISOString() : value))
     : "";
 
   const hours = Array.from({ length: 24 }, (_, i) => pad(i));
@@ -724,11 +742,17 @@ function DateTimePicker({
     const d = new Date(value);
     d.setDate(d.getDate() + delta);
     const pad2 = (n: number) => String(n).padStart(2, '0');
-    const iso = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-    onChange(iso);
-    setSelectedDate(d);
-    setHour(pad2(d.getHours()));
-    setMinute(pad2(d.getMinutes()));
+    if (dateOnly) {
+      const iso = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+      onChange(iso);
+      setSelectedDate(d);
+    } else {
+      const iso = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+      onChange(iso);
+      setSelectedDate(d);
+      setHour(pad2(d.getHours()));
+      setMinute(pad2(d.getMinutes()));
+    }
   };
 
   // 時刻を±30分する
@@ -795,42 +819,44 @@ function DateTimePicker({
               weekStartsOn={1}
               className="rounded-md border-0"
             />
-            <div className="border-t pt-3">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <span className="text-sm font-medium">時刻</span>
+            {!dateOnly && (
+              <div className="border-t pt-3">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <span className="text-sm font-medium">時刻</span>
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <Select value={hour} onValueChange={handleHourChange}>
+                    <SelectTrigger className="w-20 h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-48">
+                      {hours.map(h => (
+                        <SelectItem key={h} value={h}>{h}時</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-muted-foreground font-medium">:</span>
+                  <Select value={minute} onValueChange={handleMinuteChange}>
+                    <SelectTrigger className="w-20 h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-48">
+                      {minutes.map(m => (
+                        <SelectItem key={m} value={m}>{m}分</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    className="ml-auto"
+                    onClick={() => setOpen(false)}
+                  >
+                    決定
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-2 mt-2">
-                <Select value={hour} onValueChange={handleHourChange}>
-                  <SelectTrigger className="w-20 h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-48">
-                    {hours.map(h => (
-                      <SelectItem key={h} value={h}>{h}時</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <span className="text-muted-foreground font-medium">:</span>
-                <Select value={minute} onValueChange={handleMinuteChange}>
-                  <SelectTrigger className="w-20 h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-48">
-                    {minutes.map(m => (
-                      <SelectItem key={m} value={m}>{m}分</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  size="sm"
-                  className="ml-auto"
-                  onClick={() => setOpen(false)}
-                >
-                  決定
-                </Button>
-              </div>
-            </div>
+            )}
           </div>
         </PopoverContent>
       </Popover>
@@ -848,17 +874,21 @@ function DateTimePicker({
             onClick={() => adjustDay(1)}
             className="text-xs px-2 py-0.5 rounded border border-border bg-muted/50 hover:bg-muted text-foreground transition-colors"
           >+1日</button>
-          <span className="text-xs text-muted-foreground ml-2">時刻:</span>
-          <button
-            type="button"
-            onClick={() => adjustMinutes(-30)}
-            className="text-xs px-2 py-0.5 rounded border border-border bg-muted/50 hover:bg-muted text-foreground transition-colors"
-          >−30分</button>
-          <button
-            type="button"
-            onClick={() => adjustMinutes(30)}
-            className="text-xs px-2 py-0.5 rounded border border-border bg-muted/50 hover:bg-muted text-foreground transition-colors"
-          >+30分</button>
+          {!dateOnly && (
+            <>
+              <span className="text-xs text-muted-foreground ml-2">時刻:</span>
+              <button
+                type="button"
+                onClick={() => adjustMinutes(-30)}
+                className="text-xs px-2 py-0.5 rounded border border-border bg-muted/50 hover:bg-muted text-foreground transition-colors"
+              >−30分</button>
+              <button
+                type="button"
+                onClick={() => adjustMinutes(30)}
+                className="text-xs px-2 py-0.5 rounded border border-border bg-muted/50 hover:bg-muted text-foreground transition-colors"
+              >+30分</button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -1063,12 +1093,14 @@ export default function ScheduleChange() {
   const [scheduleNewContractTargetName, setScheduleNewContractTargetName] = useState(""); // 新規契約・面談の対象者名（直接入力）
   const [scheduleNewContractStaff, setScheduleNewContractStaff] = useState<string[]>([]); // 新規契約・面談の対応スタッフ（複数選択）
 
-  // 退院日が変更されたら退院後90日後（週５訪問終了日）を自動計算
+  // 退院日が変更されたら退院後3か月終了日を自動計算
   const handleScheduleStartDateChange = (value: string) => {
     setScheduleStartDate(value);
     if (changeType === "schedule_discharge" && value) {
+      // 3か月後の同日に設定し、その前日を取得（例: 5/1 → 8/1の前日 = 7/31）
       const d = new Date(value);
-      d.setDate(d.getDate() + 89); // 退院日を含めて90日後 = 退院日+89日
+      d.setMonth(d.getMonth() + 3);
+      d.setDate(d.getDate() - 1);
       const y = d.getFullYear();
       const m = String(d.getMonth() + 1).padStart(2, "0");
       const day = String(d.getDate()).padStart(2, "0");
@@ -1458,15 +1490,18 @@ export default function ScheduleChange() {
 
       if (f.fromDatetime) {
         if (isScheduleTypeVoice) {
-          // 予定登録系: fromDatetimeをscheduleStartDateに転記
-          setScheduleStartDate(prev => prev.trim() ? prev : f.fromDatetime!);
+          // 予定登録系: fromDatetimeをscheduleStartDateに転記（YYYY-MM-DD形式に変換）
+          const startDateOnly = f.fromDatetime!.split('T')[0];
+          setScheduleStartDate(prev => prev.trim() ? prev : startDateOnly);
           // 退院の場合、退院後3か月終了日を自動計算（未入力の場合のみ）
           if (f.changeType === "schedule_discharge" && f.fromDatetime) {
             setSchedulePostDischargeEndDate(prev => {
               if (prev.trim()) return prev; // 既に入力済みなら上書きしない
               try {
-                const d = new Date(f.fromDatetime!);
-                d.setDate(d.getDate() + 89); // 退院日を含めてﾔ90日後
+                const d = new Date(startDateOnly);
+                // 3か月後の同日に設定し、その前日を取得（例: 5/1 → 8/1の前日 = 7/31）
+                d.setMonth(d.getMonth() + 3);
+                d.setDate(d.getDate() - 1);
                 const y = d.getFullYear();
                 const mo = String(d.getMonth() + 1).padStart(2, "0");
                 const day = String(d.getDate()).padStart(2, "0");
@@ -2596,7 +2631,7 @@ export default function ScheduleChange() {
               id="sc-patient-name"
             />
           )}
-          {/* 開始日（DateTimePickerで日時選択） */}
+          {/* 開始日（DateTimePickerで日付のみ選択） */}
           <Card>
             <CardHeader className="pb-2 pt-4">
               <CardTitle className="text-sm font-semibold">
@@ -2607,15 +2642,14 @@ export default function ScheduleChange() {
               <DateTimePicker
                 value={scheduleStartDate}
                 onChange={(v) => {
-                  // ISO datetime文字列から日付部分を抽出
+                  // YYYY-MM-DD形式の日付のみを受け取る
                   const dateOnly = v ? v.split("T")[0] : "";
-                  const timeOnly = v && v.includes("T") ? v.split("T")[1]?.substring(0, 5) : "";
                   handleScheduleStartDateChange(dateOnly);
-                  setScheduleStartTime(timeOnly || "");
                   setScheduleStartDate(dateOnly);
                 }}
                 label=""
                 placeholder={`${scheduleStartDateLabel}を選択`}
+                dateOnly={true}
               />
             </CardContent>
           </Card>
