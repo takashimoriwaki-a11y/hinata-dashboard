@@ -78,7 +78,6 @@ const LOGO_TEXT_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/
 // ========== ナビゲーション定義 ==========
 const navItems = [
   { href: "/", icon: LayoutDashboard, label: "ホーム" },
-  { href: "/tools", icon: Sparkles, label: "ツール" },
   { href: "/schedule-change-history", icon: History, label: "変更履歴" },
   { href: "/my-links", icon: Star, label: "マイリンク追加" },
 ];
