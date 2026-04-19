@@ -72,13 +72,13 @@ type ScheduleFieldVisibility = {
   postDischargeEndDate: boolean;
 };
 const SCHEDULE_FIELD_CONFIG: Partial<Record<ChangeType, ScheduleFieldVisibility>> = {
-  schedule_visit:                 { endDate: false, startTime: true,  endTime: true,  facilityName: true,  postDischargeEndDate: false },
+  schedule_visit:                 { endDate: false, startTime: false, endTime: false, facilityName: true,  postDischargeEndDate: false },
   schedule_short_stay:            { endDate: true,  startTime: false, endTime: false, facilityName: true,  postDischargeEndDate: false },
   schedule_special_instruction:   { endDate: true,  startTime: false, endTime: false, facilityName: false, postDischargeEndDate: false },
   schedule_hospitalization:       { endDate: false, startTime: false, endTime: false, facilityName: true,  postDischargeEndDate: false },
   schedule_discharge:             { endDate: false, startTime: false, endTime: false, facilityName: true,  postDischargeEndDate: true  },
-  schedule_new_contract:          { endDate: false, startTime: true,  endTime: true,  facilityName: false, postDischargeEndDate: false },
-  schedule_visit_doctor:          { endDate: false, startTime: true,  endTime: true,  facilityName: false, postDischargeEndDate: false },
+  schedule_new_contract:          { endDate: false, startTime: false, endTime: false, facilityName: false, postDischargeEndDate: false },
+  schedule_visit_doctor:          { endDate: false, startTime: false, endTime: false, facilityName: false, postDischargeEndDate: false },
 };
 const SCHEDULE_START_DATE_LABEL: Partial<Record<ChangeType, string>> = {
   schedule_visit:          "受診日",
@@ -2582,29 +2582,31 @@ export default function ScheduleChange() {
       {/* 予定管理系フォーム */}
       {isScheduleType && (
         <>
-          {/* チーム選択 */}
-          <Card id="sc-team-card">
-            <CardHeader className="pb-2 pt-4">
-              <CardTitle className="text-sm font-semibold">担当チーム</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {TEAMS.filter(t => t !== "事務員" && t !== "全チーム").map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => { setTeam(t); setPatientName(""); }}
-                    className={cn(
-                      "px-3 py-1.5 rounded-full text-sm font-medium border transition-all",
-                      getTeamButtonClass(t, team === t)
-                    )}
-                    style={getTeamButtonStyle(t, team === t)}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          {/* チーム選択（新規契約・面談以外の種別のみ表示） */}
+          {changeType !== "schedule_new_contract" && (
+            <Card id="sc-team-card">
+              <CardHeader className="pb-2 pt-4">
+                <CardTitle className="text-sm font-semibold">担当チーム</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {TEAMS.filter(t => t !== "事務員" && t !== "全チーム").map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => { setTeam(t); setPatientName(""); }}
+                      className={cn(
+                        "px-3 py-1.5 rounded-full text-sm font-medium border transition-all",
+                        getTeamButtonClass(t, team === t)
+                      )}
+                      style={getTeamButtonStyle(t, team === t)}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
            {/* 利用者名（新規契約・面談は対象者名として直接入力、それ以外は利用者DBから選択） */}
           {changeType === "schedule_new_contract" ? (
