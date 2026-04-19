@@ -1356,7 +1356,7 @@ export default function ScheduleChange() {
     const payload = {
       changeType,
       team: team || undefined,
-      patientName: isVisitType ? patientName : (isScheduleType && changeType !== "schedule_new_contract") ? patientName : (changeType === "schedule_new_contract" ? scheduleNewContractTargetName : undefined),
+      patientName: isVisitType ? patientName : (isScheduleType && changeType !== "schedule_new_contract") ? patientName : (changeType === "schedule_new_contract" ? scheduleNewContractTargetName : isMeetingType ? (patientName || undefined) : undefined),
       fromDatetime: fromDatetime ? new Date(fromDatetime).toISOString() : undefined,
       toDatetime: toDatetime ? new Date(toDatetime).toISOString() : undefined,
       staffBefore: staffBefore || undefined,
@@ -1710,8 +1710,8 @@ export default function ScheduleChange() {
           }
         }
       } else {
-        // 利用者名なしのケース
-        missing.push("利用者名");
+        // 利用者名なしのケース（会議系は利用者名が任意なのでmissingに追加しない）
+        if (!isMeetingType) missing.push("利用者名");
         setMissingVoiceFields(missing);
         setIsParsingVoice(false);
         setVoiceTranscribed(true);
@@ -2567,6 +2567,22 @@ export default function ScheduleChange() {
                   </button>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* 利用者名 */}
+          <Card id="sc-meeting-patient-card">
+            <CardHeader className="pb-2 pt-4">
+              <CardTitle className="text-sm font-semibold">利用者名</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PatientAutocomplete
+                patientList={allPatientListForVoice || []}
+                value={patientName}
+                onChange={(name) => { setPatientName(name); triggerDraftSave({ patientName: name }); }}
+                onTeamSelect={(t) => { if (!team) setTeam(t as Team); }}
+                id="sc-meeting-patient-input"
+              />
             </CardContent>
           </Card>
 
