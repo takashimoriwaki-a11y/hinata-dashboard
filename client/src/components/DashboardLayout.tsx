@@ -78,6 +78,7 @@ const LOGO_TEXT_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663391327537/
 // ========== ナビゲーション定義 ==========
 const navItems = [
   { href: "/", icon: LayoutDashboard, label: "ホーム" },
+  { href: "/tools", icon: Sparkles, label: "ツール" },
   { href: "/schedule-change-history", icon: History, label: "変更履歴" },
   { href: "/my-links", icon: Star, label: "マイリンク追加" },
 ];
@@ -87,11 +88,12 @@ const externalTools = [
 
 ];
 
-// ボトムナビゲーション（順: 議事録・訪問・ホーム・変更連絡）
+// ボトムナビゲーション（順: 議事録・ツール・ホーム・訪問・連絡・予定）
 const bottomNavItems = [
   { type: "internal", href: "/minutes", icon: BookOpen, label: "議事録", badge: true },
-  { type: "internal", href: "/record", icon: MapPin, label: "訪問" },
+  { type: "internal", href: "/tools", icon: Sparkles, label: "ツール" },
   { type: "internal", href: "/", icon: LayoutDashboard, label: "ホーム", monthlySignatureBadge: true },
+  { type: "internal", href: "/record", icon: MapPin, label: "訪問" },
   { type: "internal", href: "/schedule-change", icon: CalendarClock, label: "連絡・予定" },
 ];
 

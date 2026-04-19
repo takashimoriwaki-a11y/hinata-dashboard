@@ -1915,6 +1915,7 @@ export default function ScheduleChange() {
                     setPatientName(""); setFromDatetime(""); setToDatetime(""); setStaffBefore(""); setStaffAfter(""); setMeetingName(""); setMeetingStaff([]); setReason("");
                     setScheduleStartDate(""); setScheduleEndDate(""); setScheduleStartTime(""); setScheduleEndTime(""); setScheduleFacilityName(""); setSchedulePostDischargeEndDate("");
                     triggerDraftSave({ changeType: type.value, patientName: "", fromDatetime: "", toDatetime: "", staffBefore: "", staffAfter: "", meetingName: "", meetingStaff: [], reason: "" });
+                    setTimeout(() => { document.getElementById("sc-voice-card")?.scrollIntoView({ behavior: "smooth", block: "start" }); }, 100);
                   }}
                   className={cn(
                     "flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all",
@@ -1940,6 +1941,7 @@ export default function ScheduleChange() {
                     setPatientName(""); setFromDatetime(""); setToDatetime(""); setStaffBefore(""); setStaffAfter(""); setMeetingName(""); setMeetingStaff([]); setReason("");
                     setScheduleStartDate(""); setScheduleEndDate(""); setScheduleStartTime(""); setScheduleEndTime(""); setScheduleFacilityName(""); setSchedulePostDischargeEndDate("");
                     triggerDraftSave({ changeType: type.value, patientName: "", fromDatetime: "", toDatetime: "", staffBefore: "", staffAfter: "", meetingName: "", meetingStaff: [], reason: "" });
+                    setTimeout(() => { document.getElementById("sc-voice-card")?.scrollIntoView({ behavior: "smooth", block: "start" }); }, 100);
                   }}
                   className={cn(
                     "flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all",
@@ -1965,6 +1967,7 @@ export default function ScheduleChange() {
                     setPatientName(""); setFromDatetime(""); setToDatetime(""); setStaffBefore(""); setStaffAfter(""); setMeetingName(""); setMeetingStaff([]); setReason("");
                     setScheduleStartDate(""); setScheduleEndDate(""); setScheduleStartTime(""); setScheduleEndTime(""); setScheduleFacilityName(""); setSchedulePostDischargeEndDate("");
                     triggerDraftSave({ changeType: type.value, patientName: "", fromDatetime: "", toDatetime: "", staffBefore: "", staffAfter: "", meetingName: "", meetingStaff: [], reason: "" });
+                    setTimeout(() => { document.getElementById("sc-voice-card")?.scrollIntoView({ behavior: "smooth", block: "start" }); }, 100);
                   }}
                   className={cn(
                     "flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all",
@@ -1994,8 +1997,8 @@ export default function ScheduleChange() {
         </a>
       </div>
 
-      {/* 音声入力カード */}
-      <Card id="sc-voice-card" className={cn(
+      {/* 音声入力カード（種別未選択時は非表示） */}
+      {changeType && <Card id="sc-voice-card" className={cn(
         "border-2 transition-colors duration-300",
         isVoiceRecording
           ? "border-red-400/60 bg-red-50 dark:bg-red-950/20"
@@ -2371,7 +2374,7 @@ export default function ScheduleChange() {
           )}
 
         </CardContent>
-      </Card>
+      </Card>}
 
 
       {/* 下書き復元バナー */}
@@ -2575,7 +2578,7 @@ export default function ScheduleChange() {
           {/* 利用者名 */}
           <Card id="sc-meeting-patient-card">
             <CardHeader className="pb-2 pt-4">
-              <CardTitle className="text-sm font-semibold">利用者名</CardTitle>
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">利用者名 <Badge variant="outline" className="text-xs font-normal">任意</Badge></CardTitle>
             </CardHeader>
             <CardContent>
               <PatientAutocomplete

@@ -19,6 +19,7 @@ import NewContract from "./pages/NewContract";
 import ScheduleManagement from "./pages/ScheduleManagement";
 import Minutes from "./pages/Minutes";
 import HinatasWay from "./pages/HinatasWay";
+import Tools from "./pages/Tools";
 import MyLinks from "./pages/MyLinks";
 import TeamGoals from "./pages/TeamGoals";
 import Login from "./pages/Login";
@@ -86,6 +87,7 @@ function Router() {
               <Route path={"/minutes"} component={Minutes} />
               <Route path={"/hinatas-way"} component={HinatasWay} />
               <Route path={"/my-links"} component={MyLinks} />
+              <Route path={"/tools"} component={Tools} />
               <Route path={"/team-goals"} component={TeamGoals} />
               <Route path={"/404"} component={NotFound} />
               <Route component={NotFound} />

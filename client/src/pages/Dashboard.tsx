@@ -2757,7 +2757,7 @@ function HinatasWayButton() {
   );
 }
 
-function ToolsCard() {
+export function ToolsCard() {
   const { user } = useAuth();
   const canManageTools = user?.role === "admin" || user?.role === "super_admin";
   const [activeTab, setActiveTab] = useState<ToolsTabId>("sheet");
@@ -3226,7 +3226,7 @@ const TEAM_TABS = [
 ] as const;
 type TeamTabId = "全チーム" | "身体" | "天理" | "郡山北部" | "郡山南部";
 
-function TeamToolsCard() {
+export function TeamToolsCard() {
   const { user } = useAuth();
   const { isNight } = useTheme();
   const utils = trpc.useUtils();
@@ -5757,15 +5757,7 @@ export default function Dashboard() {
           <div className="lg:hidden">
             <PatientTasksCard />
           </div>
-          {/* 5. チームツール（モバイルのみ） */}
-          <div className="lg:hidden">
-            <TeamToolsCard />
-          </div>
-          {/* 6. 全チーム共通ツール（モバイルのみ） */}
-          <div className="lg:hidden">
-            <ToolsCard />
-          </div>
-          {/* 7. 訪問件数 */}
+          {/* 5. 訪問件数 */}
           <div data-scroll-reveal data-delay="200"><VisitCountCard /></div>
           {/* 8. 曜日別件数 */}
           <div data-scroll-reveal data-delay="300"><DailyByTeamCard /></div>
@@ -5792,12 +5784,10 @@ export default function Dashboard() {
             <ImprovementBox isNightMode={isNight} />
           </div>
         </div>
-        {/* 右カラム（PCのみ）: 個人タスク・利用者タスク・チームツール・全チーム共通ツール */}
+        {/* 右カラム（PCのみ）: 個人タスク・利用者タスク */}
         <div className="hidden lg:block space-y-3 md:space-y-4 overflow-x-hidden min-w-0">
           <TasksCard />
           <PatientTasksCard />
-          <TeamToolsCard />
-          <ToolsCard />
         </div>
       </div>
 
