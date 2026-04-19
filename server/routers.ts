@@ -3933,13 +3933,13 @@ export const appRouter = router({
           visit_add: "訪問追加",
           meeting_add: "会議追加",
           meeting_change: "会議変更",
-          schedule_outpatient: "受診",
+          schedule_visit: "受診",
           schedule_short_stay: "ショートステイ",
           schedule_special_instruction: "特別指示書",
           schedule_hospitalization: "入院",
           schedule_discharge: "退院",
           schedule_new_contract: "新規契約・面談",
-          schedule_home_visit_doctor: "訪問診療同席",
+          schedule_visit_doctor: "訪問診療同席",
         };
         // 日時フォーマット
         const fmtDt = (dt: string | null | undefined) => {
@@ -3966,8 +3966,12 @@ export const appRouter = router({
           record.staffBefore ?? "",                     // H: 変更前担当スタッフ
           record.staffAfter ?? "",                      // I: 変更後担当スタッフ
           record.meetingName ?? "",                     // J: 会議名
-          record.meetingStaff ? JSON.parse(record.meetingStaff).join("、") : "", // K: 会議参加スタッフ
+          record.meetingStaff ? (() => { try { return JSON.parse(record.meetingStaff!).join("、"); } catch { return record.meetingStaff ?? ""; } })() : "", // K: 会議参加スタッフ
           record.reason ?? "",                          // L: 変更理由・備考
+          record.scheduleFacility ?? "",                 // M: 施設名
+          record.schedulePostDischargeEndDate ?? "",     // N: 退院後3か月終了日
+          record.scheduleTargetName ?? "",               // O: 対象者名
+          record.scheduleStaff ? (() => { try { return JSON.parse(record.scheduleStaff!).join("、"); } catch { return record.scheduleStaff ?? ""; } })() : "", // P: 対応スタッフ
         ];
 
         // スプレッドシートにシートが存在するか確認し、なければ作成
@@ -3995,7 +3999,7 @@ export const appRouter = router({
             }
           );
           // ヘッダー行を追加
-          const headerRow = ["入力日時", "入力者", "変更種別", "チーム", "利用者名", "変更前日時", "変更後日時", "変更前担当スタッフ", "変更後担当スタッフ", "会議名", "会議参加スタッフ", "変更理由・備考"];
+          const headerRow = ["入力日時", "入力者", "変更種別", "チーム", "利用者名", "変更前日時", "変更後日時", "変更前担当スタッフ", "変更後担当スタッフ", "会議名", "会議参加スタッフ", "変更理由・備考", "施設名", "退院後3か月終了日（週5訪問）", "対象者名", "対応スタッフ"];
           await fetch(
             `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A1")}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
             {
@@ -4022,7 +4026,7 @@ export const appRouter = router({
                   headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
                   body: JSON.stringify({
                     requests: [
-                      // 1行目にオートフィルターを設定（A〜L列）
+                      // 1行目にオートフィルターを設定（A～P列）
                       {
                         setBasicFilter: {
                           filter: {
@@ -4031,7 +4035,7 @@ export const appRouter = router({
                               startRowIndex: 0,
                               endRowIndex: 1,
                               startColumnIndex: 0,
-                              endColumnIndex: 12,
+                              endColumnIndex: 16,
                             }
                           }
                         }
@@ -4044,7 +4048,7 @@ export const appRouter = router({
                             startRowIndex: 0,
                             endRowIndex: 1,
                             startColumnIndex: 0,
-                            endColumnIndex: 12,
+                            endColumnIndex: 16,
                           },
                           cell: {
                             userEnteredFormat: {
@@ -4070,6 +4074,10 @@ export const appRouter = router({
                       { updateDimensionProperties: { range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 9, endIndex: 10 }, properties: { pixelSize: 120 }, fields: "pixelSize" } }, // J: 会議名
                       { updateDimensionProperties: { range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 10, endIndex: 11 }, properties: { pixelSize: 130 }, fields: "pixelSize" } }, // K: 会議参加スタッフ
                       { updateDimensionProperties: { range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 11, endIndex: 12 }, properties: { pixelSize: 200 }, fields: "pixelSize" } }, // L: 変更理由
+                      { updateDimensionProperties: { range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 12, endIndex: 13 }, properties: { pixelSize: 130 }, fields: "pixelSize" } }, // M: 施設名
+                      { updateDimensionProperties: { range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 13, endIndex: 14 }, properties: { pixelSize: 150 }, fields: "pixelSize" } }, // N: 退院後3か月終了日
+                      { updateDimensionProperties: { range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 14, endIndex: 15 }, properties: { pixelSize: 100 }, fields: "pixelSize" } }, // O: 対象者名
+                      { updateDimensionProperties: { range: { sheetId: newSheetId, dimension: "COLUMNS", startIndex: 15, endIndex: 16 }, properties: { pixelSize: 130 }, fields: "pixelSize" } }, // P: 対応スタッフ
                       // 1行目を固定（スクロール時もヘッダーが見えるように）
                       {
                         updateSheetProperties: {
@@ -4090,7 +4098,7 @@ export const appRouter = router({
 
         // データ行を追記
         const appendRes = await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A:L")}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+          `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A:P")}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
           {
             method: "POST",
             headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
@@ -4149,8 +4157,8 @@ export const appRouter = router({
 抽出項目:
 - changeType: 次のいずれか。
   【変更連絡系】訪問日時変更=visit_change、訪問キャンセル=visit_cancel、訪問追加=visit_add、会議追加=meeting_add、会議変更=meeting_change
-  【予定登録系】受診=schedule_checkup、ショートステイ=schedule_short_stay、特別指示書=schedule_special_order、入院=schedule_hospitalization、退院=schedule_discharge、新規契約・面談=schedule_new_contract、訪問診療同席=schedule_home_visit_doctor
-  予定登録系の判断基準：「受診」「病院に行く」「通院」→schedule_checkup、「ショートステイ」「短期入所」→schedule_short_stay、「特別指示書」→schedule_special_order、「入院」「入院する」→schedule_hospitalization、「退院」「退院する」→schedule_discharge、「新規契約」「面談」「初回面談」「契約」→schedule_new_contract、「訪問診療」「往診同席」→schedule_home_visit_doctor
+  【予定登録系】受診=schedule_visit、ショートステイ=schedule_short_stay、特別指示書=schedule_special_instruction、入院=schedule_hospitalization、退院=schedule_discharge、新規契約・面談=schedule_new_contract、訪問診療同席=schedule_visit_doctor
+  予定登録系の判断基準：「受診」「病院に行く」「通院」→schedule_visit、「ショートステイ」「短期入所」→schedule_short_stay、「特別指示書」→schedule_special_instruction、「入院」「入院する」→schedule_hospitalization、「退院」「退院する」→schedule_discharge、「新規契約」「面談」「初回面談」「契約」→schedule_new_contract、「訪問診療」「往診同席」→schedule_visit_doctor
 - team: 身体 / 天理 / 郡山北部 / 郡山南部 / 事務員 / 全チーム のいずれか
 - patientName: 利用者名（姓名）。予定登録系で「対象者」「相手」「方」と言及された場合もここに入れる。訂正表現がある場合は最後に言及された利用者名を使用すること。利用者リストがある場合は正式名を返すこと。姓だけの場合は姓のみ返す
 - patientLastName: 利用者の姓（苗字）のみ。姓名両方わかる場合は同じ値、姓だけの場合はその姓、利用者が不明な場合はnull
@@ -4219,7 +4227,7 @@ export const appRouter = router({
     /** 作成と同時にスプレッドシートへ転記する（ワンステップ） */
     createAndExport: protectedProcedure
       .input(z.object({
-        changeType: z.enum(["visit_change", "visit_cancel", "visit_add", "meeting_add", "meeting_change"]),
+        changeType: z.enum(["visit_change", "visit_cancel", "visit_add", "meeting_add", "meeting_change", "schedule_visit", "schedule_short_stay", "schedule_special_instruction", "schedule_hospitalization", "schedule_discharge", "schedule_new_contract", "schedule_visit_doctor"]),
         team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]).optional(),
         patientName: z.string().optional(),
         patientId: z.number().optional(),
@@ -4232,6 +4240,13 @@ export const appRouter = router({
         reason: z.string().optional(),
         spreadsheetId: z.string().optional(),
         sheetName: z.string().optional(),
+        // 予定管理固有フィールド
+        scheduleFacility: z.string().optional(),
+        scheduleStartDate: z.string().optional(),
+        scheduleEndDate: z.string().optional(),
+        schedulePostDischargeEndDate: z.string().optional(),
+        scheduleTargetName: z.string().optional(),
+        scheduleStaff: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         // まずDBに保存
@@ -4247,6 +4262,12 @@ export const appRouter = router({
           meetingName: input.meetingName,
           meetingStaff: input.meetingStaff,
           reason: input.reason,
+          scheduleFacility: input.scheduleFacility,
+          scheduleStartDate: input.scheduleStartDate,
+          scheduleEndDate: input.scheduleEndDate,
+          schedulePostDischargeEndDate: input.schedulePostDischargeEndDate,
+          scheduleTargetName: input.scheduleTargetName,
+          scheduleStaff: input.scheduleStaff,
           createdBy: ctx.user.id,
           createdByName: ctx.user.name ?? "不明",
         });
@@ -4286,13 +4307,13 @@ export const appRouter = router({
             visit_add: "訪問追加",
             meeting_add: "会議追加",
             meeting_change: "会議変更",
-            schedule_outpatient: "受診",
+            schedule_visit: "受診",
             schedule_short_stay: "ショートステイ",
             schedule_special_instruction: "特別指示書",
             schedule_hospitalization: "入院",
             schedule_discharge: "退院",
             schedule_new_contract: "新規契約・面談",
-            schedule_home_visit_doctor: "訪問診療同席",
+            schedule_visit_doctor: "訪問診療同席",
           };
           // 日時フォーマット（JST: UTC+9 に変換して書き込む））
           const fmtDt = (dt: string | Date | null | undefined) => {
@@ -4318,8 +4339,16 @@ export const appRouter = router({
             record.staffBefore ?? "",
             record.staffAfter ?? "",
             record.meetingName ?? "",
-            record.meetingStaff ? JSON.parse(record.meetingStaff).join("、") : "",
+            record.meetingStaff ? (() => { try { return JSON.parse(record.meetingStaff!).join("、"); } catch { return record.meetingStaff ?? ""; } })() : "",
             record.reason ?? "",
+            // M列：施設名
+            record.scheduleFacility ?? "",
+            // N列：退院後3か月終了日（週5訪問）
+            record.schedulePostDischargeEndDate ?? "",
+            // O列：対象者名（新規契約・面談用）
+            record.scheduleTargetName ?? "",
+            // P列：対応スタッフ
+            record.scheduleStaff ? (() => { try { return JSON.parse(record.scheduleStaff!).join("、"); } catch { return record.scheduleStaff ?? ""; } })() : "",
           ];
 
           // シート存在確認
@@ -4339,7 +4368,7 @@ export const appRouter = router({
                   body: JSON.stringify({ requests: [{ addSheet: { properties: { title: SHEET_NAME } } }] }),
                 }
               );
-              const headerRow = ["入力日時", "入力者", "変更種別", "チーム", "利用者名", "変更前日時", "変更後日時", "変更前担当スタッフ", "変更後担当スタッフ", "会議名", "会議参加スタッフ", "変更理由・備考"];
+              const headerRow = ["入力日時", "入力者", "変更種別", "チーム", "利用者名", "変更前日時", "変更後日時", "変更前担当スタッフ", "変更後担当スタッフ", "会議名", "会議参加スタッフ", "変更理由・備考", "施設名", "退院後3か月終了日（週5訪問）", "対象者名", "対応スタッフ"];
               await fetch(
                 `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A1")}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
                 {
@@ -4352,7 +4381,7 @@ export const appRouter = router({
           }
 
           const appendRes = await fetch(
-            `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A:L")}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+            `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A:P")}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
             {
               method: "POST",
               headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
@@ -4373,7 +4402,7 @@ export const appRouter = router({
                 const meta2 = await metaRes2.json() as { sheets?: { properties: { title: string; sheetId: number } }[] };
                 const sheetInfo = meta2.sheets?.find(s => s.properties.title === SHEET_NAME);
                 const sheetId = sheetInfo?.properties?.sheetId ?? 0;
-                const COL_COUNT = 12; // A〜Lの12列
+                const COL_COUNT = 16; // AーPの16列
 
                 // 転送済み行数を取得
                 const valuesRes = await fetch(
@@ -4466,6 +4495,10 @@ export const appRouter = router({
                     { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 9,  endIndex: 10 }, properties: { pixelSize: 130 }, fields: "pixelSize" } }, // 会議名
                     { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 10, endIndex: 11 }, properties: { pixelSize: 180 }, fields: "pixelSize" } }, // 会議参加スタッフ
                     { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 11, endIndex: 12 }, properties: { pixelSize: 280 }, fields: "pixelSize" } }, // 変更理由・備考
+                    { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 12, endIndex: 13 }, properties: { pixelSize: 150 }, fields: "pixelSize" } }, // 施設名
+                    { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 13, endIndex: 14 }, properties: { pixelSize: 180 }, fields: "pixelSize" } }, // 退院後3か月終了日
+                    { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 14, endIndex: 15 }, properties: { pixelSize: 150 }, fields: "pixelSize" } }, // 対象者名
+                    { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 15, endIndex: 16 }, properties: { pixelSize: 180 }, fields: "pixelSize" } }, // 対応スタッフ
                     // 8. 行の高さ：ヘッダー行を少し高めに
                     { updateDimensionProperties: { range: { sheetId, dimension: "ROWS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 36 }, fields: "pixelSize" } },
                     // 9. オートフィルターを設定（全列）

@@ -445,6 +445,13 @@ export const scheduleChanges = mysqlTable("schedule_changes", {
     "visit_add",
     "meeting_add",
     "meeting_change",
+    "schedule_visit",
+    "schedule_short_stay",
+    "schedule_special_instruction",
+    "schedule_hospitalization",
+    "schedule_discharge",
+    "schedule_new_contract",
+    "schedule_visit_doctor",
   ]).notNull(),
   /** 対象チーム（会議の場合はnull可） */
   team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]),
@@ -466,6 +473,18 @@ export const scheduleChanges = mysqlTable("schedule_changes", {
   meetingStaff: text("meetingStaff"),
   /** 変更理由・備考 */
   reason: text("reason"),
+  /** 予定管理：施設名（受診・ショートステイ・特別指示書・入院・退院など） */
+  scheduleFacility: varchar("scheduleFacility", { length: 200 }),
+  /** 予定管理：開始日（ISO文字列） */
+  scheduleStartDate: varchar("scheduleStartDate", { length: 30 }),
+  /** 予定管理：終了日（ISO文字列） */
+  scheduleEndDate: varchar("scheduleEndDate", { length: 30 }),
+  /** 予定管理：退院後3か月終了日（週5訪問、ISO文字列） */
+  schedulePostDischargeEndDate: varchar("schedulePostDischargeEndDate", { length: 30 }),
+  /** 予定管理：対象者名（新規契約・面談用、直接テキスト入力） */
+  scheduleTargetName: varchar("scheduleTargetName", { length: 200 }),
+  /** 予定管理：対応スタッフ（JSON配列文字列、複数選択可） */
+  scheduleStaff: text("scheduleStaff"),
   /** 入力したユーザーID */
   createdBy: int("createdBy").notNull(),
   /** 入力したユーザー名（表示用キャッシュ） */

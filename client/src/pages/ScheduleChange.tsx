@@ -52,13 +52,13 @@ const CHANGE_TYPES = [
   { value: "visit_add", label: "訪問追加", icon: "✅", color: "bg-green-100 text-green-800 border-green-200", group: "visit" },
   { value: "meeting_add", label: "会議追加", icon: "📅", color: "bg-purple-100 text-purple-800 border-purple-200", group: "meeting" },
   { value: "meeting_change", label: "会議変更", icon: "📝", color: "bg-orange-100 text-orange-800 border-orange-200", group: "meeting" },
-  { value: "schedule_shindan", label: "受診", icon: "🏥", color: "bg-cyan-100 text-cyan-800 border-cyan-200", group: "schedule" },
+  { value: "schedule_visit", label: "受診", icon: "🏥", color: "bg-cyan-100 text-cyan-800 border-cyan-200", group: "schedule" },
   { value: "schedule_short_stay", label: "ショートステイ", icon: "🏨", color: "bg-teal-100 text-teal-800 border-teal-200", group: "schedule" },
-  { value: "schedule_tokubetsu", label: "特別指示書", icon: "📋", color: "bg-amber-100 text-amber-800 border-amber-200", group: "schedule" },
-  { value: "schedule_nyuin", label: "入院", icon: "🏩", color: "bg-rose-100 text-rose-800 border-rose-200", group: "schedule" },
-  { value: "schedule_taiin", label: "退院", icon: "🚶", color: "bg-emerald-100 text-emerald-800 border-emerald-200", group: "schedule" },
+  { value: "schedule_special_instruction", label: "特別指示書", icon: "📋", color: "bg-amber-100 text-amber-800 border-amber-200", group: "schedule" },
+  { value: "schedule_hospitalization", label: "入院", icon: "🏩", color: "bg-rose-100 text-rose-800 border-rose-200", group: "schedule" },
+  { value: "schedule_discharge", label: "退院", icon: "🚶", color: "bg-emerald-100 text-emerald-800 border-emerald-200", group: "schedule" },
   { value: "schedule_new_contract", label: "新規契約・面談", icon: "🤝", color: "bg-indigo-100 text-indigo-800 border-indigo-200", group: "schedule" },
-  { value: "schedule_houmon_shinryo", label: "訪問診療同席", icon: "👨‍⚕️", color: "bg-violet-100 text-violet-800 border-violet-200", group: "schedule" },
+  { value: "schedule_visit_doctor", label: "訪問診療同席", icon: "👨‍⚕️", color: "bg-violet-100 text-violet-800 border-violet-200", group: "schedule" },
 ] as const;
 
 type ChangeType = (typeof CHANGE_TYPES)[number]["value"];
@@ -72,22 +72,22 @@ type ScheduleFieldVisibility = {
   postDischargeEndDate: boolean;
 };
 const SCHEDULE_FIELD_CONFIG: Partial<Record<ChangeType, ScheduleFieldVisibility>> = {
-  schedule_shindan:          { endDate: false, startTime: true,  endTime: true,  facilityName: true,  postDischargeEndDate: false },
-  schedule_short_stay:       { endDate: true,  startTime: false, endTime: false, facilityName: true,  postDischargeEndDate: false },
-  schedule_tokubetsu:        { endDate: true,  startTime: false, endTime: false, facilityName: false, postDischargeEndDate: false },
-  schedule_nyuin:            { endDate: false, startTime: false, endTime: false, facilityName: true,  postDischargeEndDate: false },
-  schedule_taiin:            { endDate: false, startTime: false, endTime: false, facilityName: true,  postDischargeEndDate: true  },
-  schedule_new_contract:           { endDate: false, startTime: true,  endTime: true,  facilityName: false, postDischargeEndDate: false },
-  schedule_houmon_shinryo:   { endDate: false, startTime: true,  endTime: true,  facilityName: false, postDischargeEndDate: false },
+  schedule_visit:                 { endDate: false, startTime: true,  endTime: true,  facilityName: true,  postDischargeEndDate: false },
+  schedule_short_stay:            { endDate: true,  startTime: false, endTime: false, facilityName: true,  postDischargeEndDate: false },
+  schedule_special_instruction:   { endDate: true,  startTime: false, endTime: false, facilityName: false, postDischargeEndDate: false },
+  schedule_hospitalization:       { endDate: false, startTime: false, endTime: false, facilityName: true,  postDischargeEndDate: false },
+  schedule_discharge:             { endDate: false, startTime: false, endTime: false, facilityName: true,  postDischargeEndDate: true  },
+  schedule_new_contract:          { endDate: false, startTime: true,  endTime: true,  facilityName: false, postDischargeEndDate: false },
+  schedule_visit_doctor:          { endDate: false, startTime: true,  endTime: true,  facilityName: false, postDischargeEndDate: false },
 };
 const SCHEDULE_START_DATE_LABEL: Partial<Record<ChangeType, string>> = {
-  schedule_shindan:        "受診日",
+  schedule_visit:          "受診日",
   schedule_short_stay:     "開始日",
-  schedule_tokubetsu:      "開始日",
-  schedule_nyuin:          "入院日",
-  schedule_taiin:          "退院日",
+  schedule_special_instruction: "開始日",
+  schedule_hospitalization:      "入院日",
+  schedule_discharge:            "退院日",
   schedule_new_contract:         "予定日",
-  schedule_houmon_shinryo: "予定日",
+  schedule_visit_doctor:   "予定日",
 };
 
 const TEAMS = ["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"] as const;
@@ -1066,7 +1066,7 @@ export default function ScheduleChange() {
   // 退院日が変更されたら退院後90日後（週５訪問終了日）を自動計算
   const handleScheduleStartDateChange = (value: string) => {
     setScheduleStartDate(value);
-    if (changeType === "schedule_taiin" && value) {
+    if (changeType === "schedule_discharge" && value) {
       const d = new Date(value);
       d.setDate(d.getDate() + 89); // 退院日を含めて90日後 = 退院日+89日
       const y = d.getFullYear();
@@ -1313,6 +1313,13 @@ export default function ScheduleChange() {
       meetingName: isMeetingType ? meetingName : undefined,
       meetingStaff: isMeetingType && meetingStaff.length > 0 ? JSON.stringify(meetingStaff) : undefined,
       reason: isScheduleType ? (scheduleNotes || undefined) : (reason || undefined),
+      // 予定管理固有フィールド
+      scheduleFacility: isScheduleType && scheduleFieldConfig?.facilityName ? (scheduleFacilityName || undefined) : undefined,
+      scheduleStartDate: isScheduleType ? (scheduleStartDate || undefined) : undefined,
+      scheduleEndDate: isScheduleType && scheduleFieldConfig?.endDate ? (scheduleEndDate || undefined) : undefined,
+      schedulePostDischargeEndDate: isScheduleType && scheduleFieldConfig?.postDischargeEndDate ? (schedulePostDischargeEndDate || undefined) : undefined,
+      scheduleTargetName: changeType === "schedule_new_contract" ? (scheduleNewContractTargetName || undefined) : undefined,
+      scheduleStaff: isScheduleType && scheduleNewContractStaff.length > 0 ? JSON.stringify(scheduleNewContractStaff) : undefined,
     };
 
     setLastRecord({
@@ -1415,9 +1422,9 @@ export default function ScheduleChange() {
       // changeType（空欄のみ上書き）
       const allValidChangeTypes = [
         "visit_change", "visit_cancel", "visit_add", "meeting_add", "meeting_change",
-        "schedule_checkup", "schedule_short_stay", "schedule_special_order",
+        "schedule_visit", "schedule_short_stay", "schedule_special_instruction",
         "schedule_hospitalization", "schedule_discharge", "schedule_new_contract",
-        "schedule_home_visit_doctor"
+        "schedule_visit_doctor"
       ];
       const isScheduleTypeVoice = f.changeType?.startsWith("schedule_") ?? false;
       if (f.changeType && allValidChangeTypes.includes(f.changeType)) {
@@ -1930,7 +1937,7 @@ export default function ScheduleChange() {
               meeting_change: {
                 main: "○月○日の担当者会議、○月○日の15時に変更。",
               },
-              schedule_medical: {
+              schedule_visit: {
                 main: "○○チームの○○さん、来週火曜日に○○クリニックに受診。",
                 sub: "施設名（病院・クリニック名）も一緒に伝えると自動転記されます。",
               },
@@ -1953,7 +1960,7 @@ export default function ScheduleChange() {
                 main: "新規契約の面談、○月○日の14時から。対象者は○○さん。対応スタッフは○○と○○。",
                 sub: "対象者名・対応スタッフ名・日時を一緒に伝えると自動転記されます。",
               },
-              schedule_home_visit_doctor: {
+              schedule_visit_doctor: {
                 main: "○○チームの○○さん、○月○日の14時に訪問診療に同席。",
               },
             };
