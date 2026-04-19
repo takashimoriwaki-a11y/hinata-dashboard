@@ -1531,15 +1531,25 @@ export default function ScheduleChange() {
         missing.push("変更種別（日時変更・キャンセル・追加等・予定登録）");
       }
 
+      // チームが必要かどうかを種別で判断
+      // 不要: 新規契約・面談（UIなし）、会議追加（任意）
+      const teamNotRequired =
+        f.changeType === "schedule_new_contract" ||
+        changeType === "schedule_new_contract" ||
+        f.changeType === "meeting_add" ||
+        changeType === "meeting_add" ||
+        f.changeType === "meeting_change" ||
+        changeType === "meeting_change";
+
       if (f.team) {
         if (["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"].includes(f.team)) {
           // チーム名は明示的に話した場合は常に反映（補完時に上書きできるよう）
           setTeam(f.team as Team);
           applied++;
-        } else {
+        } else if (!teamNotRequired) {
           missing.push("チーム名（身体・天理・郡山北部・郡山南部）");
         }
-      } else {
+      } else if (!teamNotRequired) {
         missing.push("チーム名（身体・天理・郡山北部・郡山南部）");
       }
 
