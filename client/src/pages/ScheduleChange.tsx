@@ -656,6 +656,7 @@ function DateTimePicker({
   placeholder = "日時を選択",
   confidence,
   dateOnly = false,
+  defaultTimeUnspecified = false,
 }: {
   value: string;
   onChange: (val: string) => void;
@@ -664,6 +665,7 @@ function DateTimePicker({
   placeholder?: string;
   confidence?: 'high' | 'medium' | 'low' | null;
   dateOnly?: boolean;
+  defaultTimeUnspecified?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [hour, setHour] = useState(() => {
@@ -683,6 +685,12 @@ function DateTimePicker({
     // 10分刻みに丸める
     return String(Math.round(m / 10) * 10 % 60).padStart(2, "0");
   });
+  // 時間未定フラグ（defaultTimeUnspecified=trueの場合、初期状態は未定）
+  const [timeUnspecified, setTimeUnspecified] = useState(() => {
+    if (!value) return defaultTimeUnspecified;
+    // 既存の値が日付のみ（YYYY-MM-DD）形式なら未定
+    return !value.includes('T');
+  });
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => {
     if (!value) return undefined;
     return new Date(value);
@@ -690,12 +698,12 @@ function DateTimePicker({
 
   const pad = (n: number) => String(n).padStart(2, "0");
 
-  const applyDateTime = (date: Date | undefined, h: string, m: string) => {
+  const applyDateTime = (date: Date | undefined, h: string, m: string, forceTimeUnspecified?: boolean) => {
     if (!date) return;
     const d = new Date(date);
     d.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
-    if (dateOnly) {
-      // 日付のみモード: YYYY-MM-DD形式で返す
+    if (dateOnly || forceTimeUnspecified || timeUnspecified) {
+      // 日付のみモード or 時間未定: YYYY-MM-DD形式で返す
       const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
       onChange(iso);
     } else {
@@ -714,17 +722,35 @@ function DateTimePicker({
       setOpen(false);
       return;
     }
+    if (timeUnspecified && day) {
+      // 時間未定モード: 日付のみで確定
+      const d = new Date(day);
+      const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      onChange(iso);
+      return;
+    }
     applyDateTime(day, hour, minute);
   };
 
   const handleHourChange = (h: string) => {
     setHour(h);
-    applyDateTime(selectedDate, h, minute);
+    setTimeUnspecified(false);
+    applyDateTime(selectedDate, h, minute, false);
   };
 
   const handleMinuteChange = (m: string) => {
     setMinute(m);
-    applyDateTime(selectedDate, hour, m);
+    setTimeUnspecified(false);
+    applyDateTime(selectedDate, hour, m, false);
+  };
+
+  const handleSetTimeUnspecified = () => {
+    setTimeUnspecified(true);
+    if (selectedDate) {
+      const d = new Date(selectedDate);
+      const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      onChange(iso);
+    }
   };
 
   // 時刻未指定かどうかを判定（YYYY-MM-DD形式 or T00:00:00の場合）
@@ -826,40 +852,59 @@ function DateTimePicker({
             />
             {!dateOnly && (
               <div className="border-t pt-3">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  <span className="text-sm font-medium">時刻</span>
-                </div>
-                <div className="flex items-center gap-2 mt-2">
-                  <Select value={hour} onValueChange={handleHourChange}>
-                    <SelectTrigger className="w-20 h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-48">
-                      {hours.map(h => (
-                        <SelectItem key={h} value={h}>{h}時</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <span className="text-muted-foreground font-medium">:</span>
-                  <Select value={minute} onValueChange={handleMinuteChange}>
-                    <SelectTrigger className="w-20 h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-48">
-                      {minutes.map(m => (
-                        <SelectItem key={m} value={m}>{m}分</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    size="sm"
-                    className="ml-auto"
-                    onClick={() => setOpen(false)}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-sm font-medium">時刻</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSetTimeUnspecified}
+                    className={cn(
+                      "text-xs px-2 py-0.5 rounded border transition-colors",
+                      timeUnspecified
+                        ? "border-primary bg-primary/10 text-primary font-medium"
+                        : "border-border bg-muted/50 hover:bg-muted text-muted-foreground"
+                    )}
                   >
-                    決定
-                  </Button>
+                    時間未定
+                  </button>
                 </div>
+                {!timeUnspecified && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <Select value={hour} onValueChange={handleHourChange}>
+                      <SelectTrigger className="w-20 h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-48">
+                        {hours.map(h => (
+                          <SelectItem key={h} value={h}>{h}時</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="text-muted-foreground font-medium">:</span>
+                    <Select value={minute} onValueChange={handleMinuteChange}>
+                      <SelectTrigger className="w-20 h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-48">
+                        {minutes.map(m => (
+                          <SelectItem key={m} value={m}>{m}分</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="sm"
+                      className="ml-auto"
+                      onClick={() => setOpen(false)}
+                    >
+                      決定
+                    </Button>
+                  </div>
+                )}
+                {timeUnspecified && (
+                  <p className="text-xs text-muted-foreground mt-2">時間を選択すると自動で解除されます</p>
+                )}
               </div>
             )}
           </div>
@@ -2188,14 +2233,15 @@ export default function ScheduleChange() {
                 sub: "開始日・終了日・施設名を一緒に伝えると自動転記されます。",
               },
               schedule_special_instruction: {
-                main: "○○チームの○○さん、○月○日から特別指示書の期間が始まります。終了は○月○日。",
+                main: "○○チームの○○さん、○月○日から特別指示書の期間が始まります。",
+                sub: "開始日を伝えると終了日（14日後）が自動計算されます。",
               },
               schedule_hospitalization: {
-                main: "○○チームの○○さん、○月○日から○○病院に入院。退院予定は○月○日。",
-                sub: "入院先の病院名・退院予定日も一緒に伝えると自動転記されます。",
+                main: "○○チームの○○さん、○月○日から○○病院に入院。",
+                sub: "入院先の病院名も一緒に伝えると自動転記されます。",
               },
               schedule_discharge: {
-                main: "○○チームの○○さん、○月○日に○○病院を退院。退院後3か月の週5訪問は○月○日まで。",
+                main: "○○チームの○○さん、○月○日に○○病院を退院。",
                 sub: "退院日を伝えると退院後3か月終了日（週5訪問）が自動計算されます。",
               },
               schedule_new_contract: {
@@ -2477,6 +2523,7 @@ export default function ScheduleChange() {
                   required
                   placeholder="追加する日時を選択"
                   confidence={toDatetimeConfidence}
+                  defaultTimeUnspecified={true}
                 />
               ) : (
                 <>
@@ -2487,6 +2534,7 @@ export default function ScheduleChange() {
                     required={changeType === "visit_change" || changeType === "visit_cancel"}
                     placeholder={changeType === "visit_cancel" ? "キャンセルの日を選択" : "変更前の日時を選択"}
                     confidence={fromDatetimeConfidence}
+                    dateOnly={changeType === "visit_cancel"}
                   />
                   {changeType !== "visit_cancel" && (
                     <DateTimePicker
@@ -2496,6 +2544,7 @@ export default function ScheduleChange() {
                       required={changeType === "visit_change"}
                       placeholder="変更後の日時を選択"
                       confidence={toDatetimeConfidence}
+                      defaultTimeUnspecified={true}
                     />
                   )}
                 </>
@@ -2620,6 +2669,7 @@ export default function ScheduleChange() {
                   label="変更前の日時"
                   placeholder="変更前の日時を選択"
                   confidence={fromDatetimeConfidence}
+                  defaultTimeUnspecified={true}
                 />
               )}
               <DateTimePicker
@@ -2629,6 +2679,7 @@ export default function ScheduleChange() {
                 required
                 placeholder="日時を選択"
                 confidence={toDatetimeConfidence}
+                defaultTimeUnspecified={true}
               />
             </CardContent>
           </Card>
@@ -2742,14 +2793,28 @@ export default function ScheduleChange() {
               <DateTimePicker
                 value={scheduleStartDate}
                 onChange={(v) => {
-                  // YYYY-MM-DD形式の日付のみを受け取る
-                  const dateOnly = v ? v.split("T")[0] : "";
-                  handleScheduleStartDateChange(dateOnly);
-                  setScheduleStartDate(dateOnly);
+                  // 受診日・新規契約・訪問診療同席は時間ありで保存（時間未定の場合はYYYY-MM-DD形式）
+                  const isScheduleWithTime = [
+                    "schedule_visit", "schedule_new_contract", "schedule_visit_doctor"
+                  ].includes(changeType);
+                  if (isScheduleWithTime) {
+                    // 時間ありの場合はISO形式、時間未定の場合はYYYY-MM-DD形式
+                    handleScheduleStartDateChange(v ? v.split("T")[0] : "");
+                    setScheduleStartDate(v);
+                  } else {
+                    const dateOnly = v ? v.split("T")[0] : "";
+                    handleScheduleStartDateChange(dateOnly);
+                    setScheduleStartDate(dateOnly);
+                  }
                 }}
                 label=""
                 placeholder={`${scheduleStartDateLabel}を選択`}
-                dateOnly={true}
+                dateOnly={![
+                  "schedule_visit", "schedule_new_contract", "schedule_visit_doctor"
+                ].includes(changeType)}
+                defaultTimeUnspecified={[
+                  "schedule_visit", "schedule_new_contract", "schedule_visit_doctor"
+                ].includes(changeType)}
               />
             </CardContent>
           </Card>
@@ -2970,7 +3035,7 @@ export default function ScheduleChange() {
               <div className="rounded-xl border border-border bg-background p-3 space-y-1">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">予定情報</p>
                 {changeType === "schedule_new_contract" && scheduleNewContractTargetName && <p className="text-sm text-foreground">対象者名: {scheduleNewContractTargetName}</p>}
-                {scheduleStartDate && <p className="text-sm text-foreground">{scheduleStartDateLabel}: {scheduleStartDate}</p>}
+                {scheduleStartDate && <p className="text-sm text-foreground">{scheduleStartDateLabel}: {scheduleStartDate.includes('T') ? formatDatetime(new Date(scheduleStartDate).toISOString()) : scheduleStartDate}</p>}
                 {scheduleFieldConfig?.endDate && scheduleEndDate && <p className="text-sm text-foreground">終了日: {scheduleEndDate}</p>}
                 {scheduleFieldConfig?.startTime && scheduleStartTime && <p className="text-sm text-foreground">開始: {scheduleStartTime}</p>}
                 {scheduleFieldConfig?.endTime && scheduleEndTime && <p className="text-sm text-foreground">終了: {scheduleEndTime}</p>}
