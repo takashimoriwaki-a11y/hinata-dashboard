@@ -1896,6 +1896,104 @@ export default function ScheduleChange() {
         </div>
       </div>
 
+
+      {/* 変更種別選択 */}
+      <Card id="sc-change-type-card">
+        <CardHeader className="pb-2 pt-4">
+          <CardTitle className="text-sm font-semibold">種別を選択</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* 訪問系 */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">📅 訪問変更</p>
+            <div className="grid grid-cols-1 gap-2">
+              {CHANGE_TYPES.filter(t => t.group === "visit").map((type) => (
+                <button
+                  key={type.value}
+                  onClick={() => {
+                    setChangeType(type.value);
+                    setPatientName(""); setFromDatetime(""); setToDatetime(""); setStaffBefore(""); setStaffAfter(""); setMeetingName(""); setMeetingStaff([]); setReason("");
+                    setScheduleStartDate(""); setScheduleEndDate(""); setScheduleStartTime(""); setScheduleEndTime(""); setScheduleFacilityName(""); setSchedulePostDischargeEndDate("");
+                    triggerDraftSave({ changeType: type.value, patientName: "", fromDatetime: "", toDatetime: "", staffBefore: "", staffAfter: "", meetingName: "", meetingStaff: [], reason: "" });
+                  }}
+                  className={cn(
+                    "flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all",
+                    changeType === type.value ? "border-primary bg-primary/5 shadow-sm" : "border-border bg-card hover:bg-muted/50"
+                  )}
+                >
+                  <span className="text-xl">{type.icon}</span>
+                  <span className={cn("text-sm font-medium", changeType === type.value ? "text-primary" : "text-foreground")}>{type.label}</span>
+                  {changeType === type.value && <CheckCircle2 className="w-4 h-4 text-primary ml-auto" />}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* 会議系 */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">📝 会議</p>
+            <div className="grid grid-cols-1 gap-2">
+              {CHANGE_TYPES.filter(t => t.group === "meeting").map((type) => (
+                <button
+                  key={type.value}
+                  onClick={() => {
+                    setChangeType(type.value);
+                    setPatientName(""); setFromDatetime(""); setToDatetime(""); setStaffBefore(""); setStaffAfter(""); setMeetingName(""); setMeetingStaff([]); setReason("");
+                    setScheduleStartDate(""); setScheduleEndDate(""); setScheduleStartTime(""); setScheduleEndTime(""); setScheduleFacilityName(""); setSchedulePostDischargeEndDate("");
+                    triggerDraftSave({ changeType: type.value, patientName: "", fromDatetime: "", toDatetime: "", staffBefore: "", staffAfter: "", meetingName: "", meetingStaff: [], reason: "" });
+                  }}
+                  className={cn(
+                    "flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all",
+                    changeType === type.value ? "border-primary bg-primary/5 shadow-sm" : "border-border bg-card hover:bg-muted/50"
+                  )}
+                >
+                  <span className="text-xl">{type.icon}</span>
+                  <span className={cn("text-sm font-medium", changeType === type.value ? "text-primary" : "text-foreground")}>{type.label}</span>
+                  {changeType === type.value && <CheckCircle2 className="w-4 h-4 text-primary ml-auto" />}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* 予定管理系 */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">📆 予定登録</p>
+            <div className="grid grid-cols-2 gap-2">
+              {CHANGE_TYPES.filter(t => t.group === "schedule").map((type) => (
+                <button
+                  key={type.value}
+                  onClick={() => {
+                    setChangeType(type.value);
+                    setPatientName(""); setFromDatetime(""); setToDatetime(""); setStaffBefore(""); setStaffAfter(""); setMeetingName(""); setMeetingStaff([]); setReason("");
+                    setScheduleStartDate(""); setScheduleEndDate(""); setScheduleStartTime(""); setScheduleEndTime(""); setScheduleFacilityName(""); setSchedulePostDischargeEndDate("");
+                    triggerDraftSave({ changeType: type.value, patientName: "", fromDatetime: "", toDatetime: "", staffBefore: "", staffAfter: "", meetingName: "", meetingStaff: [], reason: "" });
+                  }}
+                  className={cn(
+                    "flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all",
+                    changeType === type.value ? "border-primary bg-primary/5 shadow-sm" : "border-border bg-card hover:bg-muted/50"
+                  )}
+                >
+                  <span className="text-xl">{type.icon}</span>
+                  <span className={cn("text-sm font-medium", changeType === type.value ? "text-primary" : "text-foreground")}>{type.label}</span>
+                  {changeType === type.value && <CheckCircle2 className="w-4 h-4 text-primary ml-auto" />}
+                </button>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* スプレッドシートリンクボタン */}
+      <div className="px-1">
+        <a
+          href="https://docs.google.com/spreadsheets/d/1ki462aQRaNTj5FrI_1MJ1OyATFGqODz6HCtmuriIDEU/edit?gid=941601927#gid=941601927"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800/60 transition-colors"
+        >
+          <ExternalLink className="w-3.5 h-3.5" />
+          スケジュール変更連絡シートを開く
+        </a>
+      </div>
+
       {/* 音声入力カード */}
       <Card id="sc-voice-card" className={cn(
         "border-2 transition-colors duration-300",
@@ -1965,19 +2063,6 @@ export default function ScheduleChange() {
               </div>
             </div>
           )}
-
-          {/* スプレッドシートリンクボタン */}
-          <div className="mb-2">
-            <a
-              href="https://docs.google.com/spreadsheets/d/1ki462aQRaNTj5FrI_1MJ1OyATFGqODz6HCtmuriIDEU/edit?gid=941601927#gid=941601927"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800/60 transition-colors"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              スケジュール変更連絡シートを開く
-            </a>
-          </div>
 
           <div className="flex items-center gap-3">
             <div className="flex-1 min-w-0">
@@ -2288,6 +2373,7 @@ export default function ScheduleChange() {
         </CardContent>
       </Card>
 
+
       {/* 下書き復元バナー */}
       {hasDraft && draftSavedAt && (
         <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
@@ -2326,90 +2412,6 @@ export default function ScheduleChange() {
           </button>
         </div>
       )}
-
-      {/* 変更種別選択 */}
-      <Card id="sc-change-type-card">
-        <CardHeader className="pb-2 pt-4">
-          <CardTitle className="text-sm font-semibold">種別を選択</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* 訪問系 */}
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">📅 訪問変更</p>
-            <div className="grid grid-cols-1 gap-2">
-              {CHANGE_TYPES.filter(t => t.group === "visit").map((type) => (
-                <button
-                  key={type.value}
-                  onClick={() => {
-                    setChangeType(type.value);
-                    setPatientName(""); setFromDatetime(""); setToDatetime(""); setStaffBefore(""); setStaffAfter(""); setMeetingName(""); setMeetingStaff([]); setReason("");
-                    setScheduleStartDate(""); setScheduleEndDate(""); setScheduleStartTime(""); setScheduleEndTime(""); setScheduleFacilityName(""); setSchedulePostDischargeEndDate("");
-                    triggerDraftSave({ changeType: type.value, patientName: "", fromDatetime: "", toDatetime: "", staffBefore: "", staffAfter: "", meetingName: "", meetingStaff: [], reason: "" });
-                  }}
-                  className={cn(
-                    "flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all",
-                    changeType === type.value ? "border-primary bg-primary/5 shadow-sm" : "border-border bg-card hover:bg-muted/50"
-                  )}
-                >
-                  <span className="text-xl">{type.icon}</span>
-                  <span className={cn("text-sm font-medium", changeType === type.value ? "text-primary" : "text-foreground")}>{type.label}</span>
-                  {changeType === type.value && <CheckCircle2 className="w-4 h-4 text-primary ml-auto" />}
-                </button>
-              ))}
-            </div>
-          </div>
-          {/* 会議系 */}
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">📝 会議</p>
-            <div className="grid grid-cols-1 gap-2">
-              {CHANGE_TYPES.filter(t => t.group === "meeting").map((type) => (
-                <button
-                  key={type.value}
-                  onClick={() => {
-                    setChangeType(type.value);
-                    setPatientName(""); setFromDatetime(""); setToDatetime(""); setStaffBefore(""); setStaffAfter(""); setMeetingName(""); setMeetingStaff([]); setReason("");
-                    setScheduleStartDate(""); setScheduleEndDate(""); setScheduleStartTime(""); setScheduleEndTime(""); setScheduleFacilityName(""); setSchedulePostDischargeEndDate("");
-                    triggerDraftSave({ changeType: type.value, patientName: "", fromDatetime: "", toDatetime: "", staffBefore: "", staffAfter: "", meetingName: "", meetingStaff: [], reason: "" });
-                  }}
-                  className={cn(
-                    "flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all",
-                    changeType === type.value ? "border-primary bg-primary/5 shadow-sm" : "border-border bg-card hover:bg-muted/50"
-                  )}
-                >
-                  <span className="text-xl">{type.icon}</span>
-                  <span className={cn("text-sm font-medium", changeType === type.value ? "text-primary" : "text-foreground")}>{type.label}</span>
-                  {changeType === type.value && <CheckCircle2 className="w-4 h-4 text-primary ml-auto" />}
-                </button>
-              ))}
-            </div>
-          </div>
-          {/* 予定管理系 */}
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">📆 予定登録</p>
-            <div className="grid grid-cols-2 gap-2">
-              {CHANGE_TYPES.filter(t => t.group === "schedule").map((type) => (
-                <button
-                  key={type.value}
-                  onClick={() => {
-                    setChangeType(type.value);
-                    setPatientName(""); setFromDatetime(""); setToDatetime(""); setStaffBefore(""); setStaffAfter(""); setMeetingName(""); setMeetingStaff([]); setReason("");
-                    setScheduleStartDate(""); setScheduleEndDate(""); setScheduleStartTime(""); setScheduleEndTime(""); setScheduleFacilityName(""); setSchedulePostDischargeEndDate("");
-                    triggerDraftSave({ changeType: type.value, patientName: "", fromDatetime: "", toDatetime: "", staffBefore: "", staffAfter: "", meetingName: "", meetingStaff: [], reason: "" });
-                  }}
-                  className={cn(
-                    "flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all",
-                    changeType === type.value ? "border-primary bg-primary/5 shadow-sm" : "border-border bg-card hover:bg-muted/50"
-                  )}
-                >
-                  <span className="text-xl">{type.icon}</span>
-                  <span className={cn("text-sm font-medium", changeType === type.value ? "text-primary" : "text-foreground")}>{type.label}</span>
-                  {changeType === type.value && <CheckCircle2 className="w-4 h-4 text-primary ml-auto" />}
-                </button>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* 訪問系フォーム */}
       {isVisitType && (
