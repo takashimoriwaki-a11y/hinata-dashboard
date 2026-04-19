@@ -22,6 +22,16 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -378,8 +388,14 @@ export default function RecordInput() {
   const isAdmin = user?.role === "admin" || user?.role === "super_admin";
 
   // 全枠リセット
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
   const handleResetAll = () => {
-    if (!window.confirm("訪問時チェック項目の全ての入力内容をリセットしますか？\n\n• 今日の訪問予定（8枚分）\n• 各カードのチェック項目・メモ・次回訪問日時")) return;
+    setShowResetConfirm(true);
+    return;
+  };
+
+  const executeResetAll = () => {
     // スロットデータをリセット
     const empty = Array.from({ length: MAX_SLOTS }, () => ({ ...DEFAULT_SLOT }));
     setSlots(empty);
@@ -699,54 +715,62 @@ export default function RecordInput() {
       {/* ===== 今日の訪問予定セクション ===== */}
       <Card className="shadow-sm">
         <CardHeader className="pb-2">
-          {/* ヘッダー：1行目＝タイトル、2行目＝ボタン群（iPhoneで重ならないよう2行に分離） */}
           <div className="flex flex-col gap-1.5">
-            {/* 1行目：タイトル */}
-            <CardTitle className="text-sm font-semibold flex items-center gap-2 min-w-0">
-              <Users className="w-4 h-4 text-primary flex-shrink-0" />
-              <span className="whitespace-nowrap">今日の訪問予定</span>
-              {filledSlots > 0 && (
-                <Badge variant="secondary" className="text-xs flex-shrink-0">
-                  {filledSlots}名
-                </Badge>
-              )}
-              {/* 保存状態インジケーター */}
-              {saveSlotsMutation.isPending && (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground ml-1">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  <span className="hidden sm:inline">保存中…</span>
-                </span>
-              )}
-              {!saveSlotsMutation.isPending && saveSlotsMutation.isSuccess && (
-                <span className="flex items-center gap-1 text-xs text-green-500 ml-1">
-                  <Check className="w-3 h-3" />
-                  <span className="hidden sm:inline">保存済</span>
-                </span>
-              )}
-            </CardTitle>
-            {/* 2行目：ボタン群 */}
-            <div className="flex items-center gap-1.5 justify-end">
-              {/* 一括音声入力ボタン */}
-              <VoiceMicButton
-                size="sm"
-                previewMode="tooltip"
-                context="general"
-                externalState={{
-                  isRecording: isBulkListening,
-                  isProcessing: false,
-                  toggleVoice: startBulkVoiceInput,
-                  interimText: "",
-                  silenceCountdown: null,
-                }}
-              />
-              <button
-                type="button"
-                onClick={handleResetAll}
-                title="全リセット"
-                className="h-8 w-8 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-colors flex-shrink-0"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-              </button>
+            {/* 1行目：タイトル＋右端ボタン群を1行に統合 */}
+            <div className="flex items-center gap-2 min-w-0">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2 min-w-0 flex-1">
+                <Users className="w-4 h-4 text-primary flex-shrink-0" />
+                <span className="whitespace-nowrap">今日の訪問予定</span>
+                {filledSlots > 0 && (
+                  <Badge variant="secondary" className="text-xs flex-shrink-0">
+                    {filledSlots}名
+                  </Badge>
+                )}
+                {/* 保存状態インジケーター */}
+                {saveSlotsMutation.isPending && (
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground ml-1">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span className="hidden sm:inline">保存中…</span>
+                  </span>
+                )}
+                {!saveSlotsMutation.isPending && saveSlotsMutation.isSuccess && (
+                  <span className="flex items-center gap-1 text-xs text-green-500 ml-1">
+                    <Check className="w-3 h-3" />
+                    <span className="hidden sm:inline">保存済</span>
+                  </span>
+                )}
+              </CardTitle>
+              {/* 右端ボタン群 */}
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                {/* 一括音声入力ボタン（ラベル付き） */}
+                <button
+                  type="button"
+                  onClick={startBulkVoiceInput}
+                  className={cn(
+                    "flex items-center gap-1 h-8 px-2.5 rounded-full border text-xs font-medium transition-colors flex-shrink-0",
+                    isBulkListening
+                      ? "bg-orange-500 border-orange-500 text-white animate-pulse"
+                      : "border-border text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/40"
+                  )}
+                  title="一括音声入力"
+                >
+                  {isBulkListening ? (
+                    <MicOff className="w-3.5 h-3.5" />
+                  ) : (
+                    <Mic className="w-3.5 h-3.5" />
+                  )}
+                  <span className="whitespace-nowrap">一括入力</span>
+                </button>
+                {/* 全リセットボタン */}
+                <button
+                  type="button"
+                  onClick={handleResetAll}
+                  title="全リセット"
+                  className="h-8 w-8 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-colors flex-shrink-0"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                </button>
+              </div>
             </div>
           {/* 2行目：検索フィールド */}
           <div className="relative mt-1.5" ref={headerSearchRef}>
@@ -994,6 +1018,35 @@ export default function RecordInput() {
       )}
 
       {/* プロンプト選択UIはAI共有モーダルに移動 */}
+
+      {/* ===== 全リセット確認ダイアログ ===== */}
+      <AlertDialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>全てリセットしますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              訪問時チェック項目の全ての入力内容をリセットします。<br />
+              この操作は元に戻せません。<br /><br />
+              • 今日の訪問予定（8枠分）<br />
+              • 各カードのチェック項目・メモ・次回訪問日時
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowResetConfirm(false)}>
+              キャンセル
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                executeResetAll();
+                setShowResetConfirm(false);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              リセット
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ===== 8つの訪問チェック項目カード ===== */}
       {slots.map((slot, index) => (
