@@ -3927,14 +3927,20 @@ export const appRouter = router({
         if (!token.token) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "認証トークン取得失敗" });
 
         // 変更種別の日本語ラベル
-        const typeLabel: Record<string, string> = {
+         const typeLabel: Record<string, string> = {
           visit_change: "訪問日時変更",
           visit_cancel: "訪問キャンセル",
           visit_add: "訪問追加",
           meeting_add: "会議追加",
           meeting_change: "会議変更",
+          schedule_outpatient: "受診",
+          schedule_short_stay: "ショートステイ",
+          schedule_special_instruction: "特別指示書",
+          schedule_hospitalization: "入院",
+          schedule_discharge: "退院",
+          schedule_new_contract: "新規契約・面談",
+          schedule_home_visit_doctor: "訪問診療同席",
         };
-
         // 日時フォーマット
         const fmtDt = (dt: string | null | undefined) => {
           if (!dt) return "";
@@ -4141,17 +4147,22 @@ export const appRouter = router({
 訂正表現の例：「じゃなくて」「ではなく」「違います」「違う」「あ、違う」「間違えました」「間違い」「取り消して」「やっぱり」「やっぱ」「えーと」「あ、えーと」「そうじゃなくて」「ちがう」「いや」「いや、違う」「ごめん」「ごめんなさい」「訂正します」「訂正して」「修正して」「変えて」「なくて」「じゃなく」「ではなくて」「でなく」「でなくて」「ちょっと待って」「待って」「ちょっと待ってください」「もう一度」「もう一回」「やり直し」「やり直して」「最初から」「リセット」「キャンセル」「なしで」「なしにして」「消して」「削除して」「戻して」「前に戻って」「そうではなくて」「そうじゃない」「そうじゃないです」「そうではない」「そうではありません」「別の」「別にして」「他の」「他にして」「違う人」「違う名前」「違う日」「違う時間」「違う日時」「ではなかった」「じゃなかった」「ではありません」「じゃありません」「ではないです」「じゃないです」「ちゃう」「ちゃうちゃう」「あかん」「あかんあかん」「ちゃうんちゃう」「ちゃうわ」「ちゃいます」「ちゃいますよ」「ちゃうで」「ちゃうやん」「ちゃうやろ」「ちゃうんや」「ちゃうんです」「ちゃうかな」「ちゃうかも」「あれちゃう」「それちゃう」「ちゃうかった」「ちゃうかったわ」「ちゃうかったです」「違うわ」「違うやん」「違うやろ」「違うんや」「違うんちゃう」「違うかな」「違うかも」「違うかった」「あ、ちゃう」「あ、ちゃうちゃう」「ちゃうちゃう、」「あかんわ」「あかんやん」「あかんやろ」「それあかん」「それはあかん」「それちゃうわ」「それちゃうやん」「それちゃうやろ」「それちゃうんや」「それちゃうんちゃう」「それちゃうかな」「それちゃうかも」「それちゃうかった」
 
 抽出項目:
-- changeType: 次のいずれか。訪問日時変更=visit_change、訪問キャンセル=visit_cancel、訪問追加=visit_add、会議追加=meeting_add、会議変更=meeting_change
+- changeType: 次のいずれか。
+  【変更連絡系】訪問日時変更=visit_change、訪問キャンセル=visit_cancel、訪問追加=visit_add、会議追加=meeting_add、会議変更=meeting_change
+  【予定登録系】受診=schedule_checkup、ショートステイ=schedule_short_stay、特別指示書=schedule_special_order、入院=schedule_hospitalization、退院=schedule_discharge、新規契約・面談=schedule_new_contract、訪問診療同席=schedule_home_visit_doctor
+  予定登録系の判断基準：「受診」「病院に行く」「通院」→schedule_checkup、「ショートステイ」「短期入所」→schedule_short_stay、「特別指示書」→schedule_special_order、「入院」「入院する」→schedule_hospitalization、「退院」「退院する」→schedule_discharge、「新規契約」「面談」「初回面談」「契約」→schedule_new_contract、「訪問診療」「往診同席」→schedule_home_visit_doctor
 - team: 身体 / 天理 / 郡山北部 / 郡山南部 / 事務員 / 全チーム のいずれか
-- patientName: 利用者名（姓名）。訂正表現がある場合は最後に言及された利用者名を使用すること。利用者リストがある場合は正式名を返すこと。姓だけの場合は姓のみ返す
+- patientName: 利用者名（姓名）。予定登録系で「対象者」「相手」「方」と言及された場合もここに入れる。訂正表現がある場合は最後に言及された利用者名を使用すること。利用者リストがある場合は正式名を返すこと。姓だけの場合は姓のみ返す
 - patientLastName: 利用者の姓（苗字）のみ。姓名両方わかる場合は同じ値、姓だけの場合はその姓、利用者が不明な場合はnull
-- fromDatetime: 変更前日時（ISO 8601）
-- toDatetime: 変更後日時または追加日時（ISO 8601）
+- fromDatetime: 変更前日時または予定開始日時（ISO 8601）。予定登録系では開始日時として使用
+- toDatetime: 変更後日時または追加日時（ISO 8601）。予定登録系では終了日時として使用
 - staffBefore: 変更前担当スタッフ名
 - staffAfter: 変更後担当スタッフ名
 - meetingName: 会議名
-- meetingStaff: 参加スタッフ名の配列（例: ["森脇", "田中"]）
+- meetingStaff: 参加スタッフ名または対応スタッフ名の配列（例: ["森脇", "田中"]）。新規契約・面談の「対応スタッフ」もここに入れる
 - reason: 変更理由・備考。「～のため」「～なので」「～だから」「～の都合」「体調不良」「急用」「病院受診」「家族の都合」「仕事の都合」「訪問拒否」「入院」「外出中」「デイサービス」「通院」「受診」「施設入所」など、理由・事情を示す語句や文を抽出してください。理由が明示されていない場合はnullを返してください。
+- scheduleFacilityName: 予定登録系の施設名・病院名・クリニック名（例：「大和郡山病院」「〇〇クリニック」）。変更連絡系ではnull
+- schedulePostDischargeEndDate: 退院後3か月終了日（退院日から90日後）。退院（schedule_discharge）のみ使用。ISO 8601の日付文字列（YYYY-MM-DD）。退院日が分かる場合は自動計算して返す。それ以外はnull
 - fromDatetimeConfidence: fromDatetimeの解析信頼度。「high」「medium」「low」のいずれか。fromDatetimeがなければnull
 - toDatetimeConfidence: toDatetimeの解析信頼度。「high」「medium」「low」のいずれか。toDatetimeがなければnull
 
@@ -4181,10 +4192,12 @@ export const appRouter = router({
                   meetingName: { type: ["string", "null"] },
                   meetingStaff: { type: ["array", "null"], items: { type: "string" } },
                   reason: { type: ["string", "null"] },
+                  scheduleFacilityName: { type: ["string", "null"] },
+                  schedulePostDischargeEndDate: { type: ["string", "null"] },
                   fromDatetimeConfidence: { type: ["string", "null"] },
                   toDatetimeConfidence: { type: ["string", "null"] },
                 },
-                required: ["changeType", "team", "patientName", "patientLastName", "fromDatetime", "toDatetime", "staffBefore", "staffAfter", "meetingName", "meetingStaff", "reason", "fromDatetimeConfidence", "toDatetimeConfidence"],
+                required: ["changeType", "team", "patientName", "patientLastName", "fromDatetime", "toDatetime", "staffBefore", "staffAfter", "meetingName", "meetingStaff", "reason", "scheduleFacilityName", "schedulePostDischargeEndDate", "fromDatetimeConfidence", "toDatetimeConfidence"],
                 additionalProperties: false,
               },
             },
@@ -4273,9 +4286,15 @@ export const appRouter = router({
             visit_add: "訪問追加",
             meeting_add: "会議追加",
             meeting_change: "会議変更",
+            schedule_outpatient: "受診",
+            schedule_short_stay: "ショートステイ",
+            schedule_special_instruction: "特別指示書",
+            schedule_hospitalization: "入院",
+            schedule_discharge: "退院",
+            schedule_new_contract: "新規契約・面談",
+            schedule_home_visit_doctor: "訪問診療同席",
           };
-
-          // 日時フォーマット（JST: UTC+9 に変換して書き込む）
+          // 日時フォーマット（JST: UTC+9 に変換して書き込む））
           const fmtDt = (dt: string | Date | null | undefined) => {
             if (!dt) return "";
             try {

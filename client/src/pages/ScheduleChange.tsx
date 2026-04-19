@@ -57,7 +57,7 @@ const CHANGE_TYPES = [
   { value: "schedule_tokubetsu", label: "特別指示書", icon: "📋", color: "bg-amber-100 text-amber-800 border-amber-200", group: "schedule" },
   { value: "schedule_nyuin", label: "入院", icon: "🏩", color: "bg-rose-100 text-rose-800 border-rose-200", group: "schedule" },
   { value: "schedule_taiin", label: "退院", icon: "🚶", color: "bg-emerald-100 text-emerald-800 border-emerald-200", group: "schedule" },
-  { value: "schedule_shinki", label: "新規契約・面談", icon: "🤝", color: "bg-indigo-100 text-indigo-800 border-indigo-200", group: "schedule" },
+  { value: "schedule_new_contract", label: "新規契約・面談", icon: "🤝", color: "bg-indigo-100 text-indigo-800 border-indigo-200", group: "schedule" },
   { value: "schedule_houmon_shinryo", label: "訪問診療同席", icon: "👨‍⚕️", color: "bg-violet-100 text-violet-800 border-violet-200", group: "schedule" },
 ] as const;
 
@@ -77,7 +77,7 @@ const SCHEDULE_FIELD_CONFIG: Partial<Record<ChangeType, ScheduleFieldVisibility>
   schedule_tokubetsu:        { endDate: true,  startTime: false, endTime: false, facilityName: false, postDischargeEndDate: false },
   schedule_nyuin:            { endDate: false, startTime: false, endTime: false, facilityName: true,  postDischargeEndDate: false },
   schedule_taiin:            { endDate: false, startTime: false, endTime: false, facilityName: true,  postDischargeEndDate: true  },
-  schedule_shinki:           { endDate: false, startTime: true,  endTime: true,  facilityName: false, postDischargeEndDate: false },
+  schedule_new_contract:           { endDate: false, startTime: true,  endTime: true,  facilityName: false, postDischargeEndDate: false },
   schedule_houmon_shinryo:   { endDate: false, startTime: true,  endTime: true,  facilityName: false, postDischargeEndDate: false },
 };
 const SCHEDULE_START_DATE_LABEL: Partial<Record<ChangeType, string>> = {
@@ -86,7 +86,7 @@ const SCHEDULE_START_DATE_LABEL: Partial<Record<ChangeType, string>> = {
   schedule_tokubetsu:      "開始日",
   schedule_nyuin:          "入院日",
   schedule_taiin:          "退院日",
-  schedule_shinki:         "予定日",
+  schedule_new_contract:         "予定日",
   schedule_houmon_shinryo: "予定日",
 };
 
@@ -1274,11 +1274,11 @@ export default function ScheduleChange() {
       toast.error("変更前の日時を入力してください");
       return;
     }
-    if (isScheduleType && changeType === "schedule_shinki" && !scheduleNewContractTargetName) {
+    if (isScheduleType && changeType === "schedule_new_contract" && !scheduleNewContractTargetName) {
       toast.error("対象者名を入力してください");
       return;
     }
-    if (isScheduleType && changeType !== "schedule_shinki" && !patientName) {
+    if (isScheduleType && changeType !== "schedule_new_contract" && !patientName) {
       toast.error("利用者名を入力してください");
       return;
     }
@@ -1297,7 +1297,7 @@ export default function ScheduleChange() {
       if (scheduleFieldConfig?.endTime && scheduleEndTime) parts.push(`終了時刻: ${scheduleEndTime}`);
       if (scheduleFieldConfig?.facilityName && scheduleFacilityName) parts.push(`施設名: ${scheduleFacilityName}`);
       if (scheduleFieldConfig?.postDischargeEndDate && schedulePostDischargeEndDate) parts.push(`退院後3か月終了日（週５訪問）: ${schedulePostDischargeEndDate}`);
-      if (changeType === "schedule_shinki" && scheduleNewContractStaff.length > 0) parts.push(`対応スタッフ: ${scheduleNewContractStaff.join("、")}`);
+      if (changeType === "schedule_new_contract" && scheduleNewContractStaff.length > 0) parts.push(`対応スタッフ: ${scheduleNewContractStaff.join("、")}`);
       if (reason) parts.push(`備考: ${reason}`);
       scheduleNotes = parts.join(" / ");
     }
@@ -1305,7 +1305,7 @@ export default function ScheduleChange() {
     const payload = {
       changeType,
       team: team || undefined,
-      patientName: isVisitType ? patientName : (isScheduleType && changeType !== "schedule_shinki") ? patientName : (changeType === "schedule_shinki" ? scheduleNewContractTargetName : undefined),
+      patientName: isVisitType ? patientName : (isScheduleType && changeType !== "schedule_new_contract") ? patientName : (changeType === "schedule_new_contract" ? scheduleNewContractTargetName : undefined),
       fromDatetime: fromDatetime ? new Date(fromDatetime).toISOString() : undefined,
       toDatetime: toDatetime ? new Date(toDatetime).toISOString() : undefined,
       staffBefore: staffBefore || undefined,
@@ -1413,11 +1413,18 @@ export default function ScheduleChange() {
       const missing: string[] = [];
 
       // changeType（空欄のみ上書き）
-      if (f.changeType && ["visit_change", "visit_cancel", "visit_add", "meeting_add", "meeting_change"].includes(f.changeType)) {
+      const allValidChangeTypes = [
+        "visit_change", "visit_cancel", "visit_add", "meeting_add", "meeting_change",
+        "schedule_checkup", "schedule_short_stay", "schedule_special_order",
+        "schedule_hospitalization", "schedule_discharge", "schedule_new_contract",
+        "schedule_home_visit_doctor"
+      ];
+      const isScheduleTypeVoice = f.changeType?.startsWith("schedule_") ?? false;
+      if (f.changeType && allValidChangeTypes.includes(f.changeType)) {
         setChangeType(prev => prev === "" ? f.changeType as ChangeType : prev);
         applied++;
       } else {
-        missing.push("変更種別（日時変更・キャンセル・追加等）");
+        missing.push("変更種別（日時変更・キャンセル・追加等・予定登録）");
       }
 
       if (f.team) {
@@ -1432,25 +1439,58 @@ export default function ScheduleChange() {
         missing.push("チーム名（身体・天理・郡山北部・郡山南部）");
       }
 
-      if (f.fromDatetime) { setFromDatetime(prev => prev.trim() ? prev : f.fromDatetime!); applied++; }
-      else { missing.push("変更前日時"); }
+      if (f.fromDatetime) {
+        if (isScheduleTypeVoice) {
+          // 予定登録系: fromDatetimeをscheduleStartDateに転記
+          setScheduleStartDate(prev => prev.trim() ? prev : f.fromDatetime!);
+        } else {
+          setFromDatetime(prev => prev.trim() ? prev : f.fromDatetime!);
+        }
+        applied++;
+      } else if (!isScheduleTypeVoice) { missing.push("変更前日時"); }
       // 信頼度スコアを保存
       const fConf = (f as Record<string, unknown>).fromDatetimeConfidence as 'high' | 'medium' | 'low' | null;
       const tConf = (f as Record<string, unknown>).toDatetimeConfidence as 'high' | 'medium' | 'low' | null;
       if (fConf) setFromDatetimeConfidence(fConf);
       if (tConf) setToDatetimeConfidence(tConf);
 
-      if (f.toDatetime) { setToDatetime(prev => prev.trim() ? prev : f.toDatetime!); applied++; }
+      if (f.toDatetime) {
+        if (isScheduleTypeVoice) {
+          // 予定登録系: toDatetimeをscheduleEndDateに転記
+          setScheduleEndDate(prev => prev.trim() ? prev : f.toDatetime!);
+        } else {
+          setToDatetime(prev => prev.trim() ? prev : f.toDatetime!);
+        }
+        applied++;
+      }
       // toDatetimeはキャンセル時は不要なので missing には追加しない
 
       if (f.staffBefore) { setStaffBefore(prev => prev.trim() ? prev : f.staffBefore!); applied++; }
       if (f.staffAfter) { setStaffAfter(prev => prev.trim() ? prev : f.staffAfter!); applied++; }
       if (f.meetingName) { setMeetingName(prev => prev.trim() ? prev : f.meetingName!); applied++; }
       if (f.meetingStaff && Array.isArray(f.meetingStaff) && f.meetingStaff.length > 0) {
-        setMeetingStaff(prev => prev.length > 0 ? prev : f.meetingStaff!);
+        if (isScheduleTypeVoice && f.changeType === "schedule_new_contract") {
+          // 新規契約・面談の対応スタッフ
+          setScheduleNewContractStaff(prev => prev.length > 0 ? prev : f.meetingStaff!);
+        } else {
+          setMeetingStaff(prev => prev.length > 0 ? prev : f.meetingStaff!);
+        }
         applied++;
       }
       if (f.reason) { setReason(prev => prev.trim() ? prev : f.reason!); applied++; }
+
+      // 予定登録系の固有フィールド転記
+      const scheduleFacility = (f as Record<string, unknown>).scheduleFacilityName as string | null;
+      const schedulePostDischarge = (f as Record<string, unknown>).schedulePostDischargeEndDate as string | null;
+      if (isScheduleTypeVoice) {
+        if (scheduleFacility) { setScheduleFacilityName(prev => prev.trim() ? prev : scheduleFacility); applied++; }
+        if (schedulePostDischarge) { setSchedulePostDischargeEndDate(prev => prev.trim() ? prev : schedulePostDischarge); applied++; }
+        // 新規契約・面談の対象者名はpatientNameフィールドに入れる（直接入力）
+        if (f.changeType === "schedule_new_contract" && f.patientName) {
+          setScheduleNewContractTargetName(prev => prev.trim() ? prev : f.patientName!);
+          applied++;
+        }
+      }
 
       // 利用者名処理: patientLastName または patientName で登録利用者から検索して連携
       // ※ 苗字だけ伝えた場合も含め、常に登録利用者から検索し、直接転記しない
@@ -2427,7 +2467,7 @@ export default function ScheduleChange() {
           </Card>
 
            {/* 利用者名（新規契約・面談は対象者名として直接入力、それ以外は利用者DBから選択） */}
-          {changeType === "schedule_shinki" ? (
+          {changeType === "schedule_new_contract" ? (
             <Card>
               <CardHeader className="pb-2 pt-4">
                 <CardTitle className="text-sm font-semibold">
@@ -2552,7 +2592,7 @@ export default function ScheduleChange() {
             </Card>
           )}
           {/* 対応スタッフ（新規契約・面談のみ） */}
-          {changeType === "schedule_shinki" && (
+          {changeType === "schedule_new_contract" && (
             <Card>
               <CardHeader className="pb-2 pt-4">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -2688,14 +2728,14 @@ export default function ScheduleChange() {
             {isScheduleType && scheduleStartDate && (
               <div className="rounded-xl border border-border bg-background p-3 space-y-1">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">予定情報</p>
-                {changeType === "schedule_shinki" && scheduleNewContractTargetName && <p className="text-sm text-foreground">対象者名: {scheduleNewContractTargetName}</p>}
+                {changeType === "schedule_new_contract" && scheduleNewContractTargetName && <p className="text-sm text-foreground">対象者名: {scheduleNewContractTargetName}</p>}
                 {scheduleStartDate && <p className="text-sm text-foreground">{scheduleStartDateLabel}: {scheduleStartDate}</p>}
                 {scheduleFieldConfig?.endDate && scheduleEndDate && <p className="text-sm text-foreground">終了日: {scheduleEndDate}</p>}
                 {scheduleFieldConfig?.startTime && scheduleStartTime && <p className="text-sm text-foreground">開始: {scheduleStartTime}</p>}
                 {scheduleFieldConfig?.endTime && scheduleEndTime && <p className="text-sm text-foreground">終了: {scheduleEndTime}</p>}
                 {scheduleFieldConfig?.facilityName && scheduleFacilityName && <p className="text-sm text-foreground">施設名: {scheduleFacilityName}</p>}
                 {scheduleFieldConfig?.postDischargeEndDate && schedulePostDischargeEndDate && <p className="text-sm text-foreground">退院後3か月終了日（週５訪問）: {schedulePostDischargeEndDate}</p>}
-                {changeType === "schedule_shinki" && scheduleNewContractStaff.length > 0 && <p className="text-sm text-foreground">対応スタッフ: {scheduleNewContractStaff.join("、")}</p>}
+                {changeType === "schedule_new_contract" && scheduleNewContractStaff.length > 0 && <p className="text-sm text-foreground">対応スタッフ: {scheduleNewContractStaff.join("、")}</p>}
                 {reason && <p className="text-sm text-foreground">備考: {reason}</p>}
               </div>
             )}

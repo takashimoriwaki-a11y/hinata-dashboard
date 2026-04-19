@@ -35,7 +35,18 @@ const CHANGE_TYPE_LABELS: Record<string, { label: string; icon: string; color: s
   visit_add: { label: "訪問追加", icon: "➕", color: "bg-green-100 text-green-900 border-green-300 dark:bg-green-900/40 dark:text-green-200 dark:border-green-700" },
   meeting_add: { label: "会議追加", icon: "📅", color: "bg-purple-100 text-purple-900 border-purple-300 dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-700" },
   meeting_change: { label: "会議変更", icon: "📝", color: "bg-orange-100 text-orange-900 border-orange-300 dark:bg-orange-900/40 dark:text-orange-200 dark:border-orange-700" },
+  // 予定管理種別
+  schedule_outpatient: { label: "受診", icon: "🏥", color: "bg-teal-100 text-teal-900 border-teal-300 dark:bg-teal-900/40 dark:text-teal-200 dark:border-teal-700" },
+  schedule_short_stay: { label: "ショートステイ", icon: "🏨", color: "bg-cyan-100 text-cyan-900 border-cyan-300 dark:bg-cyan-900/40 dark:text-cyan-200 dark:border-cyan-700" },
+  schedule_special_instruction: { label: "特別指示書", icon: "📋", color: "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700" },
+  schedule_hospitalization: { label: "入院", icon: "🏥", color: "bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-900/40 dark:text-rose-200 dark:border-rose-700" },
+  schedule_discharge: { label: "退院", icon: "🏠", color: "bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-200 dark:border-emerald-700" },
+  schedule_new_contract: { label: "新規契約・面談", icon: "🤝", color: "bg-indigo-100 text-indigo-900 border-indigo-300 dark:bg-indigo-900/40 dark:text-indigo-200 dark:border-indigo-700" },
+  schedule_home_visit_doctor: { label: "訪問診療同席", icon: "👨‍⚕️", color: "bg-violet-100 text-violet-900 border-violet-300 dark:bg-violet-900/40 dark:text-violet-200 dark:border-violet-700" },
 };
+
+// 予定管理種別かどうかを判定するヘルパー
+const SCHEDULE_TYPE_KEYS = ["schedule_outpatient", "schedule_short_stay", "schedule_special_instruction", "schedule_hospitalization", "schedule_discharge", "schedule_new_contract", "schedule_home_visit_doctor"];
 
 const TEAMS = ["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"] as const;
 
@@ -90,6 +101,7 @@ function HistoryCard({ record }: { record: HistoryRecord }) {
   const typeInfo = CHANGE_TYPE_LABELS[record.changeType] ?? { label: record.changeType, icon: "📋", color: "bg-muted text-muted-foreground border-border" };
   const isVisit = ["visit_change", "visit_cancel", "visit_add"].includes(record.changeType);
   const isMeeting = ["meeting_add", "meeting_change"].includes(record.changeType);
+  const isSchedule = SCHEDULE_TYPE_KEYS.includes(record.changeType);
 
   const meetingStaffList = useMemo(() => {
     if (!record.meetingStaff) return [];
@@ -134,14 +146,17 @@ function HistoryCard({ record }: { record: HistoryRecord }) {
               {isMeeting && record.meetingName && (
                 <p className="text-sm font-semibold text-foreground">{record.meetingName}</p>
               )}
+              {isSchedule && record.patientName && (
+                <p className="text-sm font-semibold text-foreground">{record.patientName}</p>
+              )}
               {record.fromDatetime && (
                 <p className="text-xs text-muted-foreground">
-                  変更前: <span className="text-foreground font-medium">{formatDatetime(record.fromDatetime)}</span>
+                  {isSchedule ? "開始日時" : "変更前"}: <span className="text-foreground font-medium">{formatDatetime(record.fromDatetime)}</span>
                 </p>
               )}
               {record.toDatetime && (
                 <p className="text-xs text-muted-foreground">
-                  {record.changeType === "visit_cancel" ? "キャンセル日時" : "変更後"}: <span className="text-foreground font-medium">{formatDatetime(record.toDatetime)}</span>
+                  {isSchedule ? "終了日時" : record.changeType === "visit_cancel" ? "キャンセル日時" : "変更後"}: <span className="text-foreground font-medium">{formatDatetime(record.toDatetime)}</span>
                 </p>
               )}
             </div>
@@ -155,7 +170,7 @@ function HistoryCard({ record }: { record: HistoryRecord }) {
         </div>
 
         {/* 展開ボタン */}
-        {(record.staffBefore || record.staffAfter || record.reason || meetingStaffList.length > 0) && (
+        {(record.staffBefore || record.staffAfter || record.reason || meetingStaffList.length > 0 || isSchedule) && (
           <button
             onClick={() => setExpanded(!expanded)}
             className="mt-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -182,7 +197,7 @@ function HistoryCard({ record }: { record: HistoryRecord }) {
             )}
             {meetingStaffList.length > 0 && (
               <div className="flex gap-2">
-                <span className="text-muted-foreground w-24 flex-shrink-0 text-xs">参加スタッフ</span>
+                <span className="text-muted-foreground w-24 flex-shrink-0 text-xs">{isSchedule ? "対応スタッフ" : "参加スタッフ"}</span>
                 <span className="text-xs">{meetingStaffList.join("、")}</span>
               </div>
             )}
