@@ -1432,6 +1432,7 @@ type TeamStaff = typeof TEAMS_STAFF[number];
 
 function StaffManagementPanel() {
   const utils = trpc.useUtils();
+  const { user: currentUser } = useAuth();
   const { data: staffList, isLoading } = trpc.staff.getAll.useQuery();
 
   // Excelインポート
