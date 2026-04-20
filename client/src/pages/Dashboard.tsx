@@ -1727,6 +1727,10 @@ function ScheduleScreenshotCard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modalScrollRef = useRef<HTMLDivElement>(null);
   const utils = trpc.useUtils();
+  // AI解析用state
+  const [showAnalyzed, setShowAnalyzed] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analyzedResult, setAnalyzedResult] = useState<{ entries: Array<{ time: string | null; endTime: string | null; patientName: string; staffName: string | null; notes: string | null }>; summary: string } | null>(null);
   // 全チームモード（localStorage永続化）
   const [showAllTeams, setShowAllTeamsRaw] = useState(() => {
     try {
@@ -2216,6 +2220,90 @@ function ScheduleScreenshotCard() {
                   )}
                 </button>
               </div>
+
+              {/* AI解析ボタンとタイムライン表示 */}
+              {currentScreenshot && (
+                <div className="mt-2 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={async () => {
+                        setIsAnalyzing(true);
+                        try {
+                          const result = await utils.client.schedule.analyzeImage.mutate({
+                            team: selectedTeam,
+                            day: selectedDay,
+                          });
+                          if (result.analyzedData) {
+                            const parsed = JSON.parse(result.analyzedData);
+                            setAnalyzedResult(parsed);
+                            setShowAnalyzed(true);
+                          }
+                        } catch (e) {
+                          console.error("AI解析エラー:", e);
+                        } finally {
+                          setIsAnalyzing(false);
+                        }
+                      }}
+                      disabled={isAnalyzing}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-violet-500/10 text-violet-600 border border-violet-300/40 hover:bg-violet-500/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isAnalyzing ? (
+                        <><RefreshCw className="w-3 h-3 animate-spin" /> AI解析中...</>
+                      ) : (
+                        <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.75 3.75 0 01-5.303-5.303l.347-.347z" /></svg> AIでスケジュール解析</>
+                      )}
+                    </button>
+                    {analyzedResult && (
+                      <button
+                        onClick={() => setShowAnalyzed(!showAnalyzed)}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-muted text-muted-foreground hover:bg-muted/80 transition-all active:scale-95"
+                      >
+                        {showAnalyzed ? "タイムラインを閉じる" : "タイムラインを表示"}
+                      </button>
+                    )}
+                  </div>
+
+                  {showAnalyzed && analyzedResult && (
+                    <div className="rounded-xl border border-violet-200/60 bg-violet-50/40 dark:bg-violet-950/20 dark:border-violet-800/40 p-3 space-y-2">
+                      {analyzedResult.summary && (
+                        <p className="text-xs font-semibold text-violet-700 dark:text-violet-300">
+                          {analyzedResult.summary}
+                        </p>
+                      )}
+                      {analyzedResult.entries.length === 0 ? (
+                        <p className="text-xs text-muted-foreground text-center py-2">スケジュール情報が見つかりませんでした</p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {analyzedResult.entries.map((entry, i) => (
+                            <div key={i} className="flex items-start gap-2.5 bg-white/70 dark:bg-white/5 rounded-lg px-3 py-2 border border-violet-100/60 dark:border-violet-800/30">
+                              <div className="flex-shrink-0 min-w-[52px] text-center">
+                                <span className="text-sm font-bold text-violet-700 dark:text-violet-300 tabular-nums">
+                                  {entry.time ?? "--:--"}
+                                </span>
+                                {entry.endTime && (
+                                  <div className="text-[10px] text-muted-foreground tabular-nums">〜{entry.endTime}</div>
+                                )}
+                              </div>
+                              <div className="flex-shrink-0 w-px self-stretch bg-violet-300/60 dark:bg-violet-700/60 my-0.5" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-foreground truncate">{entry.patientName}</p>
+                                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                                  {entry.staffName && (
+                                    <span className="text-xs text-muted-foreground">{entry.staffName}</span>
+                                  )}
+                                  {entry.notes && (
+                                    <span className="text-xs text-amber-600 dark:text-amber-400">{entry.notes}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

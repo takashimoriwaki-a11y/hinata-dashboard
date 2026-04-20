@@ -1196,7 +1196,7 @@ export async function updateStaffInfo(userId: number, data: {
   name: string;
   nameKana?: string;
   team: "身体" | "天理" | "郡山北部" | "郡山南部" | "事務員" | "全チーム";
-  role: "user" | "admin";
+  role: "user" | "admin" | "super_admin";
   numberPlate?: string;
 }) {
   const db = await getDb();

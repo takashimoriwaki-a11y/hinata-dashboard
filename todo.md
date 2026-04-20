@@ -2768,3 +2768,12 @@
 - [ ] ホーム画面のチーム目標表示をiPhoneで2行以内に収まるよう文字数制限（超過分は省略表示）
 - [ ] サイドパネルのチーム目標登録画面に「〇〇文字まで」という文字数カウンター表示を追加
 - [x] サイドパネルのチーム目標登録画面に「目標内容30文字まで」の表示と文字数カウンターを追加（20文字以上で黄色、28文字以上で赤色）
+
+## 訪問スケジュールAI解析機能（2026-04-20）
+
+- [x] drizzle/schema.tsのschedule_screenshotsテーブルにanalyzedDataカラムを追加
+- [x] server/routers.tsにschedule.analyzeImageプロシージャを追加（Gemini Vision APIで画像解析→DB保存）
+- [x] server/routers.tsにschedule.getAnalyzedDataプロシージャを追加（解析済みデータ取得）
+- [x] server/db.tsのupdateStaffInfoのrole型にsuper_adminを追加（既存TSエラー修正）
+- [x] Dashboard.tsxのScheduleScreenshotCardにAI解析ボタンとタイムライン表示UIを追加
+- [x] テスト作成（schedule.analyzeImage.test.ts：4件合格）

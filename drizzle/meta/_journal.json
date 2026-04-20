@@ -519,6 +519,13 @@
       "when": 1776583033713,
       "tag": "0073_groovy_trish_tilby",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "5",
+      "when": 1776661587869,
+      "tag": "0074_motionless_captain_stacy",
+      "breakpoints": true
     }
   ]
 }

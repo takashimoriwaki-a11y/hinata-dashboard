@@ -2222,6 +2222,142 @@ export const appRouter = router({
         }));
       }),
 
+    // ========== AI画像解析 ==========
+    analyzeImage: protectedProcedure
+      .input(z.object({
+        team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]),
+        day: z.enum(["今日", "明日", "2日後", "3日後", "4日後"]),
+        imageUrl: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        // 画像をBase64に変換
+        let base64Image: string;
+        let mimeType = "image/jpeg";
+
+        try {
+          const { getDb } = await import("./db");
+          const dbInst = await getDb();
+          if (!dbInst) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続エラー" });
+          const { scheduleScreenshots } = await import("../drizzle/schema");
+          const { eq, and } = await import("drizzle-orm");
+
+          // team+dayで画像を取得
+          const [row] = await dbInst.select().from(scheduleScreenshots).where(and(
+            eq(scheduleScreenshots.team, input.team),
+            eq(scheduleScreenshots.day, input.day),
+          )).limit(1);
+          if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "画像データが見つかりません" });
+
+          if (row.imageData) {
+            // DB保存のBase64データを使用
+            const dataUrl = row.imageData;
+            base64Image = dataUrl.replace(/^data:image\/\w+;base64,/, "");
+            mimeType = dataUrl.match(/^data:(image\/\w+);base64,/)?.[1] ?? "image/jpeg";
+          } else if (row.imageUrl) {
+            // S3 URLから画像をダウンロード
+            const response = await fetch(row.imageUrl);
+            if (!response.ok) throw new Error("画像の取得に失敗しました");
+            const arrayBuffer = await response.arrayBuffer();
+            base64Image = Buffer.from(arrayBuffer).toString("base64");
+            mimeType = response.headers.get("content-type") ?? "image/jpeg";
+          } else {
+            throw new TRPCError({ code: "NOT_FOUND", message: "画像データが見つかりません" });
+          }
+        } catch (e) {
+          if (e instanceof TRPCError) throw e;
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `画像取得エラー: ${e instanceof Error ? e.message : String(e)}` });
+        }
+
+        // Gemini Vision APIで解析
+        const { GoogleGenAI } = await import("@google/genai");
+        const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? "" });
+
+        const prompt = `この画像は訪問看護ステーションの訪問スケジュール表です。
+画像から以下の情報を読み取り、JSON形式で返してください。
+
+返すJSONの形式:
+{
+  "entries": [
+    {
+      "time": "HH:MM",
+      "endTime": "HH:MM",
+      "patientName": "利用者名",
+      "staffName": "担当者名",
+      "notes": "備考"
+    }
+  ],
+  "summary": "スケジュール全体の概要"
+}
+
+注意事項:
+- 時刻は24時間表記（HH:MM形式）で返してください
+- 不明な場合は null を返してください
+- entriesは時刻順に並べてください
+- JSONのみを返してください（説明文は不要）`;
+
+        let analyzedData: string;
+        try {
+          const result = await genai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: [{
+              role: "user",
+              parts: [
+                { inlineData: { mimeType, data: base64Image } },
+                { text: prompt },
+              ],
+            }],
+          });
+          const text = result.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+          const jsonMatch = text.match(/```json\s*([\s\S]*?)```/) ?? text.match(/\{[\s\S]*\}/);
+          const jsonStr = jsonMatch?.[1] ?? jsonMatch?.[0] ?? text;
+          JSON.parse(jsonStr); // バリデーション
+          analyzedData = jsonStr.trim();
+        } catch (e) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `AI解析エラー: ${e instanceof Error ? e.message : String(e)}` });
+        }
+
+        // DBに解析結果を保存
+        try {
+          const { getDb } = await import("./db");
+          const db2 = await getDb();
+          const { scheduleScreenshots } = await import("../drizzle/schema");
+          const { and, eq } = await import("drizzle-orm");
+          if (db2) {
+            await db2.update(scheduleScreenshots)
+              .set({ analyzedData })
+              .where(and(
+                eq(scheduleScreenshots.team, input.team),
+                eq(scheduleScreenshots.day, input.day),
+              ));
+          }
+        } catch (e) {
+          console.error("[analyzeImage] DB save error:", e);
+        }
+
+        return { success: true, analyzedData };
+      }),
+
+    getAnalyzedData: publicProcedure
+      .input(z.object({
+        team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]),
+        day: z.enum(["今日", "明日", "2日後", "3日後", "4日後"]),
+      }))
+      .query(async ({ input }) => {
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) return { analyzedData: null };
+        const { scheduleScreenshots } = await import("../drizzle/schema");
+        const { and, eq } = await import("drizzle-orm");
+        const [row] = await db.select({ analyzedData: scheduleScreenshots.analyzedData })
+          .from(scheduleScreenshots)
+          .where(and(
+            eq(scheduleScreenshots.team, input.team),
+            eq(scheduleScreenshots.day, input.day),
+          ))
+          .limit(1);
+        return { analyzedData: row?.analyzedData ?? null };
+      }),
+
     // ========== コメント・申し送り ==========
     getComments: publicProcedure
       .input(z.object({
