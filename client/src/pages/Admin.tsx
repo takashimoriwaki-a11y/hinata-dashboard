@@ -970,7 +970,7 @@ export default function Admin() {
   }, []);
 
   // セクション切り替え
-  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "toolLogs" | "alcoholSheets" | "detectorSettings" | "timesheetSheets" | "overtimeApprovals" | "monthlySignatures" | "improvementSheet">("sheets");
+  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "toolLogs" | "alcoholSheets" | "detectorSettings" | "timesheetSheets" | "overtimeApprovals" | "monthlySignatures" | "improvementSheet" | "changeHistory" | "linkedSheets">("sheets");
   const { user: currentUser } = useAuth();
 
   return (
@@ -1115,6 +1115,34 @@ export default function Admin() {
             )}
           >
             月次署名確認
+          </button>
+        )}
+        {/* 変更履歴（管理者・特級管理者のみ） */}
+        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") && (
+          <button
+            onClick={() => setActiveSection("changeHistory")}
+            className={cn(
+            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
+            activeSection === "changeHistory"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            変更履歴
+          </button>
+        )}
+        {/* 連携中シート（特級管理者のみ） */}
+        {currentUser?.role === "super_admin" && (
+          <button
+            onClick={() => setActiveSection("linkedSheets")}
+            className={cn(
+            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
+            activeSection === "linkedSheets"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            連携中シート
           </button>
         )}
 
@@ -1331,7 +1359,10 @@ export default function Admin() {
       {activeSection === "overtimeApprovals" && currentUser?.role === "super_admin" && <OvertimeApprovalsPanel />}
       {/* 月次署名確認（特級管理者のみ） */}
       {activeSection === "monthlySignatures" && currentUser?.role === "super_admin" && <MonthlySignaturesPanel />}
-      {/* 業務改善意見笥スプレッドシート設定 */}
+      {/* 変更履歴（管理者・特級管理者のみ） */}
+      {activeSection === "changeHistory" && (currentUser?.role === "admin" || currentUser?.role === "super_admin") && <ChangeHistoryPanel />}
+      {/* 連携中シート（特級管理者のみ） */}
+      {activeSection === "linkedSheets" && currentUser?.role === "super_admin" && <LinkedSheetsPanel />}
 
     </div>
   );
@@ -4786,6 +4817,417 @@ function MonthlySignaturesPanel() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ============================
+// 変更履歴パネル（管理者・特級管理者のみ）
+// ============================
+const CHANGE_TYPE_LABELS_ADMIN: Record<string, { label: string; icon: string; color: string }> = {
+  visit_change: { label: "訪問日時変更", icon: "🔄", color: "bg-blue-100 text-blue-900 border-blue-300 dark:bg-blue-900/40 dark:text-blue-200 dark:border-blue-700" },
+  visit_cancel: { label: "訪問キャンセル", icon: "❌", color: "bg-red-100 text-red-900 border-red-300 dark:bg-red-900/40 dark:text-red-200 dark:border-red-700" },
+  visit_add: { label: "訪問追加", icon: "➕", color: "bg-green-100 text-green-900 border-green-300 dark:bg-green-900/40 dark:text-green-200 dark:border-green-700" },
+  meeting_add: { label: "会議追加", icon: "📅", color: "bg-purple-100 text-purple-900 border-purple-300 dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-700" },
+  meeting_change: { label: "会議変更", icon: "📝", color: "bg-orange-100 text-orange-900 border-orange-300 dark:bg-orange-900/40 dark:text-orange-200 dark:border-orange-700" },
+  schedule_outpatient: { label: "受診", icon: "🏥", color: "bg-teal-100 text-teal-900 border-teal-300 dark:bg-teal-900/40 dark:text-teal-200 dark:border-teal-700" },
+  schedule_short_stay: { label: "ショートステイ", icon: "🏨", color: "bg-cyan-100 text-cyan-900 border-cyan-300 dark:bg-cyan-900/40 dark:text-cyan-200 dark:border-cyan-700" },
+  schedule_special_instruction: { label: "特別指示書", icon: "📋", color: "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700" },
+  schedule_hospitalization: { label: "入院", icon: "🏥", color: "bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-900/40 dark:text-rose-200 dark:border-rose-700" },
+  schedule_discharge: { label: "退院", icon: "🏠", color: "bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-200 dark:border-emerald-700" },
+  schedule_new_contract: { label: "新規契約・面談", icon: "🤝", color: "bg-indigo-100 text-indigo-900 border-indigo-300 dark:bg-indigo-900/40 dark:text-indigo-200 dark:border-indigo-700" },
+  schedule_home_visit_doctor: { label: "訪問診療同席", icon: "👨‍⚕️", color: "bg-violet-100 text-violet-900 border-violet-300 dark:bg-violet-900/40 dark:text-violet-200 dark:border-violet-700" },
+};
+
+function formatAdminDatetime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch { return iso; }
+}
+
+function formatAdminCreatedAt(date: Date | string | null | undefined): string {
+  if (!date) return "—";
+  try {
+    const d = new Date(date as string);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return "たった今";
+    if (diffMin < 60) return `${diffMin}分前`;
+    const diffH = Math.floor(diffMin / 60);
+    if (diffH < 24) return `${diffH}時間前`;
+    return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch { return String(date); }
+}
+
+function ChangeHistoryPanel() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filterTeam, setFilterTeam] = useState<string>("all");
+  const { data: records = [], isLoading, refetch, isFetching } = trpc.scheduleChanges.list.useQuery(
+    { limit: 500 },
+    { refetchInterval: 60000 }
+  );
+  const CHANGE_TEAMS = ["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"] as const;
+  const filtered = useMemo(() => {
+    return records.filter((r) => {
+      if (filterType !== "all" && r.changeType !== filterType) return false;
+      if (filterTeam !== "all" && r.team !== filterTeam) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const searchTarget = [r.patientName, r.meetingName, r.createdByName, r.staffBefore, r.staffAfter, r.reason]
+          .filter(Boolean).join(" ").toLowerCase();
+        if (!searchTarget.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [records, filterType, filterTeam, searchQuery]);
+  const pendingCount = records.filter(r => !r.exported).length;
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">変更連絡 履歴</h2>
+          <p className="text-xs text-muted-foreground">
+            {records.length}件
+            {pendingCount > 0 && <span className="ml-1 text-amber-600 font-medium">（転記待ち {pendingCount}件）</span>}
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching} className="h-8 px-2">
+          <RotateCcw className={cn("w-3.5 h-3.5", isFetching && "animate-spin")} />
+        </Button>
+      </div>
+      {/* 検索・フィルター */}
+      <div className="space-y-2">
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="利用者名・会議名・担当者で検索..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-9"
+            />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="flex-1 h-8 text-xs border border-border rounded-md px-2 bg-background text-foreground"
+          >
+            <option value="all">すべての種別</option>
+            {Object.entries(CHANGE_TYPE_LABELS_ADMIN).map(([value, info]) => (
+              <option key={value} value={value}>{info.icon} {info.label}</option>
+            ))}
+          </select>
+          <select
+            value={filterTeam}
+            onChange={(e) => setFilterTeam(e.target.value)}
+            className="flex-1 h-8 text-xs border border-border rounded-md px-2 bg-background text-foreground"
+          >
+            <option value="all">すべてのチーム</option>
+            {CHANGE_TEAMS.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      {/* 一覧 */}
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-4">
+                <div className="h-4 bg-muted rounded w-1/3 mb-2" />
+                <div className="h-3 bg-muted rounded w-2/3" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <Card>
+          <CardContent className="py-10 text-center">
+            <p className="text-sm text-muted-foreground">
+              {records.length === 0 ? "変更連絡の記録がありません" : "条件に一致する記録がありません"}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground px-1">
+            {filtered.length}件を表示{filtered.length !== records.length && `（全${records.length}件中）`}
+          </p>
+          {filtered.map((record) => {
+            const typeInfo = CHANGE_TYPE_LABELS_ADMIN[record.changeType] ?? { label: record.changeType, icon: "📋", color: "bg-muted text-muted-foreground border-border" };
+            return (
+              <Card key={record.id} className={cn("border transition-all", record.exported ? "border-border" : "border-amber-300 bg-amber-50/30 dark:bg-amber-900/10")}>
+                <CardContent className="p-3">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className={cn("text-xs shrink-0", typeInfo.color)}>
+                          {typeInfo.icon} {typeInfo.label}
+                        </Badge>
+                        {record.team && <Badge variant="secondary" className="text-xs shrink-0">{record.team}</Badge>}
+                        {!record.exported && (
+                          <Badge variant="outline" className="text-xs bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700 shrink-0">
+                            転記待ち
+                          </Badge>
+                        )}
+                        {record.exported === 1 && (
+                          <Badge variant="outline" className="text-xs bg-green-50 text-green-800 border-green-300 dark:bg-green-900/40 dark:text-green-200 dark:border-green-700 shrink-0">
+                            転記済
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="mt-1.5 space-y-0.5">
+                        {record.patientName && <p className="text-sm font-semibold text-foreground">{record.patientName}</p>}
+                        {record.meetingName && <p className="text-sm font-semibold text-foreground">{record.meetingName}</p>}
+                        {record.fromDatetime && (
+                          <p className="text-xs text-muted-foreground">変更前: <span className="text-foreground font-medium">{formatAdminDatetime(record.fromDatetime)}</span></p>
+                        )}
+                        {record.toDatetime && (
+                          <p className="text-xs text-muted-foreground">変更後: <span className="text-foreground font-medium">{formatAdminDatetime(record.toDatetime)}</span></p>
+                        )}
+                        {record.reason && <p className="text-xs text-muted-foreground">理由: {record.reason}</p>}
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-xs text-muted-foreground">{formatAdminCreatedAt(record.createdAt)}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{record.createdByName ?? "不明"}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================
+// 連携中シートパネル（特級管理者のみ）
+// ============================
+
+// 月次自動更新が必要なシートの定義
+// yearMonthKey: "YYYY-MM" 形式で月が変わると自動的に最新URLを生成する
+interface MonthlySheetEntry {
+  id: string;
+  label: string;
+  baseUrl: string;
+  yearMonth: string; // "YYYY-MM"
+  isCurrentMonth: boolean;
+  isPast: boolean;
+  isHidden: boolean; // 半年以上前は非表示
+}
+
+function LinkedSheetsPanel() {
+  // 現在の年月
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+
+  // 半年前の年月を計算（これより古いものは非表示）
+  const sixMonthsAgo = new Date(now);
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+  // 月次シートのエントリを生成（現在月 + 過去5ヶ月 = 最大6ヶ月分）
+  function generateMonthlyEntries(
+    label: string,
+    urlTemplate: (year: number, month: number) => string,
+    currentUrl: string
+  ): MonthlySheetEntry[] {
+    const entries: MonthlySheetEntry[] = [];
+    for (let i = 0; i <= 5; i++) {
+      const d = new Date(currentYear, currentMonth - 1 - i, 1);
+      const year = d.getFullYear();
+      const month = d.getMonth() + 1;
+      const ym = `${year}-${String(month).padStart(2, "0")}`;
+      const isHidden = d < sixMonthsAgo;
+      entries.push({
+        id: `${label}-${ym}`,
+        label: `${label}_${year}年${month}月`,
+        baseUrl: i === 0 ? currentUrl : urlTemplate(year, month),
+        yearMonth: ym,
+        isCurrentMonth: i === 0,
+        isPast: i > 0,
+        isHidden,
+      });
+    }
+    return entries.filter(e => !e.isHidden);
+  }
+
+  // 固定シート（月次更新なし）
+  const fixedSheets = [
+    {
+      id: "improvement",
+      label: "業務改善意見箱投稿内容",
+      url: "https://docs.google.com/spreadsheets/d/1ddCCxHq78TlrqCAoU8k_w91m2HeC6vivzXqI8nhxqLE/edit?gid=0#gid=0",
+      color: "text-emerald-600",
+      icon: "💡",
+    },
+  ];
+
+  // 月次シート（出退勤記録）
+  // 現在月のURLは実際のURLを使用し、過去月はURLパターンから生成（実際のURLは不明なのでプレースホルダー）
+  const timesheetEntries = generateMonthlyEntries(
+    "出退勤記録",
+    (year, month) => `https://docs.google.com/spreadsheets/d/[出退勤記録_${year}年${month}月のURL]`,
+    "https://docs.google.com/spreadsheets/d/1Q4ipgT0Q5vkAhe81QuRhFgOjykPnOkcCUXJpEMDgRlI/edit?gid=1766987870#gid=1766987870"
+  );
+
+  // 月次シート（アルコールチェック記録）
+  const alcoholEntries = generateMonthlyEntries(
+    "アルコールチェック記録",
+    (year, month) => `https://docs.google.com/spreadsheets/d/[アルコールチェック記録_${year}年${month}月のURL]`,
+    "https://docs.google.com/spreadsheets/d/1cPNLy0nqOVYKHxQ5ydhUPnlQylPRDj8UR5tuoXp9eI8/edit?gid=1384095932#gid=1384095932"
+  );
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-base font-semibold text-foreground">連携中シート</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">このアプリで転記先として使用しているGoogleスプレッドシートの一覧です。出退勤記録とアルコールチェック記録は月が変わると自動的に最新月のURLが表示されます。</p>
+      </div>
+
+      {/* 固定シート */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+          固定シート
+        </h3>
+        {fixedSheets.map((sheet) => (
+          <Card key={sheet.id} className="shadow-sm">
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-base">{sheet.icon}</span>
+                    <p className={cn("text-sm font-semibold", sheet.color)}>{sheet.label}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground font-mono truncate">{sheet.url}</p>
+                </div>
+                <a
+                  href={sheet.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors text-xs font-medium border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  開く
+                </a>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* 出退勤記録（月次） */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <FileSpreadsheet className="w-4 h-4 text-blue-600" />
+          出退勤記録
+          <Badge className="text-xs bg-blue-100 text-blue-700 border-0 px-1.5 py-0">月次自動更新</Badge>
+        </h3>
+        <p className="text-xs text-muted-foreground">月が変わると自動的に最新月のURLが表示されます。過去6ヶ月分を表示します。</p>
+        {timesheetEntries.map((entry) => {
+          const isPlaceholder = entry.baseUrl.includes("[");
+          return (
+            <Card key={entry.id} className={cn("shadow-sm", entry.isCurrentMonth && "border-blue-300 dark:border-blue-700")}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">{entry.label}</p>
+                      {entry.isCurrentMonth && (
+                        <Badge className="text-xs bg-blue-100 text-blue-700 border-blue-200 px-1.5 py-0">今月</Badge>
+                      )}
+                      {entry.isPast && (
+                        <Badge variant="secondary" className="text-xs px-1.5 py-0">過去</Badge>
+                      )}
+                    </div>
+                    {isPlaceholder ? (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">URLが未設定です（管理画面のスプレッドシート管理から設定してください）</p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground font-mono truncate">{entry.baseUrl}</p>
+                    )}
+                  </div>
+                  {!isPlaceholder && (
+                    <a
+                      href={entry.baseUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors text-xs font-medium border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      開く
+                    </a>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* アルコールチェック記録（月次） */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <FileSpreadsheet className="w-4 h-4 text-rose-600" />
+          アルコールチェック記録
+          <Badge className="text-xs bg-rose-100 text-rose-700 border-0 px-1.5 py-0">月次自動更新</Badge>
+        </h3>
+        <p className="text-xs text-muted-foreground">月が変わると自動的に最新月のURLが表示されます。過去6ヶ月分を表示します。</p>
+        {alcoholEntries.map((entry) => {
+          const isPlaceholder = entry.baseUrl.includes("[");
+          return (
+            <Card key={entry.id} className={cn("shadow-sm", entry.isCurrentMonth && "border-rose-300 dark:border-rose-700")}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <p className="text-sm font-semibold text-rose-600 dark:text-rose-400">{entry.label}</p>
+                      {entry.isCurrentMonth && (
+                        <Badge className="text-xs bg-rose-100 text-rose-700 border-rose-200 px-1.5 py-0">今月</Badge>
+                      )}
+                      {entry.isPast && (
+                        <Badge variant="secondary" className="text-xs px-1.5 py-0">過去</Badge>
+                      )}
+                    </div>
+                    {isPlaceholder ? (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">URLが未設定です（管理画面のスプレッドシート管理から設定してください）</p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground font-mono truncate">{entry.baseUrl}</p>
+                    )}
+                  </div>
+                  {!isPlaceholder && (
+                    <a
+                      href={entry.baseUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors text-xs font-medium border border-rose-200 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-700"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      開く
+                    </a>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      <p className="text-xs text-muted-foreground border-t pt-3">
+        ※ 半年以上経過したシートは自動的に非表示になります。過去月のURLが「未設定」と表示される場合は、そのシートのURLをスプレッドシート管理タブから登録してください。
+      </p>
     </div>
   );
 }
