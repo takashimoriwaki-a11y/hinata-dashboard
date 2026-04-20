@@ -1745,6 +1745,7 @@ function ScheduleScreenshotCard() {
   const [swipeIndex, setSwipeIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
+  const isSwiping = useRef(false); // スワイプ中はタップを無効化
 
   // ユーザーのデフォルトチームを取得
   const { data: myTeamData } = trpc.userSettings.getMyTeam.useQuery();
@@ -1881,6 +1882,7 @@ function ScheduleScreenshotCard() {
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
+    isSwiping.current = false;
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
@@ -1888,12 +1890,17 @@ function ScheduleScreenshotCard() {
     const dx = e.changedTouches[0].clientX - touchStartX.current;
     const dy = e.changedTouches[0].clientY - touchStartY.current;
     // 水平方向のスワイプが垂直より大きい場合のみ反応
-    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 30) {
+      isSwiping.current = true; // スワイプと判定→タップをブロック
       if (dx < 0) goToSlide(currentSlideIndex + 1);
       else goToSlide(currentSlideIndex - 1);
+    } else {
+      isSwiping.current = false;
     }
     touchStartX.current = null;
     touchStartY.current = null;
+    // スワイプフラグは次のタップイベントの後にリセット
+    setTimeout(() => { isSwiping.current = false; }, 100);
   };
 
   const processFile = useCallback(
@@ -2105,13 +2112,29 @@ function ScheduleScreenshotCard() {
 
                           {/* スクリーンショット直接表示 */}
                           {screenshot.imageUrl ? (
-                            <div className="rounded-xl overflow-hidden border border-border/60">
+                            <div
+                              className="rounded-xl overflow-hidden border border-border/60 cursor-zoom-in relative group"
+                              onClick={() => {
+                                if (isSwiping.current) return; // スワイプ中はタップを無効化
+                                if (screenshot.imageUrl) {
+                                  setLightboxSrc(screenshot.imageUrl);
+                                  setLightboxAlt(`${team}チーム ${getDayLabel(DAYS.indexOf(day as DayType))} スケジュール`);
+                                }
+                              }}
+                              title="タップして拡大"
+                            >
                               <img
                                 src={screenshot.imageUrl}
                                 alt={`${team}チーム ${getDayLabel(DAYS.indexOf(day as DayType))} スケジュール`}
-                                className="w-full h-auto object-contain"
-                                style={{ display: 'block' }}
+                                className="w-full object-cover object-top"
+                                style={{ display: 'block', maxHeight: '150px' }}
                               />
+                              {/* 拡大アイコンオーバーレイ */}
+                              <div className="absolute bottom-1.5 right-1.5 bg-black/40 rounded-full p-1 opacity-70 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                                </svg>
+                              </div>
                             </div>
                           ) : null}
                         </div>
