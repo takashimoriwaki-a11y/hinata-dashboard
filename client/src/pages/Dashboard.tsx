@@ -871,21 +871,23 @@ function DailyByTeamCard() {
                       return (
                         <td
                           key={d.key}
-                          className={`text-center py-1.5 px-1 tabular-nums text-xs font-bold ${
-                            negDayIndices.has(i)
-                              ? isNight
-                                ? "bg-red-900/20"
-                                : "bg-red-50"
-                              : ""
-                          } ${
-                            isPositive
-                              ? "text-blue-600 dark:text-blue-400"
-                              : isNegative
-                              ? "text-red-500 dark:text-red-400"
-                              : "text-muted-foreground"
-                          }`}
+                          className="text-center py-1 px-1"
                         >
-                          {isPositive ? `+${val}` : val}
+                          <span className={`inline-flex items-center justify-center min-w-[2rem] px-1.5 py-0.5 rounded-full text-xs font-bold tabular-nums ${
+                            isPositive
+                              ? isNight
+                                ? "bg-emerald-900/40 text-emerald-300"
+                                : "bg-emerald-100 text-emerald-700"
+                              : isNegative
+                              ? isNight
+                                ? "bg-red-900/40 text-red-300"
+                                : "bg-red-100 text-red-600"
+                              : isNight
+                              ? "bg-muted/40 text-muted-foreground"
+                              : "bg-muted/60 text-muted-foreground"
+                          }`}>
+                            {isPositive ? `+${val}` : val}
+                          </span>
                         </td>
                       );
                     })}

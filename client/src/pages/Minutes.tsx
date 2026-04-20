@@ -41,6 +41,7 @@ import {
   AlertTriangle,
   RotateCcw,
   FolderOpen,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, isPast, isToday, addDays } from "date-fns";
@@ -246,6 +247,13 @@ export default function Minutes() {
   const [newDocumentUrl, setNewDocumentUrl] = useState("");
   const [newDeadline, setNewDeadline] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [showHowToBanner, setShowHowToBanner] = useState(() => {
+    try { return localStorage.getItem("minutes_howto_hidden") !== "1"; } catch { return true; }
+  });
+  const dismissHowToBanner = () => {
+    setShowHowToBanner(false);
+    try { localStorage.setItem("minutes_howto_hidden", "1"); } catch {}
+  };
   // Google Picker関連
   const [pickerLoading, setPickerLoading] = useState(false);
   const accessTokenRef = useRef<string | null>(null);
@@ -597,11 +605,11 @@ export default function Minutes() {
         )}
       </div>
 
-      {/* 操作説明バナー（未確認タブのみ・検索なし時） */}
-      {activeTab === "unread" && !searchQuery && (
-        <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50">
+      {/* 操作説明バナー（未確認タブのみ・検索なし時・非表示にしていない時） */}
+      {activeTab === "unread" && !searchQuery && showHowToBanner && (
+        <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 relative">
           <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-          <div className="text-xs text-amber-800 dark:text-amber-300 space-y-1">
+          <div className="text-xs text-amber-800 dark:text-amber-300 space-y-1 flex-1">
             <p className="font-semibold">確認の手順</p>
             <ol className="list-decimal list-inside space-y-0.5 text-amber-700 dark:text-amber-400">
               <li>添付のドキュメントリンクを開く</li>
@@ -609,6 +617,13 @@ export default function Minutes() {
             </ol>
             <p className="text-amber-600 dark:text-amber-500 text-xs">※ 確認済みタブの「未確認に戻す」ボタンで元に戻せます</p>
           </div>
+          <button
+            onClick={dismissHowToBanner}
+            className="flex-shrink-0 text-amber-500 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-200 transition-colors p-0.5 rounded"
+            title="閉じる（次回から非表示）"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
@@ -656,7 +671,7 @@ export default function Minutes() {
             return (
               <Card
                 key={m.id}
-                className={`border-border ${isChecked ? "opacity-80" : ""} ${
+                className={`border-border group/card ${isChecked ? "opacity-80" : ""} ${
                   isOverdue && !isChecked ? "border-red-300 dark:border-red-700/60" : ""
                 }`}
               >
@@ -703,11 +718,11 @@ export default function Minutes() {
                       {/* 既読者確認パネル（管理者のみ） */}
                       {isAdmin && <ReadersPanel minutesId={m.id} readerCount={m.readerCount ?? 0} totalStaff={m.totalStaff ?? 0} />}
                     </div>
-                    {/* 削除ボタン（投稿者本人または管理者のみ） */}
+                    {/* 削除ボタン（投稿者本人または管理者のみ・ホバー時のみ表示） */}
                     {(isAdmin || m.createdBy === user?.id) && (
                       <button
                         onClick={() => setDeleteConfirmId(m.id)}
-                        className="mt-0.5 flex-shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+                        className="mt-0.5 flex-shrink-0 text-muted-foreground hover:text-destructive transition-all opacity-0 group-hover/card:opacity-100"
                         title="削除"
                       >
                         <Trash2 className="w-4 h-4" />
