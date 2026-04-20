@@ -966,9 +966,9 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
               ③ 訪問後
             </p>
             <div className="space-y-1.5">
-              {/* 処置内容・身体面の観察・表情・環境等を追加録音 */}
+              {/* 処置内容・外観・環境・視覚情報等を追加録音 */}
               <div className="flex items-center gap-3 p-2.5 rounded-lg border border-border bg-background">
-                <span className="text-sm text-foreground">処置内容・身体面の観察・表情・環境等を追加録音</span>
+                <span className="text-sm text-foreground">処置内容・外観・環境・視覚情報等を追加録音</span>
               </div>
 
               {/* ボイスメモをNotebookLMに... + コピーボタン */}
