@@ -58,7 +58,7 @@ type VisitSlotData = {
 // バイタルサイン選択肢
 const TEMP_OPTIONS = Array.from({ length: 141 }, (_, i) => (35.0 + i * 0.1).toFixed(1));
 const PULSE_OPTIONS = Array.from({ length: 71 }, (_, i) => String(50 + i));
-const SPO2_OPTIONS = Array.from({ length: 10 }, (_, i) => String(90 + i));
+const SPO2_OPTIONS = Array.from({ length: 10 }, (_, i) => String(99 - i));
 const SBP_OPTIONS = Array.from({ length: 121 }, (_, i) => String(90 + i));
 const DBP_OPTIONS = Array.from({ length: 71 }, (_, i) => String(40 + i));
 
@@ -635,6 +635,15 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                   <select
                     value={vitals.temp}
                     onChange={e => setVitals(v => ({ ...v, temp: e.target.value }))}
+                    onFocus={e => {
+                      const sel = e.currentTarget;
+                      const targetVal = "36.0";
+                      const idx = TEMP_OPTIONS.indexOf(targetVal);
+                      if (idx >= 0) {
+                        const optHeight = sel.scrollHeight / (TEMP_OPTIONS.length + 1);
+                        sel.scrollTop = Math.max(0, (idx - 2) * optHeight);
+                      }
+                    }}
                     className="w-full text-sm border border-border rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                   >
                     <option value="">---</option>
@@ -647,6 +656,15 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                   <select
                     value={vitals.pulse}
                     onChange={e => setVitals(v => ({ ...v, pulse: e.target.value }))}
+                    onFocus={e => {
+                      const sel = e.currentTarget;
+                      const targetVal = "75";
+                      const idx = PULSE_OPTIONS.indexOf(targetVal);
+                      if (idx >= 0) {
+                        const optHeight = sel.scrollHeight / (PULSE_OPTIONS.length + 1);
+                        sel.scrollTop = Math.max(0, (idx - 2) * optHeight);
+                      }
+                    }}
                     className="w-full text-sm border border-border rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                   >
                     <option value="">---</option>
@@ -671,6 +689,15 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                   <select
                     value={vitals.sbp}
                     onChange={e => setVitals(v => ({ ...v, sbp: e.target.value }))}
+                    onFocus={e => {
+                      const sel = e.currentTarget;
+                      const targetVal = "115";
+                      const idx = SBP_OPTIONS.indexOf(targetVal);
+                      if (idx >= 0) {
+                        const optHeight = sel.scrollHeight / (SBP_OPTIONS.length + 1);
+                        sel.scrollTop = Math.max(0, (idx - 2) * optHeight);
+                      }
+                    }}
                     className="w-full text-sm border border-border rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                   >
                     <option value="">---</option>
@@ -683,6 +710,15 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                   <select
                     value={vitals.dbp}
                     onChange={e => setVitals(v => ({ ...v, dbp: e.target.value }))}
+                    onFocus={e => {
+                      const sel = e.currentTarget;
+                      const targetVal = "75";
+                      const idx = DBP_OPTIONS.indexOf(targetVal);
+                      if (idx >= 0) {
+                        const optHeight = sel.scrollHeight / (DBP_OPTIONS.length + 1);
+                        sel.scrollTop = Math.max(0, (idx - 2) * optHeight);
+                      }
+                    }}
                     className="w-full text-sm border border-border rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                   >
                     <option value="">---</option>
