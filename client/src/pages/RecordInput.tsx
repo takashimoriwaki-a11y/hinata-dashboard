@@ -317,10 +317,10 @@ export default function RecordInput() {
     });
   };
 
-  // dnd-kit センサー設定（タッチ対応）
+  // dnd-kit センサー設定（タッチ対応・iOS対応）
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
   );
 
   // ドラッグ終了時の処理
@@ -391,6 +391,7 @@ export default function RecordInput() {
 
   // 全枠リセット
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetConfirmChecked, setResetConfirmChecked] = useState(false);
 
   const handleResetAll = () => {
     setShowResetConfirm(true);
@@ -1067,29 +1068,50 @@ export default function RecordInput() {
       {/* プロンプト選択UIはAI共有モーダルに移動 */}
 
       {/* ===== 全リセット確認ダイアログ ===== */}
-      <AlertDialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
+      <AlertDialog open={showResetConfirm} onOpenChange={(open) => { setShowResetConfirm(open); if (!open) setResetConfirmChecked(false); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>全てリセットしますか？</AlertDialogTitle>
-            <AlertDialogDescription>
-              訪問時チェック項目の全ての入力内容をリセットします。<br />
-              この操作は元に戻せません。<br /><br />
-              • 今日の訪問予定（8枠分）<br />
-              • 各カードのチェック項目・メモ・次回訪問日時
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              全てリセットしますか？
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <span className="block">訪問時チェック項目の全ての入力内容をリセットします。</span>
+              <span className="block font-semibold text-destructive">この操作は元に戻せません。</span>
+              <span className="block text-xs mt-1 space-y-0.5">
+                <span className="block">• 今日の訪問予定（8枠分）</span>
+                <span className="block">• 各カードのチェック項目・メモ・次回訪問日時</span>
+              </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {/* 確認チェックボックス */}
+          <div className="flex items-center gap-3 mt-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+            <input
+              type="checkbox"
+              id="reset-confirm-checkbox"
+              checked={resetConfirmChecked}
+              onChange={(e) => setResetConfirmChecked(e.target.checked)}
+              className="w-5 h-5 rounded border-2 border-destructive accent-destructive cursor-pointer flex-shrink-0"
+            />
+            <label htmlFor="reset-confirm-checkbox" className="text-sm font-medium text-destructive cursor-pointer leading-snug">
+              全ての入力内容を削除することを確認しました
+            </label>
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowResetConfirm(false)}>
+            <AlertDialogCancel onClick={() => { setShowResetConfirm(false); setResetConfirmChecked(false); }}>
               キャンセル
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
+                if (!resetConfirmChecked) return;
                 executeResetAll();
                 setShowResetConfirm(false);
+                setResetConfirmChecked(false);
               }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={!resetConfirmChecked}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
             >
-              リセット
+              リセット実行
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1382,15 +1404,16 @@ function SlotSelector({
                   <ChevronDown className="w-3.5 h-3.5" />
                 </button>
               )}
-              {/* ドラッグハンドル（選択済みスロットのみ・PC用） */}
+              {/* ドラッグハンドル（選択済みスロットのみ・PC/iOS共通） */}
               <button
                 type="button"
-                className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors p-1 rounded cursor-grab active:cursor-grabbing touch-none hidden sm:flex"
-                title="ドラッグして順番を変更"
+                className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors p-1.5 rounded cursor-grab active:cursor-grabbing select-none"
+                title="長押し・ドラッグして順番を変更"
+                style={{ touchAction: 'none' }}
                 {...attributes}
                 {...listeners}
               >
-                <GripVertical className="w-3.5 h-3.5" />
+                <GripVertical className="w-4 h-4" />
               </button>
               {/* 訪問チェック項目カードへスクロール */}
               <button

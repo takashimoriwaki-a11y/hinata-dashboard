@@ -223,6 +223,28 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
     if (el) el.scrollIntoView({ block: "center" });
   }, [timeDropdownOpen]);
 
+  // バイタルサイン カスタムドロップダウン
+  const [vitalDropdownOpen, setVitalDropdownOpen] = useState<"temp" | "pulse" | "spo2" | "sbp" | "dbp" | null>(null);
+  const vitalListRefs = {
+    temp: useRef<HTMLDivElement>(null),
+    pulse: useRef<HTMLDivElement>(null),
+    spo2: useRef<HTMLDivElement>(null),
+    sbp: useRef<HTMLDivElement>(null),
+    dbp: useRef<HTMLDivElement>(null),
+  };
+  const vitalDefaults = { temp: "36.0", pulse: "75", spo2: "99", sbp: "115", dbp: "75" };
+
+  useEffect(() => {
+    if (!vitalDropdownOpen) return;
+    const listRef = vitalListRefs[vitalDropdownOpen];
+    if (!listRef.current) return;
+    const currentVal = vitals[vitalDropdownOpen];
+    const targetVal = currentVal || vitalDefaults[vitalDropdownOpen];
+    const el = listRef.current.querySelector(`[data-val="${targetVal}"]`) as HTMLElement | null;
+    if (el) el.scrollIntoView({ block: "center" });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vitalDropdownOpen]);
+
   // タスク管理から利用者のタスクを取得（未完了のみ）
   const { data: patientTasks = [], refetch: refetchPatientTasks } = trpc.tasks.getByPatientName.useQuery(
     { patientName: slotData.patientName },
@@ -630,101 +652,66 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
               <p className="text-xs font-medium text-muted-foreground">バイタルサイン</p>
               <div className="grid grid-cols-2 gap-2">
                 {/* 体温 */}
-                <div>
-                  <label className="text-[11px] text-muted-foreground block mb-0.5">体温（℃）</label>
-                  <select
-                    value={vitals.temp}
-                    onChange={e => setVitals(v => ({ ...v, temp: e.target.value }))}
-                    onFocus={e => {
-                      const sel = e.currentTarget;
-                      const targetVal = "36.0";
-                      const idx = TEMP_OPTIONS.indexOf(targetVal);
-                      if (idx >= 0) {
-                        const optHeight = sel.scrollHeight / (TEMP_OPTIONS.length + 1);
-                        sel.scrollTop = Math.max(0, (idx - 2) * optHeight);
-                      }
-                    }}
-                    className="w-full text-sm border border-border rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  >
-                    <option value="">---</option>
-                    {TEMP_OPTIONS.map(v => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                </div>
-                {/* 脈拍 */}
-                <div>
-                  <label className="text-[11px] text-muted-foreground block mb-0.5">脈拍（回/分）</label>
-                  <select
-                    value={vitals.pulse}
-                    onChange={e => setVitals(v => ({ ...v, pulse: e.target.value }))}
-                    onFocus={e => {
-                      const sel = e.currentTarget;
-                      const targetVal = "75";
-                      const idx = PULSE_OPTIONS.indexOf(targetVal);
-                      if (idx >= 0) {
-                        const optHeight = sel.scrollHeight / (PULSE_OPTIONS.length + 1);
-                        sel.scrollTop = Math.max(0, (idx - 2) * optHeight);
-                      }
-                    }}
-                    className="w-full text-sm border border-border rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  >
-                    <option value="">---</option>
-                    {PULSE_OPTIONS.map(v => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                </div>
-                {/* SPO2 */}
-                <div>
-                  <label className="text-[11px] text-muted-foreground block mb-0.5">SpO₂（%）</label>
-                  <select
-                    value={vitals.spo2}
-                    onChange={e => setVitals(v => ({ ...v, spo2: e.target.value }))}
-                    className="w-full text-sm border border-border rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  >
-                    <option value="">---</option>
-                    {SPO2_OPTIONS.map(v => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                </div>
-                {/* 収縮期血圧 */}
-                <div>
-                  <label className="text-[11px] text-muted-foreground block mb-0.5">収縮期血圧（mmHg）</label>
-                  <select
-                    value={vitals.sbp}
-                    onChange={e => setVitals(v => ({ ...v, sbp: e.target.value }))}
-                    onFocus={e => {
-                      const sel = e.currentTarget;
-                      const targetVal = "115";
-                      const idx = SBP_OPTIONS.indexOf(targetVal);
-                      if (idx >= 0) {
-                        const optHeight = sel.scrollHeight / (SBP_OPTIONS.length + 1);
-                        sel.scrollTop = Math.max(0, (idx - 2) * optHeight);
-                      }
-                    }}
-                    className="w-full text-sm border border-border rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  >
-                    <option value="">---</option>
-                    {SBP_OPTIONS.map(v => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                </div>
-                {/* 拡張期血圧 */}
-                <div>
-                  <label className="text-[11px] text-muted-foreground block mb-0.5">拡張期血圧（mmHg）</label>
-                  <select
-                    value={vitals.dbp}
-                    onChange={e => setVitals(v => ({ ...v, dbp: e.target.value }))}
-                    onFocus={e => {
-                      const sel = e.currentTarget;
-                      const targetVal = "75";
-                      const idx = DBP_OPTIONS.indexOf(targetVal);
-                      if (idx >= 0) {
-                        const optHeight = sel.scrollHeight / (DBP_OPTIONS.length + 1);
-                        sel.scrollTop = Math.max(0, (idx - 2) * optHeight);
-                      }
-                    }}
-                    className="w-full text-sm border border-border rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  >
-                    <option value="">---</option>
-                    {DBP_OPTIONS.map(v => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                </div>
+                {([
+                  { key: "temp" as const, label: "体温（℃）", options: TEMP_OPTIONS },
+                  { key: "pulse" as const, label: "脈拍（回/分）", options: PULSE_OPTIONS },
+                  { key: "spo2" as const, label: "SpO₂（%）", options: SPO2_OPTIONS },
+                  { key: "sbp" as const, label: "収縮期血圧（mmHg）", options: SBP_OPTIONS },
+                  { key: "dbp" as const, label: "拡張期血圧（mmHg）", options: DBP_OPTIONS },
+                ] as const).map(({ key, label, options }) => (
+                  <div key={key} className="relative">
+                    <label className="text-[11px] text-muted-foreground block mb-0.5">{label}</label>
+                    <button
+                      type="button"
+                      onClick={() => setVitalDropdownOpen(vitalDropdownOpen === key ? null : key)}
+                      className="w-full flex items-center justify-between text-sm border border-border rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 hover:bg-muted/50 transition-colors"
+                    >
+                      <span className={vitals[key] ? "text-foreground" : "text-muted-foreground"}>
+                        {vitals[key] || "---"}
+                      </span>
+                      <ChevronDown className={cn("w-3.5 h-3.5 text-muted-foreground transition-transform flex-shrink-0", vitalDropdownOpen === key && "rotate-180")} />
+                    </button>
+                    {vitalDropdownOpen === key && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={() => setVitalDropdownOpen(null)}
+                        />
+                        <div
+                          ref={vitalListRefs[key]}
+                          className="absolute z-50 mt-1 w-full bg-background border border-border rounded-lg shadow-lg overflow-y-auto"
+                          style={{ maxHeight: "200px" }}
+                        >
+                          <button
+                            type="button"
+                            data-val=""
+                            onClick={() => { setVitals(v => ({ ...v, [key]: "" })); setVitalDropdownOpen(null); }}
+                            className={cn(
+                              "w-full text-left px-3 py-2 text-sm hover:bg-muted/60 transition-colors",
+                              vitals[key] === "" && "bg-primary/10 font-semibold text-primary"
+                            )}
+                          >
+                            ---
+                          </button>
+                          {options.map(v => (
+                            <button
+                              key={v}
+                              type="button"
+                              data-val={v}
+                              onClick={() => { setVitals(prev => ({ ...prev, [key]: v })); setVitalDropdownOpen(null); }}
+                              className={cn(
+                                "w-full text-left px-3 py-2 text-sm hover:bg-muted/60 transition-colors",
+                                vitals[key] === v && "bg-primary/10 font-semibold text-primary"
+                              )}
+                            >
+                              {v}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
 
