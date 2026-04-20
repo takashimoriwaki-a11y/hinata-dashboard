@@ -87,14 +87,19 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
     enabled: open,
   });
 
-  // ローカルの並び順state（並び替えモード用）
-  const [localOrder, setLocalOrder] = useState<PromptItem[]>([]);
-  useEffect(() => {
-    setLocalOrder(prompts as PromptItem[]);
-  }, [prompts]);
-
-  // 並び替えモード
+  // 並び替えモード（localOrderの前に定義する必要がある）
   const [isSortMode, setIsSortMode] = useState(false);
+
+  // ローカルの並び順state（並び替えモード用）
+  // currentPromptsKey（文字列）を依存配列に使うことで、参照の変化ではなく値の変化のみに反応し無限ループを防ぐ
+  const [localOrder, setLocalOrder] = useState<PromptItem[]>([]);
+  const currentPromptsKey = prompts.map((p) => p.id).join(",");
+  useEffect(() => {
+    if (!isSortMode) {
+      setLocalOrder(prompts as PromptItem[]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPromptsKey]);
 
   // プロンプト選択（スクショ用）
   const { data: selectedPromptIdData } = trpc.sharedPrompts.getSelectedId.useQuery(undefined, {
