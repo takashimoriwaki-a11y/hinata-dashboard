@@ -1734,7 +1734,19 @@ export async function getSharedPrompts(): Promise<SharedPrompt[]> {
     .select()
     .from(sharedPrompts)
     .where(eq(sharedPrompts.isDeleted, 0))
-    .orderBy(desc(sharedPrompts.createdAt));
+    .orderBy(sharedPrompts.sortOrder, sharedPrompts.createdAt);
+}
+
+/** プロンプトの並び順を一括更新する（管理者・特級管理者のみ） */
+export async function reorderSharedPrompts(orderedIds: number[]): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  for (let i = 0; i < orderedIds.length; i++) {
+    await db
+      .update(sharedPrompts)
+      .set({ sortOrder: i })
+      .where(eq(sharedPrompts.id, orderedIds[i]));
+  }
 }
 
 /** プロンプトを新規作成する */

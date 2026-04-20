@@ -729,6 +729,8 @@ export const sharedPrompts = mysqlTable("shared_prompts", {
   usageNotes: text("usageNotes"),
   /** 削除フラグ */
   isDeleted: tinyint("isDeleted").notNull().default(0),
+  /** 表示順（小さいほど上に表示） */
+  sortOrder: int("sortOrder").notNull().default(0),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

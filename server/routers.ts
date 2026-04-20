@@ -1340,6 +1340,7 @@ import {
   createSharedPrompt,
   updateSharedPrompt,
   deleteSharedPrompt,
+  reorderSharedPrompts,
   getActiveAlcoholDetectors,
   getAllAlcoholDetectors,
   createAlcoholDetector,
@@ -6399,6 +6400,16 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
         await deleteSharedPrompt(input.id);
+        return { success: true };
+      }),
+    /** プロンプトの並び順を一括更新する（管理者・特級管理者のみ） */
+    reorder: protectedProcedure
+      .input(z.object({ orderedIds: z.array(z.number()) }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ操作できます" });
+        }
+        await reorderSharedPrompts(input.orderedIds);
         return { success: true };
       }),
     /** 管理者が選択した訪問チェック用プロンプトIDを取得する */

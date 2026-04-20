@@ -1,0 +1,1 @@
+ALTER TABLE `shared_prompts` ADD `sortOrder` int DEFAULT 0 NOT NULL;

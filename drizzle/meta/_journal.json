@@ -526,6 +526,13 @@
       "when": 1776661587869,
       "tag": "0074_motionless_captain_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "5",
+      "when": 1776664602556,
+      "tag": "0075_large_daimon_hellstrom",
+      "breakpoints": true
     }
   ]
 }

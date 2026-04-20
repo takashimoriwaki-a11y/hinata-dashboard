@@ -2777,3 +2777,11 @@
 - [x] server/db.tsのupdateStaffInfoのrole型にsuper_adminを追加（既存TSエラー修正）
 - [x] Dashboard.tsxのScheduleScreenshotCardにAI解析ボタンとタイムライン表示UIを追加
 - [x] テスト作成（schedule.analyzeImage.test.ts：4件合格）
+
+## 共有プロンプト並び替え機能（2026-04-20）
+
+- [x] DBスキーマ（shared_prompts）にsortOrderカラムを追加
+- [x] db.tsにreorderSharedPrompts関数を追加（sortOrder順で取得）
+- [x] routers.tsのsharedPromptsルーターにreorderプロシージャを追加（管理者・特級管理者のみ）
+- [x] AISharedPromptsModal.tsxにドラッグ&ドロップ並び替えUI（@dnd-kit）を実装
+- [x] vitestテスト作成（sharedPrompts.reorder.test.ts）
