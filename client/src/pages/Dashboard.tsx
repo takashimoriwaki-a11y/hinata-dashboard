@@ -2092,6 +2092,7 @@ function ScheduleScreenshotCard() {
                     // 時間帯ラベル（8:30〜19:00、30分刻み）
                     const timeSlots: string[] = [];
                     for (let h = 8; h <= 19; h++) {
+                      if (h === 8) { timeSlots.push('8:30'); continue; }
                       timeSlots.push(`${h}:00`);
                       if (h < 19) timeSlots.push(`${h}:30`);
                     }
@@ -2102,6 +2103,15 @@ function ScheduleScreenshotCard() {
                       if (!m) return null;
                       return parseInt(m[1]) * 60 + parseInt(m[2]);
                     };
+                    // 現在時刻（分）
+                    const nowMin = (() => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); })();
+                    // タイムライン開始・終了（分）
+                    const tlStart = 8 * 60 + 30; // 8:30
+                    const tlEnd = 19 * 60;       // 19:00
+                    const tlTotal = tlEnd - tlStart; // 630分
+                    // 分 → ピクセル位置（1分 = 2px）
+                    const minToPx = (min: number) => Math.max(0, (min - tlStart) * 2);
+                    const totalHeight = tlTotal * 2; // 1260px
                     return (
                     <div key={`${team}-${day}`} className="w-full flex-shrink-0">
                       {screenshot ? (
@@ -2132,82 +2142,146 @@ function ScheduleScreenshotCard() {
                             </button>
                           </div>
 
-                          {/* AI解析済みグリッド表示 */}
+                          {/* AI解析済みタイムライン表示（ZESTスタイル） */}
                           {slideAnalyzed && slideAnalyzed.entries.length > 0 ? (
                             <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
                               {/* スタッフ列ヘッダー */}
-                              <div className="grid border-b border-border/60" style={{ gridTemplateColumns: `56px repeat(${staffList.length}, minmax(72px, 1fr))` }}>
-                                <div className="px-1 py-1.5 text-[10px] font-bold text-muted-foreground text-center border-r border-border/40 bg-muted/30">時間</div>
+                              <div className="flex border-b border-border/60 bg-muted/40 sticky top-0 z-10" style={{ paddingLeft: '44px' }}>
                                 {staffList.map(staff => (
-                                  <div key={staff} className="px-1 py-1.5 text-[10px] font-bold text-center border-r border-border/40 last:border-r-0 bg-muted/30 truncate" style={{ color: TEAM_COLOR_VALUES[team as TeamName]?.active ?? '#8b5cf6' }}>
+                                  <div
+                                    key={staff}
+                                    className="flex-1 min-w-0 px-1 py-2 text-[11px] font-bold text-center border-r border-border/40 last:border-r-0 truncate"
+                                    style={{ color: TEAM_COLOR_VALUES[team as TeamName]?.active ?? '#8b5cf6' }}
+                                  >
                                     {staff}
                                   </div>
                                 ))}
                               </div>
-                              {/* 時間帯ごとの行 */}
-                              <div className="overflow-y-auto max-h-[360px]">
-                                {timeSlots.map((slot, slotIdx) => {
-                                  const slotMin = toMin(slot)!;
-                                  // 各スタッフのこの時間帯のエントリを探す
-                                  const rowEntries = staffList.map(staff => {
-                                    const entries = staffMap.get(staff) ?? [];
-                                    return entries.find(e => {
-                                      const start = toMin(e.time);
-                                      const end = toMin(e.endTime);
-                                      if (start === null) return false;
-                                      if (end !== null) return slotMin >= start && slotMin < end;
-                                      return slotMin === start;
-                                    }) ?? null;
-                                  });
-                                  const hasAny = rowEntries.some(e => e !== null);
-                                  return (
-                                    <div
-                                      key={slot}
-                                      className={`grid border-b border-border/30 last:border-b-0 ${slotIdx % 2 === 0 ? 'bg-background' : 'bg-muted/10'}`}
-                                      style={{ gridTemplateColumns: `56px repeat(${staffList.length}, minmax(72px, 1fr))` }}
-                                    >
-                                      {/* 時間ラベル */}
-                                      <div className={`px-1 py-1 text-[10px] font-mono text-center border-r border-border/40 flex items-center justify-center ${slot.endsWith(':00') ? 'font-bold text-foreground' : 'text-muted-foreground'}`}>
-                                        {slot}
-                                      </div>
-                                      {/* 各スタッフのセル */}
-                                      {rowEntries.map((entry, si) => {
-                                        if (!entry) {
-                                          return <div key={si} className="border-r border-border/30 last:border-r-0 min-h-[28px]" />;
-                                        }
-                                        const isVisit = !entry.visitType || entry.visitType === "訪問看護";
+                              {/* タイムライン本体 */}
+                              <div className="overflow-y-auto max-h-[420px] relative">
+                                <div className="flex" style={{ height: `${totalHeight}px`, minHeight: `${totalHeight}px` }}>
+                                  {/* 左側：時間軸 */}
+                                  <div className="flex-shrink-0 border-r border-border/40 bg-muted/20" style={{ width: '44px' }}>
+                                    {timeSlots.map((slot) => {
+                                      const slotMin = toMin(slot)!;
+                                      const top = minToPx(slotMin);
+                                      const isHour = slot.endsWith(':00');
+                                      return (
+                                        <div
+                                          key={slot}
+                                          className="absolute flex items-center justify-end pr-1.5"
+                                          style={{ top: `${top}px`, width: '44px', height: '1px' }}
+                                        >
+                                          <span className={`text-[10px] font-mono leading-none -translate-y-1/2 ${isHour ? 'font-bold text-foreground' : 'text-muted-foreground/70'}`}>
+                                            {slot}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                  {/* 右側：スタッフ列 + グリッド線 */}
+                                  <div className="flex flex-1 relative">
+                                    {/* 水平グリッド線 */}
+                                    <div className="absolute inset-0 pointer-events-none">
+                                      {timeSlots.map((slot) => {
+                                        const slotMin = toMin(slot)!;
+                                        const top = minToPx(slotMin);
+                                        const isHour = slot.endsWith(':00');
                                         return (
                                           <div
-                                            key={si}
-                                            className={`border-r border-border/30 last:border-r-0 px-1 py-0.5 min-h-[28px] flex flex-col justify-center`}
+                                            key={slot}
+                                            className="absolute left-0 right-0"
                                             style={{
-                                              backgroundColor: isVisit
-                                                ? `${TEAM_COLOR_VALUES[team as TeamName]?.active ?? '#8b5cf6'}22`
-                                                : '#f59e0b22',
+                                              top: `${top}px`,
+                                              height: '1px',
+                                              backgroundColor: isHour ? 'var(--border)' : 'color-mix(in srgb, var(--border) 40%, transparent)',
                                             }}
-                                          >
-                                            <p className="text-[10px] font-semibold leading-tight truncate" style={{ color: isVisit ? (TEAM_COLOR_VALUES[team as TeamName]?.active ?? '#8b5cf6') : '#d97706' }}>
-                                              {entry.patientName ?? ""}
-                                            </p>
-                                            {entry.notes && (
-                                              <p className="text-[9px] text-muted-foreground leading-tight truncate">{entry.notes}</p>
-                                            )}
-                                          </div>
+                                          />
                                         );
                                       })}
+                                      {/* 現在時刻ライン */}
+                                      {nowMin >= tlStart && nowMin <= tlEnd && (
+                                        <div
+                                          className="absolute left-0 right-0 z-20 pointer-events-none"
+                                          style={{ top: `${minToPx(nowMin)}px` }}
+                                        >
+                                          <div className="relative">
+                                            <div className="absolute -left-1 -top-1 w-2 h-2 rounded-full bg-red-500" />
+                                            <div className="h-[2px] bg-red-500 opacity-80" />
+                                          </div>
+                                        </div>
+                                      )}
                                     </div>
-                                  );
-                                })}
+                                    {/* スタッフ列 */}
+                                    {staffList.map((staff, si) => {
+                                      const entries = staffMap.get(staff) ?? [];
+                                      return (
+                                        <div
+                                          key={staff}
+                                          className="flex-1 min-w-0 relative border-r border-border/30 last:border-r-0"
+                                          style={{ height: `${totalHeight}px` }}
+                                        >
+                                          {entries.map((entry, ei) => {
+                                            const startMin = toMin(entry.time);
+                                            if (startMin === null) return null;
+                                            const endMin = toMin(entry.endTime) ?? (startMin + 60);
+                                            const clampedStart = Math.max(startMin, tlStart);
+                                            const clampedEnd = Math.min(endMin, tlEnd);
+                                            if (clampedStart >= clampedEnd) return null;
+                                            const top = minToPx(clampedStart);
+                                            const height = Math.max((clampedEnd - clampedStart) * 2, 20);
+                                            const isVisit = !entry.visitType || entry.visitType === "訪問看護";
+                                            const teamColor = TEAM_COLOR_VALUES[team as TeamName]?.active ?? '#8b5cf6';
+                                            return (
+                                              <div
+                                                key={ei}
+                                                className="absolute left-0.5 right-0.5 rounded overflow-hidden flex flex-col px-1 py-0.5"
+                                                style={{
+                                                  top: `${top}px`,
+                                                  height: `${height}px`,
+                                                  backgroundColor: isVisit ? `${teamColor}28` : '#f59e0b20',
+                                                  borderLeft: `3px solid ${isVisit ? teamColor : '#f59e0b'}`,
+                                                  borderTop: `1px solid ${isVisit ? teamColor + '60' : '#f59e0b60'}`,
+                                                  borderBottom: `1px solid ${isVisit ? teamColor + '40' : '#f59e0b40'}`,
+                                                  borderRight: `1px solid ${isVisit ? teamColor + '30' : '#f59e0b30'}`,
+                                                }}
+                                              >
+                                                <p
+                                                  className="text-[10px] font-bold leading-tight truncate"
+                                                  style={{ color: isVisit ? teamColor : '#d97706' }}
+                                                >
+                                                  {entry.patientName ?? ""}
+                                                </p>
+                                                {height >= 32 && (
+                                                  <p className="text-[9px] leading-tight truncate" style={{ color: isVisit ? teamColor + 'cc' : '#d97706cc' }}>
+                                                    {entry.time}{entry.endTime ? `〜${entry.endTime}` : ''}
+                                                  </p>
+                                                )}
+                                                {height >= 48 && entry.notes && (
+                                                  <p className="text-[9px] text-muted-foreground leading-tight truncate">{entry.notes}</p>
+                                                )}
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
                               </div>
                               {/* 凡例 */}
                               <div className="flex items-center gap-3 px-2 py-1.5 border-t border-border/40 bg-muted/20">
-                                <div className="flex items-center gap-1">
-                                  <div className="w-3 h-3 rounded" style={{ backgroundColor: `${TEAM_COLOR_VALUES[team as TeamName]?.active ?? '#8b5cf6'}44` }} />
+                                <div className="flex items-center gap-1.5">
+                                  <div className="w-3 h-3 rounded" style={{ backgroundColor: `${TEAM_COLOR_VALUES[team as TeamName]?.active ?? '#8b5cf6'}40`, borderLeft: `3px solid ${TEAM_COLOR_VALUES[team as TeamName]?.active ?? '#8b5cf6'}` }} />
                                   <span className="text-[10px] text-muted-foreground">訪問看護</span>
                                 </div>
-                                <div className="flex items-center gap-1">
-                                  <div className="w-3 h-3 rounded bg-amber-400/30" />
+                                <div className="flex items-center gap-1.5">
+                                  <div className="w-3 h-3 rounded bg-amber-400/30" style={{ borderLeft: '3px solid #f59e0b' }} />
                                   <span className="text-[10px] text-muted-foreground">その他</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 ml-1">
+                                  <div className="w-3 h-0.5 bg-red-500 rounded" />
+                                  <span className="text-[10px] text-muted-foreground">現在時刻</span>
                                 </div>
                                 <span className="text-[10px] text-muted-foreground ml-auto">{slideAnalyzed.entries.length}件</span>
                               </div>
