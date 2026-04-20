@@ -2231,17 +2231,50 @@ function ScheduleScreenshotCard() {
                                           className="flex-1 min-w-0 relative border-r border-border/30 last:border-r-0"
                                           style={{ height: `${totalHeight}px` }}
                                         >
+                                          {/* 8:30〜最初の訪問開始時刻まで「勤務開始」ブロックを自動生成 */}
+                                          {(() => {
+                                            const firstEntry = entries.find(e => toMin(e.time) !== null && toMin(e.time)! >= tlStart);
+                                            const firstMin = firstEntry ? toMin(firstEntry.time)! : null;
+                                            if (firstMin !== null && firstMin > tlStart) {
+                                              const top = minToPx(tlStart);
+                                              const height = Math.max((firstMin - tlStart) * 2, 20);
+                                              const teamColor = TEAM_COLOR_VALUES[team as TeamName]?.active ?? '#8b5cf6';
+                                              return (
+                                                <div
+                                                  key="work-start"
+                                                  className="absolute left-0.5 right-0.5 rounded overflow-hidden flex flex-col px-1 py-0.5"
+                                                  style={{
+                                                    top: `${top}px`,
+                                                    height: `${height}px`,
+                                                    backgroundColor: '#94a3b820',
+                                                    borderLeft: '3px solid #94a3b8',
+                                                    borderTop: '1px solid #94a3b840',
+                                                    borderBottom: '1px solid #94a3b830',
+                                                    borderRight: '1px solid #94a3b820',
+                                                  }}
+                                                >
+                                                  {height >= 28 && (
+                                                    <p className="text-[9px] font-medium leading-tight truncate text-slate-500">勤務開始</p>
+                                                  )}
+                                                  {height >= 40 && (
+                                                    <p className="text-[9px] leading-tight truncate text-slate-400">08:30〜{firstEntry!.time}</p>
+                                                  )}
+                                                </div>
+                                              );
+                                            }
+                                            return null;
+                                          })()}
                                           {entries.map((entry, ei) => {
                                             const startMin = toMin(entry.time);
                                             if (startMin === null) return null;
-                                            // durationMinutes > endTime > デフォルト60分 の優先順位で滞在時間を決定
+                                            // endTime > durationMinutes > デフォルト60分 の優先順位で滞在時間を決定（endTimeが最も正確）
                                             const rawEndMin = toMin(entry.endTime);
                                             const durationMin: number = (() => {
-                                              if (typeof (entry as { durationMinutes?: number }).durationMinutes === 'number' && (entry as { durationMinutes?: number }).durationMinutes! > 0) {
-                                                return (entry as { durationMinutes?: number }).durationMinutes!;
-                                              }
                                               if (rawEndMin !== null && rawEndMin > startMin) {
                                                 return rawEndMin - startMin;
+                                              }
+                                              if (typeof (entry as { durationMinutes?: number }).durationMinutes === 'number' && (entry as { durationMinutes?: number }).durationMinutes! > 0) {
+                                                return (entry as { durationMinutes?: number }).durationMinutes!;
                                               }
                                               return 60; // デフォルト60分
                                             })();
