@@ -389,9 +389,9 @@ function TeamGoalsCard() {
                 </span>
               )}
             </div>
-            <p className="text-sm font-semibold leading-snug line-clamp-2">{g.title}</p>
+            <p className="text-sm font-semibold leading-snug line-clamp-2">{g.title.length > 30 ? g.title.slice(0, 30) + '…' : g.title}</p>
             {g.body && (
-              <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">{g.body}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{g.body.length > 40 ? g.body.slice(0, 40) + '…' : g.body}</p>
             )}
           </div>
         ))}
