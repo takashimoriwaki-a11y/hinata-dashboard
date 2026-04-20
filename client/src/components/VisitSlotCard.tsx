@@ -85,6 +85,11 @@ type Props = {
   onSlotChange: (index: number, data: Partial<VisitSlotData>) => void;
   /** 管理者が選択したプロンプト本文（nullなら未選択） */
   selectedPromptBody: string | null;
+  /** 次回訪問日時が変更されたときに呼ばれるコールバック（利用者カードとの同期用） */
+  onNextVisitChange?: (date: string, time: string) => void;
+  /** 外部から次回訪問日時を設定するための初期値（利用者カードから入力された値） */
+  externalNextVisitDate?: string;
+  externalNextVisitTime?: string;
 };
 
 function getTodayStr() {
@@ -125,7 +130,7 @@ function loadCardState(slotIndex: number): CardSavedState | null {
   }
 }
 
-export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromptBody }: Props) {
+export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromptBody, onNextVisitChange, externalNextVisitDate, externalNextVisitTime }: Props) {
   const utils = trpc.useUtils();
   const todayStr = useMemo(() => getTodayStr(), []);
 
@@ -175,6 +180,21 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
 
   // ZESTチェック
   const [zestChecked, setZestChecked] = useState(savedState?.zestChecked ?? false);
+
+  // 外部（利用者カード）から次回訪問日時が変更されたときに同期
+  useEffect(() => {
+    if (externalNextVisitDate !== undefined && externalNextVisitDate !== nextVisitDate) {
+      setNextVisitDate(externalNextVisitDate);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalNextVisitDate]);
+
+  useEffect(() => {
+    if (externalNextVisitTime !== undefined && externalNextVisitTime !== nextVisitTime) {
+      setNextVisitTime(externalNextVisitTime);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalNextVisitTime]);
 
   // 利用者タスク追加フォーム表示
   const [showTaskForm, setShowTaskForm] = useState(false);
@@ -764,6 +784,7 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                   setNextVisitDate(e.target.value);
                   setExported(false);
                   setSavedRecordId(null);
+                  onNextVisitChange?.(e.target.value, nextVisitTime);
                 }}
               />
               <div className="relative w-28">
@@ -788,7 +809,7 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                         className={`w-full text-left px-3 py-1.5 text-sm hover:bg-muted transition-colors ${
                           nextVisitTime === val ? "bg-primary text-primary-foreground hover:bg-primary" : ""
                         }`}
-                        onClick={() => { setNextVisitTime(val); setTimeDropdownOpen(false); }}
+                        onClick={() => { setNextVisitTime(val); setTimeDropdownOpen(false); onNextVisitChange?.(nextVisitDate, val); }}
                       >
                         {val}
                       </button>

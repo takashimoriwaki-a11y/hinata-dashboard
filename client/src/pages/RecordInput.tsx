@@ -206,9 +206,11 @@ type VisitSlotData = {
   team: Team | "";
   patientId: number | null;
   patientName: string;
+  nextVisitDate?: string;
+  nextVisitTime?: string;
 };
 
-const DEFAULT_SLOT: VisitSlotData = { team: "", patientId: null, patientName: "" };
+const DEFAULT_SLOT: VisitSlotData = { team: "", patientId: null, patientName: "", nextVisitDate: "", nextVisitTime: "" };
 
 const SLOTS_STORAGE_KEY = "hinata_visit_slots";
 
@@ -742,6 +744,17 @@ export default function RecordInput() {
               </CardTitle>
               {/* 右端ボタン群 */}
               <div className="flex items-center gap-1.5 flex-shrink-0">
+                {/* ZESTボタン */}
+                <a
+                  href="https://homecare.zest.jp/login"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 h-8 px-2.5 rounded-full border text-xs font-medium transition-colors flex-shrink-0 bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-400 dark:bg-emerald-900/30 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-800/50"
+                  title="ZESTを開く"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span className="whitespace-nowrap">ZEST</span>
+                </a>
                 {/* 一括音声入力ボタン（ラベル付き） */}
                 <button
                   type="button"
@@ -1056,6 +1069,9 @@ export default function RecordInput() {
             slotData={slot}
             onSlotChange={handleSlotChange}
             selectedPromptBody={selectedPromptBody}
+            externalNextVisitDate={slot.nextVisitDate}
+            externalNextVisitTime={slot.nextVisitTime}
+            onNextVisitChange={(date, time) => handleSlotChange(index, { nextVisitDate: date, nextVisitTime: time })}
           />
         </div>
       ))}
@@ -1241,55 +1257,92 @@ function SlotSelector({
 
         {isSelected ? (
           // 選択済み表示
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            {slot.team && (
-              <span
-                className={cn("text-xs px-1.5 py-0.5 rounded font-medium flex-shrink-0", getTeamButtonClass(slot.team as Team, true))}
-                style={getTeamButtonStyle(slot.team as Team, true)}
-              >
-                {slot.team}
+          <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+            {/* 1行目：チーム・利用者名・ボタン群 */}
+            <div className="flex items-center gap-2">
+              {slot.team && (
+                <span
+                  className={cn("text-xs px-1.5 py-0.5 rounded font-medium flex-shrink-0", getTeamButtonClass(slot.team as Team, true))}
+                  style={getTeamButtonStyle(slot.team as Team, true)}
+                >
+                  {slot.team}
+                </span>
+              )}
+              <span className="text-sm font-medium text-foreground truncate flex-1">
+                {slot.patientName}
               </span>
-            )}
-            <span className="text-sm font-medium text-foreground truncate flex-1">
-              {slot.patientName}
-            </span>
-            {/* ドラッグハンドル（選択済みスロットのみ） */}
-            <button
-              type="button"
-              className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors p-1 rounded cursor-grab active:cursor-grabbing touch-none"
-              title="ドラッグして順番を変更"
-              {...attributes}
-              {...listeners}
-            >
-              <GripVertical className="w-3.5 h-3.5" />
-            </button>
-            {/* 訪問チェック項目カードへスクロール */}
-            <button
-              type="button"
-              onClick={() => {
-                const target = document.getElementById(`visit-check-card-${index}`);
-                if (target) {
-                  target.scrollIntoView({ behavior: "smooth", block: "start" });
-                }
-              }}
-              className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors p-1 rounded"
-              title={`${slot.patientName}の訪問チェック項目カードへ移動`}
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-            </button>
-            {/* リセットボタン（選択済み） */}
-            <button
-              type="button"
-              onClick={() => {
-                onSlotChange({ team: "", patientId: null, patientName: "" });
-                onSearchChange("");
-                onShowListChange(false);
-              }}
-              className="flex-shrink-0 text-muted-foreground hover:text-destructive transition-colors p-1 rounded"
-              title="クリア"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+              {/* ドラッグハンドル（選択済みスロットのみ） */}
+              <button
+                type="button"
+                className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors p-1 rounded cursor-grab active:cursor-grabbing touch-none"
+                title="ドラッグして順番を変更"
+                {...attributes}
+                {...listeners}
+              >
+                <GripVertical className="w-3.5 h-3.5" />
+              </button>
+              {/* 訪問チェック項目カードへスクロール */}
+              <button
+                type="button"
+                onClick={() => {
+                  const target = document.getElementById(`visit-check-card-${index}`);
+                  if (target) {
+                    target.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }
+                }}
+                className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors p-1 rounded"
+                title={`${slot.patientName}の訪問チェック項目カードへ移動`}
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </button>
+              {/* リセットボタン（選択済み） */}
+              <button
+                type="button"
+                onClick={() => {
+                  onSlotChange({ team: "", patientId: null, patientName: "", nextVisitDate: "", nextVisitTime: "" });
+                  onSearchChange("");
+                  onShowListChange(false);
+                }}
+                className="flex-shrink-0 text-muted-foreground hover:text-destructive transition-colors p-1 rounded"
+                title="クリア"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            {/* 2行目：次回訪問日時入力（コンパクト） */}
+            <div className="flex items-center gap-1.5">
+              <input
+                type="date"
+                className="flex-1 min-w-0 text-xs h-7 border rounded-md px-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                value={slot.nextVisitDate || ""}
+                onChange={(e) => onSlotChange({ nextVisitDate: e.target.value })}
+                title="次回訪問日"
+              />
+              <select
+                className="w-24 text-xs h-7 border rounded-md px-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                value={slot.nextVisitTime || ""}
+                onChange={(e) => onSlotChange({ nextVisitTime: e.target.value })}
+                title="次回訪問時刻"
+              >
+                <option value="">時刻</option>
+                {Array.from({ length: 24 * 12 }, (_, i) => {
+                  const h = Math.floor(i / 12);
+                  const m = (i % 12) * 5;
+                  const val = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+                  return <option key={val} value={val}>{val}</option>;
+                })}
+              </select>
+              {(slot.nextVisitDate || slot.nextVisitTime) && (
+                <button
+                  type="button"
+                  onClick={() => onSlotChange({ nextVisitDate: "", nextVisitTime: "" })}
+                  className="flex-shrink-0 p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  title="次回訪問日時をクリア"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           // 未選択：チーム選択 + 利用者検索
