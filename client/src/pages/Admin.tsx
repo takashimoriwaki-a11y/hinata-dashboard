@@ -1025,7 +1025,8 @@ export default function Admin() {
         )}
         {/* 一括インポートタブは削除（利用者マスタ・スタッフ管理から個別にインポート可能） */}
         {/* クイックアクセスはホーム画面から削除済みのため非表示 */}
-        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") && (
+        {/* 以下のタブは特級管理者のみ表示 */}
+        {currentUser?.role === "super_admin" && (
           <button
             onClick={() => setActiveSection("settings")}
             className={cn(
@@ -1038,7 +1039,7 @@ export default function Admin() {
             システム設定
           </button>
         )}
-        {(currentUser?.role === "admin" || currentUser?.role === "super_admin" || (currentUser as any)?.team === "事務員") && (
+        {currentUser?.role === "super_admin" && (
           <button
             onClick={() => setActiveSection("toolLogs")}
             className={cn(
@@ -1051,7 +1052,7 @@ export default function Admin() {
             操作ログ
           </button>
         )}
-        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") && (
+        {currentUser?.role === "super_admin" && (
           <button
             onClick={() => setActiveSection("alcoholSheets")}
             className={cn(
@@ -1064,8 +1065,7 @@ export default function Admin() {
             アルコールチェック管理
           </button>
         )}
-
-        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") && (
+        {currentUser?.role === "super_admin" && (
           <button
             onClick={() => setActiveSection("detectorSettings")}
             className={cn(
@@ -1078,7 +1078,7 @@ export default function Admin() {
             検知器設定
           </button>
         )}
-        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") && (
+        {currentUser?.role === "super_admin" && (
           <button
             onClick={() => setActiveSection("timesheetSheets")}
             className={cn(
@@ -1104,7 +1104,7 @@ export default function Admin() {
             残業承認
           </button>
         )}
-        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") && (
+        {currentUser?.role === "super_admin" && (
           <button
             onClick={() => setActiveSection("monthlySignatures")}
             className={cn(
@@ -1314,25 +1314,24 @@ export default function Admin() {
       {/* 一括インポートセクション */}
       {activeSection === "import" && <BulkExcelImportPanel />}
 
-      {/* システム設定セクション */}
-      {activeSection === "settings" && <SystemSettingsPanel />}
+      {/* システム設定セクション（特級管理者のみ） */}
+      {activeSection === "settings" && currentUser?.role === "super_admin" && <SystemSettingsPanel />}
 
       {/* クイックアクセスリンク管理セクション（ホーム画面から削除済みのため非表示） */}
-      {/* ツール操作ログセクション */}
-      {activeSection === "toolLogs" && <ToolAuditLogsPanel />}
-      {/* アルコールチェック月別スプレッドシート管理 */}
-      {activeSection === "alcoholSheets" && <AlcoholCheckSpreadsheetsPanel />}
-      {/* アルコールチェック記録CSVエクスポート */}
+      {/* ツール操作ログセクション（特級管理者のみ） */}
+      {activeSection === "toolLogs" && currentUser?.role === "super_admin" && <ToolAuditLogsPanel />}
+      {/* アルコールチェック月別スプレッドシート管理（特級管理者のみ） */}
+      {activeSection === "alcoholSheets" && currentUser?.role === "super_admin" && <AlcoholCheckSpreadsheetsPanel />}
 
-      {/* 検知器設定 */}
-      {activeSection === "detectorSettings" && <AlcoholDetectorSettingsPanel />}
-      {/* 出退勤管理 */}
-      {activeSection === "timesheetSheets" && <TimesheetSpreadsheetsPanel />}
-      {/* 残業承認 */}
-      {activeSection === "overtimeApprovals" && <OvertimeApprovalsPanel />}
-      {/* 月次署名確認 */}
-      {activeSection === "monthlySignatures" && <MonthlySignaturesPanel />}
-      {/* 業務改善意見箱スプレッドシート設定 */}
+      {/* 検知器設定（特級管理者のみ） */}
+      {activeSection === "detectorSettings" && currentUser?.role === "super_admin" && <AlcoholDetectorSettingsPanel />}
+      {/* 出退勤管理（特級管理者のみ） */}
+      {activeSection === "timesheetSheets" && currentUser?.role === "super_admin" && <TimesheetSpreadsheetsPanel />}
+      {/* 残業承認（特級管理者のみ） */}
+      {activeSection === "overtimeApprovals" && currentUser?.role === "super_admin" && <OvertimeApprovalsPanel />}
+      {/* 月次署名確認（特級管理者のみ） */}
+      {activeSection === "monthlySignatures" && currentUser?.role === "super_admin" && <MonthlySignaturesPanel />}
+      {/* 業務改善意見笥スプレッドシート設定 */}
 
     </div>
   );
