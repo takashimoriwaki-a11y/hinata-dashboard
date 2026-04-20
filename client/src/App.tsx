@@ -22,6 +22,8 @@ import HinatasWay from "./pages/HinatasWay";
 import Tools from "./pages/Tools";
 import MyLinks from "./pages/MyLinks";
 import TeamGoals from "./pages/TeamGoals";
+import OvertimeRequest from "./pages/OvertimeRequest";
+import OvertimeAdmin from "./pages/OvertimeAdmin";
 import Login from "./pages/Login";
 import Setup from "./pages/Setup";
 import DashboardLayout from "./components/DashboardLayout";
@@ -89,6 +91,12 @@ function Router() {
               <Route path={"/my-links"} component={MyLinks} />
               <Route path={"/tools"} component={Tools} />
               <Route path={"/team-goals"} component={TeamGoals} />
+              <Route path={"/overtime"} component={OvertimeRequest} />
+              <Route path={"/overtime-admin"}>
+                <AdminGuard>
+                  <OvertimeAdmin />
+                </AdminGuard>
+              </Route>
               <Route path={"/404"} component={NotFound} />
               <Route component={NotFound} />
             </Switch>

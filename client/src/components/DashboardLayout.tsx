@@ -39,6 +39,7 @@ import {
   FileCheck,
   Target,
   CalendarCheck,
+  Clock,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
@@ -267,6 +268,26 @@ function SidebarContent({
             )}
           </button>
         </Link>
+
+        {/* 残業申請 */}
+        <Link href="/overtime">
+          <button
+            title={(collapsed && !mobile) ? "残業申請" : undefined}
+            className={cn(
+              "relative flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
+              "text-sm font-medium",
+              (collapsed && !mobile) ? "justify-center px-0" : "px-4 w-[calc(100%-1rem)]",
+              location === "/overtime"
+                ? "bg-primary text-white shadow-md -translate-y-0.5"
+                : "text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            )}
+          >
+            <Clock className="w-5 h-5 flex-shrink-0" />
+            {(!collapsed || mobile) && (
+              <span className="truncate flex-1 text-left">残業申請</span>
+            )}
+          </button>
+        </Link>
       </nav>
 
       {/* ボトムアクション */}
@@ -326,6 +347,22 @@ function SidebarContent({
             >
               <Settings className="w-4 h-4 flex-shrink-0" />
               {(!collapsed || mobile) && <span>管理画面</span>}
+            </div>
+          </Link>
+        )}
+        {(user?.role === "admin" || user?.role === "super_admin") && (
+          <Link href="/overtime-admin">
+            <div
+              title={(collapsed && !mobile) ? "残業申請管理" : undefined}
+              className={cn(
+                "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150",
+                "text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                (collapsed && !mobile) ? "justify-center px-0" : "px-4",
+                location === "/overtime-admin" && "bg-primary text-white"
+              )}
+            >
+              <Clock className="w-4 h-4 flex-shrink-0" />
+              {(!collapsed || mobile) && <span>残業申請管理</span>}
             </div>
           </Link>
         )}
