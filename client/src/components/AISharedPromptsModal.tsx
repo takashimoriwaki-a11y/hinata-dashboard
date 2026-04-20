@@ -1,9 +1,15 @@
-/**
+/*
  * AISharedPromptsModal
  * 全職員が共有できるAIプロンプト集（Gemini / Gem / NotebookLM 等）
  * - 一覧表示・コピー・新規追加・修正・削除
  * - プロンプト本文に加えて「使い方」も保存・表示できる
  * - 管理者・特級管理者はドラッグ&ドロップで並び替えが可能
+ *
+ * 【Hooks違反対策】
+ * useSortable() は SortableContext 内でのみ呼べる。
+ * 並び替えモード時 → SortableItem（useSortable使用）
+ * 通常モード時    → NormalItem（dnd-kit一切不使用）
+ * この2系統を完全分離することで React error #185 を根本解消。
  */
 
 import { useState, useEffect } from "react";
@@ -88,10 +94,8 @@ interface PromptItem {
   sortOrder: number;
 }
 
-// ========== ソータブルアイテムコンポーネント ==========
-interface SortableItemProps {
-  prompt: PromptItem;
-  isSortMode: boolean;
+// ========== 共通のアイテムprops型 ==========
+interface ItemCommonProps {
   editingId: number | null;
   expandedId: number | null;
   copiedId: number | null;
@@ -115,8 +119,156 @@ interface SortableItemProps {
   isDeleteLoading: boolean;
 }
 
-function SortableItem(props: SortableItemProps) {
-  const { prompt: p, isSortMode } = props;
+// ========== アイテムの中身（共通レンダリング） ==========
+function PromptItemContent({
+  p,
+  isSortMode,
+  dragHandleProps,
+  ...props
+}: ItemCommonProps & {
+  p: PromptItem;
+  isSortMode: boolean;
+  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
+}) {
+  if (props.editingId === p.id) {
+    return (
+      <div className="p-4 bg-blue-50/50 dark:bg-blue-950/20">
+        <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 mb-3">プロンプトを編集</p>
+        <PromptForm
+          title={props.formTitle}
+          body={props.formBody}
+          aiTool={props.formAiTool}
+          category={props.formCategory}
+          usageNotes={props.formUsageNotes}
+          onTitleChange={props.onTitleChange}
+          onBodyChange={props.onBodyChange}
+          onAiToolChange={props.onAiToolChange}
+          onCategoryChange={props.onCategoryChange}
+          onUsageNotesChange={props.onUsageNotesChange}
+          onSubmit={props.onSubmitEdit}
+          onCancel={props.onCancelEdit}
+          isLoading={props.isUpdateLoading}
+          submitLabel="更新する"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-3">
+      <div className="flex items-start gap-2">
+        {isSortMode && dragHandleProps && (
+          <button
+            {...dragHandleProps}
+            className="flex-shrink-0 mt-0.5 p-1 rounded text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing touch-none"
+            title="ドラッグして並び替え"
+          >
+            <GripVertical className="w-4 h-4" />
+          </button>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap mb-1">
+            <span
+              className={cn(
+                "text-xs px-2 py-0.5 rounded-full font-medium",
+                AI_TOOL_COLORS[p.aiTool] ?? AI_TOOL_COLORS["その他"]
+              )}
+            >
+              {p.aiTool}
+            </span>
+            {p.category && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                {p.category}
+              </span>
+            )}
+            {p.usageNotes && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 flex items-center gap-1">
+                <BookOpen className="w-3 h-3" />
+                使い方あり
+              </span>
+            )}
+          </div>
+          <p className="text-sm font-semibold text-foreground leading-snug">{p.title}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {p.updatedByName
+              ? `${p.createdByName} 作成 / ${p.updatedByName} 更新`
+              : `${p.createdByName} 作成`}
+          </p>
+        </div>
+        {!isSortMode && (
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              onClick={() => props.onCopy(p)}
+              title="プロンプトをコピー"
+              className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+            >
+              {props.copiedId === p.id
+                ? <Check className="w-4 h-4 text-emerald-500" />
+                : <Copy className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={() => props.onEdit(p)}
+              title="編集"
+              className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => props.onDelete(p)}
+              title="削除"
+              disabled={props.isDeleteLoading}
+              className="p-1.5 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors text-muted-foreground hover:text-red-600 disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => props.onToggleExpand(p.id)}
+              title={props.expandedId === p.id ? "折りたたむ" : "本文・使い方を表示"}
+              className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+            >
+              {props.expandedId === p.id
+                ? <ChevronUp className="w-4 h-4" />
+                : <ChevronDown className="w-4 h-4" />}
+            </button>
+          </div>
+        )}
+      </div>
+      {props.expandedId === p.id && !isSortMode && (
+        <div className="mt-2 space-y-2">
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground mb-1">📋 プロンプト本文</p>
+            <div className="p-3 rounded-md bg-muted/50 text-sm text-foreground whitespace-pre-wrap leading-relaxed border border-border/50">
+              {p.body}
+            </div>
+          </div>
+          {p.usageNotes && (
+            <div>
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1 flex items-center gap-1">
+                <BookOpen className="w-3.5 h-3.5" />
+                使い方・説明
+              </p>
+              <div className="p-3 rounded-md bg-amber-50/70 dark:bg-amber-950/30 text-sm text-foreground whitespace-pre-wrap leading-relaxed border border-amber-200/50 dark:border-amber-800/50">
+                {p.usageNotes}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ========== 通常モード用アイテム（dnd-kit不使用） ==========
+function NormalItem({ prompt: p, ...props }: ItemCommonProps & { prompt: PromptItem }) {
+  return (
+    <div className="rounded-lg border border-border bg-card overflow-hidden">
+      <PromptItemContent p={p} isSortMode={false} {...props} />
+    </div>
+  );
+}
+
+// ========== 並び替えモード用アイテム（useSortable使用、SortableContext内でのみ使用） ==========
+function SortableItem({ prompt: p, ...props }: ItemCommonProps & { prompt: PromptItem }) {
   const {
     attributes,
     listeners,
@@ -124,7 +276,7 @@ function SortableItem(props: SortableItemProps) {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: p.id, disabled: !isSortMode });
+  } = useSortable({ id: p.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -132,6 +284,8 @@ function SortableItem(props: SortableItemProps) {
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 50 : undefined,
   };
+
+  const dragHandleProps = { ...attributes, ...listeners } as React.HTMLAttributes<HTMLButtonElement>;
 
   return (
     <div
@@ -142,129 +296,7 @@ function SortableItem(props: SortableItemProps) {
         isDragging && "shadow-lg ring-2 ring-primary/50"
       )}
     >
-      {props.editingId === p.id ? (
-        <div className="p-4 bg-blue-50/50 dark:bg-blue-950/20">
-          <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 mb-3">プロンプトを編集</p>
-          <PromptForm
-            title={props.formTitle}
-            body={props.formBody}
-            aiTool={props.formAiTool}
-            category={props.formCategory}
-            usageNotes={props.formUsageNotes}
-            onTitleChange={props.onTitleChange}
-            onBodyChange={props.onBodyChange}
-            onAiToolChange={props.onAiToolChange}
-            onCategoryChange={props.onCategoryChange}
-            onUsageNotesChange={props.onUsageNotesChange}
-            onSubmit={props.onSubmitEdit}
-            onCancel={props.onCancelEdit}
-            isLoading={props.isUpdateLoading}
-            submitLabel="更新する"
-          />
-        </div>
-      ) : (
-        <div className="p-3">
-          <div className="flex items-start gap-2">
-            {isSortMode && (
-              <button
-                {...attributes}
-                {...listeners}
-                className="flex-shrink-0 mt-0.5 p-1 rounded text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing touch-none"
-                title="ドラッグして並び替え"
-              >
-                <GripVertical className="w-4 h-4" />
-              </button>
-            )}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap mb-1">
-                <span
-                  className={cn(
-                    "text-xs px-2 py-0.5 rounded-full font-medium",
-                    AI_TOOL_COLORS[p.aiTool] ?? AI_TOOL_COLORS["その他"]
-                  )}
-                >
-                  {p.aiTool}
-                </span>
-                {p.category && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                    {p.category}
-                  </span>
-                )}
-                {p.usageNotes && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 flex items-center gap-1">
-                    <BookOpen className="w-3 h-3" />
-                    使い方あり
-                  </span>
-                )}
-              </div>
-              <p className="text-sm font-semibold text-foreground leading-snug">{p.title}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {p.updatedByName
-                  ? `${p.createdByName} 作成 / ${p.updatedByName} 更新`
-                  : `${p.createdByName} 作成`}
-              </p>
-            </div>
-            {!isSortMode && (
-              <div className="flex items-center gap-1 flex-shrink-0">
-                <button
-                  onClick={() => props.onCopy(p)}
-                  title="プロンプトをコピー"
-                  className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-                >
-                  {props.copiedId === p.id
-                    ? <Check className="w-4 h-4 text-emerald-500" />
-                    : <Copy className="w-4 h-4" />}
-                </button>
-                <button
-                  onClick={() => props.onEdit(p)}
-                  title="編集"
-                  className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => props.onDelete(p)}
-                  title="削除"
-                  disabled={props.isDeleteLoading}
-                  className="p-1.5 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors text-muted-foreground hover:text-red-600 disabled:opacity-50"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => props.onToggleExpand(p.id)}
-                  title={props.expandedId === p.id ? "折りたたむ" : "本文・使い方を表示"}
-                  className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-                >
-                  {props.expandedId === p.id
-                    ? <ChevronUp className="w-4 h-4" />
-                    : <ChevronDown className="w-4 h-4" />}
-                </button>
-              </div>
-            )}
-          </div>
-          {props.expandedId === p.id && !isSortMode && (
-            <div className="mt-2 space-y-2">
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground mb-1">📋 プロンプト本文</p>
-                <div className="p-3 rounded-md bg-muted/50 text-sm text-foreground whitespace-pre-wrap leading-relaxed border border-border/50">
-                  {p.body}
-                </div>
-              </div>
-              {p.usageNotes && (
-                <div>
-                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1 flex items-center gap-1">
-                    <BookOpen className="w-3.5 h-3.5" />
-                    使い方・説明
-                  </p>
-                  <div className="p-3 rounded-md bg-amber-50/70 dark:bg-amber-950/30 text-sm text-foreground whitespace-pre-wrap leading-relaxed border border-amber-200/50 dark:border-amber-800/50">
-                    {p.usageNotes}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+      <PromptItemContent p={p} isSortMode={true} dragHandleProps={dragHandleProps} {...props} />
     </div>
   );
 }
@@ -281,6 +313,7 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
   });
 
   // ローカルの並び順state（並び替えモード用）
+  // 初期値をpromptsから直接取得し、useEffectで同期
   const [localOrder, setLocalOrder] = useState<PromptItem[]>([]);
   useEffect(() => {
     setLocalOrder(prompts as PromptItem[]);
@@ -354,7 +387,7 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [filterTool, setFilterTool] = useState<string>("すべて");
 
-  // dnd-kit sensors
+  // dnd-kit sensors（並び替えモード時のみ使用）
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 5 },
@@ -442,15 +475,13 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
     setIsSortMode(false);
   }
 
-  const filteredPrompts = isSortMode
+  // 通常モード時のフィルタリング（localOrderを使用）
+  const filteredPrompts = filterTool === "すべて"
     ? localOrder
-    : filterTool === "すべて"
-      ? localOrder
-      : localOrder.filter((p) => p.aiTool === filterTool);
+    : localOrder.filter((p) => p.aiTool === filterTool);
 
   // 共通のアイテムprops
-  const itemCommonProps = {
-    isSortMode,
+  const itemCommonProps: ItemCommonProps = {
     editingId,
     expandedId,
     copiedId,
@@ -605,27 +636,34 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
           {isLoading && (
             <div className="text-center text-sm text-muted-foreground py-8">読み込み中...</div>
           )}
-          {!isLoading && filteredPrompts.length === 0 && (
+          {!isLoading && filteredPrompts.length === 0 && !isSortMode && (
             <div className="text-center text-sm text-muted-foreground py-8">
               プロンプトがまだありません。「追加」ボタンから登録してください。
             </div>
           )}
 
-          {/* 常にDnDContext + SortableContextでラップ（useSortableはコンテキスト外で呼べないため） */}
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={filteredPrompts.map((p) => p.id)}
-              strategy={verticalListSortingStrategy}
+          {/* 並び替えモード：SortableContext + SortableItem（useSortable使用） */}
+          {isSortMode && localOrder.length > 0 && (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
             >
-              {filteredPrompts.map((p) => (
-                <SortableItem key={p.id} prompt={p} {...itemCommonProps} />
-              ))}
-            </SortableContext>
-          </DndContext>
+              <SortableContext
+                items={localOrder.map((p) => p.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {localOrder.map((p) => (
+                  <SortableItem key={p.id} prompt={p} {...itemCommonProps} />
+                ))}
+              </SortableContext>
+            </DndContext>
+          )}
+
+          {/* 通常モード：NormalItem（dnd-kit一切不使用） */}
+          {!isSortMode && filteredPrompts.map((p) => (
+            <NormalItem key={p.id} prompt={p} {...itemCommonProps} />
+          ))}
 
           {/* 管理者向け：スクショ用プロンプト選択（一番下） */}
           {isAdmin && !isSortMode && (
