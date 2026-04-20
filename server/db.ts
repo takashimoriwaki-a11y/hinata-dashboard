@@ -225,7 +225,6 @@ export async function getAllScreenshots() {
     uploadedByName: scheduleScreenshots.uploadedByName,
     createdAt: scheduleScreenshots.createdAt,
     updatedAt: scheduleScreenshots.updatedAt,
-    analyzedData: scheduleScreenshots.analyzedData,
   }).from(scheduleScreenshots);
 }
 

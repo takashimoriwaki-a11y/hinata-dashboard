@@ -1727,8 +1727,7 @@ function ScheduleScreenshotCard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modalScrollRef = useRef<HTMLDivElement>(null);
   const utils = trpc.useUtils();
-  // AI解析用state
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
   // 全チームモード（localStorage永続化）
   const [showAllTeams, setShowAllTeamsRaw] = useState(() => {
     try {
@@ -2074,54 +2073,6 @@ function ScheduleScreenshotCard() {
                   style={{ transform: `translateX(-${currentSlideIndex * 100}%)` }}
                 >
                   {swipeSlides.map(({ team, day, screenshot }, slideIdx) => {
-                    // AI解析済みデータをパース
-                    let slideAnalyzed: { entries: Array<{ time: string | null; endTime: string | null; patientName: string; staffName: string | null; notes: string | null }>; summary?: string; staffColumns?: string[] } | null = null;
-                    if (screenshot?.analyzedData) {
-                      try { slideAnalyzed = JSON.parse(screenshot.analyzedData); } catch {}
-                    }
-                    // スタッフ別にエントリをグループ化
-                    const staffMap = new Map<string, Array<{ time: string | null; endTime: string | null; patientName: string | null; visitType: string | null; notes: string | null }>>();
-                    if (slideAnalyzed) {
-                      for (const entry of slideAnalyzed.entries) {
-                        const staff = entry.staffName ?? "不明";
-                        if (!staffMap.has(staff)) staffMap.set(staff, []);
-                        staffMap.get(staff)!.push(entry);
-                      }
-                    }
-                    // staffColumnsが存在する場合はその順番でスタッフ列を並べる（ZESTの左→右の順序を保持）
-                    const staffList = (() => {
-                      const allStaff = Array.from(staffMap.keys());
-                      if (slideAnalyzed?.staffColumns && slideAnalyzed.staffColumns.length > 0) {
-                        // staffColumnsの順番を優先し、staffColumnsに含まれないスタッフは末尾に追加
-                        const ordered = slideAnalyzed.staffColumns.filter(s => staffMap.has(s));
-                        const remaining = allStaff.filter(s => !ordered.includes(s));
-                        return [...ordered, ...remaining];
-                      }
-                      return allStaff;
-                    })();
-                    // 時間帯ラベル（8:30〜19:00、30分刻み）
-                    const timeSlots: string[] = [];
-                    for (let h = 8; h <= 19; h++) {
-                      if (h === 8) { timeSlots.push('8:30'); continue; }
-                      timeSlots.push(`${h}:00`);
-                      if (h < 19) timeSlots.push(`${h}:30`);
-                    }
-                    // 時間文字列を分に変換
-                    const toMin = (t: string | null | undefined) => {
-                      if (!t) return null;
-                      const m = t.match(/(\d+):(\d+)/);
-                      if (!m) return null;
-                      return parseInt(m[1]) * 60 + parseInt(m[2]);
-                    };
-                    // 現在時刻（分）
-                    const nowMin = (() => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); })();
-                    // タイムライン開始・終了（分）
-                    const tlStart = 8 * 60 + 30; // 8:30
-                    const tlEnd = 19 * 60;       // 19:00
-                    const tlTotal = tlEnd - tlStart; // 630分
-                    // 分 → ピクセル位置（1分 = 2px）
-                    const minToPx = (min: number) => Math.max(0, (min - tlStart) * 2);
-                    const totalHeight = tlTotal * 2; // 1260px
                     return (
                     <div key={`${team}-${day}`} className="w-full flex-shrink-0">
                       {screenshot ? (

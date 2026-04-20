@@ -2812,3 +2812,14 @@
 
 ## 共有プロンプトHooks違反バグ修正（2026-04-20）
 - [x] AISharedPromptsModal.tsxのReact error #185（Hooks違反）を修正（SortableContextを常にラップするよう変更）
+
+## AI解析機能コードクリーンアップ（2026-04-20）
+
+- [x] server/routers.ts から `schedule.analyzeImage` プロシージャを削除
+- [x] server/routers.ts から `schedule.getAnalyzedData` プロシージャを削除
+- [x] server/routers.ts の `schedule.getAll` から `analyzedData` フィールドを削除
+- [x] server/db.ts の `getAllScreenshots` から `analyzedData` フィールドを削除
+- [x] drizzle/schema.ts から `analyzedData` カラム定義を削除
+- [x] server/schedule.analyzeImage.test.ts（AI解析専用テストファイル）を削除
+- [x] client/src/pages/Schedule.tsx から `ScheduleTimeline` コンポーネント・`AnalyzedSchedule`/`ScheduleEntry` 型・AI解析state・handleAnalyze・AIボタンを削除
+- [x] client/src/pages/Dashboard.tsx から `isAnalyzing` state・AI解析ブロック（slideAnalyzed変数・staffMap・タイムライン生成コード）を削除

@@ -59,8 +59,6 @@ export const scheduleScreenshots = mysqlTable("schedule_screenshots", {
   imageKey: varchar("imageKey", { length: 512 }).notNull(),
   /** Base64エンコードされた画像データ（S3が使えない環境用） */
   imageData: mediumtext("imageData"),
-  /** AI解析結果（JSON文字列） */
-  analyzedData: text("analyzedData"),
   /** アップロードしたユーザーID */
   uploadedBy: int("uploadedBy"),
   /** アップロードしたユーザー名 */

@@ -533,6 +533,13 @@
       "when": 1776664602556,
       "tag": "0075_large_daimon_hellstrom",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "5",
+      "when": 1776688897615,
+      "tag": "0076_useful_jackpot",
+      "breakpoints": true
     }
   ]
 }

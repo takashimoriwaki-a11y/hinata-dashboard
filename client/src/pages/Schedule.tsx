@@ -1,12 +1,12 @@
 /**
  * Schedule - 訪問スケジュール専用ページ
- * スクショアップロード・AI解析・タイムライン表示（チーム別・日付別スワイプ）
+ * スクショアップロード・スケジュール確認（チーム別・日付別スワイプ）
  */
 import { useState, useRef, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import {
   Calendar, Upload, RefreshCw, ChevronLeft, ChevronRight,
-  Clock, User, Sparkles, ImageIcon, X, ZoomIn,
+  ImageIcon, X, ZoomIn,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -31,211 +31,6 @@ function getDayLabel(offset: number): string {
   return `${d.getMonth() + 1}/${d.getDate()}(${WDAYS[d.getDay()]})`;
 }
 
-/** AI解析結果の型 */
-interface ScheduleEntry {
-  time: string | null;
-  endTime: string | null;
-  patientName: string;
-  staffName: string | null;
-  notes: string | null;
-}
-interface AnalyzedSchedule {
-  entries: ScheduleEntry[];
-  summary: string;
-}
-
-/** タイムライン表示コンポーネント（8:30〜19:00） */
-function ScheduleTimeline({
-  entries,
-  summary,
-  teamName,
-  dayLabel,
-}: {
-  entries: ScheduleEntry[];
-  summary: string;
-  teamName: string;
-  dayLabel: string;
-}) {
-  const teamColor = TEAM_COLOR_VALUES[teamName as TeamName];
-  const accentColor = teamColor?.active ?? ALL_TEAM_COLOR.active;
-
-  // 時刻を分に変換
-  const toMinutes = (t: string | null): number | null => {
-    if (!t) return null;
-    const [h, m] = t.split(":").map(Number);
-    if (isNaN(h) || isNaN(m)) return null;
-    return h * 60 + m;
-  };
-
-  const START_MIN = 8 * 60 + 30;  // 8:30
-  const END_MIN = 19 * 60;         // 19:00
-  const TOTAL_MIN = END_MIN - START_MIN;
-
-  // 時刻ラベル（1時間ごと）
-  const hourLabels: { label: string; pct: number }[] = [];
-  for (let h = 9; h <= 19; h++) {
-    const min = h * 60;
-    if (min >= START_MIN && min <= END_MIN) {
-      hourLabels.push({ label: `${h}:00`, pct: ((min - START_MIN) / TOTAL_MIN) * 100 });
-    }
-  }
-
-  // 時刻のある訪問エントリーと時刻のないエントリーを分離
-  const timedEntries = entries.filter(e => toMinutes(e.time) !== null);
-  const untimedEntries = entries.filter(e => toMinutes(e.time) === null);
-
-  return (
-    <div className="space-y-3">
-      {/* ヘッダー */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <div
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-white text-xs font-bold"
-          style={{ backgroundColor: accentColor }}
-        >
-          {teamName}
-        </div>
-        <span className="text-sm font-semibold text-foreground">{dayLabel}</span>
-        {summary && (
-          <span className="text-xs text-muted-foreground ml-auto max-w-[200px] truncate">{summary}</span>
-        )}
-      </div>
-
-      {/* ガントチャート風タイムライン */}
-      {timedEntries.length > 0 && (
-        <div className="rounded-xl border bg-card overflow-hidden">
-          {/* 時刻ラベル行 */}
-          <div className="relative h-6 border-b bg-muted/30 overflow-hidden">
-            {hourLabels.map(({ label, pct }) => (
-              <div
-                key={label}
-                className="absolute top-0 bottom-0 flex items-center"
-                style={{ left: `${pct}%` }}
-              >
-                <div className="absolute top-0 bottom-0 w-px bg-border/60" />
-                <span className="text-[9px] text-muted-foreground pl-0.5 select-none whitespace-nowrap">
-                  {label}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* 訪問バー */}
-          <div className="relative py-2 space-y-1.5 px-2">
-            {timedEntries.map((entry, i) => {
-              const startMin = toMinutes(entry.time)!;
-              const endMin = entry.endTime ? (toMinutes(entry.endTime) ?? startMin + 60) : startMin + 60;
-              const clampedStart = Math.max(startMin, START_MIN);
-              const clampedEnd = Math.min(endMin, END_MIN);
-              const leftPct = ((clampedStart - START_MIN) / TOTAL_MIN) * 100;
-              const widthPct = Math.max(((clampedEnd - clampedStart) / TOTAL_MIN) * 100, 5);
-
-              return (
-                <div key={i} className="relative h-10">
-                  {/* 時刻ラベル（左端固定） */}
-                  <div className="absolute left-0 top-0 bottom-0 flex items-center w-11 flex-shrink-0 z-10">
-                    <span className="text-[10px] font-bold tabular-nums" style={{ color: accentColor }}>
-                      {entry.time}
-                    </span>
-                  </div>
-                  {/* バー（左端12px分を除いたエリア） */}
-                  <div className="absolute top-0 bottom-0 left-11 right-0">
-                    <div
-                      className="absolute top-1 bottom-1 rounded-md flex items-center px-2 overflow-hidden"
-                      style={{
-                        left: `${leftPct}%`,
-                        width: `${widthPct}%`,
-                        backgroundColor: `${accentColor}22`,
-                        borderLeft: `3px solid ${accentColor}`,
-                      }}
-                    >
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold truncate text-foreground leading-tight">
-                          {entry.patientName}
-                        </p>
-                        {entry.staffName && (
-                          <p className="text-[10px] text-muted-foreground truncate leading-tight">
-                            {entry.staffName}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* リスト形式（時刻ありエントリー） */}
-      <div className="space-y-1.5">
-        {timedEntries.map((entry, i) => (
-          <div
-            key={i}
-            className="flex items-start gap-2.5 rounded-lg px-3 py-2.5 border bg-card"
-            style={{ borderLeftWidth: "3px", borderLeftColor: accentColor }}
-          >
-            {/* 時刻 */}
-            <div className="flex-shrink-0 min-w-[52px]">
-              <span className="text-sm font-bold tabular-nums" style={{ color: accentColor }}>
-                {entry.time ?? "--:--"}
-              </span>
-              {entry.endTime && (
-                <div className="text-[10px] text-muted-foreground tabular-nums">〜{entry.endTime}</div>
-              )}
-            </div>
-            <div className="flex-shrink-0 w-px self-stretch bg-border my-0.5" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground">{entry.patientName}</p>
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
-                {entry.staffName && (
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <User className="w-3 h-3" />
-                    {entry.staffName}
-                  </span>
-                )}
-                {entry.notes && (
-                  <span className="text-xs text-amber-600 dark:text-amber-400">{entry.notes}</span>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {/* 時刻なしエントリー（その他の予定） */}
-        {untimedEntries.length > 0 && (
-          <div className="mt-2">
-            <p className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              その他の予定
-            </p>
-            {untimedEntries.map((entry, i) => (
-              <div
-                key={i}
-                className="flex items-start gap-2.5 rounded-lg px-3 py-2 border bg-muted/30 mb-1.5"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground">{entry.patientName}</p>
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
-                    {entry.staffName && (
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <User className="w-3 h-3" />
-                        {entry.staffName}
-                      </span>
-                    )}
-                    {entry.notes && (
-                      <span className="text-xs text-amber-600 dark:text-amber-400">{entry.notes}</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 /** チーム・日付ごとのスケジュールカード */
 function TeamDayScheduleCard({
@@ -254,34 +49,17 @@ function TeamDayScheduleCard({
     imageUrl: string | null;
     uploadedByName: string | null;
     updatedAt: Date;
-    analyzedData?: string | null;
   }>;
 }) {
   const utils = trpc.useUtils();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analyzedResult, setAnalyzedResult] = useState<AnalyzedSchedule | null>(null);
-  const [showTimeline, setShowTimeline] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   const screenshot = screenshots.find(s => s.team === team && s.day === day);
   const teamColor = TEAM_COLOR_VALUES[team as TeamName];
   const accentColor = teamColor?.active ?? ALL_TEAM_COLOR.active;
 
-  // 既存の解析データを読み込む
-  useEffect(() => {
-    if (screenshot?.analyzedData) {
-      try {
-        const parsed = JSON.parse(screenshot.analyzedData) as AnalyzedSchedule;
-        if (parsed.entries) {
-          setAnalyzedResult(parsed);
-        }
-      } catch {
-        // ignore
-      }
-    }
-  }, [screenshot?.analyzedData]);
 
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -315,30 +93,6 @@ function TeamDayScheduleCard({
     }
   }, [team, day, utils]);
 
-  const handleAnalyze = useCallback(async () => {
-    if (!screenshot?.imageUrl) {
-      toast.error("先にスクショをアップロードしてください");
-      return;
-    }
-    setIsAnalyzing(true);
-    try {
-      const result = await utils.client.schedule.analyzeImage.mutate({
-        team,
-        day,
-        imageUrl: screenshot.imageUrl,
-      });
-      const parsed = JSON.parse(result.analyzedData) as AnalyzedSchedule;
-      setAnalyzedResult(parsed);
-      setShowTimeline(true);
-      await utils.schedule.getAll.invalidate();
-      toast.success("AI解析が完了しました");
-    } catch (err) {
-      toast.error("AI解析に失敗しました。もう一度お試しください");
-      console.error(err);
-    } finally {
-      setIsAnalyzing(false);
-    }
-  }, [team, day, screenshot, utils]);
 
   return (
     <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
@@ -354,14 +108,7 @@ function TeamDayScheduleCard({
           />
           <span className="text-sm font-bold text-foreground">{team}</span>
           <span className="text-xs text-muted-foreground">{dayLabel}</span>
-          {analyzedResult && (
-            <span
-              className="text-[10px] px-1.5 py-0.5 rounded-full text-white font-medium"
-              style={{ backgroundColor: accentColor }}
-            >
-              AI解析済み
-            </span>
-          )}
+
         </div>
         {screenshot?.uploadedByName && (
           <span className="text-[10px] text-muted-foreground">
@@ -412,46 +159,10 @@ function TeamDayScheduleCard({
             )}
           </button>
 
-          {screenshot?.imageUrl && (
-            <button
-              onClick={handleAnalyze}
-              disabled={isAnalyzing}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 disabled:opacity-50"
-              style={{
-                backgroundColor: `${accentColor}18`,
-                color: accentColor,
-                border: `1px solid ${accentColor}40`,
-              }}
-            >
-              {isAnalyzing ? (
-                <><RefreshCw className="w-3 h-3 animate-spin" />AI解析中...</>
-              ) : (
-                <><Sparkles className="w-3 h-3" />AIでスケジュール解析</>
-              )}
-            </button>
-          )}
 
-          {analyzedResult && (
-            <button
-              onClick={() => setShowTimeline(!showTimeline)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-muted text-muted-foreground hover:bg-muted/80 transition-all active:scale-95 ml-auto"
-            >
-              {showTimeline ? "閉じる" : "タイムライン表示"}
-            </button>
-          )}
         </div>
 
-        {/* タイムライン表示 */}
-        {showTimeline && analyzedResult && (
-          <div className="mt-1 pt-2 border-t border-border/50">
-            <ScheduleTimeline
-              entries={analyzedResult.entries}
-              summary={analyzedResult.summary}
-              teamName={team}
-              dayLabel={dayLabel}
-            />
-          </div>
-        )}
+
       </div>
 
       <input
@@ -546,9 +257,6 @@ export default function Schedule() {
   // 表示するチームリスト
   const displayTeams: TeamType[] = selectedTeam === "全チーム" ? [...TEAMS] : [selectedTeam];
 
-  // getAll の結果に analyzedData を含める（型拡張）
-  type ScreenshotWithAnalysis = typeof screenshots[number] & { analyzedData?: string | null };
-  const screenshotsWithAnalysis = screenshots as ScreenshotWithAnalysis[];
 
   return (
     <div className="max-w-2xl mx-auto px-3 py-4 space-y-4">
@@ -644,14 +352,13 @@ export default function Schedule() {
               team={team}
               day={currentDay}
               dayLabel={currentDayLabel}
-              screenshots={screenshotsWithAnalysis.map(s => ({
+              screenshots={screenshots.map(s => ({
                 id: s.id,
                 team: s.team,
                 day: s.day,
                 imageUrl: s.imageUrl ?? null,
                 uploadedByName: s.uploadedByName ?? null,
                 updatedAt: s.updatedAt,
-                analyzedData: s.analyzedData ?? null,
               }))}
             />
           ))
