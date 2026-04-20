@@ -5,6 +5,7 @@
  * - 訪問完了ボタン（完了時はグレーアウト表示）
  */
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import TaskCreateForm from "@/components/TaskCreateForm";
 import { VoiceMicButton } from "@/components/VoiceMicButton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,7 +40,7 @@ const NOTIFY_METHOD_OPTIONS = ["口頭", "カレンダー記入", "付箋", "電
 
 // 訪問タスク チェックリスト定義（タスク管理連携なしの固定項目）
 const VISIT_TASKS_BEFORE_DEFAULT = [
-  { id: "voice_memo", label: "ボイスメモ（録音）", checked: false, optional: false },
+  { id: "voice_memo", label: "ボイスメモ", checked: false, optional: false },
   { id: "limit_mgmt", label: "上限管理票の確認、記載", checked: false, optional: false },
   { id: "fee_sheet", label: "料金表記入", checked: false, optional: false },
   { id: "docs_hand", label: "請求書、領収書、看護計画渡す", checked: false, optional: true },
@@ -54,6 +55,13 @@ type VisitSlotData = {
   patientName: string;
 };
 
+// バイタルサイン選択肢
+const TEMP_OPTIONS = Array.from({ length: 141 }, (_, i) => (35.0 + i * 0.1).toFixed(1));
+const PULSE_OPTIONS = Array.from({ length: 71 }, (_, i) => String(50 + i));
+const SPO2_OPTIONS = Array.from({ length: 10 }, (_, i) => String(90 + i));
+const SBP_OPTIONS = Array.from({ length: 121 }, (_, i) => String(90 + i));
+const DBP_OPTIONS = Array.from({ length: 71 }, (_, i) => String(40 + i));
+
 // カードの保存状態（日付付き）
 type CardSavedState = {
   date: string; // YYYY-MM-DD
@@ -67,6 +75,8 @@ type CardSavedState = {
   notifyMethodOther: string;
   completed: boolean;
   exported: boolean;
+  vitals?: { temp: string; pulse: string; spo2: string; sbp: string; dbp: string };
+  zestChecked?: boolean;
 };
 
 type Props = {
@@ -159,6 +169,15 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
   const [notifiedToOther, setNotifiedToOther] = useState(savedState?.notifiedToOther ?? "");
   const [notifyMethod, setNotifyMethod] = useState<string>(savedState?.notifyMethod ?? "");
   const [notifyMethodOther, setNotifyMethodOther] = useState(savedState?.notifyMethodOther ?? "");
+
+  // バイタルサイン
+  const [vitals, setVitals] = useState(savedState?.vitals ?? { temp: "", pulse: "", spo2: "", sbp: "", dbp: "" });
+
+  // ZESTチェック
+  const [zestChecked, setZestChecked] = useState(savedState?.zestChecked ?? false);
+
+  // 利用者タスク追加フォーム表示
+  const [showTaskForm, setShowTaskForm] = useState(false);
 
   // 転送済み状態
   const [savedRecordId, setSavedRecordId] = useState<number | null>(null);
@@ -264,10 +283,12 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
         notifyMethodOther,
         completed,
         exported,
+        vitals,
+        zestChecked,
       };
       localStorage.setItem(getCardStorageKey(slotIndex), JSON.stringify(state));
     } catch {}
-  }, [slotIndex, todayStr, tasksBefore, specialNote, nextVisitDate, nextVisitTime, notifiedTo, notifiedToOther, notifyMethod, notifyMethodOther, completed, exported]);
+  }, [slotIndex, todayStr, tasksBefore, specialNote, nextVisitDate, nextVisitTime, notifiedTo, notifiedToOther, notifyMethod, notifyMethodOther, completed, exported, vitals, zestChecked]);
 
   // 状態変更時に自動保存
   useEffect(() => {
@@ -346,6 +367,9 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
     setCompleted(false);
     setExported(false);
     setSavedRecordId(null);
+    setVitals({ temp: "", pulse: "", spo2: "", sbp: "", dbp: "" });
+    setZestChecked(false);
+    setShowTaskForm(false);
     try {
       localStorage.removeItem(getCardStorageKey(slotIndex));
     } catch {}
@@ -500,6 +524,40 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
             <div>
               <p className="text-xs text-muted-foreground mb-1.5">訪問前・訪問中</p>
               <div className="space-y-1.5">
+                {/* ZESTで次回訪問日時確認チェック項目（ボイスメモの前） */}
+                <label
+                  className={cn(
+                    "flex items-center justify-between gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors select-none",
+                    zestChecked
+                      ? "bg-primary/5 border-primary/30"
+                      : "bg-background border-border hover:bg-muted/50"
+                  )}
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={zestChecked}
+                      onChange={() => setZestChecked(prev => !prev)}
+                      className="w-4 h-4 accent-primary flex-shrink-0"
+                    />
+                    <span className={cn(
+                      "text-sm leading-snug",
+                      zestChecked ? "line-through text-muted-foreground" : "text-foreground"
+                    )}>
+                      ZESTで次回訪問日時確認し入力欄へ
+                    </span>
+                  </div>
+                  <a
+                    href="https://homecare.zest.jp/login"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={e => e.stopPropagation()}
+                    className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-800/60 transition-colors"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    ZEST
+                  </a>
+                </label>
                 {tasksBefore.map((task) => (
                   <label
                     key={task.id}
@@ -547,6 +605,73 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
               </div>
             </div>
 
+            {/* バイタルサイン入力（月初め保険証確認の直後） */}
+            <div className="rounded-lg border border-border bg-background p-3 space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">バイタルサイン</p>
+              <div className="grid grid-cols-2 gap-2">
+                {/* 体温 */}
+                <div>
+                  <label className="text-[11px] text-muted-foreground block mb-0.5">体温（℃）</label>
+                  <select
+                    value={vitals.temp}
+                    onChange={e => setVitals(v => ({ ...v, temp: e.target.value }))}
+                    className="w-full text-sm border border-border rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  >
+                    <option value="">---</option>
+                    {TEMP_OPTIONS.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+                {/* 脈拍 */}
+                <div>
+                  <label className="text-[11px] text-muted-foreground block mb-0.5">脈拍（回/分）</label>
+                  <select
+                    value={vitals.pulse}
+                    onChange={e => setVitals(v => ({ ...v, pulse: e.target.value }))}
+                    className="w-full text-sm border border-border rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  >
+                    <option value="">---</option>
+                    {PULSE_OPTIONS.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+                {/* SPO2 */}
+                <div>
+                  <label className="text-[11px] text-muted-foreground block mb-0.5">SpO₂（%）</label>
+                  <select
+                    value={vitals.spo2}
+                    onChange={e => setVitals(v => ({ ...v, spo2: e.target.value }))}
+                    className="w-full text-sm border border-border rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  >
+                    <option value="">---</option>
+                    {SPO2_OPTIONS.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+                {/* 収縮期血圧 */}
+                <div>
+                  <label className="text-[11px] text-muted-foreground block mb-0.5">収縮期血圧（mmHg）</label>
+                  <select
+                    value={vitals.sbp}
+                    onChange={e => setVitals(v => ({ ...v, sbp: e.target.value }))}
+                    className="w-full text-sm border border-border rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  >
+                    <option value="">---</option>
+                    {SBP_OPTIONS.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+                {/* 拡張期血圧 */}
+                <div>
+                  <label className="text-[11px] text-muted-foreground block mb-0.5">拡張期血圧（mmHg）</label>
+                  <select
+                    value={vitals.dbp}
+                    onChange={e => setVitals(v => ({ ...v, dbp: e.target.value }))}
+                    className="w-full text-sm border border-border rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  >
+                    <option value="">---</option>
+                    {DBP_OPTIONS.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+
             {/* メモ（月初め保険証確認と訪問後の間） */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
@@ -567,6 +692,33 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
               />
               <p className="text-[11px] text-muted-foreground/60 mt-0.5">（注）リセットボタンでメモ削除</p>
             </div>
+            {/* 新しい利用者タスクを追加ボタン */}
+            {isPatientSelected && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowTaskForm(v => !v)}
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border-2 border-dashed border-primary/30 text-primary hover:border-primary hover:bg-primary/5 transition-colors text-xs font-medium"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  {showTaskForm ? "フォームを閉じる" : "新しい利用者タスクを追加"}
+                </button>
+                {showTaskForm && (
+                  <div className="mt-2">
+                    <TaskCreateForm
+                      onClose={() => setShowTaskForm(false)}
+                      onSuccess={() => {
+                        utils.tasks.getByPatientName.invalidate({ patientName: slotData.patientName });
+                        utils.tasks.getMine.invalidate();
+                        setShowTaskForm(false);
+                      }}
+                      requirePatientName={true}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* このカードだけリセットボタン */}
             <div className="flex justify-end">
               <button
@@ -598,16 +750,6 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                 >
                   <ExternalLink className="w-3 h-3" />
                   シート
-                </a>
-                {/* ZESTリンク */}
-                <a
-                  href="https://homecare.zest.jp/login"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-800/60 transition-colors"
-                >
-                  <ExternalLink className="w-3 h-3" />
-                  ZEST
                 </a>
               </div>
             </div>
