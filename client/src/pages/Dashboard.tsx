@@ -2152,30 +2152,38 @@ function ScheduleScreenshotCard() {
                               </div>
                               {/* タイムラインエントリ */}
                               <div className="space-y-1">
-                                {slideAnalyzed.entries.map((entry, i) => (
-                                  <div key={i} className="flex items-start gap-2 bg-white/70 dark:bg-white/5 rounded-lg px-2.5 py-1.5 border border-violet-100/60 dark:border-violet-800/30">
-                                    <div className="flex-shrink-0 min-w-[48px] text-center">
-                                      <span className="text-xs font-bold text-violet-700 dark:text-violet-300 tabular-nums">
-                                        {entry.time ?? "--:--"}
-                                      </span>
-                                      {entry.endTime && (
-                                        <div className="text-[10px] text-muted-foreground tabular-nums">〜{entry.endTime}</div>
-                                      )}
-                                    </div>
-                                    <div className="flex-shrink-0 w-px self-stretch bg-violet-300/60 dark:bg-violet-700/60 my-0.5" />
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-xs font-semibold text-foreground truncate">{entry.patientName}</p>
-                                      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                                        {entry.staffName && (
-                                          <span className="text-[10px] text-muted-foreground">{entry.staffName}</span>
-                                        )}
-                                        {entry.notes && (
-                                          <span className="text-[10px] text-amber-600 dark:text-amber-400">{entry.notes}</span>
+                                {slideAnalyzed.entries.map((entry: { time?: string | null; endTime?: string | null; patientName?: string | null; staffName?: string | null; visitType?: string | null; notes?: string | null }, i: number) => {
+                                  const isVisit = !entry.visitType || entry.visitType === "訪問看護";
+                                  return (
+                                    <div key={i} className={`flex items-start gap-2 rounded-lg px-2.5 py-1.5 border ${isVisit ? 'bg-white/70 dark:bg-white/5 border-violet-100/60 dark:border-violet-800/30' : 'bg-amber-50/70 dark:bg-amber-950/20 border-amber-200/60 dark:border-amber-800/30'}`}>
+                                      <div className="flex-shrink-0 min-w-[48px] text-center">
+                                        <span className={`text-xs font-bold tabular-nums ${isVisit ? 'text-violet-700 dark:text-violet-300' : 'text-amber-700 dark:text-amber-300'}`}>
+                                          {entry.time ?? "--:--"}
+                                        </span>
+                                        {entry.endTime && (
+                                          <div className="text-[10px] text-muted-foreground tabular-nums">〜{entry.endTime}</div>
                                         )}
                                       </div>
+                                      <div className={`flex-shrink-0 w-px self-stretch my-0.5 ${isVisit ? 'bg-violet-300/60 dark:bg-violet-700/60' : 'bg-amber-300/60 dark:bg-amber-700/60'}`} />
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <p className="text-xs font-semibold text-foreground truncate">{entry.patientName}</p>
+                                          {!isVisit && (
+                                            <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 flex-shrink-0">その他</span>
+                                          )}
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                                          {entry.staffName && (
+                                            <span className="text-[10px] text-muted-foreground">{entry.staffName}</span>
+                                          )}
+                                          {entry.notes && (
+                                            <span className="text-[10px] text-amber-600 dark:text-amber-400">{entry.notes}</span>
+                                          )}
+                                        </div>
+                                      </div>
                                     </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
@@ -2188,6 +2196,7 @@ function ScheduleScreenshotCard() {
                                   const result = await utils.client.schedule.analyzeImage.mutate({
                                     team: team as "身体" | "天理" | "郡山北部" | "郡山南部",
                                     day: day as "今日" | "明日" | "2日後" | "3日後" | "4日後",
+                                    imageUrl: screenshot.imageUrl ?? "",
                                   });
                                   if (result.analyzedData) {
                                     // APIを再取得してanalyzedDataを反映

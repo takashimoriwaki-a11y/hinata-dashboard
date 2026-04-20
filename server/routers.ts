@@ -2274,8 +2274,10 @@ export const appRouter = router({
         const { GoogleGenAI } = await import("@google/genai");
         const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? "" });
 
-        const prompt = `この画像は訪問看護ステーションの訪問スケジュール表です。
-画像から以下の情報を読み取り、JSON形式で返してください。
+        const prompt = `あなたは訪問看護ステーションのスケジュール管理システムです。
+この画像は訪問看護ステーションの訪問スケジュール表（ZESTシステム、Excel、手書き等）です。
+
+画像から全ての予定を読み取り、以下のJSON形式で返してください。
 
 返すJSONの形式:
 {
@@ -2283,19 +2285,26 @@ export const appRouter = router({
     {
       "time": "HH:MM",
       "endTime": "HH:MM",
-      "patientName": "利用者名",
-      "staffName": "担当者名",
-      "notes": "備考"
+      "patientName": "利用者名または予定名",
+      "staffName": "担当スタッフ名（複数の場合はカンマ区切り）",
+      "visitType": "訪問看護" または "その他",
+      "notes": "備考・特記事項"
     }
   ],
-  "summary": "スケジュール全体の概要"
+  "teamName": "チーム名（読み取れた場合）",
+  "date": "日付（読み取れた場合、YYYY-MM-DD形式）",
+  "summary": "スケジュール全体の概要（件数・特記事項等）"
 }
 
-注意事項:
-- 時刻は24時間表記（HH:MM形式）で返してください
-- 不明な場合は null を返してください
-- entriesは時刻順に並べてください
-- JSONのみを返してください（説明文は不要）`;
+読み取り指示:
+1. 時刻は24時間表記（HH:MM形式）で返す。8:30〜19:00の範囲を重点的に読み取る
+2. 訪問看護以外の予定（会議・研修・事務作業・カンファレンス・外出・デイサービス同行等）も必ず含める
+3. 担当スタッフ名は略称・イニシャルでも読み取れた通りに記載する
+4. 利用者名は苗字のみでも記載する
+5. 読み取れない項目は null を返す
+6. entriesは時刻順（早い順）に並べる
+7. 同じ時刻に複数の予定がある場合は別々のentryとして記載する
+8. JSONのみを返す（説明文・マークダウン記法は不要）`;
 
         let analyzedData: string;
         try {
