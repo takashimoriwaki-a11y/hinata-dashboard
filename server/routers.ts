@@ -5620,13 +5620,13 @@ export const appRouter = router({
       }),
     /** 全スタッフ一覧を取得（CSVフィルター用） */
     getStaffList: protectedProcedure.query(async ({ ctx }) => {
-      const canView = ctx.user.role === "admin" || (ctx.user as any).team === "事務員";
+      const canView = ctx.user.role === "admin" || ctx.user.role === "super_admin" || (ctx.user as any).team === "事務員";
       if (!canView) throw new TRPCError({ code: "FORBIDDEN" });
       const { getDb } = await import("./db");
       const db = await getDb();
       if (!db) return [];
       const { users } = await import("../drizzle/schema");
-      return db.select({ id: users.id, name: users.name })
+      return db.select({ id: users.id, name: users.name, role: users.role, team: users.team })
         .from(users)
         .orderBy(users.name);
     }),
