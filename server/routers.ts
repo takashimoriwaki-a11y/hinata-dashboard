@@ -2080,6 +2080,7 @@ export const appRouter = router({
         imageUrl: s.imageUrl?.startsWith("data:") ? `/api/screenshot/${s.id}` : s.imageUrl,
         uploadedByName: s.uploadedByName,
         updatedAt: s.updatedAt,
+        analyzedData: s.analyzedData ?? null,
       }));
     }),
 
