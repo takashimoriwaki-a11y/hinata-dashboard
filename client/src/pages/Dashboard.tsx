@@ -2224,7 +2224,18 @@ function ScheduleScreenshotCard() {
                                           {entries.map((entry, ei) => {
                                             const startMin = toMin(entry.time);
                                             if (startMin === null) return null;
-                                            const endMin = toMin(entry.endTime) ?? (startMin + 60);
+                                            // durationMinutes > endTime > デフォルト60分 の優先順位で滞在時間を決定
+                                            const rawEndMin = toMin(entry.endTime);
+                                            const durationMin: number = (() => {
+                                              if (typeof (entry as { durationMinutes?: number }).durationMinutes === 'number' && (entry as { durationMinutes?: number }).durationMinutes! > 0) {
+                                                return (entry as { durationMinutes?: number }).durationMinutes!;
+                                              }
+                                              if (rawEndMin !== null && rawEndMin > startMin) {
+                                                return rawEndMin - startMin;
+                                              }
+                                              return 60; // デフォルト60分
+                                            })();
+                                            const endMin = startMin + durationMin;
                                             const clampedStart = Math.max(startMin, tlStart);
                                             const clampedEnd = Math.min(endMin, tlEnd);
                                             if (clampedStart >= clampedEnd) return null;
