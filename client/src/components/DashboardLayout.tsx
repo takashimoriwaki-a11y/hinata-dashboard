@@ -96,6 +96,292 @@ const bottomNavItems = [
   { type: "internal", href: "/schedule-change", icon: CalendarClock, label: "連絡・予定" },
 ];
 
+// ========== SidebarContent Props ==========
+interface SidebarContentProps {
+  mobile?: boolean;
+  collapsed: boolean;
+  toggleCollapsed: () => void;
+  setMobileOpen: (v: boolean) => void;
+  user: { name?: string | null; role?: string | null } | null | undefined;
+  userInitial: string;
+  location: string;
+  isMonthlySignatureUnsigned: boolean;
+  pushPermission: string;
+  isSubscribed: boolean;
+  pushLoading: boolean;
+  setNotifDialogOpen: (v: boolean) => void;
+  switchable: boolean;
+  toggleTheme?: () => void;
+  theme?: string;
+  handleLogout: () => void;
+  setShowAIPromptsModal: (v: boolean) => void;
+  setShowMonthlyOvertimeModal: (v: boolean) => void;
+}
+
+// ========== SidebarContent（外部コンポーネントとして定義 - Hooks違反防止） ==========
+function SidebarContent({
+  mobile = false,
+  collapsed,
+  toggleCollapsed,
+  setMobileOpen,
+  user,
+  userInitial,
+  location,
+  isMonthlySignatureUnsigned,
+  pushPermission,
+  isSubscribed,
+  pushLoading,
+  setNotifDialogOpen,
+  switchable,
+  toggleTheme,
+  theme,
+  handleLogout,
+  setShowAIPromptsModal,
+  setShowMonthlyOvertimeModal,
+}: SidebarContentProps) {
+  return (
+    <div className="flex flex-col h-full min-h-0">
+      {/* ロゴエリア */}
+      <div className={cn(
+        "flex items-center border-b border-sidebar-border py-3",
+        (collapsed && !mobile) ? "justify-center px-0" : "gap-2 px-4"
+      )}>
+        <img src={LOGO_MARK_URL} alt="ひなた" className="w-9 h-9 object-contain flex-shrink-0" />
+        {(!collapsed || mobile) && (
+          <div className="flex flex-col gap-0.5 flex-1">
+            <p className="text-[10px] text-sidebar-foreground/75 leading-tight whitespace-nowrap">こころの訪問看護ステーション</p>
+            <span className="text-sm font-bold text-sidebar-foreground leading-tight tracking-wide">ひなた</span>
+          </div>
+        )}
+        {mobile ? (
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="ml-auto flex-shrink-0 text-sidebar-foreground/80 hover:text-sidebar-foreground p-1"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        ) : (
+          <button
+            onClick={toggleCollapsed}
+            className="ml-auto flex-shrink-0 p-1.5 rounded-md text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+            title={collapsed ? "サイドパネルを開く" : "サイドパネルを閉じる"}
+          >
+            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          </button>
+        )}
+      </div>
+
+      {/* ユーザー情報 */}
+      {(!collapsed || mobile) && (
+        <div className="px-4 py-3 border-b border-sidebar-border">
+          <div className="flex items-center gap-2.5">
+            <Avatar className="w-9 h-9 flex-shrink-0">
+              <AvatarFallback className="bg-primary text-white text-sm font-bold">{userInitial}</AvatarFallback>
+            </Avatar>
+            <div className="overflow-hidden">
+              <p className="text-sm font-semibold text-sidebar-foreground truncate">{user?.name ?? "ゲスト"}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ナビゲーション */}
+      <nav className="flex-1 py-3 overflow-y-auto min-h-0">
+        {(!collapsed || mobile) && (
+          <p className="px-4 text-xs font-semibold text-sidebar-foreground/65 uppercase tracking-wider mb-1">
+            メニュー
+          </p>
+        )}
+        {navItems.map((item) => {
+          const isActive = location === item.href;
+          return (
+            <Link key={item.href} href={item.href}>
+              <div
+                title={(collapsed && !mobile) ? item.label : undefined}
+                className={cn(
+                  "flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
+                  "text-sm font-medium",
+                  (collapsed && !mobile) ? "justify-center px-0" : "px-4",
+                  isActive
+                    ? "bg-primary text-white shadow-md -translate-y-0.5"
+                    : "text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                )}
+              >
+                <item.icon className="w-5 h-5 flex-shrink-0" />
+                {(!collapsed || mobile) && <span className="truncate">{item.label}</span>}
+              </div>
+            </Link>
+          );
+        })}
+
+        {/* AI共有プロンプトボタン */}
+        <button
+          onClick={() => setShowAIPromptsModal(true)}
+          title={(collapsed && !mobile) ? "共有プロンプト" : undefined}
+          className={cn(
+            "flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
+            "text-sm font-medium text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+            (collapsed && !mobile) ? "justify-center px-0" : "px-4 w-[calc(100%-1rem)]"
+          )}
+        >
+          <Sparkles className="w-5 h-5 flex-shrink-0" />
+          {(!collapsed || mobile) && <span className="truncate">共有プロンプト</span>}
+        </button>
+
+        {/* 月次残業確認・署名 */}
+        <button
+          onClick={() => setShowMonthlyOvertimeModal(true)}
+          title={(collapsed && !mobile) ? "月次残業署名" : undefined}
+          className={cn(
+            "relative flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
+            "text-sm font-medium text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+            (collapsed && !mobile) ? "justify-center px-0" : "px-4 w-[calc(100%-1rem)]"
+          )}
+        >
+          <span className="relative inline-flex flex-shrink-0">
+            <FileCheck className="w-5 h-5" />
+            {isMonthlySignatureUnsigned && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-sidebar" />
+            )}
+          </span>
+          {(!collapsed || mobile) && (
+            <span className="truncate flex-1 text-left">月次残業署名</span>
+          )}
+          {(!collapsed || mobile) && isMonthlySignatureUnsigned && (
+            <span className="flex-shrink-0 w-2 h-2 bg-red-500 rounded-full" />
+          )}
+        </button>
+
+        {/* チーム目標 */}
+        <Link href="/team-goals">
+          <button
+            title={(collapsed && !mobile) ? "チーム目標" : undefined}
+            className={cn(
+              "relative flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
+              "text-sm font-medium text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+              (collapsed && !mobile) ? "justify-center px-0" : "px-4 w-[calc(100%-1rem)]"
+            )}
+          >
+            <Target className="w-5 h-5 flex-shrink-0" />
+            {(!collapsed || mobile) && (
+              <span className="truncate flex-1 text-left">チーム目標</span>
+            )}
+          </button>
+        </Link>
+      </nav>
+
+      {/* ボトムアクション */}
+      <div className="border-t border-sidebar-border py-2 pb-[68px] flex-shrink-0">
+        <button
+          onPointerDown={() => {}}
+          onClick={async () => {
+            if (pushPermission === "unsupported") {
+              toast.error("このブラウザはプッシュ通知に対応していません");
+              return;
+            }
+            if (!isSubscribed && "Notification" in window && Notification.permission === "default") {
+              try {
+                const perm = await Notification.requestPermission();
+                if (perm === "denied") {
+                  toast.error("通知がブロックされています。iPhoneの設定アプリ → Safari → 通知 から許可してください。");
+                  return;
+                }
+              } catch {
+                // iOS PWAでない場合は無視してダイアログを開く
+              }
+            }
+            setNotifDialogOpen(true);
+          }}
+          disabled={pushLoading}
+          title={(collapsed && !mobile) ? (isSubscribed ? "通知中" : "通知を有効にする") : undefined}
+          className={cn(
+            "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150 select-none active:scale-95 active:opacity-80",
+            "text-sm hover:bg-sidebar-accent",
+            (collapsed && !mobile) ? "justify-center px-0" : "px-4",
+            isSubscribed
+              ? "text-emerald-600 hover:text-emerald-700"
+              : "text-sidebar-foreground/80 hover:text-sidebar-foreground"
+          )}
+        >
+          <div className="relative flex-shrink-0">
+            <Bell className={cn("w-4 h-4", isSubscribed && "fill-emerald-500")} />
+            {isSubscribed && (
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full" />
+            )}
+          </div>
+          {(!collapsed || mobile) && (
+            <span>{pushLoading ? "処理中..." : isSubscribed ? "通知中" : "通知を有効に"}</span>
+          )}
+        </button>
+        {/* スケジュールボタン */}
+        <Link href="/schedule">
+          <div
+            title={(collapsed && !mobile) ? "スケジュール" : undefined}
+            className={cn(
+              "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150",
+              "text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+              (collapsed && !mobile) ? "justify-center px-0" : "px-4",
+              location === "/schedule" && "bg-primary text-white"
+            )}
+          >
+            <Calendar className="w-4 h-4 flex-shrink-0" />
+            {(!collapsed || mobile) && <span>スケジュール</span>}
+          </div>
+        </Link>
+        {(user?.role === "admin" || user?.role === "super_admin") && (
+          <Link href="/admin">
+            <div
+              title={(collapsed && !mobile) ? "管理画面" : undefined}
+              className={cn(
+                "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150",
+                "text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                (collapsed && !mobile) ? "justify-center px-0" : "px-4",
+                location === "/admin" && "bg-primary text-white"
+              )}
+            >
+              <Settings className="w-4 h-4 flex-shrink-0" />
+              {(!collapsed || mobile) && <span>管理画面</span>}
+            </div>
+          </Link>
+        )}
+        {switchable && toggleTheme && (
+          <button
+            onClick={toggleTheme}
+            title={(collapsed && !mobile) ? (theme === "dark" ? "ライトモードに切替" : "ダークモードに切替") : undefined}
+            className={cn(
+              "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150 select-none active:scale-95 active:opacity-80",
+              "text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+              (collapsed && !mobile) ? "justify-center px-0" : "px-4"
+            )}
+          >
+            <span className={cn(
+              "w-4 h-4 flex-shrink-0 transition-transform duration-500",
+              theme === "dark" ? "rotate-0" : "rotate-180"
+            )}>
+              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </span>
+            {(!collapsed || mobile) && (
+              <span>{theme === "dark" ? "ライトモード" : "ダークモード"}</span>
+            )}
+          </button>
+        )}
+        <button
+          onClick={handleLogout}
+          title={(collapsed && !mobile) ? "ログアウト" : undefined}
+          className={cn(
+            "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150 select-none active:scale-95 active:opacity-80",
+            "text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+            (collapsed && !mobile) ? "justify-center px-0" : "px-4"
+          )}
+        >
+          <LogOut className="w-4 h-4 flex-shrink-0" />
+          {(!collapsed || mobile) && <span>ログアウト</span>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
@@ -253,252 +539,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     timeZone: "Asia/Tokyo",
   });
 
-  // サイドバー内容（PC・モバイル共通）
-  const SidebarContent = ({ mobile = false }: { mobile?: boolean }) => (
-    <div className="flex flex-col h-full min-h-0">
-      {/* ロゴエリア */}
-      <div className={cn(
-        "flex items-center border-b border-sidebar-border py-3",
-        (collapsed && !mobile) ? "justify-center px-0" : "gap-2 px-4"
-      )}>
-        <img src={LOGO_MARK_URL} alt="ひなた" className="w-9 h-9 object-contain flex-shrink-0" />
-        {(!collapsed || mobile) && (
-          <div className="flex flex-col gap-0.5 flex-1">
-            <p className="text-[10px] text-sidebar-foreground/75 leading-tight whitespace-nowrap">こころの訪問看護ステーション</p>
-            <span className="text-sm font-bold text-sidebar-foreground leading-tight tracking-wide">ひなた</span>
-          </div>
-        )}
-        {mobile ? (
-          <button
-            onClick={() => setMobileOpen(false)}
-            className="ml-auto flex-shrink-0 text-sidebar-foreground/80 hover:text-sidebar-foreground p-1"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        ) : (
-          /* PC版: 開閉ボタンをロゴエリア右端に配置 */
-          <button
-            onClick={toggleCollapsed}
-            className="ml-auto flex-shrink-0 p-1.5 rounded-md text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
-            title={collapsed ? "サイドパネルを開く" : "サイドパネルを閉じる"}
-          >
-            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </button>
-        )}
-      </div>
-
-      {/* ユーザー情報 */}
-      {(!collapsed || mobile) && (
-        <div className="px-4 py-3 border-b border-sidebar-border">
-          <div className="flex items-center gap-2.5">
-            <Avatar className="w-9 h-9 flex-shrink-0">
-              <AvatarFallback className="bg-primary text-white text-sm font-bold">{userInitial}</AvatarFallback>
-            </Avatar>
-            <div className="overflow-hidden">
-              <p className="text-sm font-semibold text-sidebar-foreground truncate">{user?.name ?? "ゲスト"}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ナビゲーション */}
-      <nav className="flex-1 py-3 overflow-y-auto min-h-0">
-        {(!collapsed || mobile) && (
-          <p className="px-4 text-xs font-semibold text-sidebar-foreground/65 uppercase tracking-wider mb-1">
-            メニュー
-          </p>
-        )}
-        {navItems.map((item) => {
-          const isActive = location === item.href;
-          return (
-            <Link key={item.href} href={item.href}>
-              <div
-                title={(collapsed && !mobile) ? item.label : undefined}
-                className={cn(
-                  "flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
-                  "text-sm font-medium",
-                  (collapsed && !mobile) ? "justify-center px-0" : "px-4",
-                  isActive
-                    ? "bg-primary text-white shadow-md -translate-y-0.5"
-                    : "text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                )}
-              >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
-                {(!collapsed || mobile) && <span className="truncate">{item.label}</span>}
-              </div>
-            </Link>
-          );
-        })}
-
-        {/* AI共有プロンプトボタン */}
-        <button
-          onClick={() => setShowAIPromptsModal(true)}
-          title={(collapsed && !mobile) ? "共有プロンプト" : undefined}
-          className={cn(
-            "flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
-            "text-sm font-medium text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-            (collapsed && !mobile) ? "justify-center px-0" : "px-4 w-[calc(100%-1rem)]"
-          )}
-        >
-          <Sparkles className="w-5 h-5 flex-shrink-0" />
-          {(!collapsed || mobile) && <span className="truncate">共有プロンプト</span>}
-        </button>
-
-        {/* 月次残業確認・署名（他のナビアイテムと統一感のあるボタン形式） */}
-        <button
-          onClick={() => setShowMonthlyOvertimeModal(true)}
-          title={(collapsed && !mobile) ? "月次残業署名" : undefined}
-          className={cn(
-            "relative flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
-            "text-sm font-medium text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-            (collapsed && !mobile) ? "justify-center px-0" : "px-4 w-[calc(100%-1rem)]"
-          )}
-        >
-          <span className="relative inline-flex flex-shrink-0">
-            <FileCheck className="w-5 h-5" />
-            {isMonthlySignatureUnsigned && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-sidebar" />
-            )}
-          </span>
-          {(!collapsed || mobile) && (
-            <span className="truncate flex-1 text-left">月次残業署名</span>
-          )}
-          {(!collapsed || mobile) && isMonthlySignatureUnsigned && (
-            <span className="flex-shrink-0 w-2 h-2 bg-red-500 rounded-full" />
-          )}
-        </button>
-
-        {/* チーム目標（全職員表示） */}
-        <Link href="/team-goals">
-          <button
-            onClick={() => setMobileOpen(false)}
-            title={(collapsed && !mobile) ? "チーム目標" : undefined}
-            className={cn(
-              "relative flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
-              "text-sm font-medium text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-              (collapsed && !mobile) ? "justify-center px-0" : "px-4 w-[calc(100%-1rem)]"
-            )}
-          >
-            <Target className="w-5 h-5 flex-shrink-0" />
-            {(!collapsed || mobile) && (
-              <span className="truncate flex-1 text-left">チーム目標</span>
-            )}
-          </button>
-        </Link>
-      </nav>
-
-      {/* ボトムアクション */}
-      <div className="border-t border-sidebar-border py-2 pb-[68px] flex-shrink-0">
-        <button
-          onPointerDown={() => {}}
-          onClick={async () => {
-            if (pushPermission === "unsupported") {
-              toast.error("このブラウザはプッシュ通知に対応していません");
-              return;
-            }
-            // iOSではユーザーアクション直後にrequestPermissionを呼ぶ必要がある
-            if (!isSubscribed && "Notification" in window && Notification.permission === "default") {
-              try {
-                const perm = await Notification.requestPermission();
-                if (perm === "denied") {
-                  toast.error("通知がブロックされています。iPhoneの設定アプリ → Safari → 通知 から許可してください。");
-                  return;
-                }
-              } catch {
-                // iOS PWAでない場合は無視してダイアログを開く
-              }
-            }
-            setNotifDialogOpen(true);
-          }}
-          disabled={pushLoading}
-          title={(collapsed && !mobile) ? (isSubscribed ? "通知中" : "通知を有効にする") : undefined}
-          className={cn(
-            "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150 select-none active:scale-95 active:opacity-80",
-            "text-sm hover:bg-sidebar-accent",
-            (collapsed && !mobile) ? "justify-center px-0" : "px-4",
-            isSubscribed
-              ? "text-emerald-600 hover:text-emerald-700"
-              : "text-sidebar-foreground/80 hover:text-sidebar-foreground"
-          )}
-        >
-          <div className="relative flex-shrink-0">
-            <Bell className={cn("w-4 h-4", isSubscribed && "fill-emerald-500")} />
-            {isSubscribed && (
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full" />
-            )}
-          </div>
-          {(!collapsed || mobile) && (
-            <span>{pushLoading ? "処理中..." : isSubscribed ? "通知中" : "通知を有効に"}</span>
-          )}
-        </button>
-        {/* スケジュールボタン（通知中と管理画面の間） */}
-        <Link href="/schedule">
-          <div
-            title={(collapsed && !mobile) ? "スケジュール" : undefined}
-            className={cn(
-              "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150",
-              "text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-              (collapsed && !mobile) ? "justify-center px-0" : "px-4",
-              location === "/schedule" && "bg-primary text-white"
-            )}
-          >
-            <Calendar className="w-4 h-4 flex-shrink-0" />
-            {(!collapsed || mobile) && <span>スケジュール</span>}
-          </div>
-        </Link>
-        {(user?.role === "admin" || user?.role === "super_admin") && (
-          <Link href="/admin">
-            <div
-              title={(collapsed && !mobile) ? "管理画面" : undefined}
-              className={cn(
-                "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150",
-                "text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                (collapsed && !mobile) ? "justify-center px-0" : "px-4",
-                location === "/admin" && "bg-primary text-white"
-              )}
-            >
-              <Settings className="w-4 h-4 flex-shrink-0" />
-              {(!collapsed || mobile) && <span>管理画面</span>}
-            </div>
-          </Link>
-        )}
-        {/* ダークモード手動切替ボタン（switchable=trueのとき表示） */}
-        {switchable && toggleTheme && (
-          <button
-            onClick={toggleTheme}
-            title={(collapsed && !mobile) ? (theme === "dark" ? "ライトモードに切替" : "ダークモードに切替") : undefined}
-            className={cn(
-              "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150 select-none active:scale-95 active:opacity-80",
-              "text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-              (collapsed && !mobile) ? "justify-center px-0" : "px-4"
-            )}
-          >
-            <span className={cn(
-              "w-4 h-4 flex-shrink-0 transition-transform duration-500",
-              theme === "dark" ? "rotate-0" : "rotate-180"
-            )}>
-              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </span>
-            {(!collapsed || mobile) && (
-              <span>{theme === "dark" ? "ライトモード" : "ダークモード"}</span>
-            )}
-          </button>
-        )}
-        <button
-          onClick={handleLogout}
-          title={(collapsed && !mobile) ? "ログアウト" : undefined}
-          className={cn(
-            "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150 select-none active:scale-95 active:opacity-80",
-            "text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-            (collapsed && !mobile) ? "justify-center px-0" : "px-4"
-          )}
-        >
-          <LogOut className="w-4 h-4 flex-shrink-0" />
-          {(!collapsed || mobile) && <span>ログアウト</span>}
-        </button>
-      </div>
-    </div>
-  );
+  // SidebarContentは外部コンポーネントとして定義済み（Hooks違反防止）
 
   return (
     <div className="flex h-screen overflow-hidden bg-orange-50/40 dark:bg-background">
@@ -513,7 +554,25 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             collapsed ? "w-14" : "w-[210px]"
           )}
         >
-          <SidebarContent />
+          <SidebarContent
+            collapsed={collapsed}
+            toggleCollapsed={toggleCollapsed}
+            setMobileOpen={setMobileOpen}
+            user={user}
+            userInitial={userInitial}
+            location={location}
+            isMonthlySignatureUnsigned={isMonthlySignatureUnsigned}
+            pushPermission={pushPermission}
+            isSubscribed={isSubscribed}
+            pushLoading={pushLoading}
+            setNotifDialogOpen={setNotifDialogOpen}
+            switchable={switchable}
+            toggleTheme={toggleTheme}
+            theme={theme}
+            handleLogout={handleLogout}
+            setShowAIPromptsModal={setShowAIPromptsModal}
+            setShowMonthlyOvertimeModal={setShowMonthlyOvertimeModal}
+          />
 
         </aside>
       </div>
@@ -536,7 +595,26 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         )}
         style={{ height: "calc(100dvh - 60px - env(safe-area-inset-bottom, 0px))" }}
       >
-        <SidebarContent mobile />
+        <SidebarContent
+          mobile
+          collapsed={collapsed}
+          toggleCollapsed={toggleCollapsed}
+          setMobileOpen={setMobileOpen}
+          user={user}
+          userInitial={userInitial}
+          location={location}
+          isMonthlySignatureUnsigned={isMonthlySignatureUnsigned}
+          pushPermission={pushPermission}
+          isSubscribed={isSubscribed}
+          pushLoading={pushLoading}
+          setNotifDialogOpen={setNotifDialogOpen}
+          switchable={switchable}
+          toggleTheme={toggleTheme}
+          theme={theme}
+          handleLogout={handleLogout}
+          setShowAIPromptsModal={setShowAIPromptsModal}
+          setShowMonthlyOvertimeModal={setShowMonthlyOvertimeModal}
+        />
       </aside>
 
       {/* ========== メインコンテンツエリア ========== */}
