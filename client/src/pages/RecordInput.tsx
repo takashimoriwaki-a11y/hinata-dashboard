@@ -1153,6 +1153,44 @@ function SlotSelector({
   const [suggestCandidates, setSuggestCandidates] = useState<PatientEntry[]>([]);
   const [suggestQuery, setSuggestQuery] = useState("");
   const recognitionRef = useRef<SpeechRecognitionType | null>(null);
+  // カスタム時間ドロップダウン
+  const [timeDropdownOpen, setTimeDropdownOpen] = useState(false);
+  const timeListRef = useRef<HTMLUListElement | null>(null);
+  const timeDropdownRef = useRef<HTMLDivElement | null>(null);
+  const TIME_SLOTS = Array.from({ length: 24 * 12 }, (_, i) => {
+    const h = Math.floor(i / 12);
+    const m = (i % 12) * 5;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  });
+  // 時間ドロップダウン外クリックで閉じる
+  useEffect(() => {
+    if (!timeDropdownOpen) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (timeDropdownRef.current && !timeDropdownRef.current.contains(e.target as Node)) {
+        setTimeDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [timeDropdownOpen]);
+  // ドロップダウンが開いたとき現在時刻付近にスクロール（iOSでも動作）
+  useEffect(() => {
+    if (!timeDropdownOpen || !timeListRef.current) return;
+    const now = new Date();
+    const currentH = now.getHours();
+    const currentM = Math.round(now.getMinutes() / 5) * 5;
+    const adjH = currentM >= 60 ? (currentH + 1) % 24 : currentH;
+    const adjM = currentM >= 60 ? 0 : currentM;
+    const targetVal = slot.nextVisitTime || `${String(adjH).padStart(2, "0")}:${String(adjM).padStart(2, "0")}`;
+    // DOMが確実にレンダリングされてからスクロール
+    const timer = setTimeout(() => {
+      const el = timeListRef.current?.querySelector(`[data-time="${targetVal}"]`) as HTMLElement | null;
+      if (el) {
+        el.scrollIntoView({ block: "center" });
+      }
+    }, 30);
+    return () => clearTimeout(timer);
+  }, [timeDropdownOpen, slot.nextVisitTime]);
 
   // チームでフィルタリングした利用者リスト（よみがな優先でソート）
   const filteredPatients = useMemo(() => {
@@ -1398,39 +1436,62 @@ function SlotSelector({
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
                 </span>
               </div>
-              <select
-                className="w-[4.5rem] text-xs h-7 border rounded-md px-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                value={slot.nextVisitTime || ""}
-                onChange={(e) => onSlotChange({ nextVisitTime: e.target.value })}
-                title="次回訪問時刻"
-                onFocus={(e) => {
-                  // プルダウンを開いたときに現在時刻付近にスクロール
-                  const now = new Date();
-                  const currentH = now.getHours();
-                  const currentM = Math.round(now.getMinutes() / 5) * 5;
-                  const adjH = currentM >= 60 ? (currentH + 1) % 24 : currentH;
-                  const adjM = currentM >= 60 ? 0 : currentM;
-                  const targetVal = `${String(adjH).padStart(2, '0')}:${String(adjM).padStart(2, '0')}`;
-                  const sel = e.currentTarget;
-                  const opts = Array.from(sel.options);
-                  const idx = opts.findIndex(o => o.value === targetVal);
-                  if (idx >= 0) {
-                    // selectedIndexを設定してからscrollTopでスクロール位置を調整
-                    sel.selectedIndex = idx;
-                    // optionの高さを推定（約20px）して中央付近にスクロール
-                    const optionHeight = sel.scrollHeight / sel.options.length;
-                    sel.scrollTop = Math.max(0, (idx - 3) * optionHeight);
-                  }
-                }}
-              >
-                <option value="">時刻</option>
-                {Array.from({ length: 24 * 12 }, (_, i) => {
-                  const h = Math.floor(i / 12);
-                  const m = (i % 12) * 5;
-                  const val = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-                  return <option key={val} value={val}>{val}</option>;
-                })}
-              </select>
+              {/* カスタム時間ドロップダウン（iOSでも現在時刻へ自動スクロール） */}
+              <div ref={timeDropdownRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setTimeDropdownOpen(prev => !prev)}
+                  className={cn(
+                    "w-[4.5rem] text-xs h-7 border rounded-md px-1.5 bg-background text-foreground",
+                    "flex items-center justify-between gap-0.5",
+                    "focus:outline-none focus:ring-1 focus:ring-primary",
+                    timeDropdownOpen && "ring-1 ring-primary"
+                  )}
+                  title="次回訪問時刻"
+                >
+                  <span className={cn(slot.nextVisitTime ? "text-foreground" : "text-muted-foreground")}>
+                    {slot.nextVisitTime || "時刻"}
+                  </span>
+                  <ChevronDown className="w-3 h-3 flex-shrink-0 text-muted-foreground" />
+                </button>
+                {timeDropdownOpen && (
+                  <div className="absolute z-50 top-full mt-0.5 left-0 w-24 bg-popover border border-border rounded-md shadow-lg overflow-hidden">
+                    <ul
+                      ref={timeListRef}
+                      className="overflow-y-auto max-h-48 py-1"
+                    >
+                      <li>
+                        <button
+                          type="button"
+                          data-time=""
+                          className={cn(
+                            "w-full text-left px-3 py-1.5 text-xs hover:bg-accent hover:text-accent-foreground transition-colors",
+                            !slot.nextVisitTime && "bg-primary/10 font-medium text-primary"
+                          )}
+                          onClick={() => { onSlotChange({ nextVisitTime: "" }); setTimeDropdownOpen(false); }}
+                        >
+                          時刻
+                        </button>
+                      </li>
+                      {TIME_SLOTS.map((t) => (
+                        <li key={t}>
+                          <button
+                            type="button"
+                            data-time={t}
+                            className={cn(
+                              "w-full text-left px-3 py-1.5 text-xs hover:bg-accent hover:text-accent-foreground transition-colors",
+                              slot.nextVisitTime === t && "bg-primary/10 font-medium text-primary"
+                            )}
+                            onClick={() => { onSlotChange({ nextVisitTime: t }); setTimeDropdownOpen(false); }}
+                          >
+                            {t}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
               {(slot.nextVisitDate || slot.nextVisitTime) && (
                 <button
                   type="button"
