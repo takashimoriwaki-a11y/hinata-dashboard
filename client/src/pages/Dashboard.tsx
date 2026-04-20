@@ -568,11 +568,21 @@ function VisitCountCard() {
             })()}
           </div>
           {/* サブ */}
-          <div className="space-y-1.5 border-2 border-sky-400 dark:border-sky-500 rounded-xl p-2.5 bg-sky-50/50 dark:bg-sky-950/30">
-            <p className="text-xs font-bold text-sky-600 dark:text-sky-400">サブ</p>
-            <p className="text-2xl font-bold text-foreground tabular-nums">
+          <div className={cn(
+            "space-y-1.5 rounded-xl p-2.5",
+            data.subTarget > 0
+              ? "border-2 border-sky-400 dark:border-sky-500 bg-sky-50/50 dark:bg-sky-950/30"
+              : "border border-dashed border-muted-foreground/30 bg-muted/20 opacity-60"
+          )}>
+            <div className="flex items-center justify-between">
+              <p className={cn("text-xs font-bold", data.subTarget > 0 ? "text-sky-600 dark:text-sky-400" : "text-muted-foreground")}>サブ</p>
+              {data.subTarget === 0 && (
+                <span className="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">目標未設定</span>
+              )}
+            </div>
+            <p className={cn("text-2xl font-bold tabular-nums", data.subTarget === 0 ? "text-muted-foreground" : "text-foreground")}>
               {animatedSub}
-              <span className="text-sm font-semibold text-sky-500 dark:text-sky-400 ml-1">
+              <span className={cn("text-sm font-semibold ml-1", data.subTarget > 0 ? "text-sky-500 dark:text-sky-400" : "text-muted-foreground")}>
                 / {data.subDailyTargetCumul > 0 ? data.subDailyTargetCumul : "—"}
               </span>
             </p>
@@ -580,7 +590,7 @@ function VisitCountCard() {
             <div className="flex items-center justify-between">
               <p className={cn(
                 "text-sm font-extrabold",
-                data.subDailyTargetCumul > 0 ? getPctColor(subPct) : "text-sky-400"
+                data.subDailyTargetCumul > 0 ? getPctColor(subPct) : "text-muted-foreground"
               )}>
                 {data.subDailyTargetCumul > 0 ? `${Math.round(subPct)}%` : "—"}
               </p>
@@ -903,25 +913,30 @@ function DailyByTeamCard() {
                       const target = data.target![d.key];
                       const rate = target > 0 ? Math.round((total / target) * 100) : null;
                       const isOver = rate !== null && rate >= 100;
-                      const isLow = rate !== null && rate < 80;
                       return (
                         <td
                           key={d.key}
-                          className={`text-center py-1.5 px-1 tabular-nums text-xs font-bold ${
+                          className={`text-center py-1 px-1 ${
                             negDayIndices.has(i)
                               ? isNight
                                 ? "bg-red-900/20"
                                 : "bg-red-50"
                               : ""
-                          } ${
-                            isOver
-                              ? "text-blue-600 dark:text-blue-400"
-                              : isLow
-                              ? "text-red-500 dark:text-red-400"
-                              : "text-amber-600 dark:text-amber-400"
                           }`}
                         >
-                          {rate !== null ? `${rate}%` : "-"}
+                          {rate !== null ? (
+                            <span className={`inline-flex items-center justify-center min-w-[2.5rem] px-1.5 py-0.5 rounded-full text-xs font-bold tabular-nums ${
+                              isOver
+                                ? isNight
+                                  ? "bg-emerald-900/40 text-emerald-300"
+                                  : "bg-emerald-100 text-emerald-700"
+                                : isNight
+                                  ? "bg-red-900/40 text-red-300"
+                                  : "bg-red-100 text-red-600"
+                            }`}>
+                              {rate}%
+                            </span>
+                          ) : "-"}
                         </td>
                       );
                     })}
@@ -5744,9 +5759,9 @@ export default function Dashboard() {
       </div>
       {/* メインコンテンツ: PC版２カラム、モバイル１カラム */}
       {/* 並び順（モバイル）: 理念→訪問スケジュール→メッセージ→今日の個人タスク→今日の利用者タスク→チームツール→全チーム共通ツール→訪問件数→曜日別件数→新規契約 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4 items-start overflow-x-hidden">
+      <div className="flex flex-col lg:flex-row gap-3 md:gap-4 items-start overflow-x-hidden">
         {/* 左カラム */}
-        <div className="space-y-3 md:space-y-4 overflow-x-hidden min-w-0">
+        <div className="w-full lg:w-[60%] space-y-3 md:space-y-4 overflow-x-hidden min-w-0">
           {/* 1. 訪問スケジュール */}
           <ScheduleScreenshotCard />
           {/* 2. メッセージ */}
@@ -5787,7 +5802,7 @@ export default function Dashboard() {
           </div>
         </div>
         {/* 右カラム（PCのみ）: 個人タスク・利用者タスク */}
-        <div className="hidden lg:block space-y-3 md:space-y-4 overflow-x-hidden min-w-0">
+        <div className="hidden lg:block lg:w-[40%] space-y-3 md:space-y-4 overflow-x-hidden min-w-0">
           <TasksCard />
           <PatientTasksCard />
         </div>

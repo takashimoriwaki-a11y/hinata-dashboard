@@ -5481,21 +5481,21 @@ export const appRouter = router({
 
         // 2. 残業申請
         const overtimeWhere = [];
-        if (startMs) overtimeWhere.push(gte(schema.overtimeApprovals.appliedAt, startMs));
-        if (endMs) overtimeWhere.push(lte(schema.overtimeApprovals.appliedAt, endMs));
-        if (filterUserId) overtimeWhere.push(eq(schema.overtimeApprovals.userId, filterUserId));
+        if (startMs) overtimeWhere.push(gte(schema.overtimeApprovals.createdAt, new Date(startMs)));
+        if (endMs) overtimeWhere.push(lte(schema.overtimeApprovals.createdAt, new Date(endMs)));
+        if (filterUserId) overtimeWhere.push(eq(schema.overtimeApprovals.applicantUserId, filterUserId));
         const overtime = await db.select().from(schema.overtimeApprovals)
           .where(overtimeWhere.length ? and(...overtimeWhere) : undefined)
-          .orderBy(desc(schema.overtimeApprovals.appliedAt))
+          .orderBy(desc(schema.overtimeApprovals.createdAt))
           .limit(2000);
         for (const o of overtime) {
           const statusLabel = o.status === "approved" ? "承認済" : o.status === "rejected" ? "却下" : "承認待ち";
           rows.push({
-            datetime: new Date(o.appliedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }),
-            userName: o.userName,
+            datetime: new Date(o.createdAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }),
+            userName: o.applicantName,
             category: "残業申請",
             action: `申請（${statusLabel}）`,
-            detail: `申請日: ${o.applicationDate} 理由: ${o.reason ?? ""}`,
+            detail: `申請日: ${o.applicationDate} 理由: ${o.requestedReason ?? ""}`,
           });
         }
 
@@ -5513,15 +5513,15 @@ export const appRouter = router({
             datetime: new Date(a.checkedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }),
             userName: a.userName,
             category: "アルコールチェック",
-            action: a.timing === "before" ? "勤務前" : "勤務後",
-            detail: `数値: ${a.alcoholValue ?? ""} 判定: ${a.result === "pass" ? "合格" : "不合格"}`,
+            action: a.type === "clock_in" ? "勤務前" : "勤務後",
+            detail: `測定値: ${a.alcoholMeasuredValue ?? ""} 検知: ${a.alcoholDetected ? "検知あり" : "検知なし"}`,
           });
         }
 
         // 4. タスク作成
         const tasksWhere = [];
-        if (startMs) tasksWhere.push(gte(schema.tasks.createdAt, startMs));
-        if (endMs) tasksWhere.push(lte(schema.tasks.createdAt, endMs));
+        if (startMs) tasksWhere.push(gte(schema.tasks.createdAt, new Date(startMs)));
+        if (endMs) tasksWhere.push(lte(schema.tasks.createdAt, new Date(endMs)));
         if (filterUserId) tasksWhere.push(eq(schema.tasks.createdBy, filterUserId));
         const tasksList = await db.select().from(schema.tasks)
           .where(tasksWhere.length ? and(...tasksWhere) : undefined)
@@ -5539,8 +5539,8 @@ export const appRouter = router({
 
         // 5. メッセージ投稿
         const messagesWhere = [];
-        if (startMs) messagesWhere.push(gte(schema.messages.createdAt, startMs));
-        if (endMs) messagesWhere.push(lte(schema.messages.createdAt, endMs));
+        if (startMs) messagesWhere.push(gte(schema.messages.createdAt, new Date(startMs)));
+        if (endMs) messagesWhere.push(lte(schema.messages.createdAt, new Date(endMs)));
         if (filterUserId) messagesWhere.push(eq(schema.messages.createdBy, filterUserId));
         const messagesList = await db.select().from(schema.messages)
           .where(messagesWhere.length ? and(...messagesWhere) : undefined)
@@ -5558,8 +5558,8 @@ export const appRouter = router({
 
         // 6. スケジュール変更連絡
         const scheduleWhere = [];
-        if (startMs) scheduleWhere.push(gte(schema.scheduleChanges.createdAt, startMs));
-        if (endMs) scheduleWhere.push(lte(schema.scheduleChanges.createdAt, endMs));
+        if (startMs) scheduleWhere.push(gte(schema.scheduleChanges.createdAt, new Date(startMs)));
+        if (endMs) scheduleWhere.push(lte(schema.scheduleChanges.createdAt, new Date(endMs)));
         if (filterUserId) scheduleWhere.push(eq(schema.scheduleChanges.createdBy, filterUserId));
         const scheduleChanges = await db.select().from(schema.scheduleChanges)
           .where(scheduleWhere.length ? and(...scheduleWhere) : undefined)
@@ -5577,8 +5577,8 @@ export const appRouter = router({
 
         // 7. ツール操作ログ
         const toolWhere = [];
-        if (startMs) toolWhere.push(gte(schema.toolAuditLogs.createdAt, startMs));
-        if (endMs) toolWhere.push(lte(schema.toolAuditLogs.createdAt, endMs));
+        if (startMs) toolWhere.push(gte(schema.toolAuditLogs.createdAt, new Date(startMs)));
+        if (endMs) toolWhere.push(lte(schema.toolAuditLogs.createdAt, new Date(endMs)));
         if (filterUserId) toolWhere.push(eq(schema.toolAuditLogs.operatedBy, filterUserId));
         const toolLogs = await db.select().from(schema.toolAuditLogs)
           .where(toolWhere.length ? and(...toolWhere) : undefined)

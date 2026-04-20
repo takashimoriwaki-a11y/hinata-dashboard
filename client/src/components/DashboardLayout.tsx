@@ -317,7 +317,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 className={cn(
                   "flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
                   "text-sm font-medium",
-                  (collapsed && !mobile) ? "justify-center px-0" : "px-3",
+                  (collapsed && !mobile) ? "justify-center px-0" : "px-4",
                   isActive
                     ? "bg-primary text-white shadow-md -translate-y-0.5"
                     : "text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground"
@@ -337,7 +337,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           className={cn(
             "flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
             "text-sm font-medium text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-            (collapsed && !mobile) ? "justify-center px-0" : "px-3 w-[calc(100%-1rem)]"
+            (collapsed && !mobile) ? "justify-center px-0" : "px-4 w-[calc(100%-1rem)]"
           )}
         >
           <Sparkles className="w-5 h-5 flex-shrink-0" />
@@ -351,7 +351,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           className={cn(
             "relative flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
             "text-sm font-medium text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-            (collapsed && !mobile) ? "justify-center px-0" : "px-3 w-[calc(100%-1rem)]"
+            (collapsed && !mobile) ? "justify-center px-0" : "px-4 w-[calc(100%-1rem)]"
           )}
         >
           <span className="relative inline-flex flex-shrink-0">
@@ -376,7 +376,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             className={cn(
               "relative flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
               "text-sm font-medium text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-              (collapsed && !mobile) ? "justify-center px-0" : "px-3 w-[calc(100%-1rem)]"
+              (collapsed && !mobile) ? "justify-center px-0" : "px-4 w-[calc(100%-1rem)]"
             )}
           >
             <Target className="w-5 h-5 flex-shrink-0" />
@@ -415,7 +415,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           className={cn(
             "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150 select-none active:scale-95 active:opacity-80",
             "text-sm hover:bg-sidebar-accent",
-            (collapsed && !mobile) ? "justify-center px-0" : "px-3",
+            (collapsed && !mobile) ? "justify-center px-0" : "px-4",
             isSubscribed
               ? "text-emerald-600 hover:text-emerald-700"
               : "text-sidebar-foreground/80 hover:text-sidebar-foreground"
@@ -438,7 +438,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               className={cn(
                 "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150",
                 "text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                (collapsed && !mobile) ? "justify-center px-0" : "px-3",
+                (collapsed && !mobile) ? "justify-center px-0" : "px-4",
                 location === "/admin" && "bg-primary text-white"
               )}
             >
@@ -455,7 +455,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             className={cn(
               "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150 select-none active:scale-95 active:opacity-80",
               "text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-              (collapsed && !mobile) ? "justify-center px-0" : "px-3"
+              (collapsed && !mobile) ? "justify-center px-0" : "px-4"
             )}
           >
             <span className={cn(
@@ -475,7 +475,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           className={cn(
             "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150 select-none active:scale-95 active:opacity-80",
             "text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-            (collapsed && !mobile) ? "justify-center px-0" : "px-3"
+            (collapsed && !mobile) ? "justify-center px-0" : "px-4"
           )}
         >
           <LogOut className="w-4 h-4 flex-shrink-0" />
@@ -495,7 +495,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             "flex flex-col h-full z-30 overflow-hidden",
             "bg-sidebar text-sidebar-foreground border-r border-sidebar-border",
             "transition-all duration-300 ease-in-out",
-            collapsed ? "w-14" : "w-56"
+            collapsed ? "w-14" : "w-[210px]"
           )}
         >
           <SidebarContent />

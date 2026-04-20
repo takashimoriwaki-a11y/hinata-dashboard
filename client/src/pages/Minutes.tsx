@@ -44,7 +44,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { format, isPast, isToday, addDays } from "date-fns";
+import { format, isPast, isToday, addDays, differenceInCalendarDays } from "date-fns";
 import { ja } from "date-fns/locale";
 
 // Google Picker APIキー
@@ -82,8 +82,9 @@ function DeadlineBadge({ deadline }: { deadline: Date | null | undefined }) {
   if (!deadline) return null;
   const d = new Date(deadline);
   const overdue = isPast(d) && !isToday(d);
-  const dueSoon = !overdue && d <= addDays(new Date(), 2);
   const dueToday = isToday(d);
+  const daysLeft = differenceInCalendarDays(d, new Date());
+  const dueSoon = !overdue && !dueToday && daysLeft <= 3;
 
   if (overdue) {
     return (
@@ -103,9 +104,9 @@ function DeadlineBadge({ deadline }: { deadline: Date | null | undefined }) {
   }
   if (dueSoon) {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs font-medium">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 text-xs font-medium">
         <Calendar className="w-3 h-3" />
-        期限 {format(d, "M月d日", { locale: ja })}
+        残り{daysLeft}日
       </span>
     );
   }
