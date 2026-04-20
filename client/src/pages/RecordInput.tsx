@@ -845,28 +845,61 @@ export default function RecordInput() {
               items={slots.map((_, i) => i)}
               strategy={verticalListSortingStrategy}
             >
-              {slots.map((slot, index) => (
-                <SlotSelector
-                  key={index}
-                  index={index}
-                  slot={slot}
-                  allPatients={allPatients}
-                  searchQuery={slotPatientQueries[index]}
-                  showList={slotShowLists[index]}
-                  onSearchChange={(q) => setSlotSearch(index, q)}
-                  onShowListChange={(show) => setSlotShowList(index, show)}
-                  onSlotChange={(data) => handleSlotChange(index, data)}
-                  slotRef={(el) => { slotRefs.current[index] = el; }}
-                  onCandidateSelected={() => {
-                    const nextIdx = slots.findIndex((s, i) => i > index && !s.patientName);
-                    if (nextIdx >= 0) {
-                      setTimeout(() => {
-                        slotRefs.current[nextIdx]?.scrollIntoView({ behavior: "smooth", block: "center" });
-                      }, 300);
+              {slots.map((slot, index) => {
+                const selectedSlots = slots.filter(s => !!s.patientName);
+                const selectedCount = selectedSlots.length;
+                const selectedIndex = selectedSlots.findIndex((_, si) => {
+                  // 選択済みスロットの中でのインデックスを計算
+                  let cnt = 0;
+                  for (let i = 0; i < slots.length; i++) {
+                    if (slots[i].patientName) {
+                      if (i === index) return cnt === si;
+                      cnt++;
                     }
-                  }}
-                />
-              ))}
+                  }
+                  return false;
+                });
+                return (
+                  <SlotSelector
+                    key={index}
+                    index={index}
+                    slot={slot}
+                    allPatients={allPatients}
+                    searchQuery={slotPatientQueries[index]}
+                    showList={slotShowLists[index]}
+                    onSearchChange={(q) => setSlotSearch(index, q)}
+                    onShowListChange={(show) => setSlotShowList(index, show)}
+                    onSlotChange={(data) => handleSlotChange(index, data)}
+                    slotRef={(el) => { slotRefs.current[index] = el; }}
+                    onCandidateSelected={() => {
+                      const nextIdx = slots.findIndex((s, i) => i > index && !s.patientName);
+                      if (nextIdx >= 0) {
+                        setTimeout(() => {
+                          slotRefs.current[nextIdx]?.scrollIntoView({ behavior: "smooth", block: "center" });
+                        }, 300);
+                      }
+                    }}
+                    onMoveUp={slot.patientName ? () => {
+                      // 前の選択済みスロットと入れ替え
+                      let prevSelected = -1;
+                      for (let i = index - 1; i >= 0; i--) {
+                        if (slots[i].patientName) { prevSelected = i; break; }
+                      }
+                      if (prevSelected >= 0) swapSlots(prevSelected, index);
+                    } : undefined}
+                    onMoveDown={slot.patientName ? () => {
+                      // 次の選択済みスロットと入れ替え
+                      let nextSelected = -1;
+                      for (let i = index + 1; i < slots.length; i++) {
+                        if (slots[i].patientName) { nextSelected = i; break; }
+                      }
+                      if (nextSelected >= 0) swapSlots(index, nextSelected);
+                    } : undefined}
+                    canMoveUp={slot.patientName ? slots.slice(0, index).some(s => !!s.patientName) : false}
+                    canMoveDown={slot.patientName ? slots.slice(index + 1).some(s => !!s.patientName) : false}
+                  />
+                );
+              })}
             </SortableContext>
           </DndContext>
         </CardContent>
@@ -1091,12 +1124,18 @@ type SlotSelectorProps = {
   onSlotChange: (data: Partial<VisitSlotData>) => void;
   slotRef?: (el: HTMLDivElement | null) => void;
   onCandidateSelected?: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
+  totalSlots?: number;
 };
 
 function SlotSelector({
   index, slot, allPatients, searchQuery, showList,
   onSearchChange, onShowListChange, onSlotChange,
-  slotRef, onCandidateSelected
+  slotRef, onCandidateSelected,
+  onMoveUp, onMoveDown, canMoveUp, canMoveDown
 }: SlotSelectorProps) {
   const isSelected = !!slot.patientName;
   const {
@@ -1271,10 +1310,43 @@ function SlotSelector({
               <span className="text-sm font-medium text-foreground truncate flex-1">
                 {slot.patientName}
               </span>
-              {/* ドラッグハンドル（選択済みスロットのみ） */}
+              {/* iPhone用上下入れ替えボタン（タッチデバイスのみ表示） */}
+              {onMoveUp && (
+                <button
+                  type="button"
+                  onClick={onMoveUp}
+                  disabled={!canMoveUp}
+                  className={cn(
+                    "flex-shrink-0 p-1 rounded transition-colors sm:hidden",
+                    canMoveUp
+                      ? "text-muted-foreground hover:text-primary hover:bg-primary/10 active:scale-95"
+                      : "text-muted-foreground/30 cursor-not-allowed"
+                  )}
+                  title="上に移動"
+                >
+                  <ChevronUp className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {onMoveDown && (
+                <button
+                  type="button"
+                  onClick={onMoveDown}
+                  disabled={!canMoveDown}
+                  className={cn(
+                    "flex-shrink-0 p-1 rounded transition-colors sm:hidden",
+                    canMoveDown
+                      ? "text-muted-foreground hover:text-primary hover:bg-primary/10 active:scale-95"
+                      : "text-muted-foreground/30 cursor-not-allowed"
+                  )}
+                  title="下に移動"
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {/* ドラッグハンドル（選択済みスロットのみ・PC用） */}
               <button
                 type="button"
-                className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors p-1 rounded cursor-grab active:cursor-grabbing touch-none"
+                className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors p-1 rounded cursor-grab active:cursor-grabbing touch-none hidden sm:flex"
                 title="ドラッグして順番を変更"
                 {...attributes}
                 {...listeners}
@@ -1311,18 +1383,40 @@ function SlotSelector({
             </div>
             {/* 2行目：次回訪問日時入力（コンパクト） */}
             <div className="flex items-center gap-1.5">
-              <input
-                type="date"
-                className="flex-1 min-w-0 text-xs h-7 border rounded-md px-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                value={slot.nextVisitDate || ""}
-                onChange={(e) => onSlotChange({ nextVisitDate: e.target.value })}
-                title="次回訪問日"
-              />
+              <span className="text-xs text-muted-foreground flex-shrink-0 whitespace-nowrap">次回訪問日時</span>
+              {/* 日付入力：iOSではカレンダーアイコンが表示されないため、カスタムラッパーで包む */}
+              <div className="relative flex-1 min-w-0">
+                <input
+                  type="date"
+                  className="w-full text-xs h-7 border rounded-md pl-2 pr-7 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary appearance-none"
+                  value={slot.nextVisitDate || ""}
+                  onChange={(e) => onSlotChange({ nextVisitDate: e.target.value })}
+                  title="次回訪問日"
+                />
+                {/* カレンダーアイコン（iOS対応）：type=dateのネイティブアイコンが表示される環境では重複するが視覚的に許容範囲 */}
+                <span className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                </span>
+              </div>
               <select
-                className="w-24 text-xs h-7 border rounded-md px-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-[4.5rem] text-xs h-7 border rounded-md px-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 value={slot.nextVisitTime || ""}
                 onChange={(e) => onSlotChange({ nextVisitTime: e.target.value })}
                 title="次回訪問時刻"
+                onFocus={(e) => {
+                  // プルダウンを開いたときに現在時刻付近にスクロール
+                  const now = new Date();
+                  const currentH = now.getHours();
+                  const currentM = Math.round(now.getMinutes() / 5) * 5;
+                  const targetVal = `${String(currentH).padStart(2, '0')}:${String(currentM >= 60 ? 0 : currentM).padStart(2, '0')}`;
+                  // 現在値が未設定の場合のみ現在時刻付近にスクロール
+                  if (!slot.nextVisitTime) {
+                    const sel = e.currentTarget;
+                    const opts = Array.from(sel.options);
+                    const idx = opts.findIndex(o => o.value === targetVal);
+                    if (idx >= 0) sel.selectedIndex = idx;
+                  }
+                }}
               >
                 <option value="">時刻</option>
                 {Array.from({ length: 24 * 12 }, (_, i) => {
