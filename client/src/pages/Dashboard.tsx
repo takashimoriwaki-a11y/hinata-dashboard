@@ -2137,7 +2137,7 @@ function ScheduleScreenshotCard() {
                           {screenshot.imageUrl ? (
                             <div
                               className="rounded-xl overflow-hidden border border-border/60 cursor-zoom-in relative group bg-muted/30"
-                              style={{ height: '150px' }}
+                              style={{ height: '190px' }}
                               onClick={() => {
                                 if (isSwiping.current) return; // スワイプ中はタップを無効化
                                 if (screenshot.imageUrl) {
@@ -2152,6 +2152,12 @@ function ScheduleScreenshotCard() {
                                 className="w-full h-full object-contain"
                                 style={{ display: 'block' }}
                               />
+                              {/* チームラベルオーバーレイ（左上） */}
+                              {showAllTeams && (
+                                <div className="absolute top-1.5 left-1.5 bg-black/55 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded pointer-events-none leading-tight">
+                                  {team}
+                                </div>
+                              )}
                               {/* 拡大アイコンオーバーレイ */}
                               <div className="absolute bottom-1.5 right-1.5 bg-black/40 rounded-full p-1 opacity-70 group-hover:opacity-100 transition-opacity pointer-events-none">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -2371,7 +2377,9 @@ function ScheduleScreenshotCard() {
             className="absolute inset-0 flex items-center justify-center animate-scale-up-image"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* key={lightboxIndex} でスライド切り替え時に再マウントしズームをリセット */}
             <PinchZoomImage
+              key={lightboxIndex}
               src={lightboxSrc}
               alt={lightboxAlt}
               fullscreen
