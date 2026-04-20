@@ -5993,6 +5993,44 @@ export const appRouter = router({
         }).catch((err) => {
           console.error("[AlcoholCheck] Sheet sync failed:", err);
         });
+        // 退勤時に残業ありの場合、overtimeApprovalsテーブルに自動登録して特級管理者に通知する
+        if (input.clockType === 'clock_out' && input.overtimeStartAt && input.overtimeEndAt) {
+          try {
+            const { createOvertimeApproval, getSuperAdminUsers, createOvertimeNotification } = await import('./db');
+            const jstNow = new Date(now + 9 * 60 * 60 * 1000);
+            const applicationDate = `${jstNow.getUTCFullYear()}-${String(jstNow.getUTCMonth() + 1).padStart(2, '0')}-${String(jstNow.getUTCDate()).padStart(2, '0')}`;
+            const overtimeRecord = await createOvertimeApproval({
+              applicantUserId: ctx.user.id,
+              applicantName: ctx.user.name ?? '不明',
+              applicationDate,
+              requestedStartAt: input.overtimeStartAt,
+              requestedEndAt: input.overtimeEndAt,
+              requestedReason: input.overtimeReason ?? undefined,
+            });
+            // 特級管理者にプッシュ通知＋アプリ内通知を送信
+            const superAdmins = await getSuperAdminUsers();
+            const startStr = new Date(input.overtimeStartAt).toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' });
+            const endStr = new Date(input.overtimeEndAt).toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' });
+            const notifTitle = `⏰ 残業申請：${ctx.user.name ?? '不明'}`;
+            const notifBody = `${applicationDate} ${startStr}〜${endStr}　理由：${input.overtimeReason ?? '未記入'}`;
+            for (const admin of superAdmins) {
+              createOvertimeNotification({
+                targetUserId: admin.id,
+                type: 'overtime_request',
+                title: notifTitle,
+                body: notifBody,
+                resourceId: overtimeRecord?.insertId,
+              }).catch((e) => console.warn('[OvertimeAuto] Notification insert failed:', e));
+              sendPushToUser(admin.name ?? '', {
+                title: notifTitle,
+                body: notifBody,
+                url: '/overtime-admin',
+              }).catch((e) => console.warn('[OvertimeAuto] Push failed:', e));
+            }
+          } catch (e) {
+            console.warn('[OvertimeAuto] Failed to create overtime approval from alcohol check:', e);
+          }
+        }
         return { success: true, alcoholCheckId: alcoholCheck.id };
       }),
     /** 月別スプレッドシート一覧を取得する（管理者用） */
