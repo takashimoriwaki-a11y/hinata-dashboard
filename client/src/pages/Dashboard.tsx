@@ -2136,7 +2136,8 @@ function ScheduleScreenshotCard() {
                           {/* スクリーンショット直接表示 */}
                           {screenshot.imageUrl ? (
                             <div
-                              className="rounded-xl overflow-hidden border border-border/60 cursor-zoom-in relative group"
+                              className="rounded-xl overflow-hidden border border-border/60 cursor-zoom-in relative group bg-muted/30"
+                              style={{ height: '150px' }}
                               onClick={() => {
                                 if (isSwiping.current) return; // スワイプ中はタップを無効化
                                 if (screenshot.imageUrl) {
@@ -2148,8 +2149,8 @@ function ScheduleScreenshotCard() {
                               <img
                                 src={screenshot.imageUrl}
                                 alt={`${team}チーム ${getDayLabel(DAYS.indexOf(day as DayType))} スケジュール`}
-                                className="w-full object-cover object-top"
-                                style={{ display: 'block', maxHeight: '150px' }}
+                                className="w-full h-full object-contain"
+                                style={{ display: 'block' }}
                               />
                               {/* 拡大アイコンオーバーレイ */}
                               <div className="absolute bottom-1.5 right-1.5 bg-black/40 rounded-full p-1 opacity-70 group-hover:opacity-100 transition-opacity pointer-events-none">
