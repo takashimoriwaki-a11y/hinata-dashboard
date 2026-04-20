@@ -1962,7 +1962,7 @@ export default function ScheduleChange() {
           {/* 訪問系 */}
           <div>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">📅 訪問変更</p>
-            <div className="grid grid-cols-1 gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {CHANGE_TYPES.filter(t => t.group === "visit").map((type) => (
                 <button
                   key={type.value}
@@ -1988,7 +1988,7 @@ export default function ScheduleChange() {
           {/* 会議系 */}
           <div>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">📝 会議</p>
-            <div className="grid grid-cols-1 gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {CHANGE_TYPES.filter(t => t.group === "meeting").map((type) => (
                 <button
                   key={type.value}

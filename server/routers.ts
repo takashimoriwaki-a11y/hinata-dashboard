@@ -4973,7 +4973,23 @@ export const appRouter = router({
       // 自分がチェック済みの議事録IDを取得
       const myChecks = await db.select().from(minutesChecks).where(eq(minutesChecks.userId, ctx.user.id));
       const checkedIds = new Set(myChecks.map((c) => c.minutesId));
-      return allMinutes.map((m) => ({ ...m, checkedByMe: checkedIds.has(m.id) }));
+      // 管理者向け：各議事録の既読数を取得
+      let readerCountMap: Map<number, number> = new Map();
+      let totalStaffCount = 0;
+      if (ctx.user.role === "admin" || ctx.user.role === "super_admin") {
+        const allChecks = await db.select({ minutesId: minutesChecks.minutesId }).from(minutesChecks);
+        for (const c of allChecks) {
+          readerCountMap.set(c.minutesId, (readerCountMap.get(c.minutesId) ?? 0) + 1);
+        }
+        const allStaff = await db.select({ id: users.id }).from(users);
+        totalStaffCount = allStaff.length;
+      }
+      return allMinutes.map((m) => ({
+        ...m,
+        checkedByMe: checkedIds.has(m.id),
+        readerCount: readerCountMap.get(m.id) ?? 0,
+        totalStaff: totalStaffCount,
+      }));
     }),
     /** 未確認件数を取得 */
     uncheckedCount: protectedProcedure.query(async ({ ctx }) => {

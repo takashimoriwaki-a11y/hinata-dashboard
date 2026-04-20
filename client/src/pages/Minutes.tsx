@@ -117,7 +117,7 @@ function DeadlineBadge({ deadline }: { deadline: Date | null | undefined }) {
 }
 
 // 既読者パネルコンポーネント（管理者のみ表示）
-function ReadersPanel({ minutesId }: { minutesId: number }) {
+function ReadersPanel({ minutesId, readerCount, totalStaff }: { minutesId: number; readerCount: number; totalStaff: number }) {
   const [open, setOpen] = useState(false);
   const utils = trpc.useUtils();
   const { data, isLoading } = trpc.minutes.getReaders.useQuery(
@@ -141,11 +141,18 @@ function ReadersPanel({ minutesId }: { minutesId: number }) {
     <div className="mt-2">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        className="flex items-center gap-1.5 text-xs hover:opacity-80 transition-opacity"
       >
-        <Users className="w-3.5 h-3.5" />
-        <span>既読者を確認</span>
-        {open ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        <Users className="w-3.5 h-3.5 text-muted-foreground" />
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 font-medium">
+          既読 {readerCount}/{totalStaff}
+        </span>
+        {totalStaff - readerCount > 0 && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 font-medium">
+            未確認 {totalStaff - readerCount}名
+          </span>
+        )}
+        {open ? <ChevronUp className="w-3 h-3 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 text-muted-foreground" />}
       </button>
       {open && (
         <div className="mt-2 p-3 rounded-lg bg-muted/40 border border-border space-y-2">
@@ -694,7 +701,7 @@ export default function Minutes() {
                         </Badge>
                       )}
                       {/* 既読者確認パネル（管理者のみ） */}
-                      {isAdmin && <ReadersPanel minutesId={m.id} />}
+                      {isAdmin && <ReadersPanel minutesId={m.id} readerCount={m.readerCount ?? 0} totalStaff={m.totalStaff ?? 0} />}
                     </div>
                     {/* 削除ボタン（投稿者本人または管理者のみ） */}
                     {(isAdmin || m.createdBy === user?.id) && (

@@ -1081,7 +1081,17 @@ export default function Tasks() {
                   <div
                     className={cn(
                       "flex items-start gap-2.5 p-2.5 rounded-lg group transition-colors",
-                      task.done ? "bg-muted/20" : "bg-card hover:bg-muted/30"
+                      task.done
+                        ? "bg-muted/20"
+                        : (() => {
+                            if (!task.dueDate) return "bg-card hover:bg-muted/30";
+                            const d = new Date(task.dueDate);
+                            const today = new Date(); today.setHours(0,0,0,0);
+                            const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+                            return target < today
+                              ? "bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200/60 dark:border-red-800/40"
+                              : "bg-card hover:bg-muted/30";
+                          })()
                     )}
                   >
                     {/* 完了チェック */}
