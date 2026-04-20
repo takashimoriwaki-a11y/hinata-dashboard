@@ -1811,11 +1811,33 @@ function ScheduleScreenshotCard() {
           setViewUrl(null);
           setViewMeta(null);
         }
+      } else if (lightboxSrc) {
+        if (e.key === "ArrowRight") {
+          e.preventDefault();
+          setLightboxIndex(prev => {
+            const next = Math.min(prev + 1, lightboxSlides.length - 1);
+            if (next !== prev) {
+              setLightboxSrc(lightboxSlides[next].src);
+              setLightboxAlt(lightboxSlides[next].alt);
+            }
+            return next;
+          });
+        } else if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          setLightboxIndex(prev => {
+            const next = Math.max(prev - 1, 0);
+            if (next !== prev) {
+              setLightboxSrc(lightboxSlides[next].src);
+              setLightboxAlt(lightboxSlides[next].alt);
+            }
+            return next;
+          });
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [lightboxSrc, viewMeta]);
+  }, [lightboxSrc, viewMeta, lightboxSlides, lightboxIndex]);
 
   // 全スクショ一覧を取得（30秒ごとに自動更新、SSEによる即時更新も対応）
   const { data: screenshots, isLoading: screenshotsLoading } = trpc.schedule.getAll.useQuery(undefined, {
@@ -2158,6 +2180,10 @@ function ScheduleScreenshotCard() {
                                   {team}
                                 </div>
                               )}
+                              {/* 日付ラベルオーバーレイ（右上） */}
+                              <div className="absolute top-1.5 right-1.5 bg-black/55 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded pointer-events-none leading-tight">
+                                {getDayLabel(DAYS.indexOf(day as DayType))}
+                              </div>
                               {/* 拡大アイコンオーバーレイ */}
                               <div className="absolute bottom-1.5 right-1.5 bg-black/40 rounded-full p-1 opacity-70 group-hover:opacity-100 transition-opacity pointer-events-none">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -2404,7 +2430,7 @@ function ScheduleScreenshotCard() {
             )}
             <div className="text-white/85 text-xs text-center px-4">
               {lightboxAlt}{lightboxSlides.length > 1 ? ` (${lightboxIndex + 1}/${lightboxSlides.length})` : ""}
-              {" — ピンチで拡大・ダブルタップでリセット"}{lightboxSlides.length > 1 ? "・スワイプで切り替え" : ""}
+              {" — ピンチで拡大・ダブルタップでリセット"}{lightboxSlides.length > 1 ? "・スワイプ/←→キーで切り替え" : ""}
             </div>
           </div>
         </div>

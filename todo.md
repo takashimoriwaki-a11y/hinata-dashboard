@@ -2823,3 +2823,9 @@
 - [x] server/schedule.analyzeImage.test.ts（AI解析専用テストファイル）を削除
 - [x] client/src/pages/Schedule.tsx から `ScheduleTimeline` コンポーネント・`AnalyzedSchedule`/`ScheduleEntry` 型・AI解析state・handleAnalyze・AIボタンを削除
 - [x] client/src/pages/Dashboard.tsx から `isAnalyzing` state・AI解析ブロック（slideAnalyzed変数・staffMap・タイムライン生成コード）を削除
+
+## 訪問スケジュールカード改善（2026-04-21）
+
+- [x] TS2802エラー解消（tsconfig.json に target: ES2015 追加）
+- [x] サムネイル右上に日付ラベルオーバーレイ追加
+- [x] ライトボックス内キーボード操作（左右矢印キー）対応

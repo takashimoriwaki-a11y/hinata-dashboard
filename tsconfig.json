@@ -2,6 +2,7 @@
   "include": ["client/src/**/*", "shared/**/*", "server/**/*", "drizzle/**/*"],
   "exclude": ["node_modules", "build", "dist", "**/*.test.ts"],
   "compilerOptions": {
+    "target": "ES2015",
     "incremental": false,
     "noEmit": true,
     "module": "ESNext",
