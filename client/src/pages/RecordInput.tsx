@@ -1285,10 +1285,10 @@ function SlotSelector({
         isDragging && "shadow-lg"
       )}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-start gap-2">
         {/* 番号 */}
         <span className={cn(
-          "flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold",
+          "flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-0.5",
           isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
         )}>
           {slotNumber}
@@ -1408,13 +1408,18 @@ function SlotSelector({
                   const now = new Date();
                   const currentH = now.getHours();
                   const currentM = Math.round(now.getMinutes() / 5) * 5;
-                  const targetVal = `${String(currentH).padStart(2, '0')}:${String(currentM >= 60 ? 0 : currentM).padStart(2, '0')}`;
-                  // 現在値が未設定の場合のみ現在時刻付近にスクロール
-                  if (!slot.nextVisitTime) {
-                    const sel = e.currentTarget;
-                    const opts = Array.from(sel.options);
-                    const idx = opts.findIndex(o => o.value === targetVal);
-                    if (idx >= 0) sel.selectedIndex = idx;
+                  const adjH = currentM >= 60 ? (currentH + 1) % 24 : currentH;
+                  const adjM = currentM >= 60 ? 0 : currentM;
+                  const targetVal = `${String(adjH).padStart(2, '0')}:${String(adjM).padStart(2, '0')}`;
+                  const sel = e.currentTarget;
+                  const opts = Array.from(sel.options);
+                  const idx = opts.findIndex(o => o.value === targetVal);
+                  if (idx >= 0) {
+                    // selectedIndexを設定してからscrollTopでスクロール位置を調整
+                    sel.selectedIndex = idx;
+                    // optionの高さを推定（約20px）して中央付近にスクロール
+                    const optionHeight = sel.scrollHeight / sel.options.length;
+                    sel.scrollTop = Math.max(0, (idx - 3) * optionHeight);
                   }
                 }}
               >
