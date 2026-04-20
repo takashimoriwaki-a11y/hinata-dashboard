@@ -1720,9 +1720,14 @@ function ScheduleScreenshotCard() {
   const [modalSlideIndex, setModalSlideIndex] = useState(0);
   const modalTouchStartX = useRef<number | null>(null);
   const modalTouchStartY = useRef<number | null>(null);
-  // 個別ライトボックス（1枚フルスクリーン表示）
+  // 個別ライトボックス（複数スクショ切り替え対応）
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [lightboxAlt, setLightboxAlt] = useState<string>("");
+  // ライトボックス内スライド切り替え用
+  const [lightboxIndex, setLightboxIndex] = useState<number>(0);
+  const [lightboxSlides, setLightboxSlides] = useState<{ src: string; alt: string }[]>([]);
+  const lbTouchStartX = useRef<number | null>(null);
+  const lbTouchStartY = useRef<number | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modalScrollRef = useRef<HTMLDivElement>(null);
@@ -1857,6 +1862,24 @@ function ScheduleScreenshotCard() {
         day,
         screenshot: screenshots?.find((s) => s.team === selectedTeam && s.day === day) ?? null,
       }));
+
+  // ライトボックス用：画像のあるスライドのみ抽出
+  const lightboxSlidesAll = swipeSlides
+    .filter((s) => s.screenshot?.imageUrl)
+    .map((s) => ({
+      src: s.screenshot!.imageUrl!,
+      alt: `${s.team}チーム ${getDayLabel(DAYS.indexOf(s.day as DayType))} スケジュール`,
+    }));
+
+  // ライトボックスを開くヘルパー（スライドリストを渡す）
+  const openLightbox = (src: string, alt: string) => {
+    const slides = lightboxSlidesAll.length > 0 ? lightboxSlidesAll : [{ src, alt }];
+    const idx = slides.findIndex((s) => s.src === src);
+    setLightboxSlides(slides);
+    setLightboxIndex(idx >= 0 ? idx : 0);
+    setLightboxSrc(src);
+    setLightboxAlt(alt);
+  };
 
   // スワイプインデックスを選択日に同期（全チームモードでは先頭から開始）
   const currentSlideIndex = showAllTeams
@@ -2117,8 +2140,7 @@ function ScheduleScreenshotCard() {
                               onClick={() => {
                                 if (isSwiping.current) return; // スワイプ中はタップを無効化
                                 if (screenshot.imageUrl) {
-                                  setLightboxSrc(screenshot.imageUrl);
-                                  setLightboxAlt(`${team}チーム ${getDayLabel(DAYS.indexOf(day as DayType))} スケジュール`);
+                                  openLightbox(screenshot.imageUrl, `${team}チーム ${getDayLabel(DAYS.indexOf(day as DayType))} スケジュール`);
                                 }
                               }}
                               title="タップして拡大"
@@ -2266,26 +2288,83 @@ function ScheduleScreenshotCard() {
           scrollRef={modalScrollRef}
           onClose={() => { setViewUrl(null); setViewMeta(null); }}
           onDayChange={(d) => setViewMeta({ ...viewMeta, day: d })}
-          onLightbox={(src, alt) => { setLightboxSrc(src); setLightboxAlt(alt); }}
+          onLightbox={(src, alt) => { openLightbox(src, alt); }}
         />
       ), document.body)}
 
 
 
-      {/* 個別ライトボックス（1枚フルスクリーン表示） */}
+      {/* 個別ライトボックス（複数スクショ切り替え対応） */}
       {lightboxSrc && createPortal((
         <div
           className="fixed inset-0 z-[90] bg-black/95 animate-fade-in-overlay"
           onClick={() => setLightboxSrc(null)}
+          onTouchStart={(e) => {
+            lbTouchStartX.current = e.touches[0].clientX;
+            lbTouchStartY.current = e.touches[0].clientY;
+          }}
+          onTouchEnd={(e) => {
+            if (lbTouchStartX.current === null || lbTouchStartY.current === null) return;
+            const dx = e.changedTouches[0].clientX - lbTouchStartX.current;
+            const dy = e.changedTouches[0].clientY - lbTouchStartY.current;
+            lbTouchStartX.current = null;
+            lbTouchStartY.current = null;
+            if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+              e.stopPropagation();
+              const nextIdx = dx < 0
+                ? Math.min(lightboxIndex + 1, lightboxSlides.length - 1)
+                : Math.max(lightboxIndex - 1, 0);
+              if (nextIdx !== lightboxIndex) {
+                setLightboxIndex(nextIdx);
+                setLightboxSrc(lightboxSlides[nextIdx].src);
+                setLightboxAlt(lightboxSlides[nextIdx].alt);
+              }
+            }
+          }}
         >
           {/* 閉じるボタン */}
           <button
             className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white rounded-full p-2 transition-colors z-10"
-            onClick={() => setLightboxSrc(null)}
+            onClick={(e) => { e.stopPropagation(); setLightboxSrc(null); }}
             title="閉じる（ESC）"
           >
             <X className="w-6 h-6" />
           </button>
+
+          {/* 左矢印ボタン */}
+          {lightboxSlides.length > 1 && lightboxIndex > 0 && (
+            <button
+              className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/15 hover:bg-white/30 text-white rounded-full p-2.5 transition-colors z-10"
+              onClick={(e) => {
+                e.stopPropagation();
+                const prev = lightboxIndex - 1;
+                setLightboxIndex(prev);
+                setLightboxSrc(lightboxSlides[prev].src);
+                setLightboxAlt(lightboxSlides[prev].alt);
+              }}
+              title="前のスクショ"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+          )}
+
+          {/* 右矢印ボタン */}
+          {lightboxSlides.length > 1 && lightboxIndex < lightboxSlides.length - 1 && (
+            <button
+              className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/15 hover:bg-white/30 text-white rounded-full p-2.5 transition-colors z-10"
+              onClick={(e) => {
+                e.stopPropagation();
+                const next = lightboxIndex + 1;
+                setLightboxIndex(next);
+                setLightboxSrc(lightboxSlides[next].src);
+                setLightboxAlt(lightboxSlides[next].alt);
+              }}
+              title="次のスクショ"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          )}
+
           {/* ピンチズーム・ダブルタップ対応画像（クリックで閉じないようstopPropagation） */}
           <div
             className="absolute inset-0 flex items-center justify-center animate-scale-up-image"
@@ -2297,9 +2376,27 @@ function ScheduleScreenshotCard() {
               fullscreen
             />
           </div>
-          {/* キャプション */}
-          <div className="absolute bottom-4 left-0 right-0 text-center text-white/85 text-xs pointer-events-none z-10">
-            {lightboxAlt} — ピンチで拡大・ダブルタップでリセット・四隅のクリックまたはESCで閉じる
+
+          {/* キャプション・ドットインジケーター */}
+          <div className="absolute bottom-4 left-0 right-0 flex flex-col items-center gap-2 pointer-events-none z-10">
+            {/* ドットインジケーター */}
+            {lightboxSlides.length > 1 && (
+              <div className="flex gap-1.5">
+                {lightboxSlides.map((_, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "w-1.5 h-1.5 rounded-full transition-all",
+                      i === lightboxIndex ? "bg-white scale-125" : "bg-white/40"
+                    )}
+                  />
+                ))}
+              </div>
+            )}
+            <div className="text-white/85 text-xs text-center px-4">
+              {lightboxAlt}{lightboxSlides.length > 1 ? ` (${lightboxIndex + 1}/${lightboxSlides.length})` : ""}
+              {" — ピンチで拡大・ダブルタップでリセット"}{lightboxSlides.length > 1 ? "・スワイプで切り替え" : ""}
+            </div>
           </div>
         </div>
       ), document.body)}
