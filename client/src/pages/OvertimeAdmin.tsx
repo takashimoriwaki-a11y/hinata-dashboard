@@ -144,6 +144,30 @@ export default function OvertimeAdmin() {
 
   const pendingCount = requests?.filter((r) => r.status === "pending").length ?? 0;
 
+  // 月次集計：承認済みの申請をスタッフ別に集計
+  const { data: allApproved } = trpc.overtime.getAll.useQuery({
+    yearMonth,
+    status: "approved",
+  });
+
+  const monthlySummary = useMemo(() => {
+    if (!allApproved) return [];
+    const map = new Map<string, { name: string; totalMs: number; count: number }>();
+    for (const req of allApproved) {
+      const key = req.applicantName;
+      const duration = req.requestedEndAt - req.requestedStartAt;
+      if (!map.has(key)) {
+        map.set(key, { name: req.applicantName, totalMs: 0, count: 0 });
+      }
+      const entry = map.get(key)!;
+      entry.totalMs += duration;
+      entry.count += 1;
+    }
+    return Array.from(map.values()).sort((a, b) => b.totalMs - a.totalMs);
+  }, [allApproved]);
+
+  const [showSummary, setShowSummary] = useState(false);
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
       {/* ページタイトル */}
@@ -189,6 +213,63 @@ export default function OvertimeAdmin() {
             })}
           </div>
         </CardContent>
+      </Card>
+
+      {/* 月次残業集計 */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">
+              {yearMonth.replace("-", "年")}月の残業集計
+            </CardTitle>
+            <button
+              onClick={() => setShowSummary((v) => !v)}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showSummary ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              {showSummary ? "折りたたむ" : "表示"}
+            </button>
+          </div>
+        </CardHeader>
+        {showSummary && (
+          <CardContent>
+            {monthlySummary.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">この月の承認済み残業申請はありません</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-2 pr-4 font-medium text-muted-foreground">スタッフ名</th>
+                      <th className="text-right py-2 pr-4 font-medium text-muted-foreground">回数</th>
+                      <th className="text-right py-2 font-medium text-muted-foreground">合計残業時間</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monthlySummary.map((row) => (
+                      <tr key={row.name} className="border-b border-border/50 last:border-0">
+                        <td className="py-2 pr-4 font-medium text-foreground">{row.name}</td>
+                        <td className="py-2 pr-4 text-right text-muted-foreground">{row.count}回</td>
+                        <td className="py-2 text-right font-semibold text-foreground">{toHourMin(row.totalMs)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-border">
+                      <td className="py-2 pr-4 font-semibold text-foreground">合計</td>
+                      <td className="py-2 pr-4 text-right font-semibold text-foreground">
+                        {monthlySummary.reduce((s, r) => s + r.count, 0)}回
+                      </td>
+                      <td className="py-2 text-right font-semibold text-primary">
+                        {toHourMin(monthlySummary.reduce((s, r) => s + r.totalMs, 0))}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        )}
       </Card>
 
       {/* 申請一覧 */}

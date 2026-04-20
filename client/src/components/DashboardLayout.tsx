@@ -116,6 +116,7 @@ interface SidebarContentProps {
   handleLogout: () => void;
   setShowAIPromptsModal: (v: boolean) => void;
   setShowMonthlyOvertimeModal: (v: boolean) => void;
+  pendingOvertimeCount?: number;
 }
 
 // ========== SidebarContent（外部コンポーネントとして定義 - Hooks違反防止） ==========
@@ -138,6 +139,7 @@ function SidebarContent({
   handleLogout,
   setShowAIPromptsModal,
   setShowMonthlyOvertimeModal,
+  pendingOvertimeCount = 0,
 }: SidebarContentProps) {
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -353,16 +355,30 @@ function SidebarContent({
         {(user?.role === "admin" || user?.role === "super_admin") && (
           <Link href="/overtime-admin">
             <div
-              title={(collapsed && !mobile) ? "残業申請管理" : undefined}
+              title={(collapsed && !mobile) ? `残業申請管理${pendingOvertimeCount > 0 ? ` (${pendingOvertimeCount}件)` : ""}` : undefined}
               className={cn(
-                "flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150",
+                "relative flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150",
                 "text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
                 (collapsed && !mobile) ? "justify-center px-0" : "px-4",
                 location === "/overtime-admin" && "bg-primary text-white"
               )}
             >
-              <Clock className="w-4 h-4 flex-shrink-0" />
-              {(!collapsed || mobile) && <span>残業申請管理</span>}
+              <span className="relative flex-shrink-0">
+                <Clock className="w-4 h-4" />
+                {pendingOvertimeCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                    {pendingOvertimeCount > 99 ? "99+" : pendingOvertimeCount}
+                  </span>
+                )}
+              </span>
+              {(!collapsed || mobile) && (
+                <span className="flex-1 truncate">残業申請管理</span>
+              )}
+              {(!collapsed || mobile) && pendingOvertimeCount > 0 && (
+                <span className="flex-shrink-0 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center">
+                  {pendingOvertimeCount > 99 ? "99+" : pendingOvertimeCount}
+                </span>
+              )}
             </div>
           </Link>
         )}
@@ -477,6 +493,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { enabled: !!user, refetchInterval: 60000 }
   );
   const isMonthlySignatureUnsigned = !!user && !currentMonthSignature;
+  // 未処理残業申請件数（管理者・特級管理者のみ取得）
+  const { data: pendingOvertimeData } = trpc.overtime.getAll.useQuery(
+    { status: "pending" },
+    {
+      enabled: !!user && (user.role === "admin" || user.role === "super_admin"),
+      refetchInterval: 60000,
+    }
+  );
+  const pendingOvertimeCount = pendingOvertimeData?.length ?? 0;
 
   // 初回チーム設定モーダル
   const { data: myProfile } = trpc.userSettings.getMyProfile.useQuery(undefined, {
@@ -594,6 +619,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             handleLogout={handleLogout}
             setShowAIPromptsModal={setShowAIPromptsModal}
             setShowMonthlyOvertimeModal={setShowMonthlyOvertimeModal}
+            pendingOvertimeCount={pendingOvertimeCount}
           />
 
         </aside>
@@ -636,6 +662,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           handleLogout={handleLogout}
           setShowAIPromptsModal={setShowAIPromptsModal}
           setShowMonthlyOvertimeModal={setShowMonthlyOvertimeModal}
+          pendingOvertimeCount={pendingOvertimeCount}
         />
       </aside>
 
