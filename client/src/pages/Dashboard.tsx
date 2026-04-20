@@ -2075,7 +2075,7 @@ function ScheduleScreenshotCard() {
                 >
                   {swipeSlides.map(({ team, day, screenshot }, slideIdx) => {
                     // AI解析済みデータをパース
-                    let slideAnalyzed: { entries: Array<{ time: string | null; endTime: string | null; patientName: string; staffName: string | null; notes: string | null }>; summary?: string } | null = null;
+                    let slideAnalyzed: { entries: Array<{ time: string | null; endTime: string | null; patientName: string; staffName: string | null; notes: string | null }>; summary?: string; staffColumns?: string[] } | null = null;
                     if (screenshot?.analyzedData) {
                       try { slideAnalyzed = JSON.parse(screenshot.analyzedData); } catch {}
                     }
@@ -2088,7 +2088,17 @@ function ScheduleScreenshotCard() {
                         staffMap.get(staff)!.push(entry);
                       }
                     }
-                    const staffList = Array.from(staffMap.keys());
+                    // staffColumnsが存在する場合はその順番でスタッフ列を並べる（ZESTの左→右の順序を保持）
+                    const staffList = (() => {
+                      const allStaff = Array.from(staffMap.keys());
+                      if (slideAnalyzed?.staffColumns && slideAnalyzed.staffColumns.length > 0) {
+                        // staffColumnsの順番を優先し、staffColumnsに含まれないスタッフは末尾に追加
+                        const ordered = slideAnalyzed.staffColumns.filter(s => staffMap.has(s));
+                        const remaining = allStaff.filter(s => !ordered.includes(s));
+                        return [...ordered, ...remaining];
+                      }
+                      return allStaff;
+                    })();
                     // 時間帯ラベル（8:30〜19:00、30分刻み）
                     const timeSlots: string[] = [];
                     for (let h = 8; h <= 19; h++) {
