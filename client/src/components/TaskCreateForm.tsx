@@ -46,9 +46,15 @@ interface TaskCreateFormProps {
   defaultDueDate?: string;
   /** 利用者名必須ヒントを表示するか */
   requirePatientName?: boolean;
+  /** デフォルトのチーム（利用者カードから渡される） */
+  defaultTeam?: Team;
+  /** デフォルトの利用者名（利用者カードから渡される） */
+  defaultPatientName?: string;
+  /** デフォルトの利用者ID（利用者カードから渡される） */
+  defaultPatientId?: number | null;
 }
 
-export default function TaskCreateForm({ onClose, onSuccess, defaultDueDate, requirePatientName }: TaskCreateFormProps) {
+export default function TaskCreateForm({ onClose, onSuccess, defaultDueDate, requirePatientName, defaultTeam, defaultPatientName, defaultPatientId }: TaskCreateFormProps) {
   const { user } = useAuth();
   const utils = trpc.useUtils();
 
@@ -61,7 +67,7 @@ export default function TaskCreateForm({ onClose, onSuccess, defaultDueDate, req
   const [newAssignUserName, setNewAssignUserName] = useState<string>("");
 
   // 利用者名選択
-  const [patientName, setPatientName] = useState("");
+  const [patientName, setPatientName] = useState(defaultPatientName ?? "");
   const [patientQuery, setPatientQuery] = useState("");
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
   // 複数候補ダイアログ
@@ -106,8 +112,14 @@ export default function TaskCreateForm({ onClose, onSuccess, defaultDueDate, req
     }
   };
 
-  // ログインユーザーの所属チームをデフォルトに設定
+  // ログインユーザーの所属チームをデフォルトに設定（defaultTeamが指定されている場合はそちらを優先）
   useEffect(() => {
+    if (defaultTeam) {
+      // 利用者カードから渡されたチームを優先する
+      setNewAssignTeam(defaultTeam);
+      setAssignTypeSafe("team");
+      return;
+    }
     if (!user?.team) return;
     // usersテーブルのteam列は「身体」「天理」「郡山北部」「郡山南部」「事務員」「全チーム」
     // TaskCreateFormのTeam型は「身体」「天理」「郡山北部」「郡山南部」のみ
@@ -119,7 +131,7 @@ export default function TaskCreateForm({ onClose, onSuccess, defaultDueDate, req
       setNewAssignTeam(user.team as Team);
       setAssignTypeSafe("team");
     }
-  }, [user?.team]);
+  }, [user?.team, defaultTeam]);
 
   // スタッフ一覧（個人指定用）
   const { data: staff = [] } = trpc.tasks.getStaff.useQuery();

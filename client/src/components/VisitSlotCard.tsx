@@ -733,6 +733,9 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                         setShowTaskForm(false);
                       }}
                       requirePatientName={true}
+                      defaultTeam={slotData.team as "身体" | "天理" | "郡山北部" | "郡山南部" | undefined}
+                      defaultPatientName={slotData.patientName || undefined}
+                      defaultPatientId={slotData.patientId}
                     />
                   </div>
                 )}
@@ -754,6 +757,15 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
 
           {/* ===== ② 次回訪問日時 ===== */}
           <div className="space-y-3 border-t pt-3">
+            {/* 利用者名表示 */}
+            {slotData.patientName && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-medium text-foreground">{slotData.patientName}</span>
+                {slotData.team && (
+                  <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${getTeamButtonClass(slotData.team)} opacity-80`}>{slotData.team}</span>
+                )}
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5" />
