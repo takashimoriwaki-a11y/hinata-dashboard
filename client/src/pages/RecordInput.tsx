@@ -719,9 +719,9 @@ export default function RecordInput() {
       <Card className="shadow-sm">
         <CardHeader className="pb-2">
           <div className="flex flex-col gap-1.5">
-            {/* 1行目：タイトル＋右端ボタン群を1行に統合 */}
-            <div className="flex items-center gap-2 min-w-0">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2 min-w-0 flex-1">
+            {/* 1行目：タイトル */}
+            <div className="flex items-center justify-between gap-2 min-w-0">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2 min-w-0">
                 <Users className="w-4 h-4 text-primary flex-shrink-0" />
                 <span className="whitespace-nowrap">今日の訪問予定</span>
                 {filledSlots > 0 && (
@@ -743,8 +743,9 @@ export default function RecordInput() {
                   </span>
                 )}
               </CardTitle>
-              {/* 右端ボタン群 */}
-              <div className="flex items-center gap-1.5 flex-shrink-0">
+            </div>
+            {/* 2行目：ボタン群 */}
+            <div className="flex items-center gap-1.5 flex-wrap">
                 {/* ZESTボタン */}
                 <a
                   href="https://homecare.zest.jp/login"
@@ -785,10 +786,9 @@ export default function RecordInput() {
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                   <span className="whitespace-nowrap">全リセット</span>
                 </button>
-              </div>
             </div>
-          {/* 2行目：検索フィールド */}
-          <div className="relative mt-1.5" ref={headerSearchRef}>
+            {/* 3行目：検索フィールド */}
+            <div className="relative" ref={headerSearchRef}>
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
             <Input
               className="pl-6 pr-2 text-xs h-7 w-full"
@@ -832,9 +832,9 @@ export default function RecordInput() {
                 ))}
               </div>
             )}
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">訪問する順番に利用者を選択してください（最大8名）</p>
-          <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">ℹ️ 訪問利用者を選択したときに登録されている利用者タスクが反映されます</p>
+            </div>
+            <p className="text-xs text-muted-foreground">訪問する順番に利用者を選択してください（最大８名）</p>
+            <p className="text-xs text-blue-600 dark:text-blue-400">ℹ️ 訪問利用者を選択したときに登録されている利用者タスクが反映されます</p>
           </div>{/* end flex-col gap-1.5 */}
         </CardHeader>
         <CardContent className="space-y-3">

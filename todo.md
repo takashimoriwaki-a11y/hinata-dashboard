@@ -2785,3 +2785,7 @@
 - [x] routers.tsのsharedPromptsルーターにreorderプロシージャを追加（管理者・特級管理者のみ）
 - [x] AISharedPromptsModal.tsxにドラッグ&ドロップ並び替えUI（@dnd-kit）を実装
 - [x] vitestテスト作成（sharedPrompts.reorder.test.ts）
+
+## レイアウトバグ修正（2026-04-20）
+
+- [x] 訪問タブの「ZEST」「一括入力」「全リセット」ボタンがタイトルテキストと重なる問題を修正（ボタン群を2行目に分離）
