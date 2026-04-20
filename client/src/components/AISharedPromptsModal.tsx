@@ -611,27 +611,21 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
             </div>
           )}
 
-          {/* 並び替えモード: DnDContext でラップ */}
-          {isSortMode ? (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
+          {/* 常にDnDContext + SortableContextでラップ（useSortableはコンテキスト外で呼べないため） */}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={filteredPrompts.map((p) => p.id)}
+              strategy={verticalListSortingStrategy}
             >
-              <SortableContext
-                items={filteredPrompts.map((p) => p.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                {filteredPrompts.map((p) => (
-                  <SortableItem key={p.id} prompt={p} {...itemCommonProps} />
-                ))}
-              </SortableContext>
-            </DndContext>
-          ) : (
-            filteredPrompts.map((p) => (
-              <SortableItem key={p.id} prompt={p} {...itemCommonProps} />
-            ))
-          )}
+              {filteredPrompts.map((p) => (
+                <SortableItem key={p.id} prompt={p} {...itemCommonProps} />
+              ))}
+            </SortableContext>
+          </DndContext>
 
           {/* 管理者向け：スクショ用プロンプト選択（一番下） */}
           {isAdmin && !isSortMode && (
