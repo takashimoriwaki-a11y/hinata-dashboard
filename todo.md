@@ -2845,3 +2845,9 @@
 - [x] App.tsxにSuperAdminGuardを追加し/overtime-approvalルートに適用
 - [x] Admin.tsxの「残業承認」タブを削除（activeSectionの型定義からも除去）
 - [x] OvertimeAdmin.tsxのページタイトルを「残業承認」に変更
+
+## 本番前最終品質改善（2026-04-21）
+
+- [x] 訪問スケジュールモーダルのダブルタップ拡大リセット修正（2回目以降のダブルタップでズームアウトしない問題）
+- [x] アプリ全体のボタン反応性改善（touch-action・active状態・タップ遅延除去）
+- [x] 音声入力精度向上（Gemini API使用・医療用語辞書強化・プロンプト最適化）

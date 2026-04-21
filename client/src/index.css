@@ -284,9 +284,16 @@
     [role="button"]:active,
     [role="tab"]:active,
     a:active {
-      opacity: 0.78;
-      transform: scale(0.95);
-      transition: opacity 0.02s ease, transform 0.02s ease;
+      opacity: 0.75;
+      transform: scale(0.94);
+      /* 押し込み: 即時（0ms）、離し: 80msで戻る */
+      transition: opacity 0ms, transform 0ms;
+    }
+    button:not(:active),
+    [role="button"]:not(:active),
+    [role="tab"]:not(:active),
+    a:not(:active) {
+      transition: opacity 80ms ease, transform 80ms ease;
     }
   }
 

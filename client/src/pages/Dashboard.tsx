@@ -963,6 +963,9 @@ function PinchZoomImage({ src, alt, onClickLightbox, fullscreen }: { src: string
   const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
   // ピンチ中かどうかのフラグ（モーダルスクロールとの競合を防ぐ）
   const isPinchingRef = useRef(false);
+  // ダブルタップ検出用
+  const lastTapTimeRef = useRef<number>(0);
+  const lastTapPosRef = useRef<{ x: number; y: number } | null>(null);
 
   const applyTransform = useCallback(() => {
     if (!imgRef.current) return;
@@ -996,14 +999,56 @@ function PinchZoomImage({ src, alt, onClickLightbox, fullscreen }: { src: string
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         lastDistRef.current = Math.sqrt(dx * dx + dy * dy);
         lastTouchRef.current = null;
+        lastTapTimeRef.current = 0; // ピンチ中はダブルタップをリセット
+        lastTapPosRef.current = null;
         e.preventDefault();
-      } else if (e.touches.length === 1 && scaleRef.current > 1) {
-        // 拡大中の1本指パン
-        lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        // scale>1時は親スクロールを止めてパン操作を優先
-        e.preventDefault();
+      } else if (e.touches.length === 1) {
+        const now = Date.now();
+        const touch = e.touches[0];
+        const tapX = touch.clientX;
+        const tapY = touch.clientY;
+        const timeDiff = now - lastTapTimeRef.current;
+        const lastPos = lastTapPosRef.current;
+        const posDiff = lastPos
+          ? Math.sqrt((tapX - lastPos.x) ** 2 + (tapY - lastPos.y) ** 2)
+          : 999;
+        if (timeDiff < 300 && posDiff < 40) {
+          // ダブルタップ検出 → ズームトグル
+          e.preventDefault();
+          if (scaleRef.current > 1) {
+            // 拡大中 → リセット
+            scaleRef.current = 1;
+            translateRef.current = { x: 0, y: 0 };
+          } else {
+            // 通常 → 2倍に拡大（タップ位置中心）
+            scaleRef.current = 2;
+            if (containerRef.current) {
+              const rect = containerRef.current.getBoundingClientRect();
+              const cx = tapX - rect.left - rect.width / 2;
+              const cy = tapY - rect.top - rect.height / 2;
+              translateRef.current = { x: -cx, y: -cy };
+              clampTranslate(2);
+            }
+          }
+          applyTransform();
+          // リセットして3回目タップで再拡大されないようにする
+          lastTapTimeRef.current = 0;
+          lastTapPosRef.current = null;
+          return;
+        }
+        // 1回目のタップを記録
+        lastTapTimeRef.current = now;
+        lastTapPosRef.current = { x: tapX, y: tapY };
+        if (scaleRef.current > 1) {
+          // 拡大中の1本指パン
+          lastTouchRef.current = { x: tapX, y: tapY };
+          e.preventDefault();
+        } else {
+          // scale=1 の1本指タッチ → モーダルのスクロールに委ねる
+          lastTouchRef.current = null;
+          isPinchingRef.current = false;
+        }
       } else {
-        // scale=1 の1本指タッチ → モーダルのスクロールに委ねる
         lastTouchRef.current = null;
         isPinchingRef.current = false;
       }
