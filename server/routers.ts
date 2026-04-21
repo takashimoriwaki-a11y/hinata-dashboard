@@ -1137,6 +1137,115 @@ async function updateTimesheetOvertimeApproval(record: {
     throw err;
   }
 }
+/** 残業署名を出退勤記録スプレッドシートの月末最終行に転記する */
+async function appendSignatureToTimesheetSheet(record: {
+  userName: string;
+  targetYear: number;
+  targetMonth: number;
+  signedAt: number;
+  comment?: string | null;
+}, spreadsheetId: string): Promise<void> {
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        private_key: (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ?? "").replace(/\\n/g, "\n"),
+      },
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+    const sheets = google.sheets({ version: "v4", auth });
+    const tabName = record.userName;
+    // タブの存在確認
+    const spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId });
+    const sheetsList = spreadsheetMeta.data.sheets ?? [];
+    const sheetInfo = sheetsList.find((s) => s.properties?.title === tabName);
+    if (!sheetInfo) {
+      console.warn(`[Signature] Tab not found for ${tabName}, skipping signature append`);
+      return;
+    }
+    const sheetId = sheetInfo.properties?.sheetId;
+    // 署名日時の文字列（JST）
+    const signedDate = new Date(record.signedAt);
+    const signedDateStr = signedDate.toLocaleString("ja-JP", {
+      timeZone: "Asia/Tokyo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    // 対象月（例：2025年3月）の表記
+    const targetMonthStr = `${record.targetYear}年${record.targetMonth}月`;
+    // コメント部分
+    const commentStr = record.comment ? ` / コメント：${record.comment}` : "";
+    // 署名行データ（A〜R列、ヘッダーと同じ18列構成に合わせる）
+    const signatureRow = [
+      `${targetMonthStr}分 署名済み`,  // A: 実施日時列に「YYYY年M月分 署名済み」
+      "署名",                           // B: 区分
+      record.userName,                  // C: 氏名
+      "",                               // D: ナンバープレート
+      "",                               // E: 確認方法
+      "",                               // F: 検知器使用
+      "",                               // G: 測定値
+      "",                               // H: 検知器種類・型番
+      "",                               // I: 酒気帯有無
+      "",                               // J: 確認者
+      "",                               // K: 運転目的
+      "",                               // L: 同乗者
+      "",                               // M: 同乗者人数
+      "",                               // N: 体調確認
+      "",                               // O: 体調詳細
+      `署名日時：${signedDateStr}${commentStr}`, // P: 備考
+      "",                               // Q: 位置情報
+      new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }), // R: 登録日時
+    ];
+    // 最終行を取得して次の行に追加
+    const existingData = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${tabName}!A:A`,
+    });
+    const lastRow = (existingData.data.values ?? []).length + 1;
+    const newRowIndex = lastRow; // 0-indexed: lastRow - 1
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${tabName}!A${lastRow}:R${lastRow}`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values: [signatureRow] },
+    });
+    // 署名行に薄い青背景・太字書式を設定
+    if (sheetId !== undefined) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [{
+            repeatCell: {
+              range: {
+                sheetId,
+                startRowIndex: newRowIndex - 1,
+                endRowIndex: newRowIndex,
+                startColumnIndex: 0,
+                endColumnIndex: 18,
+              },
+              cell: {
+                userEnteredFormat: {
+                  backgroundColor: { red: 0.827, green: 0.906, blue: 0.980 }, // 薄い青
+                  textFormat: { bold: true, fontSize: 10 },
+                  horizontalAlignment: "LEFT",
+                  verticalAlignment: "MIDDLE",
+                },
+              },
+              fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+            },
+          }],
+        },
+      });
+    }
+    console.log(`[Signature] Appended signature row for ${record.userName} (${targetMonthStr}) at row ${lastRow}`);
+  } catch (err) {
+    console.error("[Signature] Failed to append signature to timesheet:", err);
+    throw err;
+  }
+}
 
 /** 残業申請・承認記録をスプレッドシートに転記する */
 async function appendOvertimeToSheet(record: {
@@ -6866,15 +6975,34 @@ export const appRouter = router({
             message: `${input.targetYear}年${input.targetMonth}月分の署名は翌月以降に行うことができます`,
           });
         }
-        const { upsertMonthlySignature } = await import("./db");
+        const { upsertMonthlySignature, getTimesheetSpreadsheets } = await import("./db");
+        const signedAt = Date.now();
         const result = await upsertMonthlySignature({
           userId: ctx.user.id,
           userName: ctx.user.name ?? "不明",
           targetYear: input.targetYear,
           targetMonth: input.targetMonth,
-          signedAt: Date.now(),
+          signedAt,
           comment: input.comment,
         });
+        // スプレッドシートへの署名転記（非同期・エラーは握りつぶす）
+        try {
+          const timesheets = await getTimesheetSpreadsheets(input.targetYear, input.targetMonth);
+          if (timesheets && timesheets.length > 0) {
+            const spreadsheetId = timesheets[0].spreadsheetId;
+            await appendSignatureToTimesheetSheet({
+              userName: ctx.user.name ?? "不明",
+              targetYear: input.targetYear,
+              targetMonth: input.targetMonth,
+              signedAt,
+              comment: input.comment,
+            }, spreadsheetId);
+          } else {
+            console.warn(`[Signature] No timesheet spreadsheet found for ${input.targetYear}/${input.targetMonth}`);
+          }
+        } catch (sheetErr) {
+          console.error("[Signature] Spreadsheet append failed (non-fatal):", sheetErr);
+        }
         return result;
       }),
     /** 管理者：未署名スタッフを含む月次署名一覧を取得する */

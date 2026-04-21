@@ -2890,3 +2890,7 @@
 - [x] visitSlots.loadクエリにstaleTime:0を設定してキャッシュを即時無効化
 - [x] executeResetAllでDBに空データを明示的に保存し、invalidateでキャッシュ無効化
 >>>>>>> Stashed changes
+
+## 残業署名後のスプレッドシート自動転記（2026-04-21）
+- [x] appendSignatureToTimesheetSheet関数を実装（出退勤記録シートの月末最終行に薄い青背景で転記）
+- [x] monthlySignature.signプロシージャにスプレッドシート転記呼び出しを追加
