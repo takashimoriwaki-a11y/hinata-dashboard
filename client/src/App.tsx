@@ -24,6 +24,7 @@ import MyLinks from "./pages/MyLinks";
 import TeamGoals from "./pages/TeamGoals";
 import OvertimeRequest from "./pages/OvertimeRequest";
 import OvertimeAdmin from "./pages/OvertimeAdmin";
+import VoiceDiagnostics from "./pages/VoiceDiagnostics";
 import Login from "./pages/Login";
 import Setup from "./pages/Setup";
 import DashboardLayout from "./components/DashboardLayout";
@@ -119,6 +120,7 @@ function Router() {
                   <OvertimeAdmin />
                 </SuperAdminGuard>
               </Route>
+              <Route path={"/voice-diagnostics"} component={VoiceDiagnostics} />
               <Route path={"/404"} component={NotFound} />
               <Route component={NotFound} />
             </Switch>

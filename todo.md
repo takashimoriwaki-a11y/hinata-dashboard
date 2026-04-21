@@ -2899,3 +2899,10 @@
 - [x] Web Speech APIが失敗した場合にiOSでもMediaRecorderフォールバックを使用するよう修正
 - [x] not-allowedエラー時にiOS向けの具体的なメッセージ（Siriと音声入力の設定案内）を表示
 - [x] MediaRecorderのNotAllowedErrorもiOS向けメッセージに改善
+
+## 音声入力診断ページ実装（2026-04-21）
+- [x] VoiceDiagnostics.tsxを作成（HTTPS・マイク許可・Web Speech API・MediaRecorder・ネットワーク接続の5項目診断）
+- [x] App.tsxに/voice-diagnosticsルートを追加
+- [x] DashboardLayout.tsxのサイドバーに「音声入力診断」リンクを追加（Micアイコン）
+- [x] iPhoneの設定確認手順（Siriと音声入力・Safariマイク許可）を表示
+- [x] マイクテスト・音声認識テスト機能を実装
