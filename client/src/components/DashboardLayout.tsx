@@ -201,11 +201,11 @@ function SidebarContent({
               <div
                 title={(collapsed && !mobile) ? item.label : undefined}
                 className={cn(
-                  "flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
+                  "flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80",
                   "text-sm font-medium",
                   (collapsed && !mobile) ? "justify-center px-0" : "px-4",
                   isActive
-                    ? "bg-primary text-white shadow-md -translate-y-0.5"
+                    ? "bg-primary text-white shadow-md"
                     : "text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                 )}
               >
