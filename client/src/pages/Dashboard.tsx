@@ -2211,12 +2211,6 @@ function ScheduleScreenshotCard() {
               <span className="tracking-wide">訪問スケジュール</span>
             </CardTitle>
             <div className="flex items-center gap-2">
-              <Link href="/schedule">
-                <span className="text-xs text-violet-600 dark:text-violet-400 hover:underline flex items-center gap-1 cursor-pointer font-medium">
-                  <Calendar className="w-3 h-3" />
-                  詳細
-                </span>
-              </Link>
               <button
                 onClick={() => openLink("https://homecare.zest.jp/login")}
                 className="text-xs text-primary hover:underline flex items-center gap-1 cursor-pointer"

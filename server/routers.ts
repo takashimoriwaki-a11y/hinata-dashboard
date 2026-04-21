@@ -4830,6 +4830,7 @@ export const appRouter = router({
         }
         const { createQuickAccessLink } = await import("./db");
         const id = await createQuickAccessLink(input);
+        broadcastEvent("quickAccessLinks");
         return { success: true, id };
       }),
     /** クイックアクセスリンクを更新（adminのみ） */
@@ -5668,6 +5669,7 @@ export const appRouter = router({
           createdBy: ctx.user.id,
           createdByName: ctx.user.name ?? "不明",
         });
+        broadcastEvent("teamGoals");
         return { success: true };
       }),
     /** チーム目標を更新する */
@@ -5683,17 +5685,18 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         await updateTeamGoal(id, data);
+        broadcastEvent("teamGoals");
         return { success: true };
       }),
     /** チーム目標を削除する */
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
-        await deleteTeamGoal(input.id);
+         await deleteTeamGoal(input.id);
+        broadcastEvent("teamGoals");
         return { success: true };
       }),
   }),
-
   // ============================================================
   // 出退勤打刻
   // ============================================================
@@ -6702,6 +6705,81 @@ export const appRouter = router({
         const { deleteOvertimeApproval } = await import("./db");
         await deleteOvertimeApproval(input.id, ctx.user.id);
         return { success: true };
+      }),
+    /** 残業申請を一括承認する（特級管理者・管理者のみ） */
+    bulkApprove: protectedProcedure
+      .input(z.object({
+        ids: z.array(z.number().int()).min(1),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const { approveOvertimeApproval, getOvertimeApprovalById, getTimesheetSpreadsheets, createOvertimeNotification } = await import("./db");
+        const approvedAt = Date.now();
+        const results: { id: number; success: boolean }[] = [];
+        for (const id of input.ids) {
+          try {
+            await approveOvertimeApproval({
+              id,
+              approverUserId: ctx.user.id,
+              approverName: ctx.user.name ?? "不明",
+              status: "approved",
+            });
+            getOvertimeApprovalById(id).then(async (record) => {
+              if (!record) return;
+              const appDate = record.applicationDate;
+              const [year, month] = appDate.split("-").map(Number);
+              const sheets = await getTimesheetSpreadsheets(year, month);
+              if (!sheets || sheets.length === 0) return;
+              for (const sheet of sheets) {
+                await appendOvertimeToSheet({
+                  applicationDate: appDate,
+                  applicantName: record.applicantName,
+                  requestedStartAt: record.requestedStartAt,
+                  requestedEndAt: record.requestedEndAt,
+                  requestedReason: record.requestedReason,
+                  status: "approved",
+                  approverName: ctx.user.name ?? "不明",
+                  approvedAt,
+                  adjustedStartAt: null,
+                  adjustedEndAt: null,
+                  approverComment: null,
+                  updateExisting: true,
+                }, sheet.spreadsheetId).catch((err) => console.error("[BulkApprove] Sheet sync failed:", err));
+                await updateTimesheetOvertimeApproval({
+                  applicationDate: appDate,
+                  applicantName: record.applicantName,
+                  status: "approved",
+                  approverName: ctx.user.name ?? "不明",
+                  approverComment: null,
+                  adjustedStartAt: null,
+                  adjustedEndAt: null,
+                  requestedStartAt: record.requestedStartAt,
+                  requestedEndAt: record.requestedEndAt,
+                  requestedReason: record.requestedReason ?? null,
+                  requestedDetail: null,
+                }, sheet.spreadsheetId).catch((err) => console.error("[BulkApprove] Timesheet update failed:", err));
+              }
+              if (record.applicantUserId) {
+                const startStr = new Date(record.requestedStartAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
+                const endStr = new Date(record.requestedEndAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
+                createOvertimeNotification({
+                  targetUserId: record.applicantUserId,
+                  type: "overtime_approved",
+                  title: "残業申請が承認されました",
+                  body: `${record.applicationDate} ${startStr}～${endStr}\n承認者：${ctx.user.name ?? "不明"}`,
+                  resourceId: id,
+                }).catch((e) => console.error("[BulkApprove] notify failed:", e));
+              }
+            }).catch((err) => console.error("[BulkApprove] getById failed:", err));
+            results.push({ id, success: true });
+          } catch (err) {
+            console.error(`[BulkApprove] id=${id} failed:`, err);
+            results.push({ id, success: false });
+          }
+        }
+        const { broadcastEvent } = await import("./_core/sse");
+        broadcastEvent("overtimeApprovals", { bulkApproved: true });
+        return { success: true, results };
       }),
     /** 自分の残業申請を年月で絞り込んで取得する（月次確認用） */
     getMineByMonth: protectedProcedure

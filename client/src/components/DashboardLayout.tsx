@@ -233,7 +233,7 @@ function SidebarContent({
         {/* 月次残業確認・署名 */}
         <button
           onClick={() => setShowMonthlyOvertimeModal(true)}
-          title={(collapsed && !mobile) ? "月次残業署名" : undefined}
+          title={(collapsed && !mobile) ? "残業署名" : undefined}
           className={cn(
             "relative flex items-center gap-3 py-3 mx-2 rounded-lg transition-all duration-200 select-none active:scale-95 active:opacity-80 hover:-translate-y-0.5 hover:shadow-sm",
             "text-sm font-medium text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground",
@@ -247,7 +247,7 @@ function SidebarContent({
             )}
           </span>
           {(!collapsed || mobile) && (
-            <span className="truncate flex-1 text-left">月次残業署名</span>
+            <span className="truncate flex-1 text-left">残業署名</span>
           )}
           {(!collapsed || mobile) && isMonthlySignatureUnsigned && (
             <span className="flex-shrink-0 w-2 h-2 bg-red-500 rounded-full" />

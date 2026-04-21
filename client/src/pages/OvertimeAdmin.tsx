@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Clock, CheckCircle, XCircle, ChevronDown, ChevronUp, PenLine } from "lucide-react";
+import { Clock, CheckCircle, XCircle, ChevronDown, ChevronUp, PenLine, CheckCircle2 } from "lucide-react";
 
 function toTimeStr(ts: number): string {
   return new Date(ts).toLocaleTimeString("ja-JP", {
@@ -256,10 +256,27 @@ export default function OvertimeAdmin() {
     requestedEndAt: number;
     requestedReason?: string | null;
   }>(null);
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
 
+  const utils = trpc.useUtils();
   const { data: requests, refetch } = trpc.overtime.getAll.useQuery({
     yearMonth,
     status: statusFilter,
+  });
+
+  // 一括承認mutation
+  const bulkApproveMutation = trpc.overtime.bulkApprove.useMutation({
+    onSuccess: (data) => {
+      const successCount = data.results.filter((r) => r.success).length;
+      toast.success(`${successCount}件の残業申請を一括承認しました（スプレッドシートに転記）`);
+      setShowBulkConfirm(false);
+      void utils.overtime.getAll.invalidate();
+      refetch();
+    },
+    onError: (e) => {
+      toast.error(`一括承認に失敗しました: ${e.message}`);
+      setShowBulkConfirm(false);
+    },
   });
 
   // 月選択肢（過去6ヶ月）
@@ -274,7 +291,8 @@ export default function OvertimeAdmin() {
     return opts;
   }, []);
 
-  const pendingCount = requests?.filter((r) => r.status === "pending").length ?? 0;
+  const pendingRequests = useMemo(() => requests?.filter((r) => r.status === "pending") ?? [], [requests]);
+  const pendingCount = pendingRequests.length;
 
   // 月次集計：承認済みの申請をスタッフ別に集計
   const { data: allApproved } = trpc.overtime.getAll.useQuery({
@@ -303,14 +321,34 @@ export default function OvertimeAdmin() {
 
   const [showSummary, setShowSummary] = useState(false);
 
+  function handleBulkApprove() {
+    const ids = pendingRequests.map((r) => r.id);
+    if (ids.length === 0) return;
+    bulkApproveMutation.mutate({ ids });
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
       {/* ページタイトル */}
-      <div className="flex items-center gap-2 mb-2">
-        <Clock className="w-5 h-5 text-primary" />
-        <h1 className="text-lg font-bold text-foreground">残業承認</h1>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <Clock className="w-5 h-5 text-primary" />
+          <h1 className="text-lg font-bold text-foreground">残業承認</h1>
+          {pendingCount > 0 && (
+            <Badge className="bg-yellow-500 text-white text-xs">{pendingCount}件 申請中</Badge>
+          )}
+        </div>
+        {/* 一括承認ボタン */}
         {pendingCount > 0 && (
-          <Badge className="bg-yellow-500 text-white text-xs">{pendingCount}件 申請中</Badge>
+          <Button
+            size="sm"
+            className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-1.5"
+            onClick={() => setShowBulkConfirm(true)}
+            disabled={bulkApproveMutation.isPending}
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            一括承認（{pendingCount}件）
+          </Button>
         )}
       </div>
 
@@ -493,6 +531,51 @@ export default function OvertimeAdmin() {
             refetch();
           }}
         />
+      )}
+
+      {/* 一括承認確認ダイアログ */}
+      {showBulkConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-sm p-5 space-y-4">
+            <h2 className="text-base font-bold text-foreground">一括承認の確認</h2>
+            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 rounded-lg p-3">
+              <p className="text-sm text-foreground">
+                申請中の <span className="font-bold text-amber-600">{pendingCount}件</span> の残業申請を
+                <span className="font-bold">申請通りの時間で</span>一括承認します。
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                ※ スプレッドシートへの転記も同時に行われます。
+              </p>
+            </div>
+            <div className="space-y-2">
+              {pendingRequests.map((r) => (
+                <div key={r.id} className="flex items-center justify-between text-sm border-b border-border/50 pb-1 last:border-0">
+                  <span className="font-medium text-foreground">{r.applicantName}</span>
+                  <span className="text-muted-foreground text-xs">
+                    {r.applicationDate} {toTimeStr(r.requestedStartAt)}〜{toTimeStr(r.requestedEndAt)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowBulkConfirm(false)}
+                disabled={bulkApproveMutation.isPending}
+              >
+                キャンセル
+              </Button>
+              <Button
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                onClick={handleBulkApprove}
+                disabled={bulkApproveMutation.isPending}
+              >
+                {bulkApproveMutation.isPending ? "処理中..." : "一括承認する"}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

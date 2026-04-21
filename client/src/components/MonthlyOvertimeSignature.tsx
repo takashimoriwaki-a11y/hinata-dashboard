@@ -137,7 +137,7 @@ export function MonthlyOvertimeSignature({ defaultYear, defaultMonth }: MonthlyO
       >
         <div className="flex items-center gap-2">
           <FileCheck className="w-5 h-5 text-blue-600" />
-          <span className="font-semibold text-gray-800 text-sm">月次残業確認・署名</span>
+          <span className="font-semibold text-gray-800 text-sm">残業署名</span>
           {isAlreadySigned && (
             <span className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
               <CheckCircle2 className="w-3 h-3" />
