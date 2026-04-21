@@ -476,12 +476,24 @@ export function CreateTaskForm({ onClose, onCreated, userTeam, defaultDueDate }:
             {taskKind === "at_time" ? "実施日時" : "期日"}
           </label>
           <div className="flex gap-2">
-            <input
-              type="date"
-              value={dueDate}
-              onChange={e => setDueDate(e.target.value)}
-              className="flex-1 bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm border border-border"
-            />
+            <div className="relative flex-1">
+              <input
+                type="date"
+                value={dueDate}
+                onChange={e => setDueDate(e.target.value)}
+                className="w-full bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm border border-border"
+                style={{ colorScheme: "light dark" }}
+              />
+              {/* 日付の日本語表示オーバーレイ（iOSでのロケール依存表示を回避） */}
+              {dueDate && (
+                <span className="absolute inset-0 flex items-center pl-3 pr-2 text-sm text-foreground pointer-events-none bg-muted rounded-xl border border-border">
+                  {(() => {
+                    const [y, m, d] = dueDate.split("-");
+                    return `${parseInt(m)}月${parseInt(d)}日`;
+                  })()}
+                </span>
+              )}
+            </div>
             <select
               value={dueTime}
               onChange={e => setDueTime(e.target.value)}

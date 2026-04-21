@@ -413,18 +413,8 @@ export default function RecordInput() {
     for (let i = 0; i < MAX_SLOTS; i++) {
       localStorage.removeItem(`hinata_visit_card_${i}`);
     }
-    // DBに空データを即時保存し、tRPCキャッシュを無効化する
-    saveSlotsMutation.mutate(
-      { dateKey: todayKey, slotsJson: emptyJson },
-      {
-        onSuccess: () => {
-          // キャッシュを無効化して次回loadクエリが空データを返すようにする
-          utils.visitSlots.load.invalidate({ dateKey: todayKey });
-        },
-      }
-    );
-    // dbLoadedをfalseに戻してDB再取得時に空データが適用されるようにする
-    setDbLoaded(false);
+    // setSlots(empty)によりslots変更検知useEffectが発火してDBに自動保存される
+    // dbLoadedをtrueに保ち、invalidate後のDB再取得でリセット済みデータが上書きされないようにする
     setSlots(empty);
     setSlotSearchQueries(Array.from({ length: MAX_SLOTS }, () => ""));
     setSlotShowLists(Array.from({ length: MAX_SLOTS }, () => false));
@@ -433,13 +423,13 @@ export default function RecordInput() {
     toast.success("訪問時チェック項目を全てリセットしました");
   };
 
-  const setSlotSearch = (index: number, query: string) => {
+  const setSlotSearch = useCallback((index: number, query: string) => {
     setSlotSearchQueries(prev => {
       const next = [...prev];
       next[index] = query;
       return next;
     });
-  };
+  }, []);
 
   const setSlotShowList = (index: number, show: boolean) => {
     setSlotShowLists(prev => {
@@ -1378,7 +1368,7 @@ function SlotSelector({
           // 選択済み表示
           <div className="flex flex-col gap-1.5 flex-1 min-w-0">
             {/* 1行目：チーム・利用者名・ボタン群 */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               {slot.team && (
                 <span
                   className={cn("text-xs px-1.5 py-0.5 rounded font-medium flex-shrink-0", getTeamButtonClass(slot.team as Team, true))}
@@ -1473,7 +1463,17 @@ function SlotSelector({
                   value={slot.nextVisitDate || ""}
                   onChange={(e) => onSlotChange({ nextVisitDate: e.target.value })}
                   title="次回訪問日"
+                  style={{ colorScheme: "light dark" }}
                 />
+                {/* 日付の日本語表示オーバーレイ（iOSでのロケール依存表示を回避） */}
+                {slot.nextVisitDate && (
+                  <span className="absolute inset-0 flex items-center pl-2 pr-7 text-xs text-foreground pointer-events-none bg-background rounded-md">
+                    {(() => {
+                      const [y, m, d] = slot.nextVisitDate.split("-");
+                      return `${parseInt(m)}月${parseInt(d)}日`;
+                    })()}
+                  </span>
+                )}
                 {/* カレンダーアイコン（iOS対応）：type=dateのネイティブアイコンが表示される環境では重複するが視覚的に許容範囲 */}
                 <span className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>

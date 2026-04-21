@@ -3857,29 +3857,24 @@ function TasksCard() {
     { refetchInterval: 60 * 1000, staleTime: 30 * 1000, refetchOnWindowFocus: true }
   );
 
-  // 今日の個人タスク（at_time・by_deadline両方表示、今日が期日のものを含む、5件上限・他職員への依頼タスク除外）
+  // 個人タスク（期日あり・なし問わず全未完了タスクを表示、他職員への依頼タスク除外）
   const todayPersonalTasks = useMemo(() => {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const todayEnd = todayStart + 24 * 60 * 60 * 1000 - 1;
     return personalTasksData
       .filter((t) => {
-        if (hideCompleted && t.done) return false;
-        if (!t.dueDate) return false;
+        // 完了済みは常に除外
+        if (t.done) return false;
         // 自分が作成した他職員への依頼タスクを除外
         if (t.assignType === "personal" && t.assignUserId !== user?.id && t.createdBy === user?.id) return false;
-        // 今日が期日のタスク（at_time・by_deadline両方）または期限切れのタスクを表示
-        const due = new Date(t.dueDate).getTime();
-        return due <= todayEnd;
+        return true;
       })
       .sort((a, b) => {
+        // 期日なしは後ろに
         if (!a.dueDate && !b.dueDate) return 0;
         if (!a.dueDate) return 1;
         if (!b.dueDate) return -1;
         return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-      })
-      .slice(0, 5);
-  }, [personalTasksData, user?.id, hideCompleted]);
+      });
+  }, [personalTasksData, user?.id]);
 
   // 期限切れタスク（今日より前の期日で未完了）のカウント
   const overdueCount = useMemo(() => {
@@ -3923,7 +3918,7 @@ function TasksCard() {
           <div className="flex items-center justify-between gap-2">
             <CardTitle className="text-base font-bold flex items-center gap-1.5 text-foreground min-w-0">
               <ClipboardList className="w-4 h-4 text-primary flex-shrink-0" />
-              <span className="tracking-wide whitespace-nowrap">今日の個人タスク</span>
+              <span className="tracking-wide whitespace-nowrap">個人タスク</span>
               {todayPersonalTasks.length > 0 && (
                 <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex-shrink-0">
                   {todayPersonalTasks.length}
@@ -3952,7 +3947,7 @@ function TasksCard() {
           <div className="space-y-2">
           {todayPersonalTasks.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-3">
-              今日の個人タスクはありません ✓
+              未完了のタスクはありません ✓
             </p>
           ) : (
             todayPersonalTasks.map((task) => {

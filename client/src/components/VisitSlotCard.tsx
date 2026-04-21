@@ -812,17 +812,29 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
 
             {/* 日付・時刻 + リセットボタン */}
             <div className="flex gap-2 items-center">
-              <Input
-                type="date"
-                className="text-sm flex-1"
-                value={nextVisitDate}
-                onChange={(e) => {
-                  setNextVisitDate(e.target.value);
-                  setExported(false);
-                  setSavedRecordId(null);
-                  onNextVisitChange?.(e.target.value, nextVisitTime);
-                }}
-              />
+              <div className="relative flex-1">
+                <Input
+                  type="date"
+                  className="text-sm w-full"
+                  value={nextVisitDate}
+                  onChange={(e) => {
+                    setNextVisitDate(e.target.value);
+                    setExported(false);
+                    setSavedRecordId(null);
+                    onNextVisitChange?.(e.target.value, nextVisitTime);
+                  }}
+                  style={{ colorScheme: "light dark" }}
+                />
+                {/* 日付の日本語表示オーバーレイ（iOSでのロケール依存表示を回避） */}
+                {nextVisitDate && (
+                  <span className="absolute inset-0 flex items-center pl-3 pr-8 text-sm text-foreground pointer-events-none bg-background rounded-md border border-input">
+                    {(() => {
+                      const [y, m, d] = nextVisitDate.split("-");
+                      return `${parseInt(m)}月${parseInt(d)}日`;
+                    })()}
+                  </span>
+                )}
+              </div>
               <div className="relative w-28">
                 <button
                   type="button"
