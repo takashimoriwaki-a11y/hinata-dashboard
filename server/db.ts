@@ -28,6 +28,7 @@ import {
   personalTasks, PersonalTask,
   visitSlotOrders,
   irregularSchedules, IrregularSchedule, InsertIrregularSchedule,
+  scheduleNotes, InsertScheduleNote,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -2861,4 +2862,60 @@ export async function createOvertimeNotification(params: {
     targetUserId: params.targetUserId,
     isRead: 0,
   });
+}
+
+// ========== スケジュールメモ ==========
+
+/** スクリーンショットIDに紐付くメモを取得する（存在しない場合はnull） */
+export async function getScheduleNote(screenshotId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db
+    .select()
+    .from(scheduleNotes)
+    .where(eq(scheduleNotes.screenshotId, screenshotId))
+    .limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
+/** 複数スクリーンショットIDのメモを一括取得する */
+export async function getScheduleNotesByIds(screenshotIds: number[]) {
+  const db = await getDb();
+  if (!db) return [];
+  if (screenshotIds.length === 0) return [];
+  return db
+    .select()
+    .from(scheduleNotes)
+    .where(sql`${scheduleNotes.screenshotId} IN (${sql.join(screenshotIds.map(id => sql`${id}`), sql`, `)})`);
+}
+
+/** スクリーンショットのメモを作成または更新する（upsert） */
+export async function upsertScheduleNote(data: InsertScheduleNote) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const existing = await getScheduleNote(data.screenshotId);
+  if (existing) {
+    await db
+      .update(scheduleNotes)
+      .set({
+        content: data.content,
+        updatedBy: data.updatedBy,
+        updatedByName: data.updatedByName,
+        updatedAt: new Date(),
+      })
+      .where(eq(scheduleNotes.id, existing.id));
+    return existing.id;
+  } else {
+    const result = await db.insert(scheduleNotes).values(data);
+    return (result as any)[0]?.insertId ?? 0;
+  }
+}
+
+/** スクリーンショットのメモを削除する */
+export async function deleteScheduleNote(screenshotId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .delete(scheduleNotes)
+    .where(eq(scheduleNotes.screenshotId, screenshotId));
 }

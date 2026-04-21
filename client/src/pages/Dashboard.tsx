@@ -96,6 +96,8 @@ import {
   ThumbsUp,
   ThumbsDown,
   RotateCcw,
+  StickyNote,
+  Save,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, openLink } from "@/lib/utils";
@@ -1450,8 +1452,156 @@ function ScheduleCommentSection({ team, day }: { team: string; day: string }) {
     </div>
   );
 }
-// ========== 全チームスケジュールモーダル（スクロール位置保持対応） ==========
+// ========== スケジュールメモコンポーネント ==========
+function ScheduleNoteSection({ screenshotId }: { screenshotId: number }) {
+  const utils = trpc.useUtils();
+  const { data: note, isLoading } = trpc.scheduleNotes.get.useQuery({ screenshotId }, { staleTime: 0 });
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [isExpanded, setIsExpanded] = useState(false);
 
+  const upsertMut = trpc.scheduleNotes.upsert.useMutation({
+    onSuccess: () => {
+      utils.scheduleNotes.get.invalidate({ screenshotId });
+      setEditing(false);
+      toast.success("メモを保存しました");
+    },
+    onError: (e) => toast.error(`保存失敗: ${e.message}`),
+  });
+
+  const deleteMut = trpc.scheduleNotes.delete.useMutation({
+    onSuccess: () => {
+      utils.scheduleNotes.get.invalidate({ screenshotId });
+      toast.success("メモを削除しました");
+    },
+    onError: (e) => toast.error(`削除失敗: ${e.message}`),
+  });
+
+  const hasNote = note && note.content && note.content.trim().length > 0;
+
+  const handleEdit = () => {
+    setDraft(note?.content ?? "");
+    setEditing(true);
+    setIsExpanded(true);
+  };
+
+  const handleSave = () => {
+    if (!draft.trim()) {
+      // 空の場合は削除と同じ扱い
+      if (hasNote) deleteMut.mutate({ screenshotId });
+      else setEditing(false);
+      return;
+    }
+    upsertMut.mutate({ screenshotId, content: draft.trim() });
+  };
+
+  return (
+    <div className="border-t border-border/50 bg-amber-50/30 dark:bg-amber-950/10">
+      {/* メモヘッダー */}
+      <button
+        type="button"
+        className="w-full flex items-center justify-between px-4 py-2 text-left"
+        onClick={() => {
+          if (!isExpanded && !editing) {
+            setIsExpanded(true);
+          } else if (isExpanded && !editing) {
+            setIsExpanded(false);
+          }
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <StickyNote className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+          <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
+            メモ
+          </span>
+          {hasNote && !isExpanded && (
+            <span className="text-xs text-muted-foreground truncate max-w-[180px]">
+              {note.content.slice(0, 30)}{note.content.length > 30 ? "…" : ""}
+            </span>
+          )}
+          {hasNote && (
+            <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">•</span>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5">
+          {!editing && (
+            <button
+              type="button"
+              className="text-xs text-primary underline"
+              onClick={(e) => { e.stopPropagation(); handleEdit(); }}
+            >
+              {hasNote ? "編集" : "記入"}
+            </button>
+          )}
+          {isExpanded
+            ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" />
+            : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+        </div>
+      </button>
+
+      {/* 展開時のメモ内容 */}
+      {isExpanded && (
+        <div className="px-4 pb-3 space-y-2">
+          {editing ? (
+            <>
+              <Textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder="全職員へのメモを入力..."
+                rows={3}
+                className="text-sm resize-none"
+                autoFocus
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground px-3 py-1.5 rounded border border-border bg-background"
+                  onClick={() => setEditing(false)}
+                >
+                  キャンセル
+                </button>
+                {hasNote && (
+                  <button
+                    type="button"
+                    className="text-xs text-red-600 px-3 py-1.5 rounded border border-red-200 bg-red-50 dark:bg-red-950/20"
+                    onClick={() => deleteMut.mutate({ screenshotId })}
+                    disabled={deleteMut.isPending}
+                  >
+                    削除
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="flex items-center gap-1 text-xs text-white px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-600 active:scale-95 transition-all"
+                  onClick={handleSave}
+                  disabled={upsertMut.isPending}
+                >
+                  <Save className="w-3 h-3" />
+                  保存
+                </button>
+              </div>
+            </>
+          ) : isLoading ? (
+            <p className="text-xs text-muted-foreground">読み込み中...</p>
+          ) : hasNote ? (
+            <div className="space-y-1">
+              <p className="text-sm text-foreground whitespace-pre-wrap">{note.content}</p>
+              {note.updatedByName && (
+                <p className="text-xs text-muted-foreground">
+                  最終更新: {note.updatedByName} · {new Date(note.updatedAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground italic">まだメモはありません。「記入」をタップして追加できます。</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ========== 全チームスケジュールモーダル（スクロール位置保持対応） ==========
 type ScheduleAllTeamsModalProps = {
   viewMeta: { team: string; day: string; uploadedByName: string | null; updatedAt: Date };
   screenshots: Array<{ id: number; team: string; day: string; imageUrl: string | null | undefined; uploadedByName: string | null | undefined; updatedAt: Date }>;
@@ -1644,6 +1794,8 @@ function ScheduleAllTeamsModal({ viewMeta, screenshots, scrollRef, onClose, onDa
                 )}
                 {/* 申し送り・コメントセクション */}
                 <ScheduleCommentSection team={team} day={viewMeta.day} />
+                {/* メモセクション（スクリーンショットがある場合のみ） */}
+                {screenshot && <ScheduleNoteSection screenshotId={screenshot.id} />}
                 {/* 次のチームへボタン */}
                 <div className="flex justify-end px-3 py-2 bg-muted/20">
                   {!isLast && nextTeam ? (

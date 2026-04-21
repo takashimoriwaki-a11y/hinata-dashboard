@@ -1157,3 +1157,24 @@ export const irregularSchedules = mysqlTable("irregular_schedules", {
 
 export type IrregularSchedule = typeof irregularSchedules.$inferSelect;
 export type InsertIrregularSchedule = typeof irregularSchedules.$inferInsert;
+
+// ========== 訪問スケジュールメモ ==========
+/**
+ * 訪問スケジュールスクショに紐付くメモテーブル
+ * 全職員が自由記述でメモを追加・編集でき、リアルタイムで全員に同期される
+ */
+export const scheduleNotes = mysqlTable("schedule_notes", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 紐付くスクリーンショットのID */
+  screenshotId: int("screenshotId").notNull(),
+  /** メモ本文 */
+  content: text("content").notNull(),
+  /** 最終更新者のユーザーID */
+  updatedBy: int("updatedBy").notNull(),
+  /** 最終更新者の名前（表示用キャッシュ） */
+  updatedByName: varchar("updatedByName", { length: 100 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type ScheduleNote = typeof scheduleNotes.$inferSelect;
+export type InsertScheduleNote = typeof scheduleNotes.$inferInsert;

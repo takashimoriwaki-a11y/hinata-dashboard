@@ -1348,6 +1348,10 @@ import {
   deleteAlcoholDetector,
   getTimesheetSpreadsheets,
   upsertTimesheetSpreadsheet,
+  getScheduleNote,
+  getScheduleNotesByIds,
+  upsertScheduleNote,
+  deleteScheduleNote,
 } from "./db";
 import { storagePut } from "./storage";
 import { eq } from "drizzle-orm";
@@ -7163,6 +7167,47 @@ export const appRouter = router({
         const { getVisitSlotOrder } = await import("./db");
         const slotsJson = await getVisitSlotOrder(ctx.user.id, input.dateKey);
         return { slotsJson };
+      }),
+  }),
+  // ========== スケジュールメモ ==========
+  scheduleNotes: router({
+    /** 複数スクリーンショットIDのメモを一括取得する */
+    getByIds: protectedProcedure
+      .input(z.object({ screenshotIds: z.array(z.number()) }))
+      .query(async ({ input }) => {
+        if (input.screenshotIds.length === 0) return [];
+        return getScheduleNotesByIds(input.screenshotIds);
+      }),
+    /** 単一スクリーンショットのメモを取得する */
+    get: protectedProcedure
+      .input(z.object({ screenshotId: z.number() }))
+      .query(async ({ input }) => {
+        return getScheduleNote(input.screenshotId);
+      }),
+    /** メモを作成または更新する（全職員が編集可能） */
+    upsert: protectedProcedure
+      .input(z.object({
+        screenshotId: z.number(),
+        content: z.string().max(2000),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await upsertScheduleNote({
+          screenshotId: input.screenshotId,
+          content: input.content,
+          updatedBy: ctx.user.id,
+          updatedByName: ctx.user.name ?? "不明",
+        });
+        // 全職員にリアルタイム同期
+        try { broadcastEvent("scheduleNotes"); } catch {}
+        return { ok: true };
+      }),
+    /** メモを削除する */
+    delete: protectedProcedure
+      .input(z.object({ screenshotId: z.number() }))
+      .mutation(async ({ input }) => {
+        await deleteScheduleNote(input.screenshotId);
+        try { broadcastEvent("scheduleNotes"); } catch {}
+        return { ok: true };
       }),
   }),
 });

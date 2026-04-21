@@ -53,6 +53,8 @@ const EVENT_QUERY_MAP: Record<string, string[][]> = {
     ["personalTasks", "getMyTasks"],
     ["personalTasks", "getTodayTasks"],
   ],
+  // スケジュールメモ
+  scheduleNotes: [["scheduleNotes", "get"], ["scheduleNotes", "getByIds"]],
 };
 
 export function useRealtimeSync() {
