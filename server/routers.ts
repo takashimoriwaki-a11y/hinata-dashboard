@@ -6690,6 +6690,9 @@ export const appRouter = router({
         }).catch((err) => {
           console.error("[Overtime] getOvertimeApprovalById failed:", err);
         });
+        // SSEで全クライアントに残業承認更新を通知（月次残業確認モーダルのリアルタイム更新）
+        const { broadcastEvent } = await import("./_core/sse");
+        broadcastEvent("overtimeApprovals", { id: input.id, status: input.status });
         return { success: true };
       }),
     /** 残業申請を削除する（申請者本人のみ・pending状態のみ） */

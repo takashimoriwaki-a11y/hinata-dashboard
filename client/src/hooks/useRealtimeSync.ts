@@ -55,6 +55,13 @@ const EVENT_QUERY_MAP: Record<string, string[][]> = {
   ],
   // スケジュールメモ
   scheduleNotes: [["scheduleNotes", "get"], ["scheduleNotes", "getByIds"]],
+  // 残業承認（承認・修正承認・却下後に月次残業確認モーダルをリアルタイム更新）
+  overtimeApprovals: [
+    ["overtime", "getMineByMonth"],
+    ["overtime", "getMyApprovedSummary"],
+    ["overtime", "list"],
+    ["overtime", "pendingCount"],
+  ],
 };
 
 export function useRealtimeSync() {
