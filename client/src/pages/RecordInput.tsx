@@ -241,9 +241,10 @@ export default function RecordInput() {
   });
 
   // DBから今日のスロット順番を復元する
+  // staleTime:0でキャッシュを常に最新に保ち、invalidate後に即時再取得されるようにする
   const { data: dbSlotData } = trpc.visitSlots.load.useQuery(
     { dateKey: todayKey },
-    { enabled: !!user }
+    { enabled: !!user, staleTime: 0 }
   );
   const [dbLoaded, setDbLoaded] = useState(false);
   useEffect(() => {
@@ -280,12 +281,14 @@ export default function RecordInput() {
   }, [user?.team]);
 
   // スロットデータの変更をlocalStorageとDBに即時保存
+  // dbLoadedチェックを削除し、userがいれば常にDBに保存する（リセット時も確実に保存）
   useEffect(() => {
+    const json = JSON.stringify(slots);
     try {
-      localStorage.setItem(SLOTS_STORAGE_KEY, JSON.stringify(slots));
+      localStorage.setItem(SLOTS_STORAGE_KEY, json);
     } catch {}
-    if (!user || !dbLoaded) return;
-    saveSlotsMutation.mutate({ dateKey: todayKey, slotsJson: JSON.stringify(slots) });
+    if (!user) return;
+    saveSlotsMutation.mutate({ dateKey: todayKey, slotsJson: json });
   }, [slots]);
 
   // スロットデータの更新ハンドラ
@@ -401,19 +404,26 @@ export default function RecordInput() {
   const executeResetAll = () => {
     // スロットデータをリセット
     const empty = Array.from({ length: MAX_SLOTS }, () => ({ ...DEFAULT_SLOT }));
-    setSlots(empty);
-    setSlotSearchQueries(Array.from({ length: MAX_SLOTS }, () => ""));
-    setSlotShowLists(Array.from({ length: MAX_SLOTS }, () => false));
-    localStorage.removeItem(SLOTS_STORAGE_KEY);
-    // 各カードのlocalStorageも削除
+    const emptyJson = JSON.stringify(empty);
+    // localStorageを空データで上書き（削除ではなく上書き）
+    // タブ切り替え後の再マウント時にuseState初期化でも空データが読み込まれるようにする
+    try {
+      localStorage.setItem(SLOTS_STORAGE_KEY, emptyJson);
+    } catch {}
     for (let i = 0; i < MAX_SLOTS; i++) {
       localStorage.removeItem(`hinata_visit_card_${i}`);
     }
+<<<<<<< Updated upstream
     // DBにも空データを即時保存し、tRPCキャッシュを無効化する
     // これにより他のタブから戻った際にDBの古いデータが復元されるのを防ぐ
     const emptyJson = JSON.stringify(empty);
     // dbLoadedをfalseに戻して次回DBデータ取得時に必ず空データが適用されるようにする
     setDbLoaded(false);
+=======
+    // DBに空データを即時保存し、tRPCキャッシュを無効化する
+    // useEffect([slots])でも保存されるが、dbLoadedフラグをfalseにする前に
+    // 確実にDBへ保存するため明示的にmutateを呼ぶ
+>>>>>>> Stashed changes
     saveSlotsMutation.mutate(
       { dateKey: todayKey, slotsJson: emptyJson },
       {
@@ -423,6 +433,14 @@ export default function RecordInput() {
         },
       }
     );
+<<<<<<< Updated upstream
+=======
+    // dbLoadedをfalseに戻してDB再取得時に空データが適用されるようにする
+    setDbLoaded(false);
+    setSlots(empty);
+    setSlotSearchQueries(Array.from({ length: MAX_SLOTS }, () => ""));
+    setSlotShowLists(Array.from({ length: MAX_SLOTS }, () => false));
+>>>>>>> Stashed changes
     // VisitSlotCardを再マウントして全stateを初期化
     setCardResetKey(k => k + 1);
     toast.success("訪問時チェック項目を全てリセットしました");
