@@ -3859,13 +3859,34 @@ function TasksCard() {
 
   // 個人タスク（期日あり・なし問わず全未完了タスクを表示、他職員への依頼タスク除外）
   const todayPersonalTasks = useMemo(() => {
+    const now = new Date();
+    // 今日の終わり（JST 23:59:59）をUTCで計算
+    const todayEndMs = new Date(
+      Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + 1, -9, -1, 59, 999)
+    ).getTime();
+
     return personalTasksData
       .filter((t) => {
         // 完了済みは常に除外
         if (t.done) return false;
         // 自分が作成した他職員への依頼タスクを除外
         if (t.assignType === "personal" && t.assignUserId !== user?.id && t.createdBy === user?.id) return false;
-        return true;
+
+        // taskKindによる表示ルール
+        if (t.taskKind === "at_time") {
+          // 「この日時に」→ 期日なし or 今日以前のみ表示（明日以降は非表示）
+          if (!t.dueDate) return true;
+          const due = new Date(t.dueDate).getTime();
+          return due <= todayEndMs;
+        } else if (t.taskKind === "by_deadline") {
+          // 「この日時までに」→ 期日なし・期日切れ・今日・明日以降すべて表示
+          return true;
+        } else {
+          // next_visit等 → 期日なしは表示、期日ありは今日以前のみ
+          if (!t.dueDate) return true;
+          const due = new Date(t.dueDate).getTime();
+          return due <= todayEndMs;
+        }
       })
       .sort((a, b) => {
         // 期日なしは後ろに
@@ -3918,7 +3939,7 @@ function TasksCard() {
           <div className="flex items-center justify-between gap-2">
             <CardTitle className="text-base font-bold flex items-center gap-1.5 text-foreground min-w-0">
               <ClipboardList className="w-4 h-4 text-primary flex-shrink-0" />
-              <span className="tracking-wide whitespace-nowrap">個人タスク</span>
+              <span className="tracking-wide whitespace-nowrap">今日の個人タスク</span>
               {todayPersonalTasks.length > 0 && (
                 <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex-shrink-0">
                   {todayPersonalTasks.length}
