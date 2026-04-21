@@ -2838,3 +2838,10 @@
 ## iPhone版利用者名表示修正（2026-04-21）
 
 - [x] VisitSlotCard.tsxの利用者名がtruncateで省略される問題を修正（改行表示に変更）
+
+## 残業承認のサイドパネル移動（2026-04-21）
+- [x] サイドパネルの「残業申請管理」（admin/super_admin表示）を削除
+- [x] 「残業承認」をサイドパネルに追加（super_adminのみ表示、/overtime-approvalルート）
+- [x] App.tsxにSuperAdminGuardを追加し/overtime-approvalルートに適用
+- [x] Admin.tsxの「残業承認」タブを削除（activeSectionの型定義からも除去）
+- [x] OvertimeAdmin.tsxのページタイトルを「残業承認」に変更

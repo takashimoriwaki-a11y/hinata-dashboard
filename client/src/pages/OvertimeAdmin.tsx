@@ -173,7 +173,7 @@ export default function OvertimeAdmin() {
       {/* ページタイトル */}
       <div className="flex items-center gap-2 mb-2">
         <Clock className="w-5 h-5 text-primary" />
-        <h1 className="text-lg font-bold text-foreground">残業申請管理</h1>
+        <h1 className="text-lg font-bold text-foreground">残業承認</h1>
         {pendingCount > 0 && (
           <Badge className="bg-yellow-500 text-white text-xs">{pendingCount}件 申請中</Badge>
         )}

@@ -352,15 +352,15 @@ function SidebarContent({
             </div>
           </Link>
         )}
-        {(user?.role === "admin" || user?.role === "super_admin") && (
-          <Link href="/overtime-admin">
+        {user?.role === "super_admin" && (
+          <Link href="/overtime-approval">
             <div
-              title={(collapsed && !mobile) ? `残業申請管理${pendingOvertimeCount > 0 ? ` (${pendingOvertimeCount}件)` : ""}` : undefined}
+              title={(collapsed && !mobile) ? `残業承認${pendingOvertimeCount > 0 ? ` (${pendingOvertimeCount}件)` : ""}` : undefined}
               className={cn(
                 "relative flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150",
                 "text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
                 (collapsed && !mobile) ? "justify-center px-0" : "px-4",
-                location === "/overtime-admin" && "bg-primary text-white"
+                location === "/overtime-approval" && "bg-primary text-white"
               )}
             >
               <span className="relative flex-shrink-0">
@@ -372,7 +372,7 @@ function SidebarContent({
                 )}
               </span>
               {(!collapsed || mobile) && (
-                <span className="flex-1 truncate">残業申請管理</span>
+                <span className="flex-1 truncate">残業承認</span>
               )}
               {(!collapsed || mobile) && pendingOvertimeCount > 0 && (
                 <span className="flex-shrink-0 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center">

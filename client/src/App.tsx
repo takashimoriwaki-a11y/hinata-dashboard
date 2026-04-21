@@ -58,6 +58,28 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** 特級管理者のみアクセスを許可するガードコンポーネント */
+function SuperAdminGuard({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    if (!loading && (!user || user.role !== "super_admin")) {
+      navigate("/");
+    }
+  }, [loading, user, navigate]);
+
+  if (loading || !user || user.role !== "super_admin") {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
 function Router() {
   return (
     <Switch>
@@ -92,10 +114,10 @@ function Router() {
               <Route path={"/tools"} component={Tools} />
               <Route path={"/team-goals"} component={TeamGoals} />
               <Route path={"/overtime"} component={OvertimeRequest} />
-              <Route path={"/overtime-admin"}>
-                <AdminGuard>
+              <Route path={"/overtime-approval"}>
+                <SuperAdminGuard>
                   <OvertimeAdmin />
-                </AdminGuard>
+                </SuperAdminGuard>
               </Route>
               <Route path={"/404"} component={NotFound} />
               <Route component={NotFound} />

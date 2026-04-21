@@ -970,7 +970,7 @@ export default function Admin() {
   }, []);
 
   // セクション切り替え
-  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "toolLogs" | "alcoholSheets" | "detectorSettings" | "timesheetSheets" | "overtimeApprovals" | "monthlySignatures" | "improvementSheet" | "changeHistory" | "linkedSheets">("sheets");
+  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "toolLogs" | "alcoholSheets" | "detectorSettings" | "timesheetSheets" | "monthlySignatures" | "improvementSheet" | "changeHistory" | "linkedSheets">("sheets");
   const { user: currentUser } = useAuth();
 
   return (
@@ -1091,19 +1091,7 @@ export default function Admin() {
             出退勤管理
           </button>
         )}
-        {currentUser?.role === "super_admin" && (
-          <button
-            onClick={() => setActiveSection("overtimeApprovals")}
-            className={cn(
-            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
-            activeSection === "overtimeApprovals"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            残業承認
-          </button>
-        )}
+
         {currentUser?.role === "super_admin" && (
           <button
             onClick={() => setActiveSection("monthlySignatures")}
@@ -1355,8 +1343,6 @@ export default function Admin() {
       {activeSection === "detectorSettings" && currentUser?.role === "super_admin" && <AlcoholDetectorSettingsPanel />}
       {/* 出退勤管理（特級管理者のみ） */}
       {activeSection === "timesheetSheets" && currentUser?.role === "super_admin" && <TimesheetSpreadsheetsPanel />}
-      {/* 残業承認（特級管理者のみ） */}
-      {activeSection === "overtimeApprovals" && currentUser?.role === "super_admin" && <OvertimeApprovalsPanel />}
       {/* 月次署名確認（特級管理者のみ） */}
       {activeSection === "monthlySignatures" && currentUser?.role === "super_admin" && <MonthlySignaturesPanel />}
       {/* 変更履歴（管理者・特級管理者のみ） */}
