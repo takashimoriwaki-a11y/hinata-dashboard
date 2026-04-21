@@ -409,6 +409,20 @@ export default function RecordInput() {
     for (let i = 0; i < MAX_SLOTS; i++) {
       localStorage.removeItem(`hinata_visit_card_${i}`);
     }
+    // DBにも空データを即時保存し、tRPCキャッシュを無効化する
+    // これにより他のタブから戻った際にDBの古いデータが復元されるのを防ぐ
+    const emptyJson = JSON.stringify(empty);
+    // dbLoadedをfalseに戻して次回DBデータ取得時に必ず空データが適用されるようにする
+    setDbLoaded(false);
+    saveSlotsMutation.mutate(
+      { dateKey: todayKey, slotsJson: emptyJson },
+      {
+        onSuccess: () => {
+          // キャッシュを無効化して次回loadクエリが空データを返すようにする
+          utils.visitSlots.load.invalidate({ dateKey: todayKey });
+        },
+      }
+    );
     // VisitSlotCardを再マウントして全stateを初期化
     setCardResetKey(k => k + 1);
     toast.success("訪問時チェック項目を全てリセットしました");
