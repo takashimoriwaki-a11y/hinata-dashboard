@@ -2894,3 +2894,8 @@
 ## 残業署名後のスプレッドシート自動転記（2026-04-21）
 - [x] appendSignatureToTimesheetSheet関数を実装（出退勤記録シートの月末最終行に薄い青背景で転記）
 - [x] monthlySignature.signプロシージャにスプレッドシート転記呼び出しを追加
+
+## iPhone Safari音声入力の改善（2026-04-21）
+- [x] Web Speech APIが失敗した場合にiOSでもMediaRecorderフォールバックを使用するよう修正
+- [x] not-allowedエラー時にiOS向けの具体的なメッセージ（Siriと音声入力の設定案内）を表示
+- [x] MediaRecorderのNotAllowedErrorもiOS向けメッセージに改善

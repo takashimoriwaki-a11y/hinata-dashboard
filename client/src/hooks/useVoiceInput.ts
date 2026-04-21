@@ -498,6 +498,21 @@ export function useVoiceInput({
           restartCountRef.current < MAX_RESTART_COUNT
         ) {
           // no-speech は onend の前に発火するため、onend に処理を委ねる（何もしない）
+          // iOSの場合、フォールバックとしてMediaRecorderを試みる
+          if (isIOS && restartCountRef.current >= MAX_RESTART_COUNT - 1) {
+            // 再起動上限に追いついた場合はMediaRecorderにフォールバック
+            clearSilenceTimer();
+            stopElapsedTimer();
+            isRecordingRef.current = false;
+            setRecording(false);
+            setInterimText("");
+            sessionConfirmedTextRef.current = "";
+            restartCountRef.current = 0;
+            recognitionRef.current = null;
+            toast.info("音声認識をMediaRecorderモードに切り替えます...");
+            setTimeout(() => startMediaRecorder(), 500);
+            return;
+          }
           // silenceTimerRef.current が null でも（無音タイマーが切れていても）再起動を試みる
           return;
         }
@@ -515,7 +530,11 @@ export function useVoiceInput({
         recognitionRef.current = null;
         setTimeout(() => setTranscriptionStatus("idle"), 3000);
         if (event.error === "not-allowed") {
-          toast.error("マイクのアクセスが許可されていません。ブラウザの設定を確認してください。");
+          if (isIOS) {
+            toast.error("マイクが許可されていません。「iPhone設定 → Siriと音声入力 → 音声入力」をオンにしてください。またSafari設定でマイクを許可してください。", { duration: 8000 });
+          } else {
+            toast.error("マイクのアクセスが許可されていません。ブラウザの設定を確認してください。");
+          }
         } else if (event.error === "no-speech") {
           toast.info("音声が検出されませんでした。もう一度お試しください。");
         } else if (event.error === "network") {
@@ -723,7 +742,12 @@ export function useVoiceInput({
       setTranscriptionStatus("error");
       setTimeout(() => setTranscriptionStatus("idle"), 3000);
       if (err instanceof DOMException && err.name === "NotAllowedError") {
-        toast.error("マイクのアクセスが許可されていません。ブラウザの設定を確認してください。");
+        const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as unknown as Record<string, unknown>).MSStream;
+        if (isIOSDevice) {
+          toast.error("マイクが許可されていません。「iPhone設定 → Siriと音声入力 → 音声入力」をオンにし、Safari設定でマイクを許可してください。", { duration: 8000 });
+        } else {
+          toast.error("マイクのアクセスが許可されていません。ブラウザの設定を確認してください。");
+        }
       } else {
         toast.error("マイクの起動に失敗しました。");
       }
@@ -746,19 +770,11 @@ export function useVoiceInput({
     // Web Speech API を試みる（同期）
     const usedSpeechAPI = startSpeechRecognition();
     if (!usedSpeechAPI) {
-      if (isIOS) {
-        // iOSではMediaRecorderフォールバックを使わない
-        // （getUserMediaがユーザーのジェスチャーから直接呼ばれない問題を回避）
-        // Web Speech APIが使えない場合はエラーメッセージを表示
-        toast.error("お使いのブラウザは音声入力に対応していません。Safari最新版をお使いください。");
-        setTranscriptionStatus("error");
-        setTimeout(() => setTranscriptionStatus("idle"), 3000);
-      } else {
-        // PC/Android: MediaRecorder フォールバック
-        startMediaRecorder();
-      }
+      // Web Speech APIが使えない場合はMediaRecorderフォールバックを使用
+      // iOSでもユーザーのタップ直後（同期コンテキスト）であればgetUserMediaが動作する
+      startMediaRecorder();
     }
-  }, [startSpeechRecognition, startMediaRecorder, isIOS]);
+  }, [startSpeechRecognition, startMediaRecorder]);
 
   const stopVoice = useCallback(() => {
     if (recognitionRef.current) {
