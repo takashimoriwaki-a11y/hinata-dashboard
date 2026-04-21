@@ -413,17 +413,7 @@ export default function RecordInput() {
     for (let i = 0; i < MAX_SLOTS; i++) {
       localStorage.removeItem(`hinata_visit_card_${i}`);
     }
-<<<<<<< Updated upstream
-    // DBにも空データを即時保存し、tRPCキャッシュを無効化する
-    // これにより他のタブから戻った際にDBの古いデータが復元されるのを防ぐ
-    const emptyJson = JSON.stringify(empty);
-    // dbLoadedをfalseに戻して次回DBデータ取得時に必ず空データが適用されるようにする
-    setDbLoaded(false);
-=======
     // DBに空データを即時保存し、tRPCキャッシュを無効化する
-    // useEffect([slots])でも保存されるが、dbLoadedフラグをfalseにする前に
-    // 確実にDBへ保存するため明示的にmutateを呼ぶ
->>>>>>> Stashed changes
     saveSlotsMutation.mutate(
       { dateKey: todayKey, slotsJson: emptyJson },
       {
@@ -433,14 +423,11 @@ export default function RecordInput() {
         },
       }
     );
-<<<<<<< Updated upstream
-=======
     // dbLoadedをfalseに戻してDB再取得時に空データが適用されるようにする
     setDbLoaded(false);
     setSlots(empty);
     setSlotSearchQueries(Array.from({ length: MAX_SLOTS }, () => ""));
     setSlotShowLists(Array.from({ length: MAX_SLOTS }, () => false));
->>>>>>> Stashed changes
     // VisitSlotCardを再マウントして全stateを初期化
     setCardResetKey(k => k + 1);
     toast.success("訪問時チェック項目を全てリセットしました");
