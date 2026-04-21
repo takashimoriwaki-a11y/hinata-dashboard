@@ -444,54 +444,55 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
             {slotNumber}
           </span>
           {isPatientSelected ? (
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  {slotData.team && (
-                    <span
-                      className={cn(
-                        "text-xs px-1.5 py-0.5 rounded font-medium flex-shrink-0",
-                        getTeamButtonClass(slotData.team as Team, true)
-                      )}
-                      style={getTeamButtonStyle(slotData.team as Team, true)}
-                    >
-                      {slotData.team}
-                    </span>
-                  )}
-                  <span className={cn(
-                    "text-sm font-semibold truncate",
-                    completed ? "text-muted-foreground line-through" : "text-foreground"
-                  )}>
-                    {slotData.patientName}
+            <div className="flex flex-col gap-1 flex-1 min-w-0">
+              {/* 1行目：チームバッジ＋利用者名（改行あり） */}
+              <div className="flex items-start gap-1.5 flex-wrap">
+                {slotData.team && (
+                  <span
+                    className={cn(
+                      "text-xs px-1.5 py-0.5 rounded font-medium flex-shrink-0 mt-0.5",
+                      getTeamButtonClass(slotData.team as Team, true)
+                    )}
+                    style={getTeamButtonStyle(slotData.team as Team, true)}
+                  >
+                    {slotData.team}
                   </span>
-                </div>
+                )}
+                <span className={cn(
+                  "text-sm font-semibold break-all",
+                  completed ? "text-muted-foreground line-through" : "text-foreground"
+                )}>
+                  {slotData.patientName}
+                </span>
               </div>
-              {/* 訪問完了ボタン */}
-              <button
-                type="button"
-                onClick={handleToggleCompleted}
-                className={cn(
-                  "flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border transition-all",
-                  completed
-                    ? "bg-primary/10 border-primary/40 text-primary"
-                    : "bg-background border-border hover:bg-primary/10 hover:border-primary/40 hover:text-primary text-muted-foreground"
-                )}
-                title={completed ? "完了を取り消す" : "訪問完了にする"}
-              >
-                {completed ? (
-                  <><CheckCircle2 className="w-3.5 h-3.5" />完了</>
-                ) : (
-                  <><Circle className="w-3.5 h-3.5" />完了</>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={handleClearPatient}
-                className="flex-shrink-0 text-muted-foreground hover:text-destructive transition-colors p-1 rounded"
-                title="利用者をクリア"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
+              {/* 2行目：完了ボタン＋クリアボタン */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleToggleCompleted}
+                  className={cn(
+                    "flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium border transition-all",
+                    completed
+                      ? "bg-primary/10 border-primary/40 text-primary"
+                      : "bg-background border-border hover:bg-primary/10 hover:border-primary/40 hover:text-primary text-muted-foreground"
+                  )}
+                  title={completed ? "完了を取り消す" : "訪問完了にする"}
+                >
+                  {completed ? (
+                    <><CheckCircle2 className="w-3.5 h-3.5" />完了</>
+                  ) : (
+                    <><Circle className="w-3.5 h-3.5" />完了</>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClearPatient}
+                  className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded"
+                  title="利用者をクリア"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           ) : (
             <span className="text-sm text-muted-foreground">未設定</span>
