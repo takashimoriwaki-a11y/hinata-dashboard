@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Clock, CheckCircle, XCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Clock, CheckCircle, XCircle, ChevronDown, ChevronUp, PenLine } from "lucide-react";
 
 function toTimeStr(ts: number): string {
   return new Date(ts).toLocaleTimeString("ja-JP", {
@@ -33,6 +33,35 @@ function currentYearMonth(): string {
   return jst.toISOString().slice(0, 7);
 }
 
+// 時刻の選択肢を生成（00:00〜23:50、10分単位）
+function generateTimeOptions(): string[] {
+  const opts: string[] = [];
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 10) {
+      opts.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+    }
+  }
+  return opts;
+}
+const TIME_OPTIONS = generateTimeOptions();
+
+// タイムスタンプ（ms）を "HH:MM" 文字列に変換（JST）
+function tsToHHMM(ts: number): string {
+  const d = new Date(ts);
+  const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+  const h = String(jst.getUTCHours()).padStart(2, "0");
+  const m = String(Math.floor(jst.getUTCMinutes() / 10) * 10).padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+// "HH:MM" 文字列と applicationDate "YYYY-MM-DD" からタイムスタンプ（ms）を生成（JST）
+function hhmmToTs(hhMM: string, applicationDate: string): number {
+  const [h, m] = hhMM.split(":").map(Number);
+  const [year, month, day] = applicationDate.split("-").map(Number);
+  // JSTでの日時をUTCタイムスタンプに変換
+  return Date.UTC(year, month - 1, day, h - 9, m, 0, 0);
+}
+
 interface ApproveDialogProps {
   request: {
     id: number;
@@ -48,10 +77,19 @@ interface ApproveDialogProps {
 
 function ApproveDialog({ request, onClose, onDone }: ApproveDialogProps) {
   const [comment, setComment] = useState("");
+  // 承認残業時間（修正承認用）：申請通りの時刻で初期化
+  const [adjStart, setAdjStart] = useState(() => tsToHHMM(request.requestedStartAt));
+  const [adjEnd, setAdjEnd] = useState(() => tsToHHMM(request.requestedEndAt));
+
   const approveMutation = trpc.overtime.approve.useMutation({
     onSuccess: (_, vars) => {
-      const label = vars.status === "approved" ? "承認" : "却下";
-      toast.success(`残業申請を${label}しました`);
+      if (vars.status === "approved" && vars.adjustedStartAt) {
+        toast.success("残業申請を修正承認しました（スプレッドシートに転記）");
+      } else if (vars.status === "approved") {
+        toast.success("残業申請を承認しました（スプレッドシートに転記）");
+      } else {
+        toast.success("残業申請を却下しました");
+      }
       onDone();
     },
     onError: (e) => {
@@ -59,26 +97,102 @@ function ApproveDialog({ request, onClose, onDone }: ApproveDialogProps) {
     },
   });
 
-  function handle(status: "approved" | "rejected") {
-    approveMutation.mutate({ id: request.id, status, approverComment: comment.trim() || undefined });
+  // 承認：申請通りの時間でスプレッドシートに転記
+  function handleApprove() {
+    approveMutation.mutate({
+      id: request.id,
+      status: "approved",
+      approverComment: comment.trim() || undefined,
+    });
   }
+
+  // 修正承認：入力した時間でスプレッドシートに転記
+  function handleAdjustedApprove() {
+    const adjStartTs = hhmmToTs(adjStart, request.applicationDate);
+    const adjEndTs = hhmmToTs(adjEnd, request.applicationDate);
+    if (adjEndTs <= adjStartTs) {
+      toast.error("終了時刻は開始時刻より後に設定してください");
+      return;
+    }
+    approveMutation.mutate({
+      id: request.id,
+      status: "approved",
+      adjustedStartAt: adjStartTs,
+      adjustedEndAt: adjEndTs,
+      approverComment: comment.trim() || undefined,
+    });
+  }
+
+  // 却下：スプレッドシートに却下として転記
+  function handleReject() {
+    approveMutation.mutate({
+      id: request.id,
+      status: "rejected",
+      approverComment: comment.trim() || undefined,
+    });
+  }
+
+  const adjDuration = useMemo(() => {
+    const startTs = hhmmToTs(adjStart, request.applicationDate);
+    const endTs = hhmmToTs(adjEnd, request.applicationDate);
+    if (endTs <= startTs) return null;
+    return toHourMin(endTs - startTs);
+  }, [adjStart, adjEnd, request.applicationDate]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="bg-background rounded-xl shadow-xl w-full max-w-sm p-5 space-y-4">
-        <h2 className="text-base font-bold text-foreground">残業申請の承認・却下</h2>
-        <div className="space-y-1 text-sm text-foreground">
-          <p><span className="text-muted-foreground">申請者：</span>{request.applicantName}</p>
+      <div className="bg-background rounded-xl shadow-xl w-full max-w-sm p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+        <h2 className="text-base font-bold text-foreground">残業申請の承認</h2>
+
+        {/* 申請内容 */}
+        <div className="bg-muted/40 rounded-lg p-3 space-y-1 text-sm text-foreground">
+          <p><span className="text-muted-foreground">申請者：</span><span className="font-semibold">{request.applicantName}</span></p>
           <p><span className="text-muted-foreground">申請日：</span>{request.applicationDate}</p>
           <p>
-            <span className="text-muted-foreground">時間：</span>
+            <span className="text-muted-foreground">申請時間：</span>
             {toTimeStr(request.requestedStartAt)}〜{toTimeStr(request.requestedEndAt)}
-            （{toHourMin(request.requestedEndAt - request.requestedStartAt)}）
+            <span className="text-muted-foreground ml-1">（{toHourMin(request.requestedEndAt - request.requestedStartAt)}）</span>
           </p>
           {request.requestedReason && (
             <p><span className="text-muted-foreground">理由：</span>{request.requestedReason}</p>
           )}
         </div>
+
+        {/* 承認残業時間（修正承認用） */}
+        <div className="space-y-2">
+          <label className="block text-sm font-semibold text-foreground">
+            承認残業時間
+            <span className="text-xs font-normal text-muted-foreground ml-1">（「修正承認」時に使用）</span>
+          </label>
+          <div className="flex items-center gap-2">
+            <select
+              value={adjStart}
+              onChange={(e) => setAdjStart(e.target.value)}
+              className="flex-1 border border-border rounded-md px-2 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              {TIME_OPTIONS.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+            <span className="text-muted-foreground text-sm font-medium">〜</span>
+            <select
+              value={adjEnd}
+              onChange={(e) => setAdjEnd(e.target.value)}
+              className="flex-1 border border-border rounded-md px-2 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              {TIME_OPTIONS.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+          {adjDuration ? (
+            <p className="text-xs text-muted-foreground">承認時間：{adjDuration}</p>
+          ) : (
+            <p className="text-xs text-red-500">終了時刻は開始時刻より後に設定してください</p>
+          )}
+        </div>
+
+        {/* コメント */}
         <div>
           <label className="block text-sm font-medium text-foreground mb-1">コメント（任意）</label>
           <textarea
@@ -89,22 +203,40 @@ function ApproveDialog({ request, onClose, onDone }: ApproveDialogProps) {
             className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
           />
         </div>
-        <div className="flex gap-2">
+
+        {/* ボタン */}
+        <div className="space-y-2">
+          {/* 承認：申請通りの時間で転記 */}
           <Button
-            className="flex-1 bg-green-500 hover:bg-green-600 text-white"
-            onClick={() => handle("approved")}
+            className="w-full bg-green-500 hover:bg-green-600 text-white"
+            onClick={handleApprove}
             disabled={approveMutation.isPending}
           >
-            <CheckCircle className="w-4 h-4 mr-1" />承認
+            <CheckCircle className="w-4 h-4 mr-1.5" />
+            承認（申請通り転記）
           </Button>
+
+          {/* 修正承認：入力した時間で転記 */}
           <Button
-            className="flex-1 bg-red-500 hover:bg-red-600 text-white"
-            onClick={() => handle("rejected")}
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+            onClick={handleAdjustedApprove}
+            disabled={approveMutation.isPending || !adjDuration}
+          >
+            <PenLine className="w-4 h-4 mr-1.5" />
+            修正承認（上記時間で転記）
+          </Button>
+
+          {/* 却下：スプレッドシートに却下として転記 */}
+          <Button
+            className="w-full bg-red-500 hover:bg-red-600 text-white"
+            onClick={handleReject}
             disabled={approveMutation.isPending}
           >
-            <XCircle className="w-4 h-4 mr-1" />却下
+            <XCircle className="w-4 h-4 mr-1.5" />
+            却下
           </Button>
         </div>
+
         <Button variant="outline" className="w-full" onClick={onClose} disabled={approveMutation.isPending}>
           キャンセル
         </Button>
@@ -155,7 +287,10 @@ export default function OvertimeAdmin() {
     const map = new Map<string, { name: string; totalMs: number; count: number }>();
     for (const req of allApproved) {
       const key = req.applicantName;
-      const duration = req.requestedEndAt - req.requestedStartAt;
+      // 修正承認があればadjustedを優先
+      const start = (req as any).adjustedStartAt ?? req.requestedStartAt;
+      const end = (req as any).adjustedEndAt ?? req.requestedEndAt;
+      const duration = end - start;
       if (!map.has(key)) {
         map.set(key, { name: req.applicantName, totalMs: 0, count: 0 });
       }
@@ -291,7 +426,10 @@ export default function OvertimeAdmin() {
                 const endStr = toTimeStr(req.requestedEndAt);
                 const duration = toHourMin(req.requestedEndAt - req.requestedStartAt);
                 const isPending = req.status === "pending";
-
+                // 修正承認時の実際の承認時間
+                const adjStart = (req as any).adjustedStartAt;
+                const adjEnd = (req as any).adjustedEndAt;
+                const hasAdj = adjStart && adjEnd;
                 return (
                   <div
                     key={req.id}
@@ -305,8 +443,13 @@ export default function OvertimeAdmin() {
                       <span className="text-xs text-muted-foreground">{req.applicationDate}</span>
                     </div>
                     <p className="text-sm text-foreground">
-                      {startStr}〜{endStr}（{duration}）
+                      申請：{startStr}〜{endStr}（{duration}）
                     </p>
+                    {hasAdj && (
+                      <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
+                        承認：{toTimeStr(adjStart)}〜{toTimeStr(adjEnd)}（{toHourMin(adjEnd - adjStart)}）
+                      </p>
+                    )}
                     {req.requestedReason && (
                       <p className="text-xs text-muted-foreground">理由：{req.requestedReason}</p>
                     )}
@@ -319,7 +462,7 @@ export default function OvertimeAdmin() {
                     {isPending && (
                       <Button
                         size="sm"
-                        className="mt-1 w-full"
+                        className="mt-1 w-full bg-primary hover:bg-primary/90 text-white"
                         onClick={() => setSelectedRequest({
                           id: req.id,
                           applicantName: req.applicantName,
@@ -329,7 +472,7 @@ export default function OvertimeAdmin() {
                           requestedReason: req.requestedReason,
                         })}
                       >
-                        承認・却下する
+                        承認・修正承認・却下する
                       </Button>
                     )}
                   </div>

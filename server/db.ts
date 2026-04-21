@@ -2158,8 +2158,17 @@ export async function getOvertimeApprovals(opts?: { date?: string; status?: stri
 export async function getOvertimeApprovalsByUser(userId: number) {
   const db = await getDb();
   if (!db) return [];
+  // 過去2ヶ月分のみ取得（当月の2ヶ月前の1日から）
+  const twoMonthsAgo = new Date();
+  twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
+  twoMonthsAgo.setDate(1);
+  twoMonthsAgo.setHours(0, 0, 0, 0);
+  const cutoffDate = `${twoMonthsAgo.getFullYear()}-${String(twoMonthsAgo.getMonth() + 1).padStart(2, '0')}-01`;
   return db.select().from(overtimeApprovals)
-    .where(eq(overtimeApprovals.applicantUserId, userId))
+    .where(and(
+      eq(overtimeApprovals.applicantUserId, userId),
+      gte(overtimeApprovals.applicationDate, cutoffDate)
+    ))
     .orderBy(desc(overtimeApprovals.createdAt));
 }
 
