@@ -260,6 +260,7 @@ export default function Minutes() {
   const [pickerLoading, setPickerLoading] = useState(false);
   const accessTokenRef = useRef<string | null>(null);
   const tokenExpiryRef = useRef<number>(0);
+  const restoredTitleRef = useRef<string>(""); // sessionStorageから復元したタイトルを保持
 
   // URLフラグメントからpicker_tokenを取得してPickerを開く（バックエンドOAuthコールバック後）
   useEffect(() => {
@@ -271,6 +272,19 @@ export default function Minutes() {
     window.history.replaceState(null, "", window.location.pathname);
     accessTokenRef.current = decodeURIComponent(token);
     tokenExpiryRef.current = Date.now() + 55 * 60 * 1000;
+    // ページリロード前に保存した入力状態を復元
+    const savedState = sessionStorage.getItem("minutes_draft");
+    if (savedState) {
+      try {
+        const { title, deadline } = JSON.parse(savedState);
+        if (title) {
+          setNewTitle(title);
+          restoredTitleRef.current = title; // 復元タイトルをrefに保持
+        }
+        if (deadline) setNewDeadline(deadline);
+      } catch {}
+      sessionStorage.removeItem("minutes_draft");
+    }
     setCreateOpen(true);
     openPickerWithToken(decodeURIComponent(token));
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -300,6 +314,11 @@ export default function Minutes() {
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const google = (window as any).google;
+      // 検索ビュー：ファイル名で検索可能
+      const searchView = new google.picker.DocsView()
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(true)
+        .setEnableDrives(true);
       // マイドライブ：フォルダ内を閲覧可能
       const myDriveView = new google.picker.DocsView()
         .setIncludeFolders(true)
@@ -317,6 +336,7 @@ export default function Minutes() {
         .setLocale("ja")
         .enableFeature(google.picker.Feature.SUPPORT_DRIVES)
         .disableFeature(google.picker.Feature.NAV_HIDDEN)
+        .addView(searchView)
         .addView(myDriveView)
         .addView(sharedDriveView)
         .setCallback((data: {
@@ -328,7 +348,9 @@ export default function Minutes() {
             const fileUrl = doc.url || `https://drive.google.com/open?id=${doc.id}`;
             setNewDocumentUrl(fileUrl);
             setNewDocumentName(doc.name); // ファイル名を保存
-            if (!newTitle) setNewTitle(doc.name);
+            // 復元タイトルがない場合のみファイル名を転記（refで復元タイトルを確認）
+            if (!restoredTitleRef.current) setNewTitle(doc.name);
+            restoredTitleRef.current = ""; // 使用後はリセット
             toast.success(`「${doc.name}」を選択しました`);
           }
           setPickerLoading(false);
@@ -352,9 +374,14 @@ export default function Minutes() {
       openPickerWithToken(accessTokenRef.current);
       return;
     }
+    // ページリロード前に入力状態を保存
+    sessionStorage.setItem("minutes_draft", JSON.stringify({
+      title: newTitle,
+      deadline: newDeadline,
+    }));
     const origin = window.location.origin;
     window.location.href = `/api/auth/google/picker?origin=${encodeURIComponent(origin)}&returnPath=/minutes`;
-  }, [openPickerWithToken]);
+  }, [openPickerWithToken, newTitle, newDeadline]);
   // 楽観的更新用: 添付を開いて確認済みになったID（リスト移動対象）
   const [localCheckedIds, setLocalCheckedIds] = useState<Set<number>>(new Set());
   // チェックボタンのみ押した状態（リスト移動なし、チェックマーク表示のみ）
