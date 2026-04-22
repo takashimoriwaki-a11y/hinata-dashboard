@@ -2916,11 +2916,15 @@ export default function ScheduleChange() {
                 <CardTitle className="text-sm font-semibold">終了日</CardTitle>
               </CardHeader>
               <CardContent>
-                <Input
-                  type="date"
+                <DateTimePicker
                   value={scheduleEndDate}
-                  onChange={(e) => setScheduleEndDate(e.target.value)}
-                  className="w-auto"
+                  onChange={(v) => {
+                    const dateOnly = v ? v.split("T")[0] : "";
+                    setScheduleEndDate(dateOnly);
+                  }}
+                  label=""
+                  placeholder="終了日を選択"
+                  dateOnly={true}
                 />
               </CardContent>
             </Card>
