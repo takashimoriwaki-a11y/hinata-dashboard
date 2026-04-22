@@ -2333,7 +2333,7 @@ export default function ScheduleChange() {
                 sub: "チーム名・参加者名・日時・会議名・場所を伝えると自動転記されます。場所は備考欄に入ります。",
               },
               meeting_change: {
-                main: "○月○日の担当者会議、○月○日の15時に変更。",
+                main: "◯チームの〇〇さん、◯月◯日の担当者会議を◯月◯日◯時に変更。",
               },
               schedule_visit: {
                 main: "○○チームの○○さん、来週火曜日に○○クリニックに受診。",
