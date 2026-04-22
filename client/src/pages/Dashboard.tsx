@@ -4425,6 +4425,8 @@ function MessageBoard({ title }: { title: string }) {
   const SCROLL_THRESHOLD_MSG = 8;
   const msgPointerStartYRef = useRef<number | null>(null);
   const msgIsScrollingRef = useRef(false);
+  // リアクションパレット開閉（iPhoneのhover問題対応）
+  const [openReactionPaletteId, setOpenReactionPaletteId] = useState<number | null>(null);
   const handleMsgPointerDown = (e: React.PointerEvent) => {
     msgPointerStartYRef.current = e.clientY;
     msgIsScrollingRef.current = false;
@@ -4920,7 +4922,7 @@ function MessageBoard({ title }: { title: string }) {
                   <div>
                     <label className="text-xs font-medium text-foreground block mb-1">表示開始（任意）</label>
                     <div className="flex items-center gap-1.5">
-                      <input id="msg-display-from" type="date" value={displayFrom} onChange={(e) => setDisplayFrom(e.target.value)}
+                      <input id="msg-display-from" type="date" value={displayFrom} onChange={(e) => { setDisplayFrom(e.target.value); if (e.target.value && !displayFromTime) setDisplayFromTime("13:00"); }}
                         className="flex-1 text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                       {displayFrom && (
                         <button type="button" onClick={(e) => { e.preventDefault(); setDisplayFrom(""); setDisplayFromTime(""); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all active:scale-95 touch-pan-y" title="クリア">
@@ -4946,7 +4948,7 @@ function MessageBoard({ title }: { title: string }) {
                   <div>
                     <label className="text-xs font-medium text-foreground block mb-1">表示終了（任意）</label>
                     <div className="flex items-center gap-1.5">
-                      <input id="msg-display-until" type="date" value={displayUntil} onChange={(e) => setDisplayUntil(e.target.value)}
+                      <input id="msg-display-until" type="date" value={displayUntil} onChange={(e) => { setDisplayUntil(e.target.value); if (e.target.value && !displayUntilTime) setDisplayUntilTime("13:00"); }}
                         className="flex-1 text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                       {displayUntil && (
                         <button type="button" onClick={(e) => { e.preventDefault(); setDisplayUntil(""); setDisplayUntilTime(""); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all active:scale-95 touch-pan-y" title="クリア">
@@ -4972,7 +4974,7 @@ function MessageBoard({ title }: { title: string }) {
                   <div>
                     <label className="text-xs font-medium text-foreground block mb-1">予約送信（任意）</label>
                     <div className="flex items-center gap-1.5">
-                      <input id="msg-scheduled-at" type="date" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)}
+                      <input id="msg-scheduled-at" type="date" value={scheduledAt} onChange={(e) => { setScheduledAt(e.target.value); if (e.target.value && !scheduledAtTime) setScheduledAtTime("13:00"); }}
                         className="flex-1 text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                       {scheduledAt && (
                         <button type="button" onClick={(e) => { e.preventDefault(); setScheduledAt(""); setScheduledAtTime(""); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all active:scale-95 touch-pan-y" title="クリア">
@@ -5126,24 +5128,38 @@ function MessageBoard({ title }: { title: string }) {
                         {emoji} {count}
                       </button>
                     ))}
-                    {/* リアクション追加パレット */}
-                    <div className="relative group/react">
-                      <button className="text-xs px-1.5 py-0.5 rounded-full border border-dashed border-border text-muted-foreground hover:border-primary/30 hover:text-primary transition-colors">
+                    {/* リアクション追加パレット（iPhoneのhover問題対応：クリック/タップで開閉） */}
+                    <div className="relative">
+                      <button
+                        className="text-xs px-1.5 py-0.5 rounded-full border border-dashed border-border text-muted-foreground hover:border-primary/30 hover:text-primary transition-colors"
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          if (msgIsScrollingRef.current) return;
+                          setOpenReactionPaletteId((prev) => prev === msg.id ? null : msg.id);
+                        }}
+                      >
                         +
                       </button>
-                      <div className="absolute bottom-full left-0 mb-1 hidden group-hover/react:flex gap-1 bg-card border border-border rounded-xl shadow-lg p-1.5 z-10">
-                        {REACTION_EMOJIS.map((e) => (
-                          <button
-                            key={e}
-                            onPointerDown={handleMsgPointerDown}
-                            onPointerMove={handleMsgPointerMove}
-                            onClick={(ev) => { if (msgIsScrollingRef.current) { ev.preventDefault(); return; } toggleReaction.mutate({ messageId: msg.id, emoji: e }); }}
-                            className="text-base hover:scale-125 transition-transform"
-                          >
-                            {e}
-                          </button>
-                        ))}
-                      </div>
+                      {openReactionPaletteId === msg.id && (
+                        <div className="absolute bottom-full left-0 mb-1 flex gap-1 bg-card border border-border rounded-xl shadow-lg p-1.5 z-20">
+                          {REACTION_EMOJIS.map((e) => (
+                            <button
+                              key={e}
+                              onPointerDown={handleMsgPointerDown}
+                              onPointerMove={handleMsgPointerMove}
+                              onClick={(ev) => {
+                                ev.stopPropagation();
+                                if (msgIsScrollingRef.current) { ev.preventDefault(); return; }
+                                toggleReaction.mutate({ messageId: msg.id, emoji: e });
+                                setOpenReactionPaletteId(null);
+                              }}
+                              className="text-base hover:scale-125 transition-transform active:scale-110"
+                            >
+                              {e}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

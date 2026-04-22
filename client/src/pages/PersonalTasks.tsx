@@ -24,7 +24,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import {
   ClipboardList, Plus, Check, Trash2, ChevronDown, ChevronUp,
-  Clock, Repeat, Users, User, RefreshCw, X, Bell, AlertTriangle, Mic, MicOff,
+  Clock, Repeat, Users, User, RefreshCw, X, Bell, AlertTriangle, Mic, MicOff, Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -618,16 +618,410 @@ export function CreateTaskForm({ onClose, onCreated, userTeam, defaultDueDate }:
   );
 }
 
+// ---- タスク編集フォーム ----
+interface EditFormProps {
+  task: any;
+  onClose: () => void;
+  onUpdated: () => void;
+  userTeam: string | null;
+}
+
+export function EditTaskForm({ task, onClose, onUpdated, userTeam }: EditFormProps) {
+  const utils = trpc.useUtils();
+
+  // 既存タスクの値で初期化
+  const initDueDate = task.dueDate
+    ? (() => { const d = new Date(task.dueDate); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })()
+    : "";
+  const initDueTime = task.dueDate
+    ? (() => { const d = new Date(task.dueDate); return (d.getHours() !== 0 || d.getMinutes() !== 0) ? `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` : ""; })()
+    : "";
+
+  const [text, setText] = useState<string>(task.text ?? "");
+  const [taskKind, setTaskKind] = useState<TaskKind>(task.taskKind ?? "by_deadline");
+  const [dueDate, setDueDate] = useState(initDueDate);
+  const [dueTime, setDueTime] = useState(initDueTime);
+  const [assignType, setAssignType] = useState<AssignType>(task.assignType ?? "self");
+  const [assignTeams, setAssignTeams] = useState<TeamName[]>(
+    task.assignTeams ? task.assignTeams.split(",") as TeamName[]
+    : task.assignTeam ? [task.assignTeam as TeamName]
+    : userTeam ? [userTeam as TeamName] : []
+  );
+  const [assignUserIds, setAssignUserIds] = useState<number[]>(
+    task.assignUserIds ? task.assignUserIds.split(",").map(Number)
+    : task.assignUserId ? [task.assignUserId]
+    : []
+  );
+  const [assignUserNames, setAssignUserNames] = useState<string[]>(
+    task.assignUserNames ? task.assignUserNames.split(",")
+    : task.assignUserName ? [task.assignUserName]
+    : []
+  );
+  const [repeatType, setRepeatType] = useState<RepeatType>(task.repeatType ?? "none");
+  const [repeatDayOfWeek, setRepeatDayOfWeek] = useState<number>(task.repeatDayOfWeek ?? 1);
+  const [repeatDayOfMonth, setRepeatDayOfMonth] = useState<number>(task.repeatDayOfMonth ?? 1);
+  const [repeatMonthInterval, setRepeatMonthInterval] = useState<number>(task.repeatMonthInterval ?? 1);
+  const [repeatNthWeek, setRepeatNthWeek] = useState<number>(task.repeatNthWeek ?? 1);
+  const [repeatNthDayOfWeek, setRepeatNthDayOfWeek] = useState<number>(task.repeatNthDayOfWeek ?? 1);
+  const [repeatEndDate, setRepeatEndDate] = useState(
+    task.repeatEndDate
+      ? (() => { const d = new Date(task.repeatEndDate); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })()
+      : ""
+  );
+
+  const staffQuery = trpc.staff.listForForm.useQuery();
+  const staffList = (staffQuery.data ?? []) as any[];
+
+  const [isVoiceListening, setIsVoiceListening] = useState(false);
+  const [voiceStaffCandidates, setVoiceStaffCandidates] = useState<any[]>([]);
+  const voiceRecognitionRef = useRef<any>(null);
+
+  const startStaffVoiceInput = useCallback(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) { toast.error("このブラウザは音声入力に対応していません"); return; }
+    if (isVoiceListening) { voiceRecognitionRef.current?.stop(); setIsVoiceListening(false); return; }
+    const recognition = new SpeechRecognition();
+    recognition.lang = "ja-JP";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 3;
+    voiceRecognitionRef.current = recognition;
+    recognition.onstart = () => setIsVoiceListening(true);
+    recognition.onend = () => setIsVoiceListening(false);
+    recognition.onresult = (event: any) => {
+      const results = Array.from({ length: event.results[0].length }, (_: unknown, i: number) => event.results[0][i].transcript as string);
+      const allCandidates = results.flatMap((r: string) => matchStaffByKana(r, staffList));
+      const unique = allCandidates.filter((s: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === s.id) === i);
+      if (unique.length === 1) {
+        const s = unique[0];
+        if (!assignUserIds.includes(s.id)) { setAssignUserIds(p => [...p, s.id]); setAssignUserNames(p => [...p, s.name]); }
+        toast.success(`「${s.name}」を選択しました`);
+      } else if (unique.length > 1) {
+        setVoiceStaffCandidates(unique);
+      } else {
+        toast.error("スタッフが見つかりませんでした");
+      }
+    };
+    recognition.onerror = () => { setIsVoiceListening(false); toast.error("音声認識に失敗しました"); };
+    recognition.start();
+  }, [isVoiceListening, staffList, assignUserIds]);
+
+  const toggleTeam = useCallback((team: TeamName) => {
+    setAssignTeams(prev => prev.includes(team) ? prev.filter(t => t !== team) : [...prev, team]);
+  }, []);
+
+  const toggleUser = useCallback((id: number, name: string) => {
+    setAssignUserIds(prev => {
+      if (prev.includes(id)) {
+        setAssignUserNames(n => n.filter((_, i) => prev.indexOf(id) !== i));
+        return prev.filter(i => i !== id);
+      } else {
+        setAssignUserNames(n => [...n, name]);
+        return [...prev, id];
+      }
+    });
+  }, []);
+
+  const updateMutation = trpc.personalTasks.update.useMutation({
+    onSuccess: () => {
+      toast.success("タスクを更新しました");
+      onUpdated();
+      onClose();
+    },
+    onError: () => toast.error("更新に失敗しました"),
+    onSettled: () => {
+      utils.personalTasks.getMyTasks.invalidate();
+      utils.personalTasks.getTodayTasks.invalidate();
+    },
+  });
+
+  const handleSubmit = useCallback(() => {
+    if (!text.trim()) { toast.error("内容を入力してください"); return; }
+    let dueDateObj: Date | undefined | null = null;
+    if (dueDate) {
+      const [year, month, day] = dueDate.split("-").map(Number);
+      const [hours, minutes] = dueTime ? dueTime.split(":").map(Number) : [0, 0];
+      dueDateObj = new Date(year, month - 1, day, hours, minutes, 0);
+    }
+    let repeatEndDateObj: Date | undefined | null = null;
+    if (repeatEndDate) {
+      const [year, month, day] = repeatEndDate.split("-").map(Number);
+      repeatEndDateObj = new Date(year, month - 1, day, 23, 59, 59);
+    }
+    const isMultiTeam = assignType === "team" && assignTeams.length > 1;
+    const isMultiPersonal = assignType === "personal" && assignUserIds.length > 1;
+    updateMutation.mutate({
+      id: task.id,
+      text: text.trim(),
+      taskKind,
+      dueDate: dueDateObj,
+      assignType,
+      assignTeam: assignType === "team" && assignTeams.length === 1 ? assignTeams[0] : null,
+      assignUserId: assignType === "personal" && assignUserIds.length === 1 ? assignUserIds[0] : null,
+      assignUserName: assignType === "personal" && assignUserNames.length === 1 ? assignUserNames[0] : null,
+      assignTeams: isMultiTeam ? assignTeams.join(",") : null,
+      assignUserIds: isMultiPersonal ? assignUserIds.join(",") : null,
+      assignUserNames: isMultiPersonal ? assignUserNames.join(",") : null,
+      repeatType,
+      repeatDayOfWeek: ["weekly", "biweekly"].includes(repeatType) ? repeatDayOfWeek : null,
+      repeatDayOfMonth: repeatType === "monthly" ? repeatDayOfMonth : null,
+      repeatMonthInterval: repeatType === "monthly" ? repeatMonthInterval : null,
+      repeatNthWeek: repeatType === "nth_weekday" ? repeatNthWeek : null,
+      repeatNthDayOfWeek: repeatType === "nth_weekday" ? repeatNthDayOfWeek : null,
+      repeatEndDate: repeatType !== "none" ? repeatEndDateObj : null,
+    });
+  }, [text, taskKind, dueDate, dueTime, assignType, assignTeams, assignUserIds, assignUserNames,
+    repeatType, repeatDayOfWeek, repeatDayOfMonth, repeatMonthInterval, repeatNthWeek,
+    repeatNthDayOfWeek, repeatEndDate, updateMutation, task.id]);
+
+  return (
+    <div className="rounded-xl border border-amber-400/30 bg-card shadow-sm mb-3">
+      <div className="p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-foreground font-bold text-sm flex items-center gap-2">
+            <Pencil className="w-4 h-4 text-amber-400" />
+            タスクを編集
+          </h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* 種別 */}
+        <div className="mb-4">
+          <label className="text-muted-foreground text-xs uppercase tracking-wide mb-2 block">種別</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => setTaskKind("at_time")}
+              className={`py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                taskKind === "at_time" ? "bg-blue-600 text-white shadow-lg shadow-blue-900/40" : "bg-muted text-muted-foreground hover:text-foreground"
+              }`}>
+              <Clock className="w-4 h-4" />この日時にする
+            </button>
+            <button onClick={() => setTaskKind("by_deadline")}
+              className={`py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                taskKind === "by_deadline" ? "bg-orange-600 text-white shadow-lg shadow-orange-900/40" : "bg-muted text-muted-foreground hover:text-foreground"
+              }`}>
+              <Bell className="w-4 h-4" />この日時まで
+            </button>
+          </div>
+        </div>
+
+        {/* 指定先 */}
+        <div className="mb-4">
+          <label className="text-muted-foreground text-xs uppercase tracking-wide mb-2 block">指定先</label>
+          <div className="grid grid-cols-4 gap-1.5">
+            {(["self", "personal", "team", "all"] as AssignType[]).map(type => (
+              <button key={type} onClick={() => setAssignType(type)}
+                className={`py-2 rounded-xl text-xs font-medium transition-all ${
+                  assignType === type ? "bg-indigo-600 text-white" : "bg-muted text-muted-foreground hover:text-foreground"
+                }`}>
+                {type === "self" && "自分のみ"}
+                {type === "personal" && "個人指定"}
+                {type === "team" && "チーム"}
+                {type === "all" && "全職員"}
+              </button>
+            ))}
+          </div>
+          {assignType === "team" && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {TEAMS.map(team => (
+                <button key={team} onClick={() => toggleTeam(team)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    assignTeams.includes(team) ? TEAM_COLORS[team] : "bg-muted text-muted-foreground"
+                  }`}>{team}</button>
+              ))}
+              {assignTeams.length > 0 && (
+                <span className="text-xs text-muted-foreground self-center">{assignTeams.join("・")}に送信</span>
+              )}
+            </div>
+          )}
+          {assignType === "personal" && (
+            <div className="mt-2 space-y-1">
+              <div className="flex flex-wrap gap-1.5 mb-1">
+                {assignUserIds.map((id, i) => (
+                  <span key={id} className="flex items-center gap-1 bg-indigo-900/50 text-indigo-300 text-xs px-2 py-1 rounded-lg">
+                    {assignUserNames[i]}
+                    <button onClick={() => toggleUser(id, assignUserNames[i])} className="hover:text-white">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <select className="flex-1 bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm border border-border"
+                  value=""
+                  onChange={e => {
+                    const id = Number(e.target.value);
+                    if (!id) return;
+                    const staff = staffList.find((s: any) => s.id === id);
+                    if (staff && !assignUserIds.includes(id)) toggleUser(id, staff.name);
+                  }}>
+                  <option value="">スタッフを追加...</option>
+                  {staffList.filter((s: any) => !assignUserIds.includes(s.id)).map((s: any) => (
+                    <option key={s.id} value={s.id}>{s.name}（{s.team}）</option>
+                  ))}
+                </select>
+                <button type="button" onClick={startStaffVoiceInput}
+                  className={`flex items-center justify-center w-10 h-10 rounded-xl border transition-colors flex-shrink-0 ${
+                    isVoiceListening ? "bg-red-500 border-red-500 text-white animate-pulse" : "border-border bg-muted text-muted-foreground hover:text-foreground"
+                  }`}>
+                  {isVoiceListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                </button>
+              </div>
+              {voiceStaffCandidates.length > 0 && (
+                <div className="bg-muted rounded-xl border border-border overflow-hidden mt-1">
+                  <div className="px-3 py-1.5 text-xs text-muted-foreground border-b border-border">候補から選択してください</div>
+                  {voiceStaffCandidates.map((s: any) => (
+                    <button key={s.id} type="button"
+                      onClick={() => {
+                        if (!assignUserIds.includes(s.id)) { setAssignUserIds(p => [...p, s.id]); setAssignUserNames(p => [...p, s.name]); }
+                        setVoiceStaffCandidates([]);
+                        toast.success(`「${s.name}」を選択しました`);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2">
+                      <User className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                      <span>{s.name}</span>
+                      {s.team && <span className="text-xs text-muted-foreground">（{s.team}）</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 期日・時刻 */}
+        <div className="mb-4">
+          <label className="text-muted-foreground text-xs uppercase tracking-wide mb-2 block">
+            {taskKind === "at_time" ? "実施日時" : "期日"}
+          </label>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
+                className="w-full bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm border border-border"
+                style={{ colorScheme: "light dark" }} />
+              {dueDate && (
+                <span className="absolute inset-0 flex items-center pl-3 pr-2 text-sm text-foreground pointer-events-none bg-muted rounded-xl border border-border">
+                  {(() => { const [y, m, d] = dueDate.split("-"); return `${parseInt(m)}月${parseInt(d)}日`; })()}
+                </span>
+              )}
+            </div>
+            <select value={dueTime} onChange={e => setDueTime(e.target.value)}
+              className="w-28 bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm border border-border">
+              <option value="">時刻選択</option>
+              {Array.from({ length: 24 * 6 }, (_, i) => {
+                const h = Math.floor(i / 6);
+                const m = (i % 6) * 10;
+                const val = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                return <option key={val} value={val}>{val}</option>;
+              })}
+            </select>
+            {(dueDate || dueTime) && (
+              <button onClick={() => { setDueDate(""); setDueTime(""); }} className="text-gray-500 hover:text-white p-1">
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 内容 */}
+        <div className="mb-4">
+          <label className="text-muted-foreground text-xs uppercase tracking-wide mb-2 block">内容</label>
+          <textarea value={text} onChange={e => setText(e.target.value)}
+            placeholder="タスクの内容を入力..."
+            className="w-full bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm min-h-[80px] resize-none placeholder-muted-foreground border border-border" />
+        </div>
+
+        {/* 繰り返し */}
+        {taskKind === "at_time" && (
+          <div className="mb-6">
+            <label className="text-muted-foreground text-xs uppercase tracking-wide mb-2 block flex items-center gap-1">
+              <Repeat className="w-3.5 h-3.5" />繰り返し
+            </label>
+            <div className="grid grid-cols-3 gap-1.5 mb-2">
+              {(["none", "daily", "weekly", "biweekly", "monthly", "nth_weekday"] as RepeatType[]).map(type => (
+                <button key={type} onClick={() => setRepeatType(type)}
+                  className={`py-2 rounded-xl text-xs font-medium transition-all ${
+                    repeatType === type ? "bg-purple-600 text-white" : "bg-muted text-muted-foreground hover:text-foreground"
+                  }`}>
+                  {type === "none" && "なし"}{type === "daily" && "毎日"}{type === "weekly" && "毎週"}
+                  {type === "biweekly" && "隔週"}{type === "monthly" && "毎月"}{type === "nth_weekday" && "第N曜日"}
+                </button>
+              ))}
+            </div>
+            {(repeatType === "weekly" || repeatType === "biweekly") && (
+              <div className="flex gap-1 mt-1">
+                {WEEKDAY_LABELS.map((label, i) => (
+                  <button key={i} onClick={() => setRepeatDayOfWeek(i)}
+                    className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      repeatDayOfWeek === i ? "bg-purple-600 text-white" : "bg-muted text-muted-foreground"
+                    }`}>{label}</button>
+                ))}
+              </div>
+            )}
+            {repeatType === "monthly" && (
+              <div className="flex gap-2 mt-1 items-center">
+                <select value={repeatMonthInterval} onChange={e => setRepeatMonthInterval(Number(e.target.value))}
+                  className="bg-muted text-foreground rounded-xl px-2 py-2 text-sm border border-border">
+                  {[1, 2, 3, 4, 6, 12].map(n => <option key={n} value={n}>{n}ヶ月毎</option>)}
+                </select>
+                <select value={repeatDayOfMonth} onChange={e => setRepeatDayOfMonth(Number(e.target.value))}
+                  className="bg-muted text-foreground rounded-xl px-2 py-2 text-sm border border-border">
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}日</option>)}
+                </select>
+              </div>
+            )}
+            {repeatType === "nth_weekday" && (
+              <div className="flex gap-2 mt-1 items-center flex-wrap">
+                <select value={repeatNthWeek} onChange={e => setRepeatNthWeek(Number(e.target.value))}
+                  className="bg-muted text-foreground rounded-xl px-2 py-2 text-sm border border-border">
+                  {NTH_WEEK_VALUES.map((v, i) => <option key={v} value={v}>{NTH_WEEK_LABELS[i]}</option>)}
+                </select>
+                <div className="flex gap-1">
+                  {WEEKDAY_LABELS.map((label, i) => (
+                    <button key={i} onClick={() => setRepeatNthDayOfWeek(i)}
+                      className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        repeatNthDayOfWeek === i ? "bg-purple-600 text-white" : "bg-muted text-muted-foreground"
+                      }`}>{label}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {repeatType !== "none" && (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-gray-500 text-xs whitespace-nowrap">終了日（任意）</span>
+                <input type="date" value={repeatEndDate} onChange={e => setRepeatEndDate(e.target.value)}
+                  className="flex-1 bg-muted text-foreground rounded-xl px-2 py-1.5 text-xs border border-border" />
+                {repeatEndDate && (
+                  <button onClick={() => setRepeatEndDate("")} className="text-gray-500 hover:text-white">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        <Button onClick={handleSubmit} disabled={updateMutation.isPending}
+          className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-xl text-base">
+          {updateMutation.isPending ? "更新中..." : "タスクを更新"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 // ---- タスクカード ----
 function TaskCard({
   task,
   onToggle,
   onDelete,
+  onEdit,
   currentUserId,
 }: {
   task: any;
   onToggle: (id: number, done: boolean) => void;
   onDelete: (id: number) => void;
+  onEdit: (task: any) => void;
   currentUserId?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -742,10 +1136,17 @@ function TaskCard({
       {/* 展開時操作 */}
       {expanded && (
         <div className="px-3 pb-3 pt-0 border-t border-border/40">
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={() => { setExpanded(false); onEdit(task); }}
+              className="flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 px-2.5 py-1.5 rounded-lg bg-amber-900/20 hover:bg-amber-900/40 transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" />編集
+            </button>
           <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
             <AlertDialogTrigger asChild>
               <button
-                className="mt-2 flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 px-2.5 py-1.5 rounded-lg bg-red-900/20 hover:bg-red-900/40 transition-colors"
+                className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 px-2.5 py-1.5 rounded-lg bg-red-900/20 hover:bg-red-900/40 transition-colors"
               >
                 <Trash2 className="w-3.5 h-3.5" />削除
               </button>
@@ -768,6 +1169,7 @@ function TaskCard({
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          </div>
         </div>
       )}
     </div>
@@ -778,6 +1180,7 @@ function TaskCard({
 export default function PersonalTasks() {
   const { user, loading: authLoading } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingTask, setEditingTask] = useState<any | null>(null);
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
 
   const tasksQuery = trpc.personalTasks.getMyTasks.useQuery(
@@ -942,6 +1345,19 @@ export default function PersonalTasks() {
           />
         )}
 
+        {/* 編集フォーム（インライン展開） */}
+        {editingTask && user && (
+          <EditTaskForm
+            task={editingTask}
+            onClose={() => setEditingTask(null)}
+            onUpdated={() => {
+              utils.personalTasks.getMyTasks.invalidate();
+              utils.personalTasks.getTodayTasks.invalidate();
+            }}
+            userTeam={user.team ?? null}
+          />
+        )}
+
         {/* 未完了タスク */}
         {tasksQuery.isLoading ? (
           <div className="space-y-2">
@@ -972,6 +1388,7 @@ export default function PersonalTasks() {
                 task={task}
                 onToggle={(id, done) => toggleMutation.mutate({ id, done })}
                 onDelete={(id) => deleteMutation.mutate({ id })}
+                onEdit={(t) => { setShowCreateForm(false); setEditingTask(t); }}
                 currentUserId={user?.id}
               />
             ))}
@@ -991,6 +1408,7 @@ export default function PersonalTasks() {
                   task={task}
                   onToggle={(id, done) => toggleMutation.mutate({ id, done })}
                   onDelete={(id) => deleteMutation.mutate({ id })}
+                  onEdit={(t) => { setShowCreateForm(false); setEditingTask(t); }}
                   currentUserId={user?.id}
                 />
               ))}

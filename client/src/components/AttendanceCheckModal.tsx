@@ -1452,9 +1452,9 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                   value={overtimeRecordCount}
                   onChange={(e) => setOvertimeRecordCount(Number(e.target.value))}
                   className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outlifocus:ring-2 focus:ring-blue-400 appearance-none pr-7"
-                  >
-                    {Array.from({length: 17}, (_, i) => i + 8).map(h => (
-                    <option key={h} value={h}>{String(h).padStart(2, "0")}時</option>                  ))}
+                  >                    {Array.from({length: 20}, (_, i) => i + 1).map(n => (
+                      <option key={n} value={n}>{n}人</option>
+                    ))}
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               </div>

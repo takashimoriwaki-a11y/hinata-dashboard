@@ -2499,28 +2499,26 @@ export async function getMyPersonalTasks(
     or(
       and(eq(personalTasks.assignType, "self"), eq(personalTasks.createdBy, userId)),
       and(eq(personalTasks.assignType, "personal"), eq(personalTasks.assignUserId, userId)),
+      // 自分が他者に依頼したタスク（「依頼した」タブ表示用）
+      and(eq(personalTasks.assignType, "personal"), eq(personalTasks.createdBy, userId)),
       eq(personalTasks.assignType, "all"),
       ...(userTeam && ["身体", "天理", "郡山北部", "郡山南部"].includes(userTeam)
         ? [and(eq(personalTasks.assignType, "team"), eq(personalTasks.assignTeam, userTeam as any))]
         : []),
     ),
   ];
-
   if (!showDone) {
     conditions.push(eq(personalTasks.done, 0));
   }
-
   const rows = await db
     .select()
     .from(personalTasks)
     .where(and(...conditions))
     .orderBy(personalTasks.dueDate, personalTasks.createdAt);
-
   return rows;
 }
-
 /**
- * 今日の個人タスクを取得する（ホーム画面用）
+ * 今日の個人タスクを取得するする（ホーム画面用）
  * - 今日が期日のタスク（taskKind=at_time or by_deadline, dueDate=今日）
  * - 繰り返しタスクで今日が該当するもの
  */
@@ -2657,6 +2655,9 @@ export async function updatePersonalTask(
     assignTeam: "身体" | "天理" | "郡山北部" | "郡山南部" | null;
     assignUserId: number | null;
     assignUserName: string | null;
+    assignTeams: string | null;
+    assignUserIds: string | null;
+    assignUserNames: string | null;
     repeatType: "none" | "daily" | "weekly" | "biweekly" | "monthly" | "nth_weekday";
     repeatDayOfWeek: number | null;
     repeatDayOfMonth: number | null;
@@ -2678,6 +2679,9 @@ export async function updatePersonalTask(
   if ("assignTeam" in data) updateData.assignTeam = data.assignTeam;
   if ("assignUserId" in data) updateData.assignUserId = data.assignUserId;
   if ("assignUserName" in data) updateData.assignUserName = data.assignUserName;
+  if ("assignTeams" in data) updateData.assignTeams = data.assignTeams;
+  if ("assignUserIds" in data) updateData.assignUserIds = data.assignUserIds;
+  if ("assignUserNames" in data) updateData.assignUserNames = data.assignUserNames;
   if (data.repeatType !== undefined) updateData.repeatType = data.repeatType;
   if ("repeatDayOfWeek" in data) updateData.repeatDayOfWeek = data.repeatDayOfWeek;
   if ("repeatDayOfMonth" in data) updateData.repeatDayOfMonth = data.repeatDayOfMonth;
