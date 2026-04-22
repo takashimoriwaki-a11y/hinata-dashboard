@@ -816,7 +816,13 @@ function DateTimePicker({
           {confidenceBadge}
         </div>
       )}
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={(isOpen) => {
+        setOpen(isOpen);
+        // ポップオーバーを開いた時、既存値が日付のみ（YYYY-MM-DD）形式であれば時刻セレクトを表示する
+        if (isOpen && !dateOnly && value && !value.includes('T')) {
+          setTimeUnspecified(false);
+        }
+      }}>
         <div className="flex items-center gap-1">
           <PopoverTrigger asChild>
             <button
@@ -2234,7 +2240,8 @@ export default function ScheduleChange() {
                 main: "○○チームの○○さん、来週月曜の午前10時に訪問を追加。",
               },
               meeting_add: {
-                main: "来月の担当者会議、○月○日の14時から、場所は○○事業所。",
+                main: "○○チームの○○さん、○月○日の○時から担当者会議、場所は第三地域包括支援センター。",
+                sub: "チーム名・参加者名・日時・会議名・場所を伝えると自動転記されます。場所は備考欄に入ります。",
               },
               meeting_change: {
                 main: "○月○日の担当者会議、○月○日の15時に変更。",
