@@ -5088,22 +5088,43 @@ export const appRouter = router({
       // 自分がチェック済みの議事録IDを取得
       const myChecks = await db.select().from(minutesChecks).where(eq(minutesChecks.userId, ctx.user.id));
       const checkedIds = new Set(myChecks.map((c) => c.minutesId));
+      // 全員分の確認記録を取得（allCheckedAt計算に使用）
+      const allChecks = await db.select({ minutesId: minutesChecks.minutesId, userId: minutesChecks.userId, checkedAt: minutesChecks.checkedAt }).from(minutesChecks);
+      const allStaff = await db.select({ id: users.id }).from(users);
+      const totalStaffCount = allStaff.length;
+      const staffIds = new Set(allStaff.map((s) => s.id));
+      // 各議事録ごとに確認済みユーザーIDと最終確認日時を集計
+      const checksPerMinutes = new Map<number, { userIds: Set<number>; maxCheckedAt: Date }>();
+      for (const c of allChecks) {
+        if (!checksPerMinutes.has(c.minutesId)) {
+          checksPerMinutes.set(c.minutesId, { userIds: new Set(), maxCheckedAt: c.checkedAt });
+        }
+        const entry = checksPerMinutes.get(c.minutesId)!;
+        entry.userIds.add(c.userId);
+        if (c.checkedAt > entry.maxCheckedAt) entry.maxCheckedAt = c.checkedAt;
+      }
       // 管理者向け：各議事録の既読数を取得
       let readerCountMap: Map<number, number> = new Map();
-      let totalStaffCount = 0;
       if (ctx.user.role === "admin" || ctx.user.role === "super_admin") {
-        const allChecks = await db.select({ minutesId: minutesChecks.minutesId }).from(minutesChecks);
-        for (const c of allChecks) {
-          readerCountMap.set(c.minutesId, (readerCountMap.get(c.minutesId) ?? 0) + 1);
+        for (const [minutesId, entry] of checksPerMinutes) {
+          readerCountMap.set(minutesId, entry.userIds.size);
         }
-        const allStaff = await db.select({ id: users.id }).from(users);
-        totalStaffCount = allStaff.length;
+      }
+      // 全員確認済み日時を計算（全スタッフが確認済みの場合のみ）
+      const allCheckedAtMap = new Map<number, Date>();
+      for (const [minutesId, entry] of checksPerMinutes) {
+        const allConfirmed = staffIds.size > 0 && Array.from(staffIds).every((id) => entry.userIds.has(id));
+        if (allConfirmed) {
+          allCheckedAtMap.set(minutesId, entry.maxCheckedAt);
+        }
       }
       return allMinutes.map((m) => ({
         ...m,
         checkedByMe: checkedIds.has(m.id),
         readerCount: readerCountMap.get(m.id) ?? 0,
         totalStaff: totalStaffCount,
+        /** 全員が確認済みになった日時（全員確認済みでない場合はnull） */
+        allCheckedAt: allCheckedAtMap.get(m.id) ?? null,
       }));
     }),
     /** 未確認件数を取得 */

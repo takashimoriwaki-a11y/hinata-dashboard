@@ -246,6 +246,7 @@ export default function Minutes() {
   const [createOpen, setCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDocumentUrl, setNewDocumentUrl] = useState("");
+  const [newDocumentName, setNewDocumentName] = useState(""); // Pickerで選択したファイル名
   const [newDeadline, setNewDeadline] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [showHowToBanner, setShowHowToBanner] = useState(() => {
@@ -300,11 +301,11 @@ export default function Minutes() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const google = (window as any).google;
       const myDriveView = new google.picker.DocsView()
-        .setIncludeFolders(false)
-        .setSelectFolderEnabled(false);
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(true);
       const sharedDriveView = new google.picker.DocsView(google.picker.ViewId.DOCS)
-        .setIncludeFolders(false)
-        .setSelectFolderEnabled(false)
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(true)
         .setEnableDrives(true);
       const picker = new google.picker.PickerBuilder()
         .setOAuthToken(token)
@@ -321,6 +322,7 @@ export default function Minutes() {
             const doc = data.docs[0];
             const fileUrl = doc.url || `https://drive.google.com/open?id=${doc.id}`;
             setNewDocumentUrl(fileUrl);
+            setNewDocumentName(doc.name); // ファイル名を保存
             if (!newTitle) setNewTitle(doc.name);
             toast.success(`「${doc.name}」を選択しました`);
           }
@@ -496,9 +498,20 @@ export default function Minutes() {
   );
 
   // 確認済みリスト: サーバーで既読 or ローカルでチェック済みのもの
-  const readList = minutesList.filter(
-    (m) => m.checkedByMe || localCheckedIds.has(m.id)
-  );
+  // ただし「全員確認済みになってから30日以上経過」したものは非表示
+  const HIDE_AFTER_ALL_CHECKED_DAYS = 30;
+  const readList = minutesList.filter((m) => {
+    const isChecked = m.checkedByMe || localCheckedIds.has(m.id);
+    if (!isChecked) return false;
+    // 全員確認済み日時が存在し、かつ30日以上経過している場合は非表示
+    if (m.allCheckedAt) {
+      const allCheckedDate = new Date(m.allCheckedAt);
+      const now = new Date();
+      const diffDays = (now.getTime() - allCheckedDate.getTime()) / (1000 * 60 * 60 * 24);
+      if (diffDays >= HIDE_AFTER_ALL_CHECKED_DAYS) return false;
+    }
+    return true;
+  });
 
   // 現在のタブに応じたリストに検索フィルタを適用
   const baseList = activeTab === "unread" ? unreadList : readList;
@@ -756,6 +769,7 @@ export default function Minutes() {
         if (!open) {
           setNewTitle("");
           setNewDocumentUrl("");
+          setNewDocumentName("");
           setNewDeadline("");
           recognitionRef.current?.stop();
         }
@@ -865,9 +879,18 @@ export default function Minutes() {
                 )}
               </div>
               {newDocumentUrl && (
-                <p className="text-xs text-muted-foreground truncate">
-                  選択中: {newDocumentUrl}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-muted-foreground truncate flex-1 min-w-0">
+                    選択中: {newDocumentName || newDocumentUrl.slice(0, 60) + (newDocumentUrl.length > 60 ? "..." : "")}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => { setNewDocumentUrl(""); setNewDocumentName(""); }}
+                    className="flex-shrink-0 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    ✕
+                  </button>
+                </div>
               )}
             </div>
           </div>
