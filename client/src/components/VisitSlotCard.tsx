@@ -812,7 +812,7 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
 
             {/* 日付・時刻 + リセットボタン */}
             <div className="flex gap-2 items-center">
-              <div className="relative flex-1">
+              <div className="relative flex-1 min-w-0 overflow-hidden">
                 <Input
                   type="date"
                   className="text-sm w-full"
