@@ -582,7 +582,7 @@ export default function Minutes() {
           <div>
             <h1 className="text-xl font-bold text-foreground">議事録</h1>
             <p className="text-sm text-muted-foreground">
-              ドキュメントを開くと自動で確認済みになります
+              ドキュメントを開くと自動で<br />確認済みになります
             </p>
           </div>
         </div>
