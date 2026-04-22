@@ -1377,7 +1377,7 @@ function SlotSelector({
                   {slot.team}
                 </span>
               )}
-              <span className="text-sm font-semibold text-foreground">
+              <span className="text-sm font-semibold text-foreground break-all">
                 {slot.patientName}
               </span>
             </div>
@@ -1390,14 +1390,15 @@ function SlotSelector({
                   onClick={onMoveUp}
                   disabled={!canMoveUp}
                   className={cn(
-                    "flex-shrink-0 p-1 rounded transition-colors sm:hidden",
+                    "flex-shrink-0 flex items-center gap-0.5 px-1.5 py-1 rounded transition-colors text-xs sm:hidden",
                     canMoveUp
                       ? "text-muted-foreground hover:text-primary hover:bg-primary/10 active:scale-95"
                       : "text-muted-foreground/30 cursor-not-allowed"
                   )}
                   title="上に移動"
                 >
-                  <ChevronUp className="w-3.5 h-3.5" />
+                  <ChevronUp className="w-3 h-3" />
+                  <span>上へ</span>
                 </button>
               )}
               {onMoveDown && (
@@ -1406,26 +1407,28 @@ function SlotSelector({
                   onClick={onMoveDown}
                   disabled={!canMoveDown}
                   className={cn(
-                    "flex-shrink-0 p-1 rounded transition-colors sm:hidden",
+                    "flex-shrink-0 flex items-center gap-0.5 px-1.5 py-1 rounded transition-colors text-xs sm:hidden",
                     canMoveDown
                       ? "text-muted-foreground hover:text-primary hover:bg-primary/10 active:scale-95"
                       : "text-muted-foreground/30 cursor-not-allowed"
                   )}
                   title="下に移動"
                 >
-                  <ChevronDown className="w-3.5 h-3.5" />
+                  <ChevronDown className="w-3 h-3" />
+                  <span>下へ</span>
                 </button>
               )}
               {/* ドラッグハンドル（選択済みスロットのみ・PC/iOS共通） */}
               <button
                 type="button"
-                className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors p-1.5 rounded cursor-grab active:cursor-grabbing select-none"
+                className="flex-shrink-0 flex items-center gap-0.5 px-1.5 py-1 text-xs text-muted-foreground hover:text-primary transition-colors rounded cursor-grab active:cursor-grabbing select-none"
                 title="長押し・ドラッグして順番を変更"
                 style={{ touchAction: 'none' }}
                 {...attributes}
                 {...listeners}
               >
-                <GripVertical className="w-4 h-4" />
+                <GripVertical className="w-3 h-3" />
+                <span className="hidden sm:inline">並替</span>
               </button>
               {/* 訪問チェック項目カードへスクロール */}
               <button
@@ -1436,10 +1439,11 @@ function SlotSelector({
                     target.scrollIntoView({ behavior: "smooth", block: "start" });
                   }
                 }}
-                className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors p-1 rounded"
+                className="flex-shrink-0 flex items-center gap-0.5 px-1.5 py-1 text-xs text-muted-foreground hover:text-primary transition-colors rounded"
                 title={`${slot.patientName}の訪問チェック項目カードへ移動`}
               >
-                <ExternalLink className="w-3.5 h-3.5" />
+                <ExternalLink className="w-3 h-3" />
+                <span>記録</span>
               </button>
               {/* リセットボタン（選択済み） */}
               <button
@@ -1449,10 +1453,11 @@ function SlotSelector({
                   onSearchChange("");
                   onShowListChange(false);
                 }}
-                className="flex-shrink-0 text-muted-foreground hover:text-destructive transition-colors p-1 rounded"
+                className="flex-shrink-0 flex items-center gap-0.5 px-1.5 py-1 text-xs text-muted-foreground hover:text-destructive transition-colors rounded"
                 title="クリア"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-3 h-3" />
+                <span>削除</span>
               </button>
             </div>
             {/* 2行目：次回訪問日時入力（コンパクト） */}
