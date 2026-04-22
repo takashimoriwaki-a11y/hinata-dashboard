@@ -1366,9 +1366,9 @@ function SlotSelector({
 
         {isSelected ? (
           // 選択済み表示
-          <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-            {/* 1行目：チーム・利用者名・ボタン群 */}
-            <div className="flex items-center gap-2 min-w-0">
+          <div className="flex flex-col gap-1 flex-1 min-w-0">
+            {/* 1行目：チームバッジ＋利用者名（フル表示） */}
+            <div className="flex items-center gap-1.5 min-w-0">
               {slot.team && (
                 <span
                   className={cn("text-xs px-1.5 py-0.5 rounded font-medium flex-shrink-0", getTeamButtonClass(slot.team as Team, true))}
@@ -1377,9 +1377,12 @@ function SlotSelector({
                   {slot.team}
                 </span>
               )}
-              <span className="text-sm font-medium text-foreground truncate flex-1">
+              <span className="text-sm font-semibold text-foreground">
                 {slot.patientName}
               </span>
+            </div>
+            {/* 2行目：ボタン群 */}
+            <div className="flex items-center gap-1 min-w-0">
               {/* iPhone用上下入れ替えボタン（タッチデバイスのみ表示） */}
               {onMoveUp && (
                 <button
