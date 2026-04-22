@@ -214,6 +214,10 @@ const DEFAULT_SLOT: VisitSlotData = { team: "", patientId: null, patientName: ""
 
 const SLOTS_STORAGE_KEY = "hinata_visit_slots";
 
+// モジュールレベル変数：コンポーネントのアンマウント・再マウント後も値が保持される
+// タブ切り替え後に再度DBから古いデータが読み込まれる問題を防ぐ
+let _dbSlotLoadedDate = ""; // 読み込み済みの日付キー（日付が変わったときのみ再読み込みを許可）
+
 /** JSTの今日の日付を YYYY-MM-DD 形式で返す */
 function getTodayJstKey(): string {
   const now = new Date();
@@ -241,14 +245,14 @@ export default function RecordInput() {
   });
 
   // DBから今日のスロット順番を復元する
-  // staleTime:0でキャッシュを常に最新に保ち、invalidate後に即時再取得されるようにする
+  // モジュールレベル変数_dbSlotLoadedDateで管理することで、タブ切り替え後の再マウント時にも状態が保持される
   const { data: dbSlotData } = trpc.visitSlots.load.useQuery(
     { dateKey: todayKey },
     { enabled: !!user, staleTime: 0 }
   );
-  const [dbLoaded, setDbLoaded] = useState(false);
   useEffect(() => {
-    if (dbLoaded) return;
+    // 同じ日付のデータが既に読み込み済みなら上書きしない
+    if (_dbSlotLoadedDate === todayKey) return;
     if (!dbSlotData) return;
     if (dbSlotData.slotsJson) {
       try {
@@ -260,8 +264,8 @@ export default function RecordInput() {
         }
       } catch {}
     }
-    setDbLoaded(true);
-  }, [dbSlotData, dbLoaded]);
+    _dbSlotLoadedDate = todayKey;
+  }, [dbSlotData, todayKey]);
 
   // DBへの保存mutation
   const saveSlotsMutation = trpc.visitSlots.save.useMutation();
@@ -361,7 +365,7 @@ export default function RecordInput() {
         setSlotSearchQueries(Array.from({ length: MAX_SLOTS }, () => ""));
         setSlotShowLists(Array.from({ length: MAX_SLOTS }, () => false));
         localStorage.removeItem(SLOTS_STORAGE_KEY);
-        setDbLoaded(false); // 新しい日付のDBデータを再取得
+        _dbSlotLoadedDate = ""; // 新しい日付のDBデータを再取得
         toast.success(`日付が変わりました（${newKey}）。訪問予定をリセットしました。`);
         return newKey;
       });
