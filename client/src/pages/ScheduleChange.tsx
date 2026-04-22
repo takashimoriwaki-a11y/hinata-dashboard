@@ -79,7 +79,7 @@ const SCHEDULE_FIELD_CONFIG: Partial<Record<ChangeType, ScheduleFieldVisibility>
   schedule_hospitalization:       { endDate: false, startTime: false, endTime: false, facilityName: true,  postDischargeEndDate: false },
   schedule_discharge:             { endDate: false, startTime: false, endTime: false, facilityName: true,  postDischargeEndDate: true  },
   schedule_new_contract:          { endDate: false, startTime: false, endTime: false, facilityName: false, postDischargeEndDate: false },
-  schedule_visit_doctor:          { endDate: false, startTime: false, endTime: false, facilityName: false, postDischargeEndDate: false },
+  schedule_visit_doctor:          { endDate: false, startTime: false, endTime: false, facilityName: true,  postDischargeEndDate: false },
 };
 const SCHEDULE_START_DATE_LABEL: Partial<Record<ChangeType, string>> = {
   schedule_visit:          "受診日",
@@ -1630,9 +1630,24 @@ export default function ScheduleChange() {
 
       if (f.fromDatetime) {
         if (isScheduleTypeVoice) {
-          // 予定登録系: fromDatetimeをscheduleStartDateに転記（YYYY-MM-DD形式に変換）
-          const startDateOnly = f.fromDatetime!.split('T')[0];
-          setScheduleStartDate(prev => prev.trim() ? prev : startDateOnly);
+          // 予定登録系: fromDatetimeをscheduleStartDateに転記
+          // 新規契約・面談・訪問診療同席は時間情報も保持（ISO形式）、それ以外は日付のみ
+          const isScheduleWithTimeVoice = [
+            "schedule_new_contract", "schedule_visit_doctor", "schedule_visit"
+          ].includes(f.changeType || changeType);
+          const fromIsoVoice = f.fromDatetime!;
+          const fromTimeStrVoice = fromIsoVoice.split('T')[1] || '';
+          const fromIsTimeUnspecifiedVoice = fromTimeStrVoice.startsWith('00:00:00') || fromTimeStrVoice.startsWith('00:00');
+          let startDateValue: string;
+          if (isScheduleWithTimeVoice && !fromIsTimeUnspecifiedVoice) {
+            // 時間あり：ISO形式で転記
+            startDateValue = fromIsoVoice;
+          } else {
+            // 時間なし or 時間未指定：日付のみ
+            startDateValue = fromIsoVoice.split('T')[0];
+          }
+          const startDateOnly = fromIsoVoice.split('T')[0];
+          setScheduleStartDate(prev => prev.trim() ? prev : startDateValue);
           // 退院の場合、退院後3か月終了日を自動計算（未入力の場合のみ）
           if (f.changeType === "schedule_discharge" && f.fromDatetime) {
             setSchedulePostDischargeEndDate(prev => {
@@ -1745,7 +1760,14 @@ export default function ScheduleChange() {
       const schedulePostDischarge = (f as Record<string, unknown>).schedulePostDischargeEndDate as string | null;
       const scheduleTargetNameFromLLM = (f as Record<string, unknown>).scheduleTargetName as string | null;
       if (isScheduleTypeVoice) {
-        if (scheduleFacility) { setScheduleFacilityName(prev => prev.trim() ? prev : scheduleFacility); applied++; }
+        if (scheduleFacility) {
+          setScheduleFacilityName(prev => prev.trim() ? prev : scheduleFacility);
+          // 訪問診療同席の場合は医療機関名を備考欄にも転記
+          if ((f.changeType || changeType) === "schedule_visit_doctor") {
+            setReason(prev => prev.trim() ? prev : `医療機関名: ${scheduleFacility}`);
+          }
+          applied++;
+        }
         if (schedulePostDischarge) { setSchedulePostDischargeEndDate(prev => prev.trim() ? prev : schedulePostDischarge); applied++; }
         // 新規契約・面談の対象者名：LLMがscheduleTargetNameを返した場合はそちらを優先し、なければpatientNameを使用
         if (f.changeType === "schedule_new_contract") {
@@ -2334,12 +2356,12 @@ export default function ScheduleChange() {
                 sub: "退院日を伝えると退院後3か月終了日（週5訪問）が自動計算されます。",
               },
               schedule_new_contract: {
-                main: "新規契約の面談、○月○日の14時から。対象者は○○さん。対応スタッフは○○と○○。",
+                main: "○月○日○○さんの担当者会議、○月○日○時に変更。",
                 sub: "対象者名・対応スタッフ名・日時を一緒に伝えると自動転記されます。",
               },
               schedule_visit_doctor: {
                 main: "○○チームの○○さん、○月○日の14時に○○クリニックの訪問診療に同席。",
-                sub: "施設名（クリニック名）も一緒に伝えると自動転記されます。",
+                sub: "医療機関名も一緒に伝えると備考欄に自動転記されます。",
               },
             };
             const example = exampleMap[changeType] ?? exampleMap[""];
@@ -2955,15 +2977,17 @@ export default function ScheduleChange() {
             </Card>
           )}
 
-          {/* 施設名（必要な種別のみ） */}
+          {/* 施設名 / 医療機関名（必要な種別のみ） */}
           {scheduleFieldConfig?.facilityName && (
             <Card>
               <CardHeader className="pb-2 pt-4">
-                <CardTitle className="text-sm font-semibold">施設名</CardTitle>
+                <CardTitle className="text-sm font-semibold">
+                  {changeType === "schedule_visit_doctor" ? "医療機関名" : "施設名"}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <Input
-                  placeholder="例：こころクリニック、大和郡山市立病院..."
+                  placeholder={changeType === "schedule_visit_doctor" ? "例：○○クリニック、○○病院..." : "例：こころクリニック、大和郡山市立病院..."}
                   value={scheduleFacilityName}
                   onChange={(e) => setScheduleFacilityName(e.target.value)}
                 />
@@ -3134,7 +3158,7 @@ export default function ScheduleChange() {
                 {scheduleFieldConfig?.endDate && scheduleEndDate && <p className="text-sm text-foreground">終了日: {scheduleEndDate}</p>}
                 {scheduleFieldConfig?.startTime && scheduleStartTime && <p className="text-sm text-foreground">開始: {scheduleStartTime}</p>}
                 {scheduleFieldConfig?.endTime && scheduleEndTime && <p className="text-sm text-foreground">終了: {scheduleEndTime}</p>}
-                {scheduleFieldConfig?.facilityName && scheduleFacilityName && <p className="text-sm text-foreground">施設名: {scheduleFacilityName}</p>}
+                {scheduleFieldConfig?.facilityName && scheduleFacilityName && <p className="text-sm text-foreground">{changeType === "schedule_visit_doctor" ? "医療機関名" : "施設名"}: {scheduleFacilityName}</p>}
                 {scheduleFieldConfig?.postDischargeEndDate && schedulePostDischargeEndDate && <p className="text-sm text-foreground">退院後3か月終了日（週５訪問）: {schedulePostDischargeEndDate}</p>}
                 {changeType === "schedule_new_contract" && scheduleNewContractStaff.length > 0 && <p className="text-sm text-foreground">対応スタッフ: {scheduleNewContractStaff.join("、")}</p>}
                 {reason && <p className="text-sm text-foreground">備考: {reason}</p>}
