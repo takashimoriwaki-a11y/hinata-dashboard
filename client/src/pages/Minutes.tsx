@@ -315,18 +315,12 @@ export default function Minutes() {
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const google = (window as any).google;
-      // 検索ビュー：ファイル名で検索可能
-      const searchView = new google.picker.DocsView()
-        .setIncludeFolders(true)
-        .setSelectFolderEnabled(true)
-        .setEnableDrives(true);
       // マイドライブ：フォルダ内を閲覧可能
       const myDriveView = new google.picker.DocsView()
         .setIncludeFolders(true)
         .setSelectFolderEnabled(true)
         .setOwnedByMe(true);
       // 共有ドライブ：setEnableDrives(true)で共有ドライブのファイル・フォルダを表示
-      // NAV_HIDDENを無効化することでフォルダナビゲーションを有効にする
       const sharedDriveView = new google.picker.DocsView()
         .setIncludeFolders(true)
         .setSelectFolderEnabled(true)
@@ -337,7 +331,6 @@ export default function Minutes() {
         .setLocale("ja")
         .enableFeature(google.picker.Feature.SUPPORT_DRIVES)
         .disableFeature(google.picker.Feature.NAV_HIDDEN)
-        .addView(searchView)
         .addView(myDriveView)
         .addView(sharedDriveView)
         .setCallback((data: {
@@ -353,8 +346,10 @@ export default function Minutes() {
             if (!restoredTitleRef.current) setNewTitle(doc.name);
             restoredTitleRef.current = ""; // 使用後はリセット
             toast.success(`「${doc.name}」を選択しました`);
+            // ファイル選択後にダイアログを再表示（モバイルで閉じる問題への対処）
+            setTimeout(() => { setCreateOpen(true); }, 100);
           }
-          // Pickerが閉じた後にフラグをリセット（少し遅延してダイアログ閉じを防ぐ）
+          // Pickerが閉じた後にフラグをリセット
           if (data.action === google.picker.Action.PICKED || data.action === google.picker.Action.CANCEL) {
             setTimeout(() => { isPickerOpenRef.current = false; }, 300);
           }
