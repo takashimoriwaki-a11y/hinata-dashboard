@@ -261,6 +261,7 @@ export default function Minutes() {
   const accessTokenRef = useRef<string | null>(null);
   const tokenExpiryRef = useRef<number>(0);
   const restoredTitleRef = useRef<string>(""); // sessionStorageから復元したタイトルを保持
+  const isPickerOpenRef = useRef<boolean>(false); // Pickerが開いている間はダイアログを閉じない
 
   // URLフラグメントからpicker_tokenを取得してPickerを開く（バックエンドOAuthコールバック後）
   useEffect(() => {
@@ -353,9 +354,14 @@ export default function Minutes() {
             restoredTitleRef.current = ""; // 使用後はリセット
             toast.success(`「${doc.name}」を選択しました`);
           }
+          // Pickerが閉じた後にフラグをリセット（少し遅延してダイアログ閉じを防ぐ）
+          if (data.action === google.picker.Action.PICKED || data.action === google.picker.Action.CANCEL) {
+            setTimeout(() => { isPickerOpenRef.current = false; }, 300);
+          }
           setPickerLoading(false);
         })
         .build();
+      isPickerOpenRef.current = true;
       picker.setVisible(true);
     } catch (err) {
       console.error("[GooglePicker] Error:", err);
@@ -797,6 +803,8 @@ export default function Minutes() {
 
       {/* 投稿ダイアログ（全職員） */}
       <Dialog open={createOpen} onOpenChange={(open) => {
+        // Pickerが開いている間はダイアログを閉じない
+        if (!open && isPickerOpenRef.current) return;
         setCreateOpen(open);
         if (!open) {
           setNewTitle("");
@@ -811,6 +819,55 @@ export default function Minutes() {
             <DialogTitle>議事録を投稿</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
+            {/* ドキュメントURL（任意） */}
+            <div className="space-y-1.5 p-3 bg-muted/30 rounded-lg border border-border">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <LinkIcon className="w-3 h-3" />
+                  ドキュメントURL（任意）
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDriveAdd}
+                  disabled={pickerLoading}
+                  className="h-7 text-xs gap-1.5 text-blue-600 border-blue-300 hover:bg-blue-50 dark:text-blue-400 dark:border-blue-700 dark:hover:bg-blue-950/30"
+                >
+                  {pickerLoading ? (
+                    <><Loader2 className="w-3 h-3 animate-spin" />認証中...</>
+                  ) : (
+                    <><FolderOpen className="w-3 h-3" />Driveから選択</>
+                  )}
+                </Button>
+              </div>
+              <div className="relative">
+                <Input
+                  placeholder="Google Docs / Sheets / Forms 等のURL（または上のボタンでDriveから選択）"
+                  value={newDocumentUrl}
+                  onChange={(e) => handleDocUrlChange(e.target.value)}
+                  className="text-sm pr-8"
+                />
+                {isFetchingTitle && (
+                  <Loader2 className="w-4 h-4 animate-spin absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                )}
+              </div>
+              {newDocumentUrl && (
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-muted-foreground truncate flex-1 min-w-0">
+                    選択中: {newDocumentName || newDocumentUrl.slice(0, 60) + (newDocumentUrl.length > 60 ? "..." : "")}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => { setNewDocumentUrl(""); setNewDocumentName(""); }}
+                    className="flex-shrink-0 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* タイトル（音声入力対応） */}
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
@@ -872,55 +929,6 @@ export default function Minutes() {
                     className="text-xs text-muted-foreground hover:text-foreground"
                   >
                     ✕ クリア
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* ドキュメントURL（任意） */}
-            <div className="space-y-1.5 p-3 bg-muted/30 rounded-lg border border-border">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                  <LinkIcon className="w-3 h-3" />
-                  ドキュメントURL（任意）
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDriveAdd}
-                  disabled={pickerLoading}
-                  className="h-7 text-xs gap-1.5 text-blue-600 border-blue-300 hover:bg-blue-50 dark:text-blue-400 dark:border-blue-700 dark:hover:bg-blue-950/30"
-                >
-                  {pickerLoading ? (
-                    <><Loader2 className="w-3 h-3 animate-spin" />認証中...</>
-                  ) : (
-                    <><FolderOpen className="w-3 h-3" />Driveから選択</>
-                  )}
-                </Button>
-              </div>
-              <div className="relative">
-                <Input
-                  placeholder="Google Docs / Sheets / Forms 等のURL（または上のボタンでDriveから選択）"
-                  value={newDocumentUrl}
-                  onChange={(e) => handleDocUrlChange(e.target.value)}
-                  className="text-sm pr-8"
-                />
-                {isFetchingTitle && (
-                  <Loader2 className="w-4 h-4 animate-spin absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                )}
-              </div>
-              {newDocumentUrl && (
-                <div className="flex items-center gap-2">
-                  <p className="text-xs text-muted-foreground truncate flex-1 min-w-0">
-                    選択中: {newDocumentName || newDocumentUrl.slice(0, 60) + (newDocumentUrl.length > 60 ? "..." : "")}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => { setNewDocumentUrl(""); setNewDocumentName(""); }}
-                    className="flex-shrink-0 text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    ✕
                   </button>
                 </div>
               )}
