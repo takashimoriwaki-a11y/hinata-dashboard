@@ -4299,8 +4299,20 @@ export const appRouter = router({
 - team: 身体 / 天理 / 郡山北部 / 郡山南部 / 事務員 / 全チーム のいずれか
 - patientName: 利用者名（姓名）。予定登録系で「対象者」「相手」「方」と言及された場合もここに入れる。訂正表現がある場合は最後に言及された利用者名を使用すること。利用者リストがある場合は正式名を返すこと。姓だけの場合は姓のみ返す
 - patientLastName: 利用者の姓（苗字）のみ。姓名両方わかる場合は同じ値、姓だけの場合はその姓、利用者が不明な場合はnull
-- fromDatetime: 変更前日時または予定開始日時（ISO 8601）。予定登録系では開始日時として使用
-- toDatetime: 変更後日時または追加日時（ISO 8601）。予定登録系では終了日時として使用
+- fromDatetime: 変更前日時または予定開始日時（ISO 8601）。各種別の使い方:
+  - visit_change: 変更前の訪問日時
+  - visit_cancel: キャンセルする日の日付（必ずここに入れること）
+  - visit_add: null（追加日時はtoDatetimeに入れる）
+  - meeting_add: null（開催日時はtoDatetimeに入れる）
+  - meeting_change: 変更前の会議日時
+  - schedule_系: 予定開始日時（受診日・入院日・退院日等）
+- toDatetime: 変更後日時または追加日時（ISO 8601）。各種別の使い方:
+  - visit_change: 変更後の訪問日時
+  - visit_cancel: null（キャンセルの場合は必ずnull）
+  - visit_add: 追加する訪問日時（必ずここに入れること）
+  - meeting_add: 会議の開催日時（必ずここに入れること）
+  - meeting_change: 変更後の会議日時
+  - schedule_系: 予定終了日時（省略可）
 - staffBefore: 変更前担当スタッフ名
 - staffAfter: 変更後担当スタッフ名
 - meetingName: 会議名

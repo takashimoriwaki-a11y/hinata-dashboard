@@ -702,7 +702,9 @@ function DateTimePicker({
     if (!date) return;
     const d = new Date(date);
     d.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
-    if (dateOnly || forceTimeUnspecified || timeUnspecified) {
+    // forceTimeUnspecifiedが明示的にfalseの場合はstateを無視（setStateのバッチ更新による古い値参照を防ぐ）
+    const useTimeUnspecified = forceTimeUnspecified === false ? false : (forceTimeUnspecified || timeUnspecified);
+    if (dateOnly || useTimeUnspecified) {
       // 日付のみモード or 時間未定: YYYY-MM-DD形式で返す
       const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
       onChange(iso);
@@ -722,11 +724,10 @@ function DateTimePicker({
       setOpen(false);
       return;
     }
-    if (timeUnspecified && day) {
-      // 時間未定モード: 日付のみで確定
-      const d = new Date(day);
-      const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-      onChange(iso);
+    if (timeUnspecified && day && !dateOnly) {
+      // 時間未定モードかつ日付時刻モード: 日付選択後は時刻セレクトを表示する（時刻入力できるように）
+      setTimeUnspecified(false);
+      applyDateTime(day, hour, minute, false);
       return;
     }
     applyDateTime(day, hour, minute);
@@ -1524,6 +1525,9 @@ export default function ScheduleChange() {
       ];
       // 音声入力時のschedule判定: LLMが返したchangeType、または現在選択中のchangeTypeがschedule_系なら予定登録系として扱う
       const isScheduleTypeVoice = (f.changeType?.startsWith("schedule_") ?? false) || changeType.startsWith("schedule_");
+      // 音声入力時のmeeting/visit判定: LLMが返したchangeTypeも考慮（changeTypeが未選択の場合でも正しく判定）
+      const isMeetingTypeVoice = f.changeType === "meeting_add" || f.changeType === "meeting_change" || changeType === "meeting_add" || changeType === "meeting_change";
+      const isVisitCancelVoice = f.changeType === "visit_cancel" || changeType === "visit_cancel";
       if (f.changeType && allValidChangeTypes.includes(f.changeType)) {
         setChangeType(prev => prev === "" ? f.changeType as ChangeType : prev);
         applied++;
@@ -1603,7 +1607,7 @@ export default function ScheduleChange() {
           }
         }
         applied++;
-      } else if (!isScheduleTypeVoice) { missing.push("変更前日時"); }
+      } else if (!isScheduleTypeVoice && !isVisitCancelVoice) { missing.push("変更前日時"); }
       // 信頼度スコアを保存
       const fConf = (f as Record<string, unknown>).fromDatetimeConfidence as 'high' | 'medium' | 'low' | null;
       const tConf = (f as Record<string, unknown>).toDatetimeConfidence as 'high' | 'medium' | 'low' | null;
@@ -1767,7 +1771,7 @@ export default function ScheduleChange() {
         }
       } else {
         // 利用者名なしのケース（会議系は利用者名が任意なのでmissingに追加しない）
-        if (!isMeetingType) missing.push("利用者名");
+        if (!isMeetingTypeVoice) missing.push("利用者名");
         setMissingVoiceFields(missing);
         setIsParsingVoice(false);
         setVoiceTranscribed(true);
