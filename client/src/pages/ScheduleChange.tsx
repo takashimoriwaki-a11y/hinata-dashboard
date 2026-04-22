@@ -697,8 +697,8 @@ function DateTimePicker({
   });
 
   // valueが外部から変化した際（音声転記等）に、timeUnspecifiedとselectedDateを同期する
-  const prevValueRef = React.useRef(value);
-  React.useEffect(() => {
+  const prevValueRef = useRef(value);
+  useEffect(() => {
     if (prevValueRef.current === value) return;
     prevValueRef.current = value;
     if (!value) {
