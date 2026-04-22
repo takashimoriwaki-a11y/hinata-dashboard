@@ -28,6 +28,7 @@ import {
   ArrowRight,
   CalendarClock,
   Send,
+  Check,
   CheckCircle2,
   X,
   Users,
@@ -898,7 +899,8 @@ function DateTimePicker({
                     時間未定
                   </button>
                 </div>
-                {!timeUnspecified && (
+                {/* timeUnspecifiedがfalse、またはvalueに時刻情報がある場合は時刻セレクトを表示 */}
+                {(!timeUnspecified || (value && value.includes('T'))) && (
                   <div className="flex items-center gap-2 mt-2">
                     <Select value={hour} onValueChange={handleHourChange}>
                       <SelectTrigger className="w-20 h-9">
@@ -987,8 +989,10 @@ function MultiStaffAutocomplete({
   onToggle: (name: string) => void;
   selectedTeam?: string;
 }) {
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [manualInput, setManualInput] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // チーム選択時: そのチーム + 全チームのスタッフを優先表示（デフォルト一覧）
   const defaultList = useMemo(() => {
@@ -1011,6 +1015,17 @@ function MultiStaffAutocomplete({
     }
   };
 
+  // ドロップダウン外クリックで閉じる
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    if (dropdownOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [dropdownOpen]);
+
   return (
     <div className="space-y-3">
       {/* 選択済みスタッフのバッジ表示 */}
@@ -1030,52 +1045,81 @@ function MultiStaffAutocomplete({
         </div>
       )}
 
-      {/* 検索入力 */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-        <Input
-          className="pl-9"
-          placeholder="スタッフ名で絞り込み..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-      </div>
+      {/* プルダウントリガー */}
+      <div className="relative" ref={dropdownRef}>
+        <button
+          type="button"
+          onClick={() => setDropdownOpen(prev => !prev)}
+          className="w-full flex items-center justify-between px-3 py-2.5 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors"
+        >
+          <span className={selected.length === 0 ? "text-muted-foreground" : "text-foreground"}>
+            {selected.length === 0 ? "スタッフを選択..." : `${selected.length}名選択中`}
+          </span>
+          <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", dropdownOpen && "rotate-180")} />
+        </button>
 
-      {/* スタッフ一覧 */}
-      <div className="grid grid-cols-2 gap-1.5 max-h-44 overflow-y-auto">
-        {filtered.length === 0 ? (
-          <p className="col-span-2 text-center text-sm text-muted-foreground py-3">該当なし</p>
-        ) : (
-          filtered.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => onToggle(s.name)}
-              className={cn(
-                "flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-all text-left",
-                selected.includes(s.name)
-                  ? "bg-primary/10 border-primary text-primary font-medium"
-                  : "bg-card border-border text-foreground hover:bg-muted"
+        {/* ドロップダウンリスト */}
+        {dropdownOpen && (
+          <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-md shadow-lg">
+            {/* 検索入力 */}
+            <div className="p-2 border-b">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                <Input
+                  className="pl-8 h-8 text-sm"
+                  placeholder="スタッフ名で絞り込み..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            </div>
+            {/* スタッフ一覧 */}
+            <div className="max-h-52 overflow-y-auto">
+              {filtered.length === 0 ? (
+                <p className="text-center text-sm text-muted-foreground py-3">該当なし</p>
+              ) : (
+                filtered.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => onToggle(s.name)}
+                    className={cn(
+                      "w-full flex items-center gap-2 px-3 py-2.5 text-sm text-left transition-colors",
+                      selected.includes(s.name)
+                        ? "bg-primary/10 text-primary font-medium"
+                        : "hover:bg-muted text-foreground"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-4 h-4 rounded border flex items-center justify-center flex-shrink-0",
+                      selected.includes(s.name) ? "bg-primary border-primary" : "border-border"
+                    )}>
+                      {selected.includes(s.name) && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                    </div>
+                    <span>{s.name}</span>
+                    {s.team && <span className="ml-auto text-xs text-muted-foreground">{s.team}</span>}
+                  </button>
+                ))
               )}
-            >
-              {selected.includes(s.name) && <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />}
-              <span className="truncate">{s.name}</span>
-            </button>
-          ))
+            </div>
+            {/* 手動入力 */}
+            <div className="p-2 border-t">
+              <p className="text-xs text-muted-foreground mb-1">一覧にない場合は手動入力</p>
+              <div className="flex gap-1.5">
+                <Input
+                  className="h-8 text-sm"
+                  placeholder="スタッフ名を入力..."
+                  value={manualInput}
+                  onChange={(e) => setManualInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddManual(); } }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={handleAddManual}>追加</Button>
+              </div>
+            </div>
+          </div>
         )}
-      </div>
-
-      {/* 手動入力 */}
-      <div>
-        <Label className="text-xs text-muted-foreground">一覧にない場合は手動入力</Label>
-        <div className="flex gap-2 mt-1">
-          <Input
-            placeholder="スタッフ名を入力..."
-            value={manualInput}
-            onChange={(e) => setManualInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddManual(); } }}
-          />
-          <Button variant="outline" size="sm" onClick={handleAddManual}>追加</Button>
-        </div>
       </div>
     </div>
   );
@@ -1634,7 +1678,7 @@ export default function ScheduleChange() {
           }
         }
         applied++;
-      } else if (!isScheduleTypeVoice && !isVisitCancelVoice) { missing.push("変更前日時"); }
+      } else if (!isScheduleTypeVoice && !isVisitCancelVoice && !isMeetingTypeVoice) { missing.push("変更前日時"); }
       // 信頼度スコアを保存
       const fConf = (f as Record<string, unknown>).fromDatetimeConfidence as 'high' | 'medium' | 'low' | null;
       const tConf = (f as Record<string, unknown>).toDatetimeConfidence as 'high' | 'medium' | 'low' | null;
@@ -1956,17 +2000,19 @@ export default function ScheduleChange() {
           <CalendarClock className="w-5 h-5 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-bold text-foreground whitespace-nowrap">連絡・予定登録</h1>
-          <p className="text-xs text-muted-foreground truncate">入力後、スプレッドシートに自動転記されます</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-lg font-bold text-foreground">連絡・予定登録</h1>
+            {/* 自動保存インジケーター */}
+            {draftSavedAt && !hasDraft && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Save className="w-3 h-3" />
+                <span>{formatSavedAt(draftSavedAt)}保存</span>
+              </div>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">入力後、スプレッドシートに自動転記されます</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* 自動保存インジケーター */}
-          {draftSavedAt && !hasDraft && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Save className="w-3 h-3" />
-              <span>{formatSavedAt(draftSavedAt)}保存</span>
-            </div>
-          )}
           {/* リセットボタン */}
           <button
             type="button"
