@@ -986,154 +986,150 @@ export default function Admin() {
         </div>
       </div>
 
-      {/* セクションタブ */}
-      <div className="flex gap-2 border-b border-border overflow-x-auto overflow-y-hidden scrollbar-none" style={{ WebkitOverflowScrolling: 'touch' }}>
+      {/* セクションタブ（グリッドレイアウト：ひと画面に全配置） */}
+      <div className="grid grid-cols-3 gap-1.5 pb-3 border-b border-border">
         <button
           onClick={() => setActiveSection("sheets")}
           className={cn(
-            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
+            "px-2 py-2 text-xs font-medium rounded-lg border transition-colors text-center",
             activeSection === "sheets"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
+              ? "bg-primary/10 border-primary text-primary"
+              : "border-border text-muted-foreground hover:text-foreground hover:border-primary/50"
           )}
         >
-          スプレッドシートURL
+          SS URL
         </button>
         <button
           onClick={() => setActiveSection("patients")}
           className={cn(
-            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
+            "px-2 py-2 text-xs font-medium rounded-lg border transition-colors text-center",
             activeSection === "patients"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
+              ? "bg-primary/10 border-primary text-primary"
+              : "border-border text-muted-foreground hover:text-foreground hover:border-primary/50"
           )}
         >
           利用者マスタ
         </button>
-        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") && (
+        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") ? (
           <button
             onClick={() => setActiveSection("staff")}
             className={cn(
-            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
-            activeSection === "staff"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+              "px-2 py-2 text-xs font-medium rounded-lg border transition-colors text-center",
+              activeSection === "staff"
+                ? "bg-primary/10 border-primary text-primary"
+                : "border-border text-muted-foreground hover:text-foreground hover:border-primary/50"
             )}
           >
             スタッフ管理
           </button>
-        )}
-        {/* 一括インポートタブは削除（利用者マスタ・スタッフ管理から個別にインポート可能） */}
-        {/* クイックアクセスはホーム画面から削除済みのため非表示 */}
+        ) : <div />}
         {/* 以下のタブは特級管理者のみ表示 */}
-        {currentUser?.role === "super_admin" && (
+        {currentUser?.role === "super_admin" ? (
           <button
             onClick={() => setActiveSection("settings")}
             className={cn(
-            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
-            activeSection === "settings"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+              "px-2 py-2 text-xs font-medium rounded-lg border transition-colors text-center",
+              activeSection === "settings"
+                ? "bg-primary/10 border-primary text-primary"
+                : "border-border text-muted-foreground hover:text-foreground hover:border-primary/50"
             )}
           >
             システム設定
           </button>
-        )}
-        {currentUser?.role === "super_admin" && (
+        ) : <div />}
+        {currentUser?.role === "super_admin" ? (
           <button
             onClick={() => setActiveSection("toolLogs")}
             className={cn(
-            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
-            activeSection === "toolLogs"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+              "px-2 py-2 text-xs font-medium rounded-lg border transition-colors text-center",
+              activeSection === "toolLogs"
+                ? "bg-primary/10 border-primary text-primary"
+                : "border-border text-muted-foreground hover:text-foreground hover:border-primary/50"
             )}
           >
             操作ログ
           </button>
-        )}
-        {currentUser?.role === "super_admin" && (
+        ) : <div />}
+        {currentUser?.role === "super_admin" ? (
           <button
             onClick={() => setActiveSection("alcoholSheets")}
             className={cn(
-            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
-            activeSection === "alcoholSheets"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+              "px-2 py-2 text-xs font-medium rounded-lg border transition-colors text-center",
+              activeSection === "alcoholSheets"
+                ? "bg-primary/10 border-primary text-primary"
+                : "border-border text-muted-foreground hover:text-foreground hover:border-primary/50"
             )}
           >
-            アルコールチェック管理
+            アルコール管理
           </button>
-        )}
-        {currentUser?.role === "super_admin" && (
+        ) : <div />}
+        {currentUser?.role === "super_admin" ? (
           <button
             onClick={() => setActiveSection("detectorSettings")}
             className={cn(
-            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
-            activeSection === "detectorSettings"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+              "px-2 py-2 text-xs font-medium rounded-lg border transition-colors text-center",
+              activeSection === "detectorSettings"
+                ? "bg-primary/10 border-primary text-primary"
+                : "border-border text-muted-foreground hover:text-foreground hover:border-primary/50"
             )}
           >
             検知器設定
           </button>
-        )}
-        {currentUser?.role === "super_admin" && (
+        ) : <div />}
+        {currentUser?.role === "super_admin" ? (
           <button
             onClick={() => setActiveSection("timesheetSheets")}
             className={cn(
-            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
-            activeSection === "timesheetSheets"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+              "px-2 py-2 text-xs font-medium rounded-lg border transition-colors text-center",
+              activeSection === "timesheetSheets"
+                ? "bg-primary/10 border-primary text-primary"
+                : "border-border text-muted-foreground hover:text-foreground hover:border-primary/50"
             )}
           >
             出退勤管理
           </button>
-        )}
-
-        {currentUser?.role === "super_admin" && (
+        ) : <div />}
+        {currentUser?.role === "super_admin" ? (
           <button
             onClick={() => setActiveSection("monthlySignatures")}
             className={cn(
-            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
-            activeSection === "monthlySignatures"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+              "px-2 py-2 text-xs font-medium rounded-lg border transition-colors text-center",
+              activeSection === "monthlySignatures"
+                ? "bg-primary/10 border-primary text-primary"
+                : "border-border text-muted-foreground hover:text-foreground hover:border-primary/50"
             )}
           >
             月次署名確認
           </button>
-        )}
+        ) : <div />}
         {/* 変更履歴（管理者・特級管理者のみ） */}
-        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") && (
+        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") ? (
           <button
             onClick={() => setActiveSection("changeHistory")}
             className={cn(
-            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
-            activeSection === "changeHistory"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+              "px-2 py-2 text-xs font-medium rounded-lg border transition-colors text-center",
+              activeSection === "changeHistory"
+                ? "bg-primary/10 border-primary text-primary"
+                : "border-border text-muted-foreground hover:text-foreground hover:border-primary/50"
             )}
           >
             変更履歴
           </button>
-        )}
+        ) : <div />}
         {/* 連携中シート（特級管理者のみ） */}
-        {currentUser?.role === "super_admin" && (
+        {currentUser?.role === "super_admin" ? (
           <button
             onClick={() => setActiveSection("linkedSheets")}
             className={cn(
-            "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0",
-            activeSection === "linkedSheets"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+              "px-2 py-2 text-xs font-medium rounded-lg border transition-colors text-center",
+              activeSection === "linkedSheets"
+                ? "bg-primary/10 border-primary text-primary"
+                : "border-border text-muted-foreground hover:text-foreground hover:border-primary/50"
             )}
           >
             連携中シート
           </button>
-        )}
-
+        ) : <div />}
       </div>
 
       {/* スプレッドシートURLセクション */}
