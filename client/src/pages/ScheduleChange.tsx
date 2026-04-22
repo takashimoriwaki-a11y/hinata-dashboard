@@ -3198,6 +3198,24 @@ export default function ScheduleChange() {
         </Button>
       )}
 
+      {/* リセットボタン */}
+      {changeType && (
+        <Button
+          onClick={() => {
+            if (window.confirm("入力内容をリセットしますか？")) {
+              handleReset();
+            }
+          }}
+          variant="outline"
+          className="w-full text-muted-foreground hover:text-destructive hover:border-destructive/50 hover:bg-destructive/5"
+          size="lg"
+          disabled={createAndExport.isPending}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          リセット
+        </Button>
+      )}
+
       {/* 誤変換報告ダイアログ */}
       {showFeedbackDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in-overlay">
