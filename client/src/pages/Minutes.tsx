@@ -769,7 +769,7 @@ export default function Minutes() {
                     {(isAdmin || m.createdBy === user?.id) && (
                       <button
                         onClick={() => setDeleteConfirmId(m.id)}
-                        className="mt-0.5 flex-shrink-0 text-muted-foreground hover:text-destructive transition-all opacity-0 group-hover/card:opacity-100"
+                        className="mt-0.5 flex-shrink-0 text-muted-foreground hover:text-destructive transition-all"
                         title="削除"
                       >
                         <Trash2 className="w-4 h-4" />
