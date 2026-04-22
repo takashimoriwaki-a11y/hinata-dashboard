@@ -1599,6 +1599,7 @@ export default function ScheduleChange() {
       // 音声入力時のmeeting/visit判定: LLMが返したchangeTypeも考慮（changeTypeが未選択の場合でも正しく判定）
       const isMeetingTypeVoice = f.changeType === "meeting_add" || f.changeType === "meeting_change" || changeType === "meeting_add" || changeType === "meeting_change";
       const isVisitCancelVoice = f.changeType === "visit_cancel" || changeType === "visit_cancel";
+      const isVisitAddVoice = f.changeType === "visit_add" || changeType === "visit_add";
       if (f.changeType && allValidChangeTypes.includes(f.changeType)) {
         setChangeType(prev => prev === "" ? f.changeType as ChangeType : prev);
         applied++;
@@ -1693,7 +1694,7 @@ export default function ScheduleChange() {
           }
         }
         applied++;
-      } else if (!isScheduleTypeVoice && !isVisitCancelVoice && !isMeetingTypeVoice) { missing.push("変更前日時"); }
+      } else if (!isScheduleTypeVoice && !isVisitCancelVoice && !isVisitAddVoice && !isMeetingTypeVoice) { missing.push("変更前日時"); }
       // 信頼度スコアを保存
       const fConf = (f as Record<string, unknown>).fromDatetimeConfidence as 'high' | 'medium' | 'low' | null;
       const tConf = (f as Record<string, unknown>).toDatetimeConfidence as 'high' | 'medium' | 'low' | null;
