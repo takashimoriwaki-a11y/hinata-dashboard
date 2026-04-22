@@ -696,6 +696,27 @@ function DateTimePicker({
     return new Date(value);
   });
 
+  // valueが外部から変化した際（音声転記等）に、timeUnspecifiedとselectedDateを同期する
+  const prevValueRef = React.useRef(value);
+  React.useEffect(() => {
+    if (prevValueRef.current === value) return;
+    prevValueRef.current = value;
+    if (!value) {
+      setSelectedDate(undefined);
+      setTimeUnspecified(defaultTimeUnspecified ?? false);
+      return;
+    }
+    // 値が日付のみ（YYYY-MM-DD）形式ならtimeUnspecified=true、時刻ありならfalse
+    const hasTime = value.includes('T');
+    setTimeUnspecified(!hasTime);
+    const d = new Date(value);
+    setSelectedDate(d);
+    if (hasTime) {
+      setHour(String(d.getHours()).padStart(2, '0'));
+      setMinute(String(d.getMinutes()).padStart(2, '0'));
+    }
+  }, [value, defaultTimeUnspecified]);
+
   const pad = (n: number) => String(n).padStart(2, "0");
 
   const applyDateTime = (date: Date | undefined, h: string, m: string, forceTimeUnspecified?: boolean) => {
@@ -2722,7 +2743,7 @@ export default function ScheduleChange() {
               <MultiStaffAutocomplete
                 staffList={staffList}
                 selected={meetingStaff}
-                selectedTeam={team || undefined}
+                selectedTeam={undefined}
                 onToggle={(name) => {
                   setMeetingStaff(prev =>
                     prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
