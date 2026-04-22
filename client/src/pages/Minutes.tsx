@@ -300,10 +300,14 @@ export default function Minutes() {
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const google = (window as any).google;
+      // マイドライブ：フォルダ内を閲覧可能
       const myDriveView = new google.picker.DocsView()
         .setIncludeFolders(true)
-        .setSelectFolderEnabled(true);
-      const sharedDriveView = new google.picker.DocsView(google.picker.ViewId.DOCS)
+        .setSelectFolderEnabled(true)
+        .setOwnedByMe(true);
+      // 共有ドライブ：setEnableDrives(true)で共有ドライブのファイル・フォルダを表示
+      // NAV_HIDDENを無効化することでフォルダナビゲーションを有効にする
+      const sharedDriveView = new google.picker.DocsView()
         .setIncludeFolders(true)
         .setSelectFolderEnabled(true)
         .setEnableDrives(true);
@@ -312,6 +316,7 @@ export default function Minutes() {
         .setDeveloperKey(PICKER_API_KEY)
         .setLocale("ja")
         .enableFeature(google.picker.Feature.SUPPORT_DRIVES)
+        .disableFeature(google.picker.Feature.NAV_HIDDEN)
         .addView(myDriveView)
         .addView(sharedDriveView)
         .setCallback((data: {
