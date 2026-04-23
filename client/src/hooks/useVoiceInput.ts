@@ -92,6 +92,8 @@ interface UseVoiceInputReturn {
   resumeVoice: () => void;
   /** トグル（開始/停止を切り替え） */
   toggleVoice: () => void;
+  /** 確定済みテキストのリアルタイムプレビュー（現在セッション内の確定部分） */
+  liveConfirmedText: string;
   /** 認識中の暫定テキスト（確定前のリアルタイムプレビュー用） */
   interimText: string;
   /** 無音タイマーの残り秒数（録音中のみ更新、0=タイムアウト直前） */
@@ -185,6 +187,7 @@ export function useVoiceInput({
   const [isPaused, setIsPaused] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [interimText, setInterimText] = useState("");
+  const [liveConfirmedText, setLiveConfirmedText] = useState("");
   const [silenceCountdown, setSilenceCountdown] = useState<number | null>(null);
   const [transcriptionStatus, setTranscriptionStatus] = useState<TranscriptionStatus>("idle");
   const [lastTranscribedText, setLastTranscribedText] = useState("");
@@ -376,7 +379,6 @@ export function useVoiceInput({
 
       recognition.onresult = (event: SpeechRecognitionEvent) => {
         let currentInterim = "";
-
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
@@ -390,11 +392,13 @@ export function useVoiceInput({
               lastFinalResultIndex = i;
             }
             currentInterim = "";
+            // 確定テキストをリアルタイムで更新（confirmedText + lastBlockText = 現在の確定済み全文）
+            const currentConfirmed = (confirmedText + lastBlockText).trim();
+            setLiveConfirmedText(currentConfirmed);
           } else {
             currentInterim += transcript;
           }
         }
-
         setInterimText(currentInterim);
         lastInterimTextRef.current = currentInterim; // 暫定テキストをRefに保存
         resetSilenceTimer(stopFromTimer);
@@ -625,6 +629,7 @@ export function useVoiceInput({
     }
     setRecording(false);
     setInterimText("");
+    setLiveConfirmedText("");
   }, [clearSilenceTimer, stopElapsedTimer, setPaused]);
 
   // ---- MediaRecorder + Gemini Audio API フォールバック実装 ----
@@ -867,6 +872,9 @@ export function useVoiceInput({
               lastFinalResultIndexRef.current = i;
             }
             currentInterim = "";
+            // 確定テキストをリアルタイムで更新
+            const currentConfirmed = (confirmedTextRef.current + lastBlockTextRef.current).trim();
+            setLiveConfirmedText(currentConfirmed);
           } else {
             currentInterim += transcript;
           }
@@ -1098,6 +1106,7 @@ export function useVoiceInput({
     pauseVoice,
     resumeVoice,
     toggleVoice,
+    liveConfirmedText,
     interimText,
     silenceCountdown,
     transcriptionStatus,

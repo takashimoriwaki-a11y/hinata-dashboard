@@ -31,6 +31,8 @@ export interface VoiceExternalState {
   pauseVoice?: () => void;
   /** 一時停止から再開する */
   resumeVoice?: () => void;
+  /** 確定済みテキストのリアルタイムプレビュー */
+  liveConfirmedText?: string;
   interimText: string;
   silenceCountdown: number | null;
   /** 録音開始からの経過秒数（録音中のみ更新） */
@@ -153,6 +155,8 @@ export function VoiceMicButton({
 
   // elapsedSeconds: externalStateに含まれていれば使用、なければ内部フックから取得
   const elapsedSeconds = externalState?.elapsedSeconds ?? internalHook.elapsedSeconds;
+  // liveConfirmedText: 確定済みテキストのリアルタイムプレビュー
+  const liveConfirmedText = externalState?.liveConfirmedText ?? internalHook.liveConfirmedText;
 
   // interimText変化時にコールバックを呼び出す
   const prevInterimRef = React.useRef("");
@@ -289,21 +293,29 @@ export function VoiceMicButton({
       {/* tooltip モード: ボタン上部にポップアップ */}
       {previewMode === "tooltip" && isRecording && (
         <>
-          {/* interimText プレビュー */}
-          {interimText && (
+          {/* 確定テキスト + 暫定テキスト プレビュー（色分け） */}
+          {(liveConfirmedText || interimText) && (
             <span
               className={cn(
                 "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50",
-                "max-w-[200px] w-max px-2.5 py-1.5 rounded-lg",
+                "max-w-[240px] w-max px-2.5 py-1.5 rounded-lg",
                 "bg-gray-900/90 dark:bg-gray-100/90 backdrop-blur-sm",
-                "text-white dark:text-gray-900 font-normal leading-snug",
+                "font-normal leading-snug",
                 "pointer-events-none shadow-lg",
                 "animate-in fade-in-0 zoom-in-95 duration-150",
                 cfg.previewText
               )}
             >
               <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900/90 dark:border-t-gray-100/90" />
-              <span className="opacity-60 italic">{interimText}</span>
+              {liveConfirmedText && (
+                <span className="text-white dark:text-gray-900 font-medium">{liveConfirmedText}</span>
+              )}
+              {liveConfirmedText && interimText && (
+                <span className="text-white/40 dark:text-gray-900/40"> </span>
+              )}
+              {interimText && (
+                <span className="text-yellow-300 dark:text-yellow-600 italic opacity-80">{interimText}</span>
+              )}
             </span>
           )}
           {/* 残り5秒以下のカウントダウン警告 */}
@@ -410,18 +422,26 @@ export function VoiceMicButton({
             ⏸ 一時停止中 — 再開は左のボタンをタップ
           </span>
         )}
-        {isRecording && !isPaused && interimText && (
+        {isRecording && !isPaused && (liveConfirmedText || interimText) && (
           <span
             className={cn(
-              "text-muted-foreground italic truncate max-w-[180px]",
+              "truncate max-w-[220px]",
               "animate-in fade-in-0 duration-150",
               cfg.previewText
             )}
           >
-            {interimText}
+            {liveConfirmedText && (
+              <span className="text-foreground font-medium">{liveConfirmedText}</span>
+            )}
+            {liveConfirmedText && interimText && (
+              <span className="text-foreground/40"> </span>
+            )}
+            {interimText && (
+              <span className="text-yellow-500 dark:text-yellow-400 italic">{interimText}</span>
+            )}
           </span>
         )}
-        {isRecording && !isPaused && !interimText && !showCountdown && (
+        {isRecording && !isPaused && !liveConfirmedText && !interimText && !showCountdown && (
           <span className={cn("text-muted-foreground italic", cfg.previewText)}>
             話してください...
           </span>
