@@ -9,11 +9,8 @@ vi.mock("./db", () => ({
   setUserTeamSetting: vi.fn().mockResolvedValue({ userId: 1, team: "身体" }),
 }));
 
-// storageモック
-vi.mock("./storage", () => ({
-  storagePut: vi.fn().mockResolvedValue({ url: "https://example.com/img.jpg", key: "test-key" }),
-  storageDelete: vi.fn().mockResolvedValue(undefined),
-}));
+// S3 storage は廃止され、スクリーンショットは常にDBに直接保存されるため
+// storageモックは不要。ここでは削除済み。
 
 describe("schedule screenshot helpers", () => {
   it("チーム名が正しい値であること", () => {
