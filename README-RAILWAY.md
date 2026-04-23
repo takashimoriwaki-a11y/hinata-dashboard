@@ -1,205 +1,197 @@
 # Railway デプロイガイド
 
-こころの訪問看護ステーションひなた ダッシュボードを Railway で独立運用するための手順書です。
+こころの訪問看護ステーションひなた ダッシュボードを **Railway** 上で独立運用する手順書。  
+**前提**: Week 1（Manus依存完全除去）が完了していること。
 
 ---
 
-## 前提条件
+## 📋 デプロイ前チェックリスト
 
-- [Railway](https://railway.app) アカウント（Hobby プラン以上）
-- [GitHub](https://github.com) アカウント（リポジトリ: `takashimoriwaki-a11y/hinata-dashboard`）
-- Google Cloud Console の OAuth クライアント設定済み
+- [ ] Week 1 の変更が `migration-week1` ブランチにコミット済み
+- [ ] Railway アカウント作成済み（Hobby プラン $5/月以上推奨）
+- [ ] Google Cloud Console の OAuth クライアントID 作成済み
+- [ ] Google Cloud Console のサービスアカウント + JSON キー保持済み
+- [ ] Gemini API キー取得済み
 
 ---
 
-## デプロイ手順
+## 🚀 デプロイ手順
 
-### 1. Railway で新規プロジェクトを作成
+### 1. Railway でプロジェクト作成（既に作成済みならスキップ）
 
-1. [Railway ダッシュボード](https://railway.app/dashboard) を開く
-2. **「New Project」** をクリック
-3. **「Deploy from GitHub repo」** を選択
-4. `takashimoriwaki-a11y/hinata-dashboard` を選択
+1. [Railway ダッシュボード](https://railway.com/dashboard) を開く
+2. **「New Project」** → **「Deploy from GitHub repo」**
+3. `takashimoriwaki-a11y/hinata-dashboard` を選択
+4. **デプロイブランチを `migration-week1` に設定**（Settings → Branch）
 
 ### 2. MySQL データベースを追加
 
-1. プロジェクト画面で **「+ New」** → **「Database」** → **「Add MySQL」** をクリック
-2. MySQL サービスが作成されたら、**「Variables」** タブで `DATABASE_URL` をコピーしておく
+1. プロジェクト画面で **「+ New」** → **「Database」** → **「Add MySQL」**
+2. MySQL サービスが立ち上がったら「**Variables**」タブ で `MYSQL_URL` が発行されていることを確認
+3. アプリサービスに戻り、「**Variables**」タブで新しい変数を追加：
+   ```
+   DATABASE_URL = ${{ MySQL.MYSQL_URL }}
+   ```
+   （RailwayのReference記法。変数追加画面で「Add Reference」→「MySQL.MYSQL_URL」で選択可）
 
-### 3. 環境変数を設定
+### 3. 環境変数の設定
 
-アプリのサービスを選択し、**「Variables」** タブで以下を設定します。
+`.env.example` を参考に、以下を **Variables タブ** に追加。**旧Manusの値をコピペするのではなく新規発行** してください（セキュリティ観点で重要）。
 
-#### 必須の環境変数
+| 変数名 | 必須 | 値の発行方法 |
+|---|---|---|
+| `JWT_SECRET` | ✅ | Railway の「Generate Variable」ボタン、または `openssl rand -hex 32` |
+| `SETUP_KEY` | ✅ | 任意の長めの文字列（例: `hinata-2026-new-start-xxx`） |
+| `OWNER_EMAIL` | ✅ | `takashimoriwaki@kokoronohinata.com` |
+| `VITE_GOOGLE_OAUTH_CLIENT_ID` | ✅ | Google Cloud Console から |
+| `GOOGLE_OAUTH_CLIENT_ID` | ✅ | 上と同じ値 |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | ✅ | 同上（新規発行推奨） |
+| `GEMINI_API_KEY` | ✅ | Google AI Studio で新規発行 |
+| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | ✅ | 新規サービスアカウント作成推奨 |
+| `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` | ✅ | 新規JSONキーから抽出（改行は `\n`） |
+| `GOOGLE_SHEETS_API_KEY` | ✅ | 新規発行推奨 |
+| `VAPID_PUBLIC_KEY` | ✅ | `npx web-push generate-vapid-keys` で新規発行 |
+| `VAPID_PRIVATE_KEY` | ✅ | 同上 |
+| `VAPID_EMAIL` | ✅ | `mailto:admin@kokoronohinata.com` |
+| `VITE_GOOGLE_PICKER_API_KEY` | 任意 | My Links 機能を使う場合 |
 
-| 変数名 | 説明 | 値の例 |
-|--------|------|--------|
-| `DATABASE_URL` | MySQL の接続文字列（Railway MySQL から自動入力） | `mysql://user:pass@host:3306/dbname` |
-| `JWT_SECRET` | セッション署名キー（ランダムな長い文字列） | `openssl rand -hex 32` で生成 |
-| `SETUP_KEY` | 初回セットアップ用キー（自分で決める） | 任意の文字列 |
+### 4. Google OAuth リダイレクトURIの追加
 
-#### Google OAuth 認証（スタッフのGoogleアカウントでログイン）
+Google Cloud Console → APIs & Services → Credentials で OAuth クライアントを開き、
+**「承認済みのリダイレクトURI」** に以下を追加：
 
-| 変数名 | 説明 | 値 |
-|--------|------|-----|
-| `GOOGLE_OAUTH_CLIENT_ID` | Google OAuth クライアント ID | `981223020919-...apps.googleusercontent.com` |
-| `GOOGLE_OAUTH_CLIENT_SECRET` | Google OAuth クライアントシークレット | `GOCSPX-...` |
+```
+https://<Railway発行ドメイン>.up.railway.app/api/auth/google/callback
+https://<Railway発行ドメイン>.up.railway.app/api/auth/google/calendar/callback
+https://<Railway発行ドメイン>.up.railway.app/api/auth/google/picker/callback
+```
 
-#### Google API（スプレッドシート連携）
+※ Railway の Settings → Networking → Public Domain で確認。  
+※ カスタムドメイン `hinata.kokoronohinata.com` 版も後で追加。
 
-| 変数名 | 説明 |
-|--------|------|
-| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | Google サービスアカウントのメール |
-| `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` | Google サービスアカウントの秘密鍵 |
-| `GOOGLE_SHEETS_API_KEY` | Google Sheets API キー |
+### 5. 初回ビルド＆デプロイ
 
-#### AI・音声認識
+1. GitHub push を検知して Railway が自動ビルド・デプロイ開始
+2. **Deployments** タブでビルドログを確認、**Success** になれば OK
+3. 公開URLで動作確認: `https://<Railway発行ドメイン>/api/health`
+4. `{"status":"ok",...}` が返れば起動成功
 
-| 変数名 | 説明 |
-|--------|------|
-| `GEMINI_API_KEY` | Google Gemini API キー（音声入力・AI機能） |
+### 6. データベーススキーマ初期化
 
-#### Web Push 通知（任意）
+**一度だけ** 実行：
 
-| 変数名 | 説明 |
-|--------|------|
-| `VAPID_PUBLIC_KEY` | Web Push 公開鍵 |
-| `VAPID_PRIVATE_KEY` | Web Push 秘密鍵 |
-| `VAPID_EMAIL` | Web Push 送信者メール |
-
-**JWT_SECRET の生成方法（ターミナルで実行）:**
 ```bash
-openssl rand -hex 32
-```
-
-**VAPID キーの生成方法:**
-```bash
-npx web-push generate-vapid-keys
-```
-
-### 4. Google OAuth のリダイレクト URI を設定
-
-Google Cloud Console → APIs & Services → Credentials → OAuth クライアント「ひなた ダッシュボード」を開き、以下の URI を「承認済みのリダイレクト URI」に追加します:
-
-```
-https://hinata.up.railway.app/api/auth/google/callback
-https://hinata.up.railway.app/api/auth/google/calendar/callback
-```
-
-> ※ `hinata.up.railway.app` の部分は Railway で割り当てられた実際のドメインに変更してください。
-
-### 5. デプロイを実行
-
-Railway が自動的にビルドとデプロイを開始します。  
-ビルドログを確認し、エラーがないことを確認してください。
-
-### 6. データベースのマイグレーション
-
-デプロイ後、**一度だけ** マイグレーションを実行する必要があります。
-
-Railway の **「Shell」** タブから直接実行:
-```bash
+# Railway の Shell タブから
 pnpm db:push
 ```
 
-または、**「Settings」** → **「Deploy」** → **「Start Command」** を一時的に以下に変更:
+または、Settings → Deploy → Start Command を一時的に:
 ```
 pnpm db:push && node dist/index.js
 ```
+→ 完了後、元の `node dist/index.js` に戻す。
 
-デプロイ後、元の `node dist/index.js` に戻してください。
+### 7. 既存データの移行（TiDB → Railway MySQL）
 
-### 7. 管理者アカウントの作成
-
-#### 方法 A: メール/パスワードでセットアップ（初回のみ）
-
-1. デプロイされたアプリの URL を開く（例: `https://hinata.up.railway.app`）
-2. `/setup` ページにアクセス（例: `https://hinata.up.railway.app/setup`）
-3. 以下を入力して管理者アカウントを作成:
-   - **名前**: 森脇 崇
-   - **メールアドレス**: ご自身のメールアドレス（Googleアカウントと同じメールアドレス推奨）
-   - **パスワード**: 8文字以上のパスワード
-   - **セットアップキー**: 環境変数 `SETUP_KEY` に設定した値
-
-#### 方法 B: Google アカウントでログイン
-
-1. 管理者がメールアドレスを事前に登録（方法 A でセットアップ後）
-2. ログインページで「Google でログイン」ボタンをクリック
-3. 職場の Google アカウント（`@kokoronohinata.com`）でログイン
-
-> **注意**: Google ログインは、事前にメールアドレスが DB に登録されているユーザーのみ使用できます。新規スタッフは管理画面から追加してください。
-
----
-
-## 費用の目安
-
-Railway の Hobby プランで運用した場合の概算:
-
-| リソース | 月額費用 |
-|----------|----------|
-| アプリサービス（512MB RAM） | ~$5 |
-| MySQL データベース | ~$5 |
-| **合計** | **~$10（約1,500円）** |
-
-> ※ Hobby プランは月 $5 の基本料金 + 使用量課金。
-
----
-
-## 新規スタッフの追加方法
-
-1. 管理者アカウントでログイン
-2. サイドバーの **「管理画面」** を開く
-3. **「スタッフ管理」** タブを選択
-4. **「スタッフを追加」** ボタンをクリック
-5. 名前・メールアドレス・チーム・初期パスワードを入力
-
-> スタッフは初回ログイン後、Google アカウントでのログインも使用可能になります（メールアドレスが一致する場合）。
-
----
-
-## トラブルシューティング
-
-### ビルドエラーが発生する場合
-
-```
-Error: Cannot find module 'xxx'
-```
-
-→ Railway の **「Settings」** → **「Build Command」** を以下に変更してみてください:
-```
-pnpm install && pnpm run build
-```
-
-### データベースに接続できない場合
-
-- `DATABASE_URL` が正しく設定されているか確認
-- Railway の MySQL サービスが起動しているか確認
-- MySQL の接続文字列形式: `mysql://user:password@host:3306/dbname`
-
-### Google ログインができない場合
-
-- `GOOGLE_OAUTH_CLIENT_ID` と `GOOGLE_OAUTH_CLIENT_SECRET` が設定されているか確認
-- Google Cloud Console でリダイレクト URI が正しく設定されているか確認
-- ログインしようとしているメールアドレスが DB に登録されているか確認
-
-### ログインできない場合（メール/パスワード）
-
-- `/setup` ページでアカウントを作成したか確認
-- `JWT_SECRET` が設定されているか確認
-
----
-
-## 既存データの移行
-
-Manus 上のデータを Railway に移行する場合は、データベースのエクスポート/インポートが必要です。
-
-### Manus からデータをエクスポート
-
-Manus の管理 UI → Database タブ → エクスポート機能を使用
-
-### Railway にインポート
-
-Railway の MySQL サービスに接続してインポート:
 ```bash
-mysql -h HOST -u USER -p DATABASE < export.sql
+# ① TiDB から最新CSV取得（ローカルまたはManus稼働サーバーで）
+DATABASE_URL="mysql://tidb-user:pass@tidb-host:port/dbname" \
+  OUTPUT_DIR="./db-export/csv" \
+  node scripts/export-all-tables-to-csv.mjs
+
+# ② CSVを Railway MySQL にインポート
+DATABASE_URL="<Railway MySQL の MYSQL_PUBLIC_URL>" \
+  CSV_DIR="./db-export/csv" \
+  node scripts/import-csvs-to-mysql.mjs
 ```
+
+※ 外部からの接続は `MYSQL_PUBLIC_URL`（`MYSQL_URL` は内部通信専用）
+
+### 8. 管理者アカウントの初期化
+
+**方法A：Google OAuth 経由（推奨）**
+1. `https://<Railway発行ドメイン>/login` にアクセス
+2. **「Google でログイン」** ボタン
+3. `takashimoriwaki@kokoronohinata.com` でログイン
+4. `OWNER_EMAIL` と一致するため自動で admin 権限付与
+
+**方法B：/setup ページ経由**
+1. `https://<Railway発行ドメイン>/setup`
+2. 名前・メール・パスワード・`SETUP_KEY` を入力
+
+### 9. 動作確認（ステージング）
+
+- [ ] Google ログイン → ダッシュボード表示
+- [ ] スケジュールスクショのアップロード（Base64でDB保存）
+- [ ] 音声入力（Gemini）→ テキスト化
+- [ ] スタッフ管理画面（管理者のみ）
+- [ ] メッセージ送信・リアクション
+- [ ] タスク作成・完了
+- [ ] 勤怠打刻
+- [ ] スプレッドシート連携（議事録タイトル取得等）
+
+---
+
+## 🔄 カスタムドメイン切替（Week 2 後半）
+
+1. Railway Settings → Networking → **「+ Custom Domain」**
+2. `hinata.kokoronohinata.com` を入力
+3. 表示されるCNAMEレコードをDNSプロバイダに設定
+4. SSL証明書反映を待つ（数分〜1時間）
+5. Google OAuth Redirect URIにカスタムドメイン版追加
+6. 動作確認後、旧Manus環境（`hinatadash-zgp48rw5.manus.space`）を停止
+
+---
+
+## 💰 費用目安（Railway Hobbyプラン）
+
+| リソース | 月額 |
+|---|---|
+| アプリサービス (512MB RAM) | $5 |
+| MySQL | $5 |
+| **合計** | **約 $10（約1,500円/月）** |
+
+※ スクリーンショットをBase64でDBに保存するため、長期稼働で使用量が一定以上になると追加費用の可能性。
+
+---
+
+## 🔐 Manus環境停止時のキーローテーション
+
+Railway安定稼働後、**旧キーを全て無効化・再発行** してください:
+
+- [ ] Google Service Account → 旧JSONキーを削除
+- [ ] Google OAuth Client Secret → 旧シークレットを無効化
+- [ ] Gemini API Key → 旧キー削除
+- [ ] Google Sheets API Key → 旧キー削除
+- [ ] Google Picker API Key → 旧キー削除
+- [ ] VAPID キーペア → 新規発行（旧キーで購読中のユーザーは再購読必要）
+- [ ] JWT_SECRET → 新規（既存セッション全失効）
+- [ ] Manus 環境変数画面 → すべての秘密情報を削除
+
+---
+
+## 🆘 トラブルシューティング
+
+### ビルドエラー
+- `Dockerfile` / `nixpacks.toml` の設定確認
+- `pnpm-lock.yaml` と `package.json` の整合性確認
+
+### データベース接続エラー
+- `DATABASE_URL` 形式: `mysql://user:pass@host:port/dbname`
+- Railway MySQL 起動中か
+- `MYSQL_URL`（内部）と `MYSQL_PUBLIC_URL`（外部）を混同していないか
+
+### ヘルスチェック失敗
+- `/api/health` が 200 を返すか: `curl https://<domain>/api/health`
+- ビルド成果物 `dist/index.js` 存在確認
+
+### Google ログイン不可
+- Redirect URI の末尾スラッシュ含め完全一致
+- `@kokoronohinata.com` 以外はドメイン制限でブロック
+- ブラウザコンソールで詳細エラー確認
+
+### スクリーンショット表示されない
+- S3廃止によりDB直接保存方式
+- 既存 `imageUrl` が `http...manus-s3...` のままなら失効
+- `SELECT id, imageUrl, LEFT(imageData, 50) FROM schedule_screenshots LIMIT 5;` で状態確認
+- データ移行時に `imageData` (base64) が入っていれば OK
