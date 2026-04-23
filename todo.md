@@ -2936,3 +2936,17 @@
 - [x] useVoiceInputフックにliveConfirmedTextを公開する（isFinal確定時にリアルタイム更新）
 - [x] VoiceMicButtonコンポーネントで確定テキスト（白・太字）と暫定テキスト（黄色・イタリック）を色分け表示する（tooltip・inline両モード）
 - [x] テスト実行（278件全合格）
+
+## 音声入力：一時停止機能を削除（2026-04-23）
+
+- [ ] useVoiceInputフックからisPaused・pauseVoice・resumeVoice・isPausedRef・setPaused・resumeVoice関連ロジックを削除する
+- [ ] VoiceMicButtonコンポーネントから一時停止ボタンUI・isPaused関連コードを削除する
+- [ ] VoiceExternalState型からisPaused・pauseVoice・resumeVoiceを削除する
+- [ ] テスト実行
+
+## 音声入力：一時停止機能を削除（完了 2026-04-23）
+
+- [x] useVoiceInputフックからisPaused・pauseVoice・resumeVoice・isPausedRef・setPaused・resumeVoice関連ロジックを削除する
+- [x] VoiceMicButtonコンポーネントから一時停止ボタンUI・isPaused関連コードを削除する
+- [x] VoiceExternalState型からisPaused・pauseVoice・resumeVoiceを削除する
+- [x] テスト実行（278件全合格）
