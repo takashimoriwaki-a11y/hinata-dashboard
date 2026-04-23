@@ -38,13 +38,24 @@ async function startServer() {
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+  // ヘルスチェックエンドポイント（Railway等のデプロイ監視用）
+  // 認証不要、DBアクセスなしで即座にレスポンスを返す
+  app.get("/api/health", (_req, res) => {
+    res.status(200).json({
+      status: "ok",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+    });
+  });
+
   // ローカル認証エンドポイント（/api/auth/login, /api/auth/logout, /api/auth/setup）
   registerLocalAuthRoutes(app);
   // Google OAuth認証エンドポイント（/api/auth/google, /api/auth/google/callback）
   registerGoogleAuthRoutes(app);
 
   // 音声文字起こしエンドポイント /api/transcribe
-  // Gemini Audio API をメインに使用し、失敗時は Whisper API にフォールバック
+  // Gemini Audio API で医療用語特化の文字起こしを実行
   // context パラメータで画面ごとの医療用語プロンプトを最適化
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 16 * 1024 * 1024 } });
 
@@ -302,61 +313,6 @@ ${medicalPrompt}${feedbackSection}`;
     return text;
   }
 
-  /**
-   * Whisper API を使って音声を文字起こしする（フォールバック）
-   * 精神科・訪問看護専門用語に特化したプロンプト付き
-   */
-  async function transcribeWithWhisper(
-    audioBuffer: Buffer,
-    mimeType: string,
-    context: string,
-    staffNames: string[] = [],
-    patientNames: string[] = []
-  ): Promise<string> {
-    const forgeApiUrl = ENV.forgeApiUrl;
-    const forgeApiKey = ENV.forgeApiKey;
-    if (!forgeApiUrl || !forgeApiKey) throw new Error("Whisper API not configured");
-
-    // コンテキスト別の簡潔なWhisperプロンプト（最大224トークン制限内）
-    const whisperPrompts: Record<string, string> = {
-      clinical_notes: "訪問看護記録。精神科、認知症、統合失調症、双極性障害、BPSD、服薬管理、ADL、セルフケア、不穏、幻覚、妄想、アリセプト、リスペリドン、デポ剤、受給者証、ケアマネ、相談支援専門員、改善、悪化、増悪、軽快、安定、不安定、浮腫、顔色不良。",
-      task: "訪問看護業務タスク。受給者証、指示書、計画書、報告書、主治医、ケアマネ、相談支援専門員、身体チーム、天理チーム、郡山北部チーム、郡山南部チーム、iBow、ZEST。",
-      schedule_change: "訪問スケジュール変更連絡。訪問キャンセル、日時変更、体調不良、入院、通院、デイサービス、身体チーム、天理チーム、郡山北部チーム、郡山南部チーム、大和郡山市、天理市。",
-      message: "訪問看護チーム申し送りメッセージ。精神科、認知症、利用者、スタッフ、至急、要確認、対応済み、引き継ぎ、ひなた、光陽。",
-    };
-    const baseWhisperPrompt = whisperPrompts[context] ||
-      "訪問看護ステーション。精神科、認知症、統合失調症、双極性障害、BPSD、服薬管理、受給者証、ケアマネ、相談支援専門員、ADL、セルフケア、不穏、幻覚、妄想、ひなた、光陽。";
-    // Whisperは224トークン制限があるため、固有名詞は最大15名ずつに絞る
-    const dynamicParts: string[] = [];
-    if (staffNames.length > 0) dynamicParts.push(staffNames.slice(0, 15).join('、'));
-    if (patientNames.length > 0) dynamicParts.push(patientNames.slice(0, 15).join('、'));
-    const whisperPrompt = dynamicParts.length > 0
-      ? `${baseWhisperPrompt} ${dynamicParts.join('、')}`
-      : baseWhisperPrompt;
-
-    const formData = new FormData();
-    const blob = new Blob([new Uint8Array(audioBuffer)], { type: mimeType || "audio/webm" });
-    const ext = (mimeType || "audio/webm").split("/")[1]?.split(";")[0] || "webm";
-    formData.append("file", blob, `recording.${ext}`);
-    formData.append("model", "whisper-1");
-    formData.append("language", "ja");
-    formData.append("response_format", "verbose_json");
-    formData.append("prompt", whisperPrompt);
-
-    const baseUrl = forgeApiUrl.endsWith("/") ? forgeApiUrl : `${forgeApiUrl}/`;
-    const whisperRes = await fetch(`${baseUrl}v1/audio/transcriptions`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${forgeApiKey}`, "Accept-Encoding": "identity" },
-      body: formData,
-    });
-    if (!whisperRes.ok) {
-      const errText = await whisperRes.text().catch(() => "");
-      throw new Error(`Whisper transcription failed: ${errText}`);
-    }
-    const result = await whisperRes.json() as { text: string };
-    return result.text?.trim() ?? "";
-  }
-
   app.post("/api/transcribe", upload.single("audio"), async (req, res) => {
     try {
       if (!req.file) {
@@ -383,33 +339,21 @@ ${medicalPrompt}${feedbackSection}`;
         console.warn("[transcribe] Failed to load feedback corrections:", fbErr);
       }
 
-      // まず Gemini Audio API を試みる（最高品質・医療用語対応）
-      if (ENV.geminiApiKey) {
-        try {
-          const text = await transcribeWithGemini(Buffer.from(audioBuffer), mimeType, context, staffNames, patientNames, feedbackCorrections);
-          console.log(`[transcribe] Gemini success (context=${context}), length=${text.length}`);
-          res.json({ text, engine: "gemini" });
-          return;
-        } catch (geminiErr) {
-          console.warn("[transcribe] Gemini failed, falling back to Whisper:", geminiErr instanceof Error ? geminiErr.message : geminiErr);
-        }
+      // Gemini Audio API で音声文字起こし（医療用語対応）
+      if (!ENV.geminiApiKey) {
+        res.status(500).json({ error: "音声認識サービス（Gemini）が設定されていません" });
+        return;
       }
-
-      // Gemini 失敗時は Whisper API にフォールバック
-      if (ENV.forgeApiUrl && ENV.forgeApiKey) {
-        try {
-          const text = await transcribeWithWhisper(Buffer.from(audioBuffer), mimeType, context, staffNames, patientNames);
-          console.log(`[transcribe] Whisper success (context=${context}), length=${text.length}`);
-          res.json({ text, engine: "whisper" });
-          return;
-        } catch (whisperErr) {
-          console.error("[transcribe] Whisper also failed:", whisperErr instanceof Error ? whisperErr.message : whisperErr);
-          res.status(500).json({ error: `文字起こし失敗: ${whisperErr instanceof Error ? whisperErr.message : "不明なエラー"}` });
-          return;
-        }
+      try {
+        const text = await transcribeWithGemini(Buffer.from(audioBuffer), mimeType, context, staffNames, patientNames, feedbackCorrections);
+        console.log(`[transcribe] Gemini success (context=${context}), length=${text.length}`);
+        res.json({ text, engine: "gemini" });
+        return;
+      } catch (geminiErr) {
+        console.error("[transcribe] Gemini failed:", geminiErr instanceof Error ? geminiErr.message : geminiErr);
+        res.status(500).json({ error: `文字起こし失敗: ${geminiErr instanceof Error ? geminiErr.message : "不明なエラー"}` });
+        return;
       }
-
-      res.status(500).json({ error: "音声認識サービスが設定されていません" });
     } catch (e) {
       console.error("[transcribe] error:", e);
       res.status(500).json({ error: "内部エラー" });
@@ -637,18 +581,15 @@ ${medicalPrompt}${feedbackSection}`;
   // ダウンロードしたファイルはそのままインポートテンプレートとして使用可能
   app.get("/api/export/patients", async (req, res) => {
     try {
-      // 認証チェック（Manus OAuth と localAuth の両方に対応）
+      // 認証チェック（localAuth / Google OAuth 両方ともlocalAuthのJWTを発行するため1系統で十分）
       const { parse: parseCookieHeader } = await import("cookie");
       const { COOKIE_NAME } = await import("../../shared/const");
       const cookieHeader = req.headers.cookie;
       const cookies = cookieHeader ? parseCookieHeader(cookieHeader) : {};
       const sessionToken = cookies[COOKIE_NAME];
-      // sdk.verifySession（Manus OAuth）を試み、失敗したら localAuth.verifySessionToken を試みる
-      const { sdk } = await import("./sdk");
       const { verifySessionToken } = await import("./localAuth");
-      const sdkSession = await sdk.verifySession(sessionToken);
-      const localSession = sdkSession ? null : await verifySessionToken(sessionToken);
-      if (!sdkSession && !localSession) { res.status(401).json({ error: "認証が必要です" }); return; }
+      const session = await verifySessionToken(sessionToken);
+      if (!session) { res.status(401).json({ error: "認証が必要です" }); return; }
 
       const { db } = await import("../db");
       const { patients } = await import("../../drizzle/schema");
