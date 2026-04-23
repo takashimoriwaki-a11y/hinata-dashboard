@@ -1462,7 +1462,6 @@ import {
   upsertScheduleNote,
   deleteScheduleNote,
 } from "./db";
-import { storagePut } from "./storage";
 import { eq } from "drizzle-orm";
 import { users } from "../drizzle/schema";
 import { broadcastEvent } from "./_core/sse";
@@ -2216,27 +2215,15 @@ export const appRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "ファイルサイズは10MB以下にしてください" });
         }
 
-        // S3ストレージが利用可能な場合はアップロード、そうでなければDBに直接保存
-        const hasStorage = !!(process.env.BUILT_IN_FORGE_API_URL && process.env.BUILT_IN_FORGE_API_KEY);
-
+        // S3は完全廃止、Base64データを常にDBに直接保存
         let imageUrl: string;
         let imageKey: string;
         let imageData: string | undefined;
 
-        if (hasStorage) {
-          // S3にアップロード
-          const ext = input.mimeType.split("/")[1] ?? "png";
-          const key = `schedule-screenshots/${input.team}-${input.day}-${randomSuffix()}.${ext}`;
-          const result = await storagePut(key, buffer, input.mimeType);
-          imageUrl = result.url;
-          imageKey = key;
-        } else {
-          // S3がない場合：Base64データをDBに直接保存
-          imageData = input.imageDataUrl; // data:image/xxx;base64,...形式で保存
-          imageKey = `db-${input.team}-${input.day}`;
-          // imageUrlは後でDBのIDが確定してから /api/screenshot/:id に設定するため一時的にプレースホルダー
-          imageUrl = `__db__`; // upsert後にIDで上書き
-        }
+        imageData = input.imageDataUrl; // data:image/xxx;base64,...形式で保存
+        imageKey = `db-${input.team}-${input.day}`;
+        // imageUrlは後でDBのIDが確定してから /api/screenshot/:id に設定するため一時的にプレースホルダー
+        imageUrl = `__db__`; // upsert後にIDで上書き
 
         // 実際の日付を計算（日本時間でYYYY-MM-DD形式）
         const todayJST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Tokyo" }));
@@ -2260,8 +2247,8 @@ export const appRouter = router({
           uploadedByName: ctx.user.name ?? "不明",
         });
 
-        // S3なし環境の場合、DBのIDが確定したので imageUrl を /api/screenshot/:id に更新
-        if (!hasStorage && recordId) {
+        // DBのIDが確定したので imageUrl を /api/screenshot/:id に更新
+        if (recordId) {
           await updateScreenshotUrl(recordId, `/api/screenshot/${recordId}`);
           imageUrl = `/api/screenshot/${recordId}`;
         }
@@ -3939,7 +3926,7 @@ export const appRouter = router({
                   .where(drizzleEq(usersTable.id, existing[0].id));
                 result.staff.success++;
               } else {
-                // 未登録スタッフはスキップ（Manus OAuthログイン後に自動登録されるため）
+                // 未登録スタッフはスキップ（Google OAuthログイン後に自動登録されるため）
                 result.staff.skipped++;
               }
             }
