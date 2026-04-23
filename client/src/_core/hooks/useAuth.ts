@@ -59,7 +59,7 @@ export function useAuth(options?: UseAuthOptions) {
   // ユーザー情報をlocalStorageに保存（副作用はuseEffectで実行）
   useEffect(() => {
     localStorage.setItem(
-      "manus-runtime-user-info",
+      "hinata-user-info",
       JSON.stringify(meQuery.data ?? null)
     );
   }, [meQuery.data]);
