@@ -76,6 +76,8 @@ interface UseVoiceInputOptions {
 interface UseVoiceInputReturn {
   /** 録音中かどうか */
   isRecording: boolean;
+  /** 一時停止中かどうか（録音セッションは維持されているが認識は停止） */
+  isPaused: boolean;
   /** Whisperへのアップロード・文字起こし処理中かどうか */
   isProcessing: boolean;
   /** 録音開始からの経過秒数（録音中のみ更新、停止後は0にリセット） */
@@ -84,6 +86,10 @@ interface UseVoiceInputReturn {
   startVoice: () => void;
   /** 音声入力を停止する */
   stopVoice: () => void;
+  /** 一時停止する（セッションテキストを保持したまま認識を停止） */
+  pauseVoice: () => void;
+  /** 一時停止から再開する */
+  resumeVoice: () => void;
   /** トグル（開始/停止を切り替え） */
   toggleVoice: () => void;
   /** 認識中の暫定テキスト（確定前のリアルタイムプレビュー用） */
@@ -176,12 +182,16 @@ export function useVoiceInput({
   const effectiveSilenceTimeoutMs = silenceTimeoutMs ?? (longTextMode ? SILENCE_TIMEOUT_LONG_MS : SILENCE_TIMEOUT_MS);
 
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [interimText, setInterimText] = useState("");
   const [silenceCountdown, setSilenceCountdown] = useState<number | null>(null);
   const [transcriptionStatus, setTranscriptionStatus] = useState<TranscriptionStatus>("idle");
   const [lastTranscribedText, setLastTranscribedText] = useState("");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  // 一時停止フラグ（onend内での再起動を抑制するため）
+  const isPausedRef = useRef(false);
 
   // 録音経過時間タイマー用
   const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -225,6 +235,12 @@ export function useVoiceInput({
   const setRecording = useCallback((val: boolean) => {
     setIsRecording(val);
     onRecordingChangeRef.current?.(val);
+  }, []);
+
+  // 一時停止状態を変更する
+  const setPaused = useCallback((val: boolean) => {
+    isPausedRef.current = val;
+    setIsPaused(val);
   }, []);
 
   // Web Speech API 用
@@ -388,6 +404,7 @@ export function useVoiceInput({
           isRecordingRef.current &&
           !manuallyStoppedRef.current &&
           !autoStoppedRef.current &&
+          !isPausedRef.current &&
           restartCountRef.current < MAX_RESTART_COUNT;
 
         if (shouldRestart) {
@@ -587,6 +604,7 @@ export function useVoiceInput({
     clearSilenceTimer();
     stopElapsedTimer();
     isRecordingRef.current = false; // 先にフラグを落として onend での再起動を防ぐ
+    setPaused(false);
     if (recognitionRef.current) {
       // iOS再起動ループを停止するために先にフラグを立てる
       autoStoppedRef.current = true;
@@ -603,7 +621,7 @@ export function useVoiceInput({
     }
     setRecording(false);
     setInterimText("");
-  }, [clearSilenceTimer, stopElapsedTimer]);
+  }, [clearSilenceTimer, stopElapsedTimer, setPaused]);
 
   // ---- MediaRecorder + Gemini Audio API フォールバック実装 ----
   const startMediaRecorder = useCallback(async () => {
@@ -767,6 +785,223 @@ export function useVoiceInput({
     setRecording(false);
   }, [clearSilenceTimer, stopElapsedTimer]);
 
+  // ---- 一時停止 / 再開 API ----
+  /**
+   * 音声認識を一時停止する。
+   * セッションテキスト（sessionConfirmedTextRef）は保持し、再開時に続きから入力できる。
+   * 無音タイマーも停止する。
+   */
+  const pauseVoice = useCallback(() => {
+    if (!isRecordingRef.current || isPausedRef.current) return;
+    // 一時停止フラグを立てる（onend での再起動を抑制）
+    setPaused(true);
+    clearSilenceTimer();
+    // 経過タイマーは維持（一時停止中も経過時間を止めない）
+    if (recognitionRef.current) {
+      recognitionRef.current.abort(); // stop()より abort()の方が即時停止
+      recognitionRef.current = null;
+    }
+    setInterimText("");
+    setTranscriptionStatus("recording"); // 一時停止中もrecordingステータスを維持
+    toast.info("⏸ 一時停止中 — タップで再開", { duration: 3000 });
+  }, [clearSilenceTimer, setPaused]);
+
+  /**
+   * 一時停止から音声認識を再開する。
+   * セッションテキストを保持したまま新しい認識セッションを開始する。
+   */
+  const resumeVoice = useCallback(() => {
+    if (!isRecordingRef.current || !isPausedRef.current) return;
+    setPaused(false);
+    const SpeechRecognitionClass = getSpeechRecognitionClass();
+    if (!SpeechRecognitionClass) return;
+
+    try {
+      const recognition = new SpeechRecognitionClass();
+      recognition.lang = lang;
+      recognition.continuous = !isIOS;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+
+      // 再開用の停止関数
+      const stopFromTimer = () => {
+        if (recognitionRef.current) {
+          recognitionRef.current.stop();
+        }
+      };
+
+      // 再開時は既存のonresult/onend/onerrorを再利用するため、
+      // 一時的に startSpeechRecognition を呼ぶのではなく直接セットアップする
+      let confirmedText = "";
+      let lastBlockText = "";
+      let lastFinalResultIndex = -1;
+
+      const flushToSession = () => {
+        const sessionText = (confirmedText + lastBlockText).trim();
+        if (sessionText) {
+          if (sessionConfirmedTextRef.current) {
+            sessionConfirmedTextRef.current += " " + sessionText;
+          } else {
+            sessionConfirmedTextRef.current = sessionText;
+          }
+          confirmedText = "";
+          lastBlockText = "";
+          lastFinalResultIndex = -1;
+        }
+      };
+
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        let currentInterim = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            if (i === lastFinalResultIndex) {
+              lastBlockText = transcript;
+            } else if (i > lastFinalResultIndex) {
+              if (lastFinalResultIndex >= 0) confirmedText += lastBlockText;
+              lastBlockText = transcript;
+              lastFinalResultIndex = i;
+            }
+            currentInterim = "";
+          } else {
+            currentInterim += transcript;
+          }
+        }
+        setInterimText(currentInterim);
+        lastInterimTextRef.current = currentInterim;
+        resetSilenceTimer(stopFromTimer);
+      };
+
+      recognition.onend = () => {
+        const shouldRestart =
+          isRecordingRef.current &&
+          !manuallyStoppedRef.current &&
+          !autoStoppedRef.current &&
+          !isPausedRef.current &&
+          restartCountRef.current < MAX_RESTART_COUNT;
+
+        if (shouldRestart) {
+          flushToSession();
+          restartCountRef.current += 1;
+          setTimeout(() => {
+            if (!isRecordingRef.current || manuallyStoppedRef.current || isPausedRef.current) return;
+            try {
+              const newR = new SpeechRecognitionClass();
+              newR.lang = lang;
+              newR.continuous = !isIOS;
+              newR.interimResults = true;
+              newR.maxAlternatives = 1;
+              confirmedText = "";
+              lastBlockText = "";
+              lastFinalResultIndex = -1;
+              newR.onresult = recognition.onresult;
+              newR.onend = recognition.onend;
+              newR.onerror = recognition.onerror;
+              newR.start();
+              recognitionRef.current = newR;
+            } catch {
+              isRecordingRef.current = false;
+              clearSilenceTimer();
+              stopElapsedTimer();
+              setRecording(false);
+              setInterimText("");
+              setPaused(false);
+              const allText = sessionConfirmedTextRef.current.trim();
+              const finalText = allText || lastInterimTextRef.current.trim();
+              lastInterimTextRef.current = "";
+              sessionConfirmedTextRef.current = "";
+              restartCountRef.current = 0;
+              if (finalText) {
+                onResult(finalText);
+                setLastTranscribedText(finalText);
+                setTranscriptionStatus("done");
+                toast.success("✅ 転記完了");
+                setTimeout(() => setTranscriptionStatus("idle"), 5000);
+              } else {
+                setTranscriptionStatus("idle");
+              }
+              recognitionRef.current = null;
+            }
+          }, 100);
+          return;
+        }
+
+        // 通常停止処理
+        clearSilenceTimer();
+        stopElapsedTimer();
+        isRecordingRef.current = false;
+        setRecording(false);
+        setInterimText("");
+        setPaused(false);
+        flushToSession();
+        const rawFinal = sessionConfirmedTextRef.current.trim();
+        const finalText = rawFinal || lastInterimTextRef.current.trim();
+        lastInterimTextRef.current = "";
+        sessionConfirmedTextRef.current = "";
+        restartCountRef.current = 0;
+        if (finalText) {
+          onResult(finalText);
+          setLastTranscribedText(finalText);
+          setTranscriptionStatus("done");
+          if (autoStoppedRef.current && !manuallyStoppedRef.current) {
+            toast.info(getAutoStopMessage(), { duration: 4000 });
+          } else {
+            toast.success("✅ 転記完了");
+          }
+          setTimeout(() => setTranscriptionStatus("idle"), 5000);
+        } else if (autoStoppedRef.current && !manuallyStoppedRef.current) {
+          setTranscriptionStatus("idle");
+          toast.info(getAutoStopMessage(), { duration: 4000 });
+        } else {
+          setTranscriptionStatus("idle");
+        }
+        autoStoppedRef.current = false;
+        manuallyStoppedRef.current = false;
+        recognitionRef.current = null;
+      };
+
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+        if (
+          event.error === "no-speech" &&
+          isRecordingRef.current &&
+          !manuallyStoppedRef.current &&
+          !autoStoppedRef.current &&
+          !isPausedRef.current
+        ) {
+          if (restartCountRef.current > MAX_RESTART_COUNT / 2) {
+            restartCountRef.current = 0;
+          }
+          return;
+        }
+        clearSilenceTimer();
+        stopElapsedTimer();
+        isRecordingRef.current = false;
+        setRecording(false);
+        setInterimText("");
+        setTranscriptionStatus("error");
+        setPaused(false);
+        autoStoppedRef.current = false;
+        sessionConfirmedTextRef.current = "";
+        restartCountRef.current = 0;
+        recognitionRef.current = null;
+        setTimeout(() => setTranscriptionStatus("idle"), 3000);
+        if (event.error === "not-allowed") {
+          toast.error("マイクのアクセスが許可されていません。ブラウザの設定を確認してください。");
+        } else if (event.error !== "aborted") {
+          toast.error(`音声認識エラー: ${event.error}`);
+        }
+      };
+
+      recognition.start();
+      recognitionRef.current = recognition;
+      resetSilenceTimer(stopFromTimer);
+      toast.success("▶ 再開しました", { duration: 2000 });
+    } catch {
+      setPaused(false);
+      toast.error("音声入力の再開に失敗しました。");
+    }
+  }, [lang, onResult, resetSilenceTimer, clearSilenceTimer, stopElapsedTimer, setPaused, getAutoStopMessage, isIOS]);
+
   // ---- 公開 API ----
   const startVoice = useCallback(() => {
     // iOS Safari 対応: async/await を使わずに同期的に開始する
@@ -780,12 +1015,35 @@ export function useVoiceInput({
   }, [startSpeechRecognition, startMediaRecorder]);
 
   const stopVoice = useCallback(() => {
+    setPaused(false);
     if (recognitionRef.current) {
       stopSpeechRecognition();
-    } else {
+    } else if (mediaRecorderRef.current) {
       stopMediaRecorder();
+    } else if (isPausedRef.current) {
+      // 一時停止中（recognitionRef が null）の場合も停止処理を行う
+      isRecordingRef.current = false;
+      setPaused(false);
+      clearSilenceTimer();
+      stopElapsedTimer();
+      setRecording(false);
+      setInterimText("");
+      const allText = sessionConfirmedTextRef.current.trim();
+      const finalText = allText || lastInterimTextRef.current.trim();
+      lastInterimTextRef.current = "";
+      sessionConfirmedTextRef.current = "";
+      restartCountRef.current = 0;
+      if (finalText) {
+        onResult(finalText);
+        setLastTranscribedText(finalText);
+        setTranscriptionStatus("done");
+        toast.success("✅ 転記完了");
+        setTimeout(() => setTranscriptionStatus("idle"), 5000);
+      } else {
+        setTranscriptionStatus("idle");
+      }
     }
-  }, [stopSpeechRecognition, stopMediaRecorder]);
+  }, [stopSpeechRecognition, stopMediaRecorder, setPaused, clearSilenceTimer, stopElapsedTimer, onResult]);
 
   const toggleVoice = useCallback(() => {
     if (isRecording) {
@@ -794,6 +1052,15 @@ export function useVoiceInput({
       startVoice();
     }
   }, [isRecording, startVoice, stopVoice]);
+
+  const togglePause = useCallback(() => {
+    if (isPaused) {
+      resumeVoice();
+    } else {
+      pauseVoice();
+    }
+  }, [isPaused, pauseVoice, resumeVoice]);
+  void togglePause; // 将来の利用のために宣言（現時点では外部から直接 pauseVoice/resumeVoice を使用）
 
   /**
    * 誤変換フィードバックをサーバーに送信する
@@ -819,10 +1086,13 @@ export function useVoiceInput({
 
   return {
     isRecording,
+    isPaused,
     isProcessing,
     elapsedSeconds,
     startVoice,
     stopVoice,
+    pauseVoice,
+    resumeVoice,
     toggleVoice,
     interimText,
     silenceCountdown,

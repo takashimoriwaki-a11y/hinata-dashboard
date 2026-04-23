@@ -16,15 +16,21 @@
  */
 
 import React from "react";
-import { Loader2, Mic } from "lucide-react";
+import { Loader2, Mic, Pause, Play } from "lucide-react";
 import { useVoiceInput, formatElapsedTime } from "@/hooks/useVoiceInput";
 import { cn } from "@/lib/utils";
 
 /** 外部フック状態の型（useVoiceInput の戻り値のサブセット） */
 export interface VoiceExternalState {
   isRecording: boolean;
+  /** 一時停止中かどうか */
+  isPaused?: boolean;
   isProcessing: boolean;
   toggleVoice: () => void;
+  /** 一時停止する */
+  pauseVoice?: () => void;
+  /** 一時停止から再開する */
+  resumeVoice?: () => void;
   interimText: string;
   silenceCountdown: number | null;
   /** 録音開始からの経過秒数（録音中のみ更新） */
@@ -140,6 +146,11 @@ export function VoiceMicButton({
   const { isRecording, isProcessing, toggleVoice, interimText, silenceCountdown } =
     externalState ?? internalHook;
 
+  // isPaused / pauseVoice / resumeVoice: externalStateに含まれていれば使用、なければ内部フックから取得
+  const isPaused = externalState?.isPaused ?? internalHook.isPaused;
+  const pauseVoice = externalState?.pauseVoice ?? internalHook.pauseVoice;
+  const resumeVoice = externalState?.resumeVoice ?? internalHook.resumeVoice;
+
   // elapsedSeconds: externalStateに含まれていれば使用、なければ内部フックから取得
   const elapsedSeconds = externalState?.elapsedSeconds ?? internalHook.elapsedSeconds;
 
@@ -157,6 +168,7 @@ export function VoiceMicButton({
   const showCountdown = isRecording && silenceCountdown !== null && silenceCountdown <= 5;
 
   const touchHandledRef = React.useRef(false);
+  const pauseTouchHandledRef = React.useRef(false);
 
   const handleClick = () => {
     // onTouchEndで処理済みの場合はスキップ（二重呼び出し防止）
@@ -173,6 +185,32 @@ export function VoiceMicButton({
     touchHandledRef.current = true;
     if (disabled || isProcessing) return;
     toggleVoice();
+  };
+
+  const handlePauseClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (pauseTouchHandledRef.current) {
+      pauseTouchHandledRef.current = false;
+      return;
+    }
+    if (disabled || isProcessing) return;
+    if (isPaused) {
+      resumeVoice?.();
+    } else {
+      pauseVoice?.();
+    }
+  };
+
+  const handlePauseTouchEnd = (e: React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    pauseTouchHandledRef.current = true;
+    if (disabled || isProcessing) return;
+    if (isPaused) {
+      resumeVoice?.();
+    } else {
+      pauseVoice?.();
+    }
   };
 
   const innerButton = (
@@ -222,6 +260,9 @@ export function VoiceMicButton({
       {/* アイコン / 波形 / カウントダウン */}
       {isProcessing ? (
         <Loader2 className={cn(cfg.icon, "animate-spin")} />
+      ) : isRecording && isPaused ? (
+        // 一時停止中: 再生アイコンを表示
+        <Play className={cn(cfg.icon, "fill-white")} />
       ) : isRecording && showCountdown ? (
         // 残り5秒以下: カウントダウン数字を表示
         <span className={cn("font-bold leading-none", cfg.countdown)}>
@@ -290,8 +331,8 @@ export function VoiceMicButton({
   // 外側リング波形アニメーション付きラッパー
   const buttonWithRings = (
     <span className="relative inline-flex flex-col items-center justify-center flex-shrink-0 gap-0.5">
-      {/* 外側リング（1枚目）: 録音中かつカウントダウンなし */}
-      {isRecording && !showCountdown && (
+      {/* 外側リング（1枚目）: 録音中かつカウントダウンなしかつ一時停止中でない */}
+      {isRecording && !showCountdown && !isPaused && (
         <span
           className={cn("absolute pointer-events-none", cfg.ringRadius)}
           style={{
@@ -302,7 +343,7 @@ export function VoiceMicButton({
         />
       )}
       {/* 外側リング（2枚目）: 0.5秒遅延 */}
-      {isRecording && !showCountdown && (
+      {isRecording && !showCountdown && !isPaused && (
         <span
           className={cn("absolute pointer-events-none", cfg.ringRadius)}
           style={{
@@ -313,18 +354,47 @@ export function VoiceMicButton({
         />
       )}
       {innerButton}
+      {/* 一時停止ボタン: 録音中のみ表示（メインボタンの左側に並び、絶対位置で表示） */}
+      {isRecording && !isProcessing && (
+        <button
+          type="button"
+          onClick={handlePauseClick}
+          onTouchEnd={handlePauseTouchEnd}
+          className={cn(
+            "absolute -left-9 top-1/2 -translate-y-1/2",
+            "h-7 w-7 rounded-full",
+            "inline-flex items-center justify-center",
+            "border transition-all duration-200 select-none",
+            "touch-pan-y focus:outline-none",
+            isPaused
+              ? "bg-green-500 border-green-400 text-white shadow-md shadow-green-500/40"
+              : "bg-amber-500 border-amber-400 text-white shadow-md shadow-amber-500/40",
+            "animate-in fade-in-0 zoom-in-95 duration-200"
+          )}
+          aria-label={isPaused ? "再開" : "一時停止"}
+          title={isPaused ? "タップして再開" : "タップして一時停止"}
+        >
+          {isPaused ? (
+            <Play className="w-3.5 h-3.5 fill-white" />
+          ) : (
+            <Pause className="w-3.5 h-3.5 fill-white" />
+          )}
+        </button>
+      )}
       {/* 経過時間バッジ: 録音中かつelapsedPosition="below"のとき表示 */}
       {isRecording && elapsedPosition === "below" && !showCountdown && (
         <span
           className={cn(
             "font-mono font-semibold tabular-nums leading-none pointer-events-none",
             "px-1.5 py-0.5 rounded-full",
-            "bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300",
+            isPaused
+              ? "bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300"
+              : "bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300",
             "animate-in fade-in-0 duration-200",
             cfg.elapsed
           )}
         >
-          {formatElapsedTime(elapsedSeconds)}
+          {isPaused ? "⏸ " : ""}{formatElapsedTime(elapsedSeconds)}
         </span>
       )}
     </span>
@@ -333,9 +403,14 @@ export function VoiceMicButton({
   // inline モード: ボタン + テキストを横並びで返す
   if (previewMode === "inline") {
     return (
-      <span className="inline-flex items-center gap-2 min-w-0">
+      <span className={cn("inline-flex items-center gap-2 min-w-0", isRecording && "pl-10")}>
         {buttonWithRings}
-        {isRecording && interimText && (
+        {isRecording && isPaused && (
+          <span className={cn("text-amber-500 font-medium", cfg.previewText)}>
+            ⏸ 一時停止中 — 再開は左のボタンをタップ
+          </span>
+        )}
+        {isRecording && !isPaused && interimText && (
           <span
             className={cn(
               "text-muted-foreground italic truncate max-w-[180px]",
@@ -346,12 +421,12 @@ export function VoiceMicButton({
             {interimText}
           </span>
         )}
-        {isRecording && !interimText && !showCountdown && (
+        {isRecording && !isPaused && !interimText && !showCountdown && (
           <span className={cn("text-muted-foreground italic", cfg.previewText)}>
             話してください...
           </span>
         )}
-        {isRecording && showCountdown && !interimText && (
+        {isRecording && !isPaused && showCountdown && !interimText && (
           <span className={cn("text-orange-500 font-medium", cfg.previewText)}>
             あと{silenceCountdown}秒で自動停止
           </span>
