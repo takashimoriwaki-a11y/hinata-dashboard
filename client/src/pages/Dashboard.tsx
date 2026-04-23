@@ -1895,15 +1895,13 @@ function ScheduleScreenshotCard() {
     try { localStorage.setItem(SCHEDULE_TEAM_KEY, value); } catch {}
   };
 
-  // 初回ロード時、localStorageに保存値がない場合はユーザーの所属チームをデフォルト選択
+  // user?.teamが変わったら常にselectedTeamを更新（スタッフ管理でチーム変更後に別画面で即時反映）
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(SCHEDULE_TEAM_KEY);
-      if (!saved || !VALID_SCHEDULE_TEAMS.includes(saved as TeamType)) {
-        const t = user?.team;
-        if (t && VALID_SCHEDULE_TEAMS.includes(t as TeamType)) {
-          setSelectedTeamRaw(t as TeamType);
-        }
+      const t = user?.team;
+      if (t && VALID_SCHEDULE_TEAMS.includes(t as TeamType)) {
+        setSelectedTeamRaw(t as TeamType);
+        localStorage.setItem(SCHEDULE_TEAM_KEY, t);
       }
     } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps

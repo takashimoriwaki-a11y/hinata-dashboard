@@ -1238,12 +1238,12 @@ export default function ScheduleChange() {
       setScheduleEndDate(`${y}-${m}-${day}`);
     }
   };
-  // ログインユーザーの所属チームをデフォルトに設定（初回のみ）
+  // ログインユーザーの所属チームをデフォルトに設定（user?.teamが変わったら常に更新）
   useEffect(() => {
     if (!user?.team) return;
     const validTeams: Team[] = ["身体", "天理", "郡山北部", "郡山南部"];
     if (validTeams.includes(user.team as Team)) {
-      setTeam(prev => (prev === "" ? user.team as Team : prev));
+      setTeam(user.team as Team);
     }
     // 「全チーム」「事務員」は未選択のまま（変更連絡は特定チームを選ぶ必要があるため）
   }, [user?.team]);

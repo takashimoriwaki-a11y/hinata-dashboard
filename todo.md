@@ -2950,3 +2950,9 @@
 - [x] VoiceMicButtonコンポーネントから一時停止ボタンUI・isPaused関連コードを削除する
 - [x] VoiceExternalState型からisPaused・pauseVoice・resumeVoiceを削除する
 - [x] テスト実行（278件全合格）
+
+## スタッフ管理：チーム変更後に別画面でデフォルト選択を即時反映（2026-04-23）
+
+- [x] スタッフ管理・チーム選択の実装箇所を調査する
+- [x] チーム変更時に別画面のデフォルト選択を即時反映する修正を実装する（Admin.tsxのonSuccessにauth.me.invalidate追加、Dashboard/Schedule/ScheduleChangeのuseEffect修正）
+- [x] テスト実行（278件全合格）

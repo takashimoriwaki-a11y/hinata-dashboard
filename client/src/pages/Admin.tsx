@@ -1580,8 +1580,10 @@ function StaffManagementPanel() {
   const [editNumberPlate, setEditNumberPlate] = useState("");
 
   const updateInfo = trpc.staff.updateInfo.useMutation({
-    onSuccess: () => {
+    onSuccess: (_, input) => {
       utils.staff.getAll.invalidate();
+      // 変更対象が自分自身の場合はauth.meも更新して別画面のデフォルトチームを即時反映
+      utils.auth.me.invalidate();
       toast.success("スタッフ情報を更新しました");
       setEditStaff(null);
     },
