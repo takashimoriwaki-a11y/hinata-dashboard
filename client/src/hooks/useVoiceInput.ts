@@ -268,6 +268,10 @@ export function useVoiceInput({
   const restartCountRef = useRef(0);
   // 現在録音中かどうかを追跡するRef（onend内での再起動判定に使用）
   const isRecordingRef = useRef(false);
+  // 確定済テキストのRef（再起動をまたいでも正しく引き継がれるようにRefで管理）
+  const confirmedTextRef = useRef("");      // 最後のブロック以前の確定済テキスト
+  const lastBlockTextRef = useRef("");      // 最後の確定ブロック（訂正で上書きされる可能性あり）
+  const lastFinalResultIndexRef = useRef(-1); // 最後の確定結果のresultIndex
   /** 最大再起動回数 */
   const MAX_RESTART_COUNT = 50;
 
@@ -339,10 +343,10 @@ export function useVoiceInput({
       recognition.interimResults = true;  // 暂定結果も取得（リアルタイムプレビュー）
       recognition.maxAlternatives = 1;
 
-      // 確定済テキストの累積（訂正サポート・このセッション内のみ）
-      let confirmedText = "";   // 最後のブロック以前の確定済テキスト
-      let lastBlockText = "";   // 最後の確定ブロック（訂正で上書きされる可能性あり）
-      let lastFinalResultIndex = -1; // 最後の確定結果のresultIndex
+      // 確定済テキストのRefを初期化（再起動をまたいでも正しく引き継がれる）
+      confirmedTextRef.current = "";
+      lastBlockTextRef.current = "";
+      lastFinalResultIndexRef.current = -1;
       autoStoppedRef.current = false;
 
       // 停止関数（タイマーから呼ぶ用）
@@ -830,23 +834,23 @@ export function useVoiceInput({
         }
       };
 
-      // 再開時は既存のonresult/onend/onerrorを再利用するため、
-      // 一時的に startSpeechRecognition を呼ぶのではなく直接セットアップする
-      let confirmedText = "";
-      let lastBlockText = "";
-      let lastFinalResultIndex = -1;
+      // 再開時はRefを初期化して新しいセッションを開始する
+      // onresultハンドラはRefを参照するため、再利用しても正しく動作する
+      confirmedTextRef.current = "";
+      lastBlockTextRef.current = "";
+      lastFinalResultIndexRef.current = -1;
 
       const flushToSession = () => {
-        const sessionText = (confirmedText + lastBlockText).trim();
+        const sessionText = (confirmedTextRef.current + lastBlockTextRef.current).trim();
         if (sessionText) {
           if (sessionConfirmedTextRef.current) {
             sessionConfirmedTextRef.current += " " + sessionText;
           } else {
             sessionConfirmedTextRef.current = sessionText;
           }
-          confirmedText = "";
-          lastBlockText = "";
-          lastFinalResultIndex = -1;
+          confirmedTextRef.current = "";
+          lastBlockTextRef.current = "";
+          lastFinalResultIndexRef.current = -1;
         }
       };
 
@@ -855,12 +859,12 @@ export function useVoiceInput({
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
-            if (i === lastFinalResultIndex) {
-              lastBlockText = transcript;
-            } else if (i > lastFinalResultIndex) {
-              if (lastFinalResultIndex >= 0) confirmedText += lastBlockText;
-              lastBlockText = transcript;
-              lastFinalResultIndex = i;
+            if (i === lastFinalResultIndexRef.current) {
+              lastBlockTextRef.current = transcript;
+            } else if (i > lastFinalResultIndexRef.current) {
+              if (lastFinalResultIndexRef.current >= 0) confirmedTextRef.current += lastBlockTextRef.current;
+              lastBlockTextRef.current = transcript;
+              lastFinalResultIndexRef.current = i;
             }
             currentInterim = "";
           } else {
@@ -891,9 +895,9 @@ export function useVoiceInput({
               newR.continuous = !isIOS;
               newR.interimResults = true;
               newR.maxAlternatives = 1;
-              confirmedText = "";
-              lastBlockText = "";
-              lastFinalResultIndex = -1;
+              confirmedTextRef.current = "";
+              lastBlockTextRef.current = "";
+              lastFinalResultIndexRef.current = -1;
               newR.onresult = recognition.onresult;
               newR.onend = recognition.onend;
               newR.onerror = recognition.onerror;
