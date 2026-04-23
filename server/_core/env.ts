@@ -1,14 +1,19 @@
+/**
+ * アプリケーション環境変数
+ *
+ * Manus OAuth/Forge API への依存を完全に除去し、Google OAuth + Gemini + MySQL 構成に統一
+ */
 export const ENV = {
-  appId: process.env.VITE_APP_ID ?? "",
+  /** セッション Cookie（JWT）の署名シークレット */
   cookieSecret: process.env.JWT_SECRET ?? "",
+  /** MySQL 接続文字列（Railway MySQL から取得） */
   databaseUrl: process.env.DATABASE_URL ?? "",
-  oAuthServerUrl: process.env.OAUTH_SERVER_URL ?? "",
-  ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
+  /** 本番環境フラグ */
   isProduction: process.env.NODE_ENV === "production",
-  forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
-  forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
-  /** 初回セットアップ用の秘密キー（Railway環境変数 SETUP_KEY） */
+  /** 初回セットアップ用シークレット（/setup ページで使用） */
   setupKey: process.env.SETUP_KEY ?? "hinata-setup-2024",
+  /** オーナー（管理者）のメールアドレス - 初回ログイン時に admin 権限を自動付与 */
+  ownerEmail: process.env.OWNER_EMAIL ?? "",
   /** Gemini API キー（音声認識・AI機能用） */
   geminiApiKey: process.env.GEMINI_API_KEY ?? "",
   /** Web Push通知用 VAPIDキー */
