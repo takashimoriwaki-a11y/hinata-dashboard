@@ -476,7 +476,7 @@ export function CreateTaskForm({ onClose, onCreated, userTeam, defaultDueDate }:
             {taskKind === "at_time" ? "実施日時" : "期日"}
           </label>
           <div className="flex gap-2">
-            <div className="relative flex-1">
+            <div className="relative flex-1 min-w-0">
               <input
                 type="date"
                 value={dueDate}
@@ -497,7 +497,7 @@ export function CreateTaskForm({ onClose, onCreated, userTeam, defaultDueDate }:
             <select
               value={dueTime}
               onChange={e => setDueTime(e.target.value)}
-              className="w-28 bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm border border-border"
+              className="w-28 shrink-0 bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm border border-border"
             >
               <option value="">時刻選択</option>
               {Array.from({ length: 24 * 6 }, (_, i) => {
@@ -895,7 +895,7 @@ export function EditTaskForm({ task, onClose, onUpdated, userTeam }: EditFormPro
             {taskKind === "at_time" ? "実施日時" : "期日"}
           </label>
           <div className="flex gap-2">
-            <div className="relative flex-1">
+            <div className="relative flex-1 min-w-0">
               <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
                 className="w-full bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm border border-border"
                 style={{ colorScheme: "light dark" }} />
@@ -906,7 +906,7 @@ export function EditTaskForm({ task, onClose, onUpdated, userTeam }: EditFormPro
               )}
             </div>
             <select value={dueTime} onChange={e => setDueTime(e.target.value)}
-              className="w-28 bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm border border-border">
+              className="w-28 shrink-0 bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm border border-border">
               <option value="">時刻選択</option>
               {Array.from({ length: 24 * 6 }, (_, i) => {
                 const h = Math.floor(i / 6);
