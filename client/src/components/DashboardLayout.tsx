@@ -1010,9 +1010,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
             )}
 
+            {/* 通知の種類説明 */}
+            <div className="flex flex-col gap-1.5 px-3 py-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-xs text-blue-900 dark:text-blue-200 border border-blue-200 dark:border-blue-800">
+              <p className="font-semibold">📬 届く通知の種類</p>
+              <ul className="space-y-0.5 pl-3">
+                <li>・<span className="font-medium">スケジュール更新</span>（下で選択したチーム）</li>
+                <li>・<span className="font-medium">残業申請</span>（特級管理者のみ）</li>
+                <li>・<span className="font-medium">残業承認結果</span>（申請者のみ）</li>
+                <li>・<span className="font-medium">直帰申請</span>（管理者・特級管理者）</li>
+                <li>・<span className="font-medium">直帰承認結果</span>（申請者のみ）</li>
+              </ul>
+            </div>
+
             {/* チーム選択 */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">通知するチーム</label>
+              <label className="text-sm font-medium">スケジュール更新の通知チーム</label>
               <Select value={selectedTeamFilter} onValueChange={setSelectedTeamFilter}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="チームを選択" />
@@ -1026,7 +1038,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                「全チーム」を選ぶと、どのチームのスケジュールが更新されても通知が届きます。
+                「全チーム」を選ぶと、どのチームのスケジュール更新でも通知が届きます。
+                <br />
+                ※この設定はスケジュール更新通知のみに影響します（他の通知はそのまま届きます）
               </p>
             </div>
 
