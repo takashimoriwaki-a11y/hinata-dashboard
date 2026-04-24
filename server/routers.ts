@@ -7450,7 +7450,8 @@ export const appRouter = router({
         if (!input.patientId) return { synced: false, disclosedAt: null };
         const { carePlanDisclosures } = await import("../drizzle/schema");
         const { and, eq: eqDr } = await import("drizzle-orm");
-        const db = getDb();
+        const db = await getDb();
+        if (!db) return { synced: false, disclosedAt: null };
         const today = new Date().toLocaleDateString("ja-JP", {
           timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit"
         }).replace(/\//g, "-");
@@ -7475,7 +7476,10 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const { carePlanDisclosures, carePlanSpreadsheets } = await import("../drizzle/schema");
         const { and, eq: eqDr } = await import("drizzle-orm");
-        const db = getDb();
+        const db = await getDb();
+        if (!db) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "データベース接続エラー" });
+        }
 
         // 本日の日付（JST）
         const now = new Date();
