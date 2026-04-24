@@ -7587,6 +7587,22 @@ export const appRouter = router({
               if (allShareEmails.length > 0) {
                 console.log(`[CarePlanSheet] Shared with: ${allShareEmails.join(", ")}`);
               }
+
+              // kokoronohinata.com ドメイン全員に閲覧権限を付与（全スタッフが見られるように）
+              try {
+                await drive.permissions.create({
+                  fileId: spreadsheetId,
+                  requestBody: {
+                    type: "domain",
+                    role: "reader",
+                    domain: "kokoronohinata.com",
+                  },
+                  sendNotificationEmail: false,
+                });
+                console.log(`[CarePlanSheet] Domain reader permission granted to kokoronohinata.com`);
+              } catch (domainErr) {
+                console.warn(`[CarePlanSheet] Domain permission failed (continuing):`, domainErr);
+              }
             } catch (shareErr) {
               console.warn(`[CarePlanSheet] Share step failed (continuing):`, shareErr);
             }
@@ -7714,6 +7730,393 @@ export const appRouter = router({
         }
 
         return { success: true, disclosedAt, spreadsheetId };
+      }),
+  }),
+  directReturn: router({
+    /** 管理者用：直帰申請一覧取得（yearMonth + status でフィルタ） */
+    getAll: protectedProcedure
+      .input(z.object({
+        yearMonth: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+        status: z.enum(["pending", "approved", "rejected", "all"]).optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { directReturnApprovals } = await import("../drizzle/schema");
+        const { and, eq: eqDr, like, desc } = await import("drizzle-orm");
+        const db = await getDb();
+        if (!db) return [];
+        const conditions = [];
+        if (input?.yearMonth) {
+          conditions.push(like(directReturnApprovals.applicationDate, `${input.yearMonth}%`));
+        }
+        if (input?.status && input.status !== "all") {
+          conditions.push(eqDr(directReturnApprovals.status, input.status));
+        }
+        const query = db.select().from(directReturnApprovals);
+        const rows = conditions.length > 0
+          ? await query.where(and(...conditions)).orderBy(desc(directReturnApprovals.appliedAt))
+          : await query.orderBy(desc(directReturnApprovals.appliedAt));
+        return rows;
+      }),
+    /** 直帰申請を作成する */
+    create: protectedProcedure
+      .input(z.object({
+        reasonCategory: z.enum(["遠方業務", "急用", "体調不良", "その他"]),
+        reasonDetail: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { directReturnApprovals, directReturnSpreadsheets, appNotifications, users: usersTable } = await import("../drizzle/schema");
+        const { eq: eqDr } = await import("drizzle-orm");
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "データベース接続エラー" });
+
+        // 申請日と時刻
+        const now = new Date();
+        const today = now.toLocaleDateString("ja-JP", {
+          timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit"
+        }).replace(/\//g, "-");
+        const year = parseInt(today.split("-")[0]!, 10);
+        const yearMonth = today.substring(0, 7); // "2026-04"
+        const appliedAt = now.getTime();
+        const appliedTimeStr = now.toLocaleTimeString("ja-JP", {
+          timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit"
+        });
+
+        // DBに申請レコード作成（status=pending）
+        const insertResult = await db.insert(directReturnApprovals).values({
+          applicantUserId: ctx.user.id,
+          applicantName: ctx.user.name ?? "不明",
+          applicationDate: today,
+          appliedAt,
+          reasonCategory: input.reasonCategory,
+          reasonDetail: input.reasonDetail ?? null,
+          status: "pending",
+        });
+        const insertedId = (insertResult as any)?.[0]?.insertId ?? (insertResult as any)?.insertId ?? null;
+
+        // ===== Google Sheetsへ転記（pendingで1行追加） =====
+        let sheetRowNumber: number | null = null;
+        let sheetTabName: string | null = null;
+        try {
+          const auth = new google.auth.GoogleAuth({
+            credentials: {
+              client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+              private_key: (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ?? "").replace(/\\n/g, "\n"),
+            },
+            scopes: [
+              "https://www.googleapis.com/auth/spreadsheets",
+              "https://www.googleapis.com/auth/drive",
+            ],
+          });
+          const sheets = google.sheets({ version: "v4", auth });
+          const drive = google.drive({ version: "v3", auth });
+
+          // 年度のスプレッドシート取得 or 新規作成
+          const ssRows = await db.select()
+            .from(directReturnSpreadsheets)
+            .where(eqDr(directReturnSpreadsheets.year, year))
+            .limit(1);
+
+          let spreadsheetId: string;
+          if (ssRows.length > 0) {
+            spreadsheetId = ssRows[0].spreadsheetId;
+          } else {
+            // 新規スプレッドシート作成
+            const title = `直帰申請記録_${year}年度`;
+            const DIRECT_RETURN_FOLDER_ID = "1M1po6_l4AAqqygD9xoQU8jQPF9XXX7_4"; // 他機能と同じフォルダ
+            const createRes = await drive.files.create({
+              requestBody: {
+                name: title,
+                mimeType: "application/vnd.google-apps.spreadsheet",
+                parents: [DIRECT_RETURN_FOLDER_ID],
+              },
+              fields: "id",
+              supportsAllDrives: true,
+            });
+            spreadsheetId = createRes.data.id!;
+
+            // フォルダ移動（保険）
+            try {
+              const fileInfo = await drive.files.get({
+                fileId: spreadsheetId,
+                fields: "parents",
+                supportsAllDrives: true,
+              });
+              const currentParents = (fileInfo.data.parents ?? []).join(",");
+              await drive.files.update({
+                fileId: spreadsheetId,
+                addParents: DIRECT_RETURN_FOLDER_ID,
+                removeParents: currentParents,
+                supportsAllDrives: true,
+                fields: "id, parents",
+              });
+            } catch (e) {
+              console.warn(`[DirectReturn] Folder move skipped:`, e);
+            }
+
+            // 共有設定
+            try {
+              const shareEmailsValue = await getSetting("sheet_share_emails", "");
+              const shareEmails = shareEmailsValue ? shareEmailsValue.split(",").map((e: string) => e.trim()).filter(Boolean) : [];
+              const { getSuperAdminUsers } = await import("./db");
+              const superAdmins = await getSuperAdminUsers();
+              const superAdminEmails = superAdmins.map((u) => u.email).filter((e): e is string => !!e);
+              const allShareEmails = [...new Set([...shareEmails, ...superAdminEmails])];
+              for (const email of allShareEmails) {
+                await drive.permissions.create({
+                  fileId: spreadsheetId,
+                  requestBody: { type: "user", role: "writer", emailAddress: email },
+                  sendNotificationEmail: false,
+                }).catch((e: unknown) => console.warn(`[DirectReturn] Share to ${email} failed:`, e));
+              }
+            } catch (e) {
+              console.warn(`[DirectReturn] Share step failed:`, e);
+            }
+
+            // DBに記録
+            await db.insert(directReturnSpreadsheets).values({
+              year,
+              spreadsheetId,
+              label: title,
+            });
+          }
+
+          // 年月タブ（例：2026-04）の存在チェック
+          const ssInfo = await sheets.spreadsheets.get({ spreadsheetId });
+          const existingTabs = (ssInfo.data.sheets ?? [])
+            .map(s => s.properties?.title ?? "")
+            .filter(Boolean);
+
+          if (!existingTabs.includes(yearMonth)) {
+            // タブを新規作成
+            await sheets.spreadsheets.batchUpdate({
+              spreadsheetId,
+              requestBody: {
+                requests: [{ addSheet: { properties: { title: yearMonth } } }],
+              },
+            });
+            // ヘッダー行
+            const HEADERS = ["申請日", "申請時刻", "申請者", "理由", "詳細", "ステータス", "承認者", "承認日時", "承認者コメント"];
+            await sheets.spreadsheets.values.update({
+              spreadsheetId,
+              range: `${yearMonth}!A1:I1`,
+              valueInputOption: "USER_ENTERED",
+              requestBody: { values: [HEADERS] },
+            });
+
+            // 初回なら Sheet1 を削除
+            try {
+              const afterInfo = await sheets.spreadsheets.get({ spreadsheetId });
+              const sheet1 = (afterInfo.data.sheets ?? []).find(
+                s => s.properties?.title === "Sheet1" || s.properties?.title === "シート1"
+              );
+              if (sheet1?.properties?.sheetId !== undefined && sheet1.properties.sheetId !== null) {
+                await sheets.spreadsheets.batchUpdate({
+                  spreadsheetId,
+                  requestBody: {
+                    requests: [{ deleteSheet: { sheetId: sheet1.properties.sheetId } }],
+                  },
+                });
+              }
+            } catch (e) {
+              console.warn(`[DirectReturn] Sheet1 delete skipped:`, e);
+            }
+          }
+
+          // 行を追加
+          sheetTabName = yearMonth;
+          const newRow = [
+            today,                                // A: 申請日
+            appliedTimeStr,                       // B: 申請時刻
+            ctx.user.name ?? "不明",              // C: 申請者
+            input.reasonCategory,                 // D: 理由
+            input.reasonDetail ?? "",             // E: 詳細
+            "申請中",                             // F: ステータス
+            "",                                   // G: 承認者
+            "",                                   // H: 承認日時
+            "",                                   // I: 承認者コメント
+          ];
+          const appendRes = await sheets.spreadsheets.values.append({
+            spreadsheetId,
+            range: `${yearMonth}!A:I`,
+            valueInputOption: "USER_ENTERED",
+            includeValuesInResponse: false,
+            requestBody: { values: [newRow] },
+          });
+
+          // 追加された行の行番号を取得（updatedRange から）
+          const updatedRange = appendRes.data.updates?.updatedRange ?? "";
+          const rowMatch = updatedRange.match(/!A(\d+):/);
+          if (rowMatch) {
+            sheetRowNumber = parseInt(rowMatch[1]!, 10);
+          }
+
+          // DBに転記行番号を保存
+          if (insertedId && sheetRowNumber) {
+            await db.update(directReturnApprovals)
+              .set({ sheetRowNumber, sheetTabName })
+              .where(eqDr(directReturnApprovals.id, insertedId));
+          }
+          console.log(`[DirectReturn] Appended to ${yearMonth} row ${sheetRowNumber}`);
+        } catch (sheetErr) {
+          console.error("[DirectReturn] Sheets sync failed:", sheetErr);
+          // Sheets失敗でもDB記録は残す（申請者には成功扱い）
+        }
+
+        // ===== 管理者への通知（admin + super_admin） =====
+        try {
+          const admins = await db.select().from(usersTable)
+            .where(eqDr(usersTable.role, "admin"));
+          const { getSuperAdminUsers } = await import("./db");
+          const superAdmins = await getSuperAdminUsers();
+          const allAdmins = [...admins, ...superAdmins];
+          // 重複除去
+          const uniqueAdmins = Array.from(new Map(allAdmins.map(u => [u.id, u])).values());
+
+          const title = `直帰申請：${ctx.user.name ?? "不明"}`;
+          const body = `${today} 理由：${input.reasonCategory}${input.reasonDetail ? `\n詳細：${input.reasonDetail}` : ""}\n承認または却下をお願いします。`;
+
+          // アプリ内通知
+          for (const admin of uniqueAdmins) {
+            await db.insert(appNotifications).values({
+              type: "direct_return_request",
+              title,
+              body,
+              resourceId: insertedId ?? null,
+              targetUserId: admin.id,
+              isRead: 0,
+            }).catch((e) => console.error(`[DirectReturn] App notify failed userId=${admin.id}:`, e));
+          }
+
+          // Push通知
+          for (const admin of uniqueAdmins) {
+            await sendPushToUser(admin.id, {
+              title,
+              body,
+              url: "/direct-return-approval",
+            }).catch((e) => console.error(`[DirectReturn] Push failed userId=${admin.id}:`, e));
+          }
+
+          console.log(`[DirectReturn] Notified ${uniqueAdmins.length} admins`);
+        } catch (notifyErr) {
+          console.error("[DirectReturn] Notification failed:", notifyErr);
+        }
+
+        return { success: true, id: insertedId };
+      }),
+    /** 管理者が承認・却下する */
+    approve: protectedProcedure
+      .input(z.object({
+        id: z.number().int(),
+        status: z.enum(["approved", "rejected"]),
+        approverComment: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { directReturnApprovals, directReturnSpreadsheets, appNotifications } = await import("../drizzle/schema");
+        const { eq: eqDr } = await import("drizzle-orm");
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続エラー" });
+
+        // 対象の申請を取得
+        const rows = await db.select().from(directReturnApprovals)
+          .where(eqDr(directReturnApprovals.id, input.id))
+          .limit(1);
+        if (rows.length === 0) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "申請が見つかりません" });
+        }
+        const request = rows[0];
+        if (request.status !== "pending") {
+          throw new TRPCError({ code: "CONFLICT", message: "既に処理済みの申請です" });
+        }
+
+        const approvedAt = Date.now();
+        const approvedAtStr = new Date(approvedAt).toLocaleString("ja-JP", {
+          timeZone: "Asia/Tokyo", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit"
+        });
+
+        // DB更新
+        await db.update(directReturnApprovals)
+          .set({
+            status: input.status,
+            approverUserId: ctx.user.id,
+            approverName: ctx.user.name ?? "不明",
+            approvedAt,
+            approverComment: input.approverComment ?? null,
+          })
+          .where(eqDr(directReturnApprovals.id, input.id));
+
+        // ===== Sheetsのステータス列を更新 =====
+        if (request.sheetTabName && request.sheetRowNumber) {
+          try {
+            const year = parseInt(request.applicationDate.split("-")[0]!, 10);
+            const ssRows = await db.select().from(directReturnSpreadsheets)
+              .where(eqDr(directReturnSpreadsheets.year, year))
+              .limit(1);
+            if (ssRows.length > 0) {
+              const spreadsheetId = ssRows[0].spreadsheetId;
+              const auth = new google.auth.GoogleAuth({
+                credentials: {
+                  client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+                  private_key: (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ?? "").replace(/\\n/g, "\n"),
+                },
+                scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+              });
+              const sheets = google.sheets({ version: "v4", auth });
+              const statusJp = input.status === "approved" ? "承認済み" : "却下";
+              // F列=ステータス, G列=承認者, H列=承認日時, I列=承認者コメント
+              await sheets.spreadsheets.values.update({
+                spreadsheetId,
+                range: `${request.sheetTabName}!F${request.sheetRowNumber}:I${request.sheetRowNumber}`,
+                valueInputOption: "USER_ENTERED",
+                requestBody: {
+                  values: [[
+                    statusJp,
+                    ctx.user.name ?? "不明",
+                    approvedAtStr,
+                    input.approverComment ?? "",
+                  ]],
+                },
+              });
+              console.log(`[DirectReturn] Updated sheet status: ${request.sheetTabName}!F${request.sheetRowNumber}`);
+            }
+          } catch (e) {
+            console.error("[DirectReturn] Sheet status update failed:", e);
+          }
+        }
+
+        // ===== 申請者に結果通知 =====
+        try {
+          const title = input.status === "approved"
+            ? "直帰申請が承認されました"
+            : "直帰申請が却下されました";
+          const body = `申請日：${request.applicationDate}\n${input.approverComment ? `コメント：${input.approverComment}\n` : ""}承認者：${ctx.user.name ?? "不明"}`;
+
+          // アプリ内通知
+          await db.insert(appNotifications).values({
+            type: input.status === "approved" ? "direct_return_approved" : "direct_return_rejected",
+            title,
+            body,
+            resourceId: input.id,
+            targetUserId: request.applicantUserId,
+            isRead: 0,
+          });
+
+          // Push通知
+          await sendPushToUser(request.applicantUserId, {
+            title,
+            body,
+            url: "/",
+          }).catch((e) => console.error(`[DirectReturn] Push to applicant failed:`, e));
+        } catch (e) {
+          console.error("[DirectReturn] Applicant notify failed:", e);
+        }
+
+        return { success: true };
       }),
   }),
 });
