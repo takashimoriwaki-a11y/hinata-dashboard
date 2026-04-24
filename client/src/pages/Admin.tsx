@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getTeamButtonClass, getTeamButtonStyle } from "@shared/teamColors";
+import TaskImport from "@/pages/TaskImport";
 
 // ============================
 // スプレッドシートURL管理
@@ -970,7 +971,7 @@ export default function Admin() {
   }, []);
 
   // セクション切り替え
-  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "toolLogs" | "alcoholSheets" | "detectorSettings" | "timesheetSheets" | "monthlySignatures" | "improvementSheet" | "changeHistory" | "linkedSheets">("sheets");
+  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "toolLogs" | "alcoholSheets" | "detectorSettings" | "timesheetSheets" | "monthlySignatures" | "improvementSheet" | "changeHistory" | "linkedSheets" | "taskImport">("sheets");
   const { user: currentUser } = useAuth();
 
   return (
@@ -1128,6 +1129,20 @@ export default function Admin() {
             )}
           >
             連携中シート
+          </button>
+        ) : <div />}
+        {/* タスク一括取り込み（特級管理者のみ） */}
+        {currentUser?.role === "super_admin" ? (
+          <button
+            onClick={() => setActiveSection("taskImport")}
+            className={cn(
+              "px-2 py-2 text-xs font-medium rounded-lg border transition-colors text-center",
+              activeSection === "taskImport"
+                ? "bg-primary/10 border-primary text-primary"
+                : "border-border text-muted-foreground hover:text-foreground hover:border-primary/50"
+            )}
+          >
+            タスク取込
           </button>
         ) : <div />}
       </div>
@@ -1345,6 +1360,8 @@ export default function Admin() {
       {activeSection === "changeHistory" && (currentUser?.role === "admin" || currentUser?.role === "super_admin") && <ChangeHistoryPanel />}
       {/* 連携中シート（特級管理者のみ） */}
       {activeSection === "linkedSheets" && currentUser?.role === "super_admin" && <LinkedSheetsPanel />}
+      {/* タスク一括取り込み（特級管理者のみ） */}
+      {activeSection === "taskImport" && currentUser?.role === "super_admin" && <TaskImport />}
 
     </div>
   );
