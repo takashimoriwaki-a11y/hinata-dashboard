@@ -7566,48 +7566,8 @@ export const appRouter = router({
               console.warn(`[CarePlanSheet] Folder move failed (continuing):`, moveErr);
             }
 
-            // デフォルトシート名を「概要」にリネーム
-            // デフォルトシートを1つ目のチーム「身体」にリネーム
-            const spreadsheetInfo = await sheets.spreadsheets.get({ spreadsheetId });
-            const defaultSheetId = spreadsheetInfo.data.sheets?.[0]?.properties?.sheetId;
-            const defaultSheetName = spreadsheetInfo.data.sheets?.[0]?.properties?.title ?? "Sheet1";
-            if (defaultSheetName !== "身体" && defaultSheetId !== undefined) {
-              await sheets.spreadsheets.batchUpdate({
-                spreadsheetId,
-                requestBody: {
-                  requests: [{
-                    updateSheetProperties: {
-                      properties: { sheetId: defaultSheetId, title: "身体" },
-                      fields: "title",
-                    },
-                  }],
-                },
-              });
-            }
-
-            // 残り3チームのタブを追加（天理、郡山北部、郡山南部）
-            await sheets.spreadsheets.batchUpdate({
-              spreadsheetId,
-              requestBody: {
-                requests: [
-                  { addSheet: { properties: { title: "天理" } } },
-                  { addSheet: { properties: { title: "郡山北部" } } },
-                  { addSheet: { properties: { title: "郡山南部" } } },
-                ],
-              },
-            });
-
-            // 4チーム全タブにヘッダー行を追加
-            const HEADERS = ["開示日", "開示時刻", "利用者名", "チーム", "開示者名"];
-            const TEAM_TABS = ["身体", "天理", "郡山北部", "郡山南部"];
-            for (const tab of TEAM_TABS) {
-              await sheets.spreadsheets.values.update({
-                spreadsheetId,
-                range: `${tab}!A1:E1`,
-                valueInputOption: "USER_ENTERED",
-                requestBody: { values: [HEADERS] },
-              });
-            }
+            // 初回は空のスプレッドシート（デフォルトのSheet1のみ）として作成
+            // タブは転記時に「年月_チーム」形式で動的生成する
 
             // 共有設定（既存のsheet_share_emailsと特級管理者）
             try {
@@ -7639,9 +7599,72 @@ export const appRouter = router({
             });
           }
 
-          // チームに応じたタブに行追加
+          // ===== 年月×チームのタブを動的に作成・取得 =====
+          // 今月の年月文字列（YYYY-MM）
+          const yearMonth = today.substring(0, 7); // "2026-04"
           const VALID_TEAMS = ["身体", "天理", "郡山北部", "郡山南部"];
-          sheetTabName = VALID_TEAMS.includes(input.team ?? "") ? input.team! : "身体";
+          const teamForTab = VALID_TEAMS.includes(input.team ?? "") ? input.team! : "身体";
+          const targetTabName = `${yearMonth}_${teamForTab}`;
+
+          // 現在の全タブ名を取得
+          const ssInfo = await sheets.spreadsheets.get({ spreadsheetId });
+          const existingTabs = (ssInfo.data.sheets ?? [])
+            .map(s => s.properties?.title ?? "")
+            .filter(Boolean);
+
+          // 今月×4チームのタブが1つでもなければ、4タブ一気に作成
+          const thisMonthTabNames = VALID_TEAMS.map(t => `${yearMonth}_${t}`);
+          const missingTabs = thisMonthTabNames.filter(t => !existingTabs.includes(t));
+
+          if (missingTabs.length > 0) {
+            console.log(`[CarePlanSheet] Creating missing tabs: ${missingTabs.join(", ")}`);
+
+            // 足りないタブをまとめて追加
+            await sheets.spreadsheets.batchUpdate({
+              spreadsheetId,
+              requestBody: {
+                requests: missingTabs.map(tabName => ({
+                  addSheet: { properties: { title: tabName } },
+                })),
+              },
+            });
+
+            // 新規作成した各タブにヘッダー行を追加
+            const HEADERS = ["開示日", "開示時刻", "利用者名", "チーム", "開示者名"];
+            for (const tabName of missingTabs) {
+              await sheets.spreadsheets.values.update({
+                spreadsheetId,
+                range: `${tabName}!A1:E1`,
+                valueInputOption: "USER_ENTERED",
+                requestBody: { values: [HEADERS] },
+              });
+            }
+
+            // 初回シート作成時のみ: デフォルトのSheet1を削除
+            // （Sheet1だけ残った空のシートをクリーンにする）
+            try {
+              const afterInfo = await sheets.spreadsheets.get({ spreadsheetId });
+              const sheet1 = (afterInfo.data.sheets ?? []).find(
+                s => s.properties?.title === "Sheet1" || s.properties?.title === "シート1"
+              );
+              if (sheet1?.properties?.sheetId !== undefined && sheet1.properties.sheetId !== null) {
+                await sheets.spreadsheets.batchUpdate({
+                  spreadsheetId,
+                  requestBody: {
+                    requests: [{
+                      deleteSheet: { sheetId: sheet1.properties.sheetId },
+                    }],
+                  },
+                });
+                console.log(`[CarePlanSheet] Deleted default Sheet1`);
+              }
+            } catch (delErr) {
+              console.warn(`[CarePlanSheet] Sheet1 delete skipped:`, delErr);
+            }
+          }
+
+          // 該当月×チームのタブに行を追加
+          sheetTabName = targetTabName;
           const newRow = [
             today,
             disclosedTimeStr,
