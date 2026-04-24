@@ -7760,6 +7760,48 @@ export const appRouter = router({
           : await query.orderBy(desc(directReturnApprovals.appliedAt));
         return rows;
       }),
+    /** 現在の年度の直帰申請スプレッドシートURLを取得（管理者用） */
+    getSpreadsheetUrl: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { directReturnSpreadsheets } = await import("../drizzle/schema");
+        const { eq: eqDr, desc: descDr } = await import("drizzle-orm");
+        const db = await getDb();
+        if (!db) return null;
+        // 現在の年を取得
+        const now = new Date();
+        const today = now.toLocaleDateString("ja-JP", {
+          timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit"
+        }).replace(/\//g, "-");
+        const year = parseInt(today.split("-")[0]!, 10);
+        // 今年度のシートを取得、なければ最新年度
+        const thisYear = await db.select().from(directReturnSpreadsheets)
+          .where(eqDr(directReturnSpreadsheets.year, year))
+          .limit(1);
+        if (thisYear.length > 0) {
+          return {
+            spreadsheetId: thisYear[0].spreadsheetId,
+            url: `https://docs.google.com/spreadsheets/d/${thisYear[0].spreadsheetId}/edit`,
+            label: thisYear[0].label,
+            year: thisYear[0].year,
+          };
+        }
+        // 今年度がなければ最新の年度
+        const latest = await db.select().from(directReturnSpreadsheets)
+          .orderBy(descDr(directReturnSpreadsheets.year))
+          .limit(1);
+        if (latest.length > 0) {
+          return {
+            spreadsheetId: latest[0].spreadsheetId,
+            url: `https://docs.google.com/spreadsheets/d/${latest[0].spreadsheetId}/edit`,
+            label: latest[0].label,
+            year: latest[0].year,
+          };
+        }
+        return null;
+      }),
     /** 直帰申請を作成する */
     create: protectedProcedure
       .input(z.object({
@@ -7856,20 +7898,23 @@ export const appRouter = router({
               console.warn(`[DirectReturn] Folder move skipped:`, e);
             }
 
-            // 共有設定
+            // 共有設定（管理者 + 特級管理者 + sheet_share_emails すべてに編集者権限付与）
             try {
               const shareEmailsValue = await getSetting("sheet_share_emails", "");
               const shareEmails = shareEmailsValue ? shareEmailsValue.split(",").map((e: string) => e.trim()).filter(Boolean) : [];
-              const { getSuperAdminUsers } = await import("./db");
-              const superAdmins = await getSuperAdminUsers();
-              const superAdminEmails = superAdmins.map((u) => u.email).filter((e): e is string => !!e);
-              const allShareEmails = [...new Set([...shareEmails, ...superAdminEmails])];
+              const { getAdminAndSuperAdminUsers } = await import("./db");
+              const allAdmins = await getAdminAndSuperAdminUsers();
+              const adminEmails = allAdmins.map((u) => u.email).filter((e): e is string => !!e);
+              const allShareEmails = [...new Set([...shareEmails, ...adminEmails])];
               for (const email of allShareEmails) {
                 await drive.permissions.create({
                   fileId: spreadsheetId,
                   requestBody: { type: "user", role: "writer", emailAddress: email },
                   sendNotificationEmail: false,
                 }).catch((e: unknown) => console.warn(`[DirectReturn] Share to ${email} failed:`, e));
+              }
+              if (allShareEmails.length > 0) {
+                console.log(`[DirectReturn] Shared with ${allShareEmails.length} admins: ${allShareEmails.join(", ")}`);
               }
             } catch (e) {
               console.warn(`[DirectReturn] Share step failed:`, e);
