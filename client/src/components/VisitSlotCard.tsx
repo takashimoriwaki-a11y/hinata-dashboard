@@ -43,8 +43,9 @@ const VISIT_TASKS_BEFORE_DEFAULT = [
   { id: "voice_memo", label: "ボイスメモ", checked: false, optional: false },
   { id: "limit_mgmt", label: "上限管理票の確認、記載", checked: false, optional: false },
   { id: "fee_sheet", label: "料金表記入", checked: false, optional: false },
-  { id: "docs_hand", label: "請求書、領収書、看護計画渡す", checked: false, optional: true },
+  { id: "docs_hand", label: "請求書、領収書渡す", checked: false, optional: true },
   { id: "insurance", label: "月初めは保険証、マイナンバーカード確認と読み込み", checked: false, optional: true },
+  { id: "care_plan", label: "看護計画開示", checked: false, optional: true },
 ];
 
 type Team = "身体" | "天理" | "郡山北部" | "郡山南部";
@@ -309,6 +310,44 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
     },
     onError: (err) => toast.error(`保存エラー: ${err.message}`),
   });
+
+  // 看護計画開示：本日の転記済みフラグを取得
+  const carePlanCheck = trpc.carePlanDisclosures.checkToday.useQuery(
+    { patientId: slotData.patientId ?? 0 },
+    { enabled: !!slotData.patientId, refetchOnWindowFocus: false }
+  );
+  const carePlanSyncedToday = !!carePlanCheck.data?.synced;
+  const carePlanSyncedAt = carePlanCheck.data?.disclosedAt ?? null;
+
+  // 看護計画開示：転記mutation
+  const carePlanSync = trpc.carePlanDisclosures.sync.useMutation({
+    onSuccess: () => {
+      toast.success(`${slotData.patientName}さんの看護計画開示を記録しました`);
+      carePlanCheck.refetch();
+    },
+    onError: (err) => {
+      if (err.message.includes("既に転記済み") || err.message.includes("duplicate")) {
+        toast.error("本日この利用者への看護計画開示は既に記録済みです");
+        carePlanCheck.refetch();
+      } else {
+        toast.error(`転記エラー: ${err.message}`);
+      }
+    },
+  });
+
+  const handleSyncCarePlan = useCallback(() => {
+    if (!slotData.patientId || !slotData.patientName) {
+      toast.error("利用者を選択してください");
+      return;
+    }
+    carePlanSync.mutate({
+      patientId: slotData.patientId,
+      patientName: slotData.patientName,
+      team: slotData.team || undefined,
+      slotIndex,
+    });
+  }, [slotData.patientId, slotData.patientName, slotData.team, slotIndex, carePlanSync]);
+
 
   // localStorageへの状態保存
   const saveToStorage = useCallback(() => {
@@ -641,6 +680,39 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                           <ExternalLink className="w-3 h-3" />
                           利用者料金表
                         </a>
+                      )}
+                      {/* 看護計画開示の横にスプレッドシート転記ボタン（チェック後のみ活性化） */}
+                      {task.id === "care_plan" && slotData.patientId && slotData.patientName && (
+                        <button
+                          type="button"
+                          onClick={e => { e.preventDefault(); e.stopPropagation(); handleSyncCarePlan(); }}
+                          disabled={!task.checked || carePlanSyncedToday || carePlanSync.isPending}
+                          className={cn(
+                            "flex-shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border transition-colors",
+                            carePlanSyncedToday
+                              ? "bg-muted border-border text-muted-foreground cursor-default"
+                              : task.checked
+                                ? "bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 cursor-pointer"
+                                : "bg-muted/30 border-border/50 text-muted-foreground/60 cursor-not-allowed"
+                          )}
+                        >
+                          {carePlanSyncedToday ? (
+                            <>
+                              <Check className="w-3 h-3" />
+                              転記済み{carePlanSyncedAt ? `（${new Date(carePlanSyncedAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}）` : ""}
+                            </>
+                          ) : carePlanSync.isPending ? (
+                            <>
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              転記中...
+                            </>
+                          ) : (
+                            <>
+                              <ExternalLink className="w-3 h-3" />
+                              スプレッドシートへ転記
+                            </>
+                          )}
+                        </button>
                       )}
                     </div>
                   </label>
