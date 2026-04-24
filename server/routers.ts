@@ -2675,6 +2675,213 @@ export const appRouter = router({
         ).orderBy(tasks.createdAt);
       }),
   }),
+  // ========== タスク一括取り込み（特級管理者専用） ===========
+  taskImport: router({
+    /**
+     * TSV貼り付け → プレビュー用に解析
+     * 利用者名・担当者名のマッチング結果を返す（DB書き込みなし）
+     */
+    preview: protectedProcedure
+      .input(z.object({ tsv: z.string().min(1) }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "super_admin") {
+          throw new Error("この機能は特級管理者のみ使用できます");
+        }
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const { patients, users } = await import("../drizzle/schema");
+        const { eq, and } = await import("drizzle-orm");
+
+        // 利用者一覧・スタッフ一覧を取得
+        const allPatients = await db.select().from(patients).where(eq(patients.active, 1));
+        const allUsers = await db.select().from(users);
+
+        // TSVをパース
+        const lines = input.tsv.split(/\r?\n/).filter((l) => l.trim().length > 0);
+        if (lines.length === 0) {
+          throw new Error("TSVが空です");
+        }
+
+        // ヘッダー行を検出（「No」または「種別」を含む行）
+        let startIdx = 0;
+        if (lines[0].includes("No") || lines[0].includes("種別") || lines[0].includes("利用者")) {
+          startIdx = 1;
+        }
+
+        const rows: Array<{
+          lineNo: number;
+          no: string;
+          kind: string;
+          patientRaw: string;
+          text: string;
+          dueDateRaw: string;
+          assigneeRaw: string;
+          teamRaw: string;
+          // 解析結果
+          parsedDueDate: Date | null;
+          matchedPatient: { id: number; name: string; team: string } | null;
+          matchedUser: { id: number; name: string } | null;
+          matchedTeam: "身体" | "天理" | "郡山北部" | "郡山南部" | null;
+          isIndividualTask: boolean;
+          warnings: string[];
+        }> = [];
+
+        for (let i = startIdx; i < lines.length; i++) {
+          const cols = lines[i].split("\t");
+          if (cols.length < 5) continue; // 最低限 No/種別/利用者/内容/期日 必要
+
+          const no = (cols[0] ?? "").trim();
+          const kind = (cols[1] ?? "").trim();
+          const patientRaw = (cols[2] ?? "").trim().replace(/様$/, "");
+          const text = (cols[3] ?? "").trim();
+          const dueDateRaw = (cols[4] ?? "").trim();
+          const assigneeRaw = (cols[5] ?? "").trim();
+          const teamRaw = (cols[6] ?? "").trim();
+
+          const warnings: string[] = [];
+
+          // 期日パース（YYYY-MM-DD、M/D、YYYY/M/D に対応）
+          let parsedDueDate: Date | null = null;
+          if (dueDateRaw) {
+            const m1 = dueDateRaw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+            const m2 = dueDateRaw.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+            const m3 = dueDateRaw.match(/^(\d{1,2})\/(\d{1,2})$/);
+            if (m1) {
+              parsedDueDate = new Date(Number(m1[1]), Number(m1[2]) - 1, Number(m1[3]), 23, 59, 0);
+            } else if (m2) {
+              parsedDueDate = new Date(Number(m2[1]), Number(m2[2]) - 1, Number(m2[3]), 23, 59, 0);
+            } else if (m3) {
+              const year = new Date().getFullYear();
+              parsedDueDate = new Date(year, Number(m3[1]) - 1, Number(m3[2]), 23, 59, 0);
+            } else {
+              warnings.push(`期日「${dueDateRaw}」を解釈できませんでした`);
+            }
+          }
+
+          // 個人タスクかどうか判定（種別に「個人」が含まれる）
+          const isIndividualTask = kind.includes("個人");
+
+          // 利用者マッチング（個人タスクの場合はスキップ）
+          let matchedPatient: { id: number; name: string; team: string } | null = null;
+          if (!isIndividualTask && patientRaw) {
+            const p = allPatients.find((pt) => pt.name === patientRaw);
+            if (p) {
+              matchedPatient = { id: p.id, name: p.name, team: p.team };
+            } else {
+              // 部分マッチも試す
+              const partial = allPatients.find(
+                (pt) => pt.name.includes(patientRaw) || patientRaw.includes(pt.name)
+              );
+              if (partial) {
+                matchedPatient = { id: partial.id, name: partial.name, team: partial.team };
+                warnings.push(`利用者「${patientRaw}」→ 部分マッチで「${partial.name}」`);
+              } else {
+                warnings.push(`利用者「${patientRaw}」が見つかりません`);
+              }
+            }
+          }
+
+          // 担当者マッチング
+          let matchedUser: { id: number; name: string } | null = null;
+          if (assigneeRaw) {
+            const u = allUsers.find((us) => us.name === assigneeRaw);
+            if (u) {
+              matchedUser = { id: u.id, name: u.name };
+            } else {
+              warnings.push(`担当者「${assigneeRaw}」が見つかりません`);
+            }
+          }
+
+          // チーム判定（matchedPatient の team 優先、なければ teamRaw）
+          let matchedTeam: "身体" | "天理" | "郡山北部" | "郡山南部" | null = null;
+          const validTeams = ["身体", "天理", "郡山北部", "郡山南部"] as const;
+          if (matchedPatient) {
+            matchedTeam = matchedPatient.team as typeof validTeams[number];
+          } else if (validTeams.includes(teamRaw as typeof validTeams[number])) {
+            matchedTeam = teamRaw as typeof validTeams[number];
+          }
+
+          rows.push({
+            lineNo: i + 1,
+            no,
+            kind,
+            patientRaw,
+            text,
+            dueDateRaw,
+            assigneeRaw,
+            teamRaw,
+            parsedDueDate,
+            matchedPatient,
+            matchedUser,
+            matchedTeam,
+            isIndividualTask,
+            warnings,
+          });
+        }
+
+        return {
+          totalRows: rows.length,
+          rows,
+          summary: {
+            patientMatched: rows.filter((r) => !r.isIndividualTask && r.matchedPatient).length,
+            patientUnmatched: rows.filter((r) => !r.isIndividualTask && !r.matchedPatient).length,
+            individualTasks: rows.filter((r) => r.isIndividualTask).length,
+            assigneeMatched: rows.filter((r) => r.matchedUser).length,
+            dateParsed: rows.filter((r) => r.parsedDueDate !== null).length,
+          },
+        };
+      }),
+
+    /**
+     * 取り込み実行：確定したデータを tasks テーブルに INSERT
+     */
+    execute: protectedProcedure
+      .input(
+        z.object({
+          rows: z.array(
+            z.object({
+              text: z.string().min(1),
+              patientName: z.string().nullable(),
+              dueDate: z.string().nullable(), // ISO文字列で受け取る
+              assignType: z.enum(["all", "team", "personal"]),
+              assignTeam: z.enum(["身体", "天理", "郡山北部", "郡山南部"]).nullable(),
+              assignUserId: z.number().nullable(),
+              assignUserName: z.string().nullable(),
+            })
+          ),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "super_admin") {
+          throw new Error("この機能は特級管理者のみ使用できます");
+        }
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const { tasks } = await import("../drizzle/schema");
+
+        let insertedCount = 0;
+        for (const row of input.rows) {
+          await db.insert(tasks).values({
+            text: row.text,
+            done: 0,
+            dueDate: row.dueDate ? new Date(row.dueDate) : null,
+            taskKind: "by_deadline",
+            createdBy: ctx.user.id,
+            createdByName: ctx.user.name ?? "森脇　崇",
+            assignType: row.assignType,
+            assignTeam: row.assignTeam,
+            assignUserId: row.assignUserId,
+            assignUserName: row.assignUserName,
+            patientName: row.patientName,
+            repeatType: "none",
+          });
+          insertedCount++;
+        }
+
+        broadcastEvent("tasks");
+        return { success: true, insertedCount };
+      }),
+  }),
   // ========== メッセージ ===========
   messages: router({
     // 現在表示すべきメッセージ一覧（リアクション付き）
@@ -8191,3 +8398,4 @@ export const appRouter = router({
   }),
 });
 export type AppRouter = typeof appRouter;
+
