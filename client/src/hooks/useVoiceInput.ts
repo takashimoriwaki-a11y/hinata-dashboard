@@ -350,16 +350,16 @@ export function useVoiceInput({
        * 再起動前に呼ぶことで、再起動をまたいでもテキストが保持される
        */
       const flushToSession = () => {
-        const sessionText = (confirmedText + lastBlockText).trim();
+        const sessionText = (confirmedTextRef.current + lastBlockTextRef.current).trim();
         if (sessionText) {
           if (sessionConfirmedTextRef.current) {
             sessionConfirmedTextRef.current += " " + sessionText;
           } else {
             sessionConfirmedTextRef.current = sessionText;
           }
-          confirmedText = "";
-          lastBlockText = "";
-          lastFinalResultIndex = -1;
+          confirmedTextRef.current = "";
+          lastBlockTextRef.current = "";
+          lastFinalResultIndexRef.current = -1;
         }
       };
 
@@ -368,18 +368,18 @@ export function useVoiceInput({
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
-            if (i === lastFinalResultIndex) {
-              lastBlockText = transcript;
-            } else if (i > lastFinalResultIndex) {
-              if (lastFinalResultIndex >= 0) {
-                confirmedText += lastBlockText;
+            if (i === lastFinalResultIndexRef.current) {
+              lastBlockTextRef.current = transcript;
+            } else if (i > lastFinalResultIndexRef.current) {
+              if (lastFinalResultIndexRef.current >= 0) {
+                confirmedTextRef.current += lastBlockTextRef.current;
               }
-              lastBlockText = transcript;
-              lastFinalResultIndex = i;
+              lastBlockTextRef.current = transcript;
+              lastFinalResultIndexRef.current = i;
             }
             currentInterim = "";
-            // 確定テキストをリアルタイムで更新（confirmedText + lastBlockText = 現在の確定済み全文）
-            const currentConfirmed = (confirmedText + lastBlockText).trim();
+            // 確定テキストをリアルタイムで更新（confirmedTextRef.current + lastBlockTextRef.current = 現在の確定済み全文）
+            const currentConfirmed = (confirmedTextRef.current + lastBlockTextRef.current).trim();
             setLiveConfirmedText(currentConfirmed);
           } else {
             currentInterim += transcript;
@@ -419,9 +419,9 @@ export function useVoiceInput({
               newRecognition.maxAlternatives = 1;
 
               // 新しいセッションの変数をリセット
-              confirmedText = "";
-              lastBlockText = "";
-              lastFinalResultIndex = -1;
+              confirmedTextRef.current = "";
+              lastBlockTextRef.current = "";
+              lastFinalResultIndexRef.current = -1;
 
               // イベントハンドラを再設定
               newRecognition.onresult = recognition.onresult;
