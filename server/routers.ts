@@ -7442,6 +7442,265 @@ export const appRouter = router({
         return { ok: true };
       }),
   }),
+  carePlanDisclosures: router({
+    /** 本日この利用者への看護計画開示が転記済みかチェック */
+    checkToday: protectedProcedure
+      .input(z.object({ patientId: z.number() }))
+      .query(async ({ input }) => {
+        if (!input.patientId) return { synced: false, disclosedAt: null };
+        const { carePlanDisclosures } = await import("../drizzle/schema");
+        const { and, eq: eqDr } = await import("drizzle-orm");
+        const db = getDb();
+        const today = new Date().toLocaleDateString("ja-JP", {
+          timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit"
+        }).replace(/\//g, "-");
+        const rows = await db.select()
+          .from(carePlanDisclosures)
+          .where(and(
+            eqDr(carePlanDisclosures.patientId, input.patientId),
+            eqDr(carePlanDisclosures.disclosedDate, today),
+          ))
+          .limit(1);
+        if (rows.length === 0) return { synced: false, disclosedAt: null };
+        return { synced: true, disclosedAt: rows[0].disclosedAt };
+      }),
+    /** 看護計画開示の記録 + Sheets転記 */
+    sync: protectedProcedure
+      .input(z.object({
+        patientId: z.number(),
+        patientName: z.string().min(1),
+        team: z.string().optional(),
+        slotIndex: z.number().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { carePlanDisclosures, carePlanSpreadsheets } = await import("../drizzle/schema");
+        const { and, eq: eqDr } = await import("drizzle-orm");
+        const db = getDb();
+
+        // 本日の日付（JST）
+        const now = new Date();
+        const jstNow = new Date(now.getTime());
+        const today = jstNow.toLocaleDateString("ja-JP", {
+          timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit"
+        }).replace(/\//g, "-");
+        const year = parseInt(today.split("-")[0]!, 10);
+
+        // 重複チェック（同一利用者・同一日で1件まで）
+        const existing = await db.select()
+          .from(carePlanDisclosures)
+          .where(and(
+            eqDr(carePlanDisclosures.patientId, input.patientId),
+            eqDr(carePlanDisclosures.disclosedDate, today),
+          ))
+          .limit(1);
+        if (existing.length > 0) {
+          throw new TRPCError({ code: "CONFLICT", message: "本日この利用者への看護計画開示は既に転記済みです" });
+        }
+
+        // 開示時刻
+        const disclosedAt = now.getTime();
+        const disclosedTimeStr = now.toLocaleTimeString("ja-JP", {
+          timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit"
+        });
+
+        // ===== Google Sheetsへ転記 =====
+        let spreadsheetId: string | null = null;
+        let sheetTabName: string | null = null;
+        try {
+          const auth = new google.auth.GoogleAuth({
+            credentials: {
+              client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+              private_key: (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ?? "").replace(/\\n/g, "\n"),
+            },
+            scopes: [
+              "https://www.googleapis.com/auth/spreadsheets",
+              "https://www.googleapis.com/auth/drive",
+            ],
+          });
+          const sheets = google.sheets({ version: "v4", auth });
+          const drive = google.drive({ version: "v3", auth });
+
+          // 年度のスプレッドシート取得 or 新規作成
+          const ssRows = await db.select()
+            .from(carePlanSpreadsheets)
+            .where(eqDr(carePlanSpreadsheets.year, year))
+            .limit(1);
+          if (ssRows.length > 0) {
+            spreadsheetId = ssRows[0].spreadsheetId;
+          } else {
+            // 新規スプレッドシート作成
+            const title = `看護計画開示記録_${year}年度`;
+            const CARE_PLAN_FOLDER_ID = "1M1po6_l4AAqqygD9xoQU8jQPF9XXX7_4"; // アルコールチェックと同じフォルダ
+            const createRes = await drive.files.create({
+              requestBody: {
+                name: title,
+                mimeType: "application/vnd.google-apps.spreadsheet",
+                parents: [CARE_PLAN_FOLDER_ID],
+              },
+              fields: "id",
+              supportsAllDrives: true,
+            });
+            spreadsheetId = createRes.data.id!;
+            console.log(`[CarePlanSheet] Created spreadsheet: ${spreadsheetId}`);
+
+            // フォルダへ明示移動（保険）
+            try {
+              const fileInfo = await drive.files.get({
+                fileId: spreadsheetId,
+                fields: "parents",
+                supportsAllDrives: true,
+              });
+              const currentParents = (fileInfo.data.parents ?? []).join(",");
+              await drive.files.update({
+                fileId: spreadsheetId,
+                addParents: CARE_PLAN_FOLDER_ID,
+                removeParents: currentParents,
+                supportsAllDrives: true,
+                fields: "id, parents",
+              });
+            } catch (moveErr) {
+              console.warn(`[CarePlanSheet] Folder move failed (continuing):`, moveErr);
+            }
+
+            // デフォルトシート名を「概要」にリネーム
+            const spreadsheetInfo = await sheets.spreadsheets.get({ spreadsheetId });
+            const defaultSheetId = spreadsheetInfo.data.sheets?.[0]?.properties?.sheetId;
+            const defaultSheetName = spreadsheetInfo.data.sheets?.[0]?.properties?.title ?? "Sheet1";
+            if (defaultSheetName !== "概要" && defaultSheetId !== undefined) {
+              await sheets.spreadsheets.batchUpdate({
+                spreadsheetId,
+                requestBody: {
+                  requests: [{
+                    updateSheetProperties: {
+                      properties: { sheetId: defaultSheetId, title: "概要" },
+                      fields: "title",
+                    },
+                  }],
+                },
+              });
+            }
+            // 概要シートに説明
+            await sheets.spreadsheets.values.update({
+              spreadsheetId,
+              range: "概要!A1:B5",
+              valueInputOption: "USER_ENTERED",
+              requestBody: {
+                values: [
+                  ["看護計画開示記録", `${year}年度`],
+                  ["作成日時", new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })],
+                  ["内容", "訪問時に看護計画を利用者・家族に開示した記録が自動転記されます"],
+                  ["記載項目", "開示日 / 開示時刻 / 利用者ID / 利用者名 / チーム / 開示者ID / 開示者名 / 訪問枠ID"],
+                  ["重複防止", "同一利用者・同一日で1件まで（DBレベルで制御）"],
+                ],
+              },
+            });
+
+            // データシート（記録）作成
+            await sheets.spreadsheets.batchUpdate({
+              spreadsheetId,
+              requestBody: {
+                requests: [{
+                  addSheet: {
+                    properties: { title: "記録" },
+                  },
+                }],
+              },
+            });
+            // ヘッダー行を追加
+            const HEADERS = ["開示日", "開示時刻", "利用者ID", "利用者名", "チーム", "開示者ID", "開示者名", "訪問枠ID"];
+            await sheets.spreadsheets.values.update({
+              spreadsheetId,
+              range: "記録!A1:H1",
+              valueInputOption: "USER_ENTERED",
+              requestBody: { values: [HEADERS] },
+            });
+
+            // 共有設定（既存のsheet_share_emailsと特級管理者）
+            try {
+              const shareEmailsValue = await getSetting("sheet_share_emails", "");
+              const shareEmails = shareEmailsValue ? shareEmailsValue.split(",").map((e: string) => e.trim()).filter(Boolean) : [];
+              const { getSuperAdminUsers } = await import("./db");
+              const superAdmins = await getSuperAdminUsers();
+              const superAdminEmails = superAdmins.map((u) => u.email).filter((e): e is string => !!e);
+              const allShareEmails = [...new Set([...shareEmails, ...superAdminEmails])];
+              for (const email of allShareEmails) {
+                await drive.permissions.create({
+                  fileId: spreadsheetId,
+                  requestBody: { type: "user", role: "writer", emailAddress: email },
+                  sendNotificationEmail: false,
+                }).catch((e: unknown) => console.warn(`[CarePlanSheet] Share to ${email} failed:`, e));
+              }
+              if (allShareEmails.length > 0) {
+                console.log(`[CarePlanSheet] Shared with: ${allShareEmails.join(", ")}`);
+              }
+            } catch (shareErr) {
+              console.warn(`[CarePlanSheet] Share step failed (continuing):`, shareErr);
+            }
+
+            // DBに登録
+            await db.insert(carePlanSpreadsheets).values({
+              year,
+              spreadsheetId,
+              label: title,
+            });
+          }
+
+          // 記録シートに行追加
+          sheetTabName = "記録";
+          const newRow = [
+            today,
+            disclosedTimeStr,
+            String(input.patientId),
+            input.patientName,
+            input.team ?? "",
+            String(ctx.user.id),
+            ctx.user.name ?? "不明",
+            input.slotIndex !== undefined ? String(input.slotIndex) : "",
+          ];
+          await sheets.spreadsheets.values.append({
+            spreadsheetId,
+            range: `${sheetTabName}!A:H`,
+            valueInputOption: "USER_ENTERED",
+            requestBody: { values: [newRow] },
+          });
+          console.log(`[CarePlanSheet] Appended row for patient ${input.patientId} (${input.patientName})`);
+        } catch (sheetErr) {
+          console.error("[CarePlanSheet] Sheets sync failed:", sheetErr);
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: `スプレッドシート転記に失敗しました: ${sheetErr instanceof Error ? sheetErr.message : String(sheetErr)}`,
+          });
+        }
+
+        // ===== DBに記録 =====
+        try {
+          await db.insert(carePlanDisclosures).values({
+            patientId: input.patientId,
+            patientName: input.patientName,
+            team: input.team ?? null,
+            disclosedDate: today,
+            disclosedAt,
+            disclosedByUserId: ctx.user.id,
+            disclosedByName: ctx.user.name ?? "不明",
+            slotIndex: input.slotIndex ?? null,
+            spreadsheetId,
+            sheetTabName,
+          });
+        } catch (dbErr: unknown) {
+          // ユニーク制約違反の場合（並行して別タブで先に転記された等）
+          const msg = dbErr instanceof Error ? dbErr.message : String(dbErr);
+          if (msg.toLowerCase().includes("duplicate")) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: "本日この利用者への看護計画開示は既に転記済みです",
+            });
+          }
+          throw dbErr;
+        }
+
+        return { success: true, disclosedAt, spreadsheetId };
+      }),
+  }),
 });
 export type AppRouter = typeof appRouter;
 
