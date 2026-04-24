@@ -24,6 +24,8 @@ import MyLinks from "./pages/MyLinks";
 import TeamGoals from "./pages/TeamGoals";
 import OvertimeRequest from "./pages/OvertimeRequest";
 import OvertimeAdmin from "./pages/OvertimeAdmin";
+import DirectReturnRequest from "./pages/DirectReturnRequest";
+import DirectReturnApproval from "./pages/DirectReturnApproval";
 import VoiceDiagnostics from "./pages/VoiceDiagnostics";
 import Login from "./pages/Login";
 import Setup from "./pages/Setup";
@@ -119,6 +121,12 @@ function Router() {
                 <SuperAdminGuard>
                   <OvertimeAdmin />
                 </SuperAdminGuard>
+              </Route>
+              <Route path={"/direct-return"} component={DirectReturnRequest} />
+              <Route path={"/direct-return-approval"}>
+                <AdminGuard>
+                  <DirectReturnApproval />
+                </AdminGuard>
               </Route>
               <Route path={"/voice-diagnostics"} component={VoiceDiagnostics} />
               <Route path={"/404"} component={NotFound} />
