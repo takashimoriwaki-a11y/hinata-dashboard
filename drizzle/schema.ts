@@ -1,4 +1,4 @@
-import { bigint, date, double, int, mediumtext, mysqlEnum, mysqlTable, text, timestamp, tinyint, varchar } from "drizzle-orm/mysql-core";
+import { bigint, date, double, int, mediumtext, mysqlEnum, mysqlTable, text, timestamp, tinyint, unique, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -1178,3 +1178,57 @@ export const scheduleNotes = mysqlTable("schedule_notes", {
 });
 export type ScheduleNote = typeof scheduleNotes.$inferSelect;
 export type InsertScheduleNote = typeof scheduleNotes.$inferInsert;
+
+// ========== 看護計画開示記録 ==========
+/**
+ * 看護計画開示記録テーブル
+ * 訪問時に看護計画を利用者・家族に開示した記録を残す
+ * - 同一利用者・同一日で1件まで（ユニーク制約あり）
+ * - スプレッドシートへも自動転記される
+ */
+export const carePlanDisclosures = mysqlTable("care_plan_disclosures", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 開示対象の利用者ID */
+  patientId: int("patientId").notNull(),
+  /** 利用者名（スナップショット） */
+  patientName: varchar("patientName", { length: 100 }).notNull(),
+  /** チーム名（身体・天理・郡山北部・郡山南部 等、スナップショット） */
+  team: varchar("team", { length: 50 }),
+  /** 開示日（YYYY-MM-DD） */
+  disclosedDate: varchar("disclosedDate", { length: 10 }).notNull(),
+  /** 開示日時（UNIXタイムスタンプ ms） */
+  disclosedAt: bigint("disclosedAt", { mode: "number" }).notNull(),
+  /** 開示者のユーザーID */
+  disclosedByUserId: int("disclosedByUserId").notNull(),
+  /** 開示者名（スナップショット） */
+  disclosedByName: varchar("disclosedByName", { length: 100 }).notNull(),
+  /** 訪問枠ID（VisitSlotCardのslotIndex、参照用） */
+  slotIndex: int("slotIndex"),
+  /** 転記したスプレッドシートのID */
+  spreadsheetId: varchar("spreadsheetId", { length: 100 }),
+  /** 転記したシート（タブ）名 */
+  sheetTabName: varchar("sheetTabName", { length: 100 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  // 同一利用者・同一日で1件まで（重複転記防止）
+  uniquePatientDate: unique("uq_patient_date").on(table.patientId, table.disclosedDate),
+}));
+export type CarePlanDisclosure = typeof carePlanDisclosures.$inferSelect;
+export type InsertCarePlanDisclosure = typeof carePlanDisclosures.$inferInsert;
+
+/**
+ * 看護計画開示記録スプレッドシート管理
+ * 年度ごとに1ファイル作成、初回時に自動生成
+ */
+export const carePlanSpreadsheets = mysqlTable("care_plan_spreadsheets", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 年度（西暦4桁） */
+  year: int("year").notNull().unique(),
+  /** スプレッドシートID */
+  spreadsheetId: varchar("spreadsheetId", { length: 100 }).notNull(),
+  /** スプレッドシートのラベル（表示用） */
+  label: varchar("label", { length: 200 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type CarePlanSpreadsheet = typeof carePlanSpreadsheets.$inferSelect;
+export type InsertCarePlanSpreadsheet = typeof carePlanSpreadsheets.$inferInsert;
