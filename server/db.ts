@@ -2856,6 +2856,20 @@ export async function getSuperAdminUsers(): Promise<Array<{ id: number; name: st
 }
 
 /**
+ * 管理者（admin）+ 特級管理者（super_admin）のユーザー一覧を取得する
+ * 権限ルール：管理者が使える機能は特級管理者も使える（包含関係）
+ */
+export async function getAdminAndSuperAdminUsers(): Promise<Array<{ id: number; name: string | null; email: string | null; role: string }>> {
+  const db = await getDb();
+  if (!db) return [];
+  const { or } = await import("drizzle-orm");
+  return db
+    .select({ id: users.id, name: users.name, email: users.email, role: users.role })
+    .from(users)
+    .where(or(eq(users.role, "admin" as any), eq(users.role, "super_admin" as any))) as any;
+}
+
+/**
  * 特定ユーザーへのアプリ内通知を作成する（残業申請通知用）
  */
 export async function createOvertimeNotification(params: {
