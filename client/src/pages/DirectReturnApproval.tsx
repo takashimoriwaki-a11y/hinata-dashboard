@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Home, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Home, CheckCircle, XCircle, Loader2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +44,9 @@ export default function DirectReturnApproval() {
     yearMonth: selectedYearMonth,
     status: filterStatus,
   });
+
+  // スプレッドシートURL取得
+  const { data: sheetInfo } = trpc.directReturn.getSpreadsheetUrl.useQuery();
 
   const approveMutation = trpc.directReturn.approve.useMutation({
     onSuccess: () => {
@@ -83,9 +86,23 @@ export default function DirectReturnApproval() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
       {/* ページタイトル */}
-      <div className="flex items-center gap-2 mb-2">
-        <Home className="w-5 h-5 text-primary" />
-        <h1 className="text-lg font-bold text-foreground">直帰申請の承認</h1>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <Home className="w-5 h-5 text-primary" />
+          <h1 className="text-lg font-bold text-foreground">直帰申請の承認</h1>
+        </div>
+        {sheetInfo?.url && (
+          <a
+            href={sheetInfo.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-md transition-colors"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">スプレッドシート</span>
+            <span className="sm:hidden">シート</span>
+          </a>
+        )}
       </div>
 
       {/* フィルタ */}
