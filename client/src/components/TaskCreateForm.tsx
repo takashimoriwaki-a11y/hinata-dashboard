@@ -159,7 +159,7 @@ export default function TaskCreateForm({ onClose, onSuccess, defaultDueDate, req
       }
 
       // 期日（空欄のみ上書き）
-      if (f.dueDateStr) setNewDueDate(prev => prev.trim() ? prev : f.dueDateStr!);
+      if (f.dueDateStr) setNewDueDate(f.dueDateStr); // 音声指定の期日は常に反映（デフォルト値の上書きOK）
       // 期日は任意なので未転記でも missing には追加しない
 
       // 指定先種別（現在が「all」のときのみ上書き）
