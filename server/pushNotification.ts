@@ -122,7 +122,7 @@ export async function sendPushToUser(
   if (!initialized) return;
   const db = await getDb();
   if (!db) return;
-  const { eq } = await import("drizzle-orm");
+  const { eq, and } = await import("drizzle-orm");
   const subs = await db
     .select()
     .from(pushSubscriptions)
@@ -131,7 +131,33 @@ export async function sendPushToUser(
     console.warn(`[WebPush] No subscriptions found for user: ${userName}`);
     return;
   }
-  const payloadStr = JSON.stringify(payload);
+
+  // ユーザーの未読通知件数を取得（バッジ用）
+  let unreadCount: number | undefined;
+  try {
+    const { users, appNotifications } = await import("../drizzle/schema");
+    const userRows = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.name, userName))
+      .limit(1);
+    if (userRows.length > 0) {
+      const userId = userRows[0].id;
+      const unreadRows = await db
+        .select({ id: appNotifications.id })
+        .from(appNotifications)
+        .where(and(eq(appNotifications.targetUserId, userId), eq(appNotifications.isRead, 0)));
+      // この通知自体もカウントに含める（送信されたばかりでまだDB未挿入の場合は+1）
+      unreadCount = unreadRows.length + 1;
+    }
+  } catch (e) {
+    console.warn("[WebPush] Unread count fetch failed:", e);
+  }
+
+  const payloadWithBadge = unreadCount !== undefined
+    ? { ...payload, unreadCount }
+    : payload;
+  const payloadStr = JSON.stringify(payloadWithBadge);
   const failed: string[] = [];
   await Promise.allSettled(
     subs.map(async (sub) => {
