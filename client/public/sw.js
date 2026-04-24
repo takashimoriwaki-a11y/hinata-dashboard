@@ -111,7 +111,7 @@ self.addEventListener("fetch", (event) => {
 // ===== Web Push通知 =====
 
 self.addEventListener("push", (event) => {
-  let data = { title: "ひなた通知", body: "", url: "/" };
+  let data = { title: "ひなた通知", body: "", url: "/", unreadCount: undefined };
   try {
     if (event.data) {
       data = { ...data, ...JSON.parse(event.data.text()) };
@@ -120,7 +120,8 @@ self.addEventListener("push", (event) => {
     console.error("[SW] push data parse error:", e);
   }
 
-  event.waitUntil(
+  // 通知表示 + アプリアイコンバッジ更新
+  const tasks = [
     self.registration.showNotification(data.title, {
       body: data.body,
       icon: "/icon-192x192.png",
@@ -128,13 +129,36 @@ self.addEventListener("push", (event) => {
       data: { url: data.url ?? "/" },
       requireInteraction: false,
       tag: "hinata-schedule",
-    })
-  );
+    }),
+  ];
+
+  // アプリアイコンに未読数バッジを表示（iOS Safari/PWA + Chrome等で対応）
+  if ("setAppBadge" in self.navigator) {
+    const count = typeof data.unreadCount === "number" && data.unreadCount > 0
+      ? data.unreadCount
+      : 1; // unreadCount未指定なら最低でも1を表示
+    tasks.push(
+      self.navigator.setAppBadge(count).catch((e) => {
+        console.warn("[SW] setAppBadge failed:", e);
+      })
+    );
+  }
+
+  event.waitUntil(Promise.all(tasks));
 });
 
+// 通知クリック時：バッジクリア + 該当URLを開く
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const url = event.notification.data?.url ?? "/";
+
+  // バッジをクリア（クリックしたらアプリを開くので未読扱い解除）
+  if ("clearAppBadge" in self.navigator) {
+    self.navigator.clearAppBadge().catch((e) => {
+      console.warn("[SW] clearAppBadge failed:", e);
+    });
+  }
+
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
@@ -149,4 +173,21 @@ self.addEventListener("notificationclick", (event) => {
       }
     })
   );
+});
+
+// アプリ起動時/通知既読時にバッジクリアするためのメッセージハンドラ
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "CLEAR_BADGE") {
+    if ("clearAppBadge" in self.navigator) {
+      self.navigator.clearAppBadge().catch((e) => {
+        console.warn("[SW] clearAppBadge failed:", e);
+      });
+    }
+  } else if (event.data && event.data.type === "SET_BADGE" && typeof event.data.count === "number") {
+    if ("setAppBadge" in self.navigator) {
+      self.navigator.setAppBadge(event.data.count).catch((e) => {
+        console.warn("[SW] setAppBadge failed:", e);
+      });
+    }
+  }
 });
