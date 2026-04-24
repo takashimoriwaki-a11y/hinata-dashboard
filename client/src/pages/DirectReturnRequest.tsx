@@ -35,17 +35,27 @@ export default function DirectReturnRequest() {
   // 現在時刻から申請日（本日）と、12時過ぎフラグを計算
   const { todayStr, isAfterNoon, currentTimeStr } = useMemo(() => {
     const now = new Date();
-    const jstOffsetMs = 9 * 60 * 60 * 1000;
-    const jstNow = new Date(now.getTime() + jstOffsetMs - now.getTimezoneOffset() * 60 * 1000);
-    const y = jstNow.getUTCFullYear();
-    const m = String(jstNow.getUTCMonth() + 1).padStart(2, "0");
-    const d = String(jstNow.getUTCDate()).padStart(2, "0");
-    const hh = String(jstNow.getUTCHours()).padStart(2, "0");
-    const mm = String(jstNow.getUTCMinutes()).padStart(2, "0");
+    // JSTの各コンポーネントを確実に取得するため、toLocaleString でフォーマット
+    const jstStr = now.toLocaleString("en-US", {
+      timeZone: "Asia/Tokyo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    // 結果例: "04/24/2026, 17:16"
+    const match = jstStr.match(/(\d{2})\/(\d{2})\/(\d{4}),?\s+(\d{2}):(\d{2})/);
+    if (!match) {
+      return { todayStr: "", isAfterNoon: false, currentTimeStr: "" };
+    }
+    const [, mm, dd, yyyy, hh, min] = match;
+    const hour = parseInt(hh!, 10);
     return {
-      todayStr: `${y}-${m}-${d}`,
-      isAfterNoon: jstNow.getUTCHours() >= 12,
-      currentTimeStr: `${hh}:${mm}`,
+      todayStr: `${yyyy}-${mm}-${dd}`,
+      isAfterNoon: hour >= 12,
+      currentTimeStr: `${hh}:${min}`,
     };
   }, []);
 
