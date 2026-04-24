@@ -41,6 +41,7 @@ import {
   CalendarCheck,
   Clock,
   Mic,
+  Home,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
@@ -118,6 +119,7 @@ interface SidebarContentProps {
   setShowAIPromptsModal: (v: boolean) => void;
   setShowMonthlyOvertimeModal: (v: boolean) => void;
   pendingOvertimeCount?: number;
+  pendingDirectReturnCount?: number;
 }
 
 // ========== SidebarContent（外部コンポーネントとして定義 - Hooks違反防止） ==========
@@ -141,6 +143,7 @@ function SidebarContent({
   setShowAIPromptsModal,
   setShowMonthlyOvertimeModal,
   pendingOvertimeCount = 0,
+  pendingDirectReturnCount = 0,
 }: SidebarContentProps) {
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -403,6 +406,36 @@ function SidebarContent({
             </div>
           </Link>
         )}
+        {(user?.role === "admin" || user?.role === "super_admin") && (
+          <Link href="/direct-return-approval">
+            <div
+              title={(collapsed && !mobile) ? `直帰申請承認${pendingDirectReturnCount > 0 ? ` (${pendingDirectReturnCount}件)` : ""}` : undefined}
+              className={cn(
+                "relative flex items-center gap-3 py-2.5 mx-2 rounded-lg w-[calc(100%-16px)] transition-all duration-150",
+                "text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                (collapsed && !mobile) ? "justify-center px-0" : "px-4",
+                location === "/direct-return-approval" && "bg-primary text-white"
+              )}
+            >
+              <span className="relative flex-shrink-0">
+                <Home className="w-4 h-4" />
+                {pendingDirectReturnCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                    {pendingDirectReturnCount > 99 ? "99+" : pendingDirectReturnCount}
+                  </span>
+                )}
+              </span>
+              {(!collapsed || mobile) && (
+                <span className="flex-1 truncate">直帰申請承認</span>
+              )}
+              {(!collapsed || mobile) && pendingDirectReturnCount > 0 && (
+                <span className="flex-shrink-0 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center">
+                  {pendingDirectReturnCount > 99 ? "99+" : pendingDirectReturnCount}
+                </span>
+              )}
+            </div>
+          </Link>
+        )}
         {switchable && toggleTheme && (
           <button
             onClick={toggleTheme}
@@ -524,6 +557,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   );
   const pendingOvertimeCount = pendingOvertimeData?.length ?? 0;
 
+  // 未処理直帰申請件数（管理者・特級管理者のみ取得）
+  const { data: pendingDirectReturnData } = trpc.directReturn.getAll.useQuery(
+    { status: "pending" },
+    {
+      enabled: !!user && (user.role === "admin" || user.role === "super_admin"),
+      refetchInterval: 60000,
+    }
+  );
+  const pendingDirectReturnCount = pendingDirectReturnData?.length ?? 0;
+
   // 初回チーム設定モーダル
   const { data: myProfile } = trpc.userSettings.getMyProfile.useQuery(undefined, {
     enabled: !!user,
@@ -641,6 +684,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             setShowAIPromptsModal={setShowAIPromptsModal}
             setShowMonthlyOvertimeModal={setShowMonthlyOvertimeModal}
             pendingOvertimeCount={pendingOvertimeCount}
+            pendingDirectReturnCount={pendingDirectReturnCount}
           />
 
         </aside>
@@ -684,6 +728,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           setShowAIPromptsModal={setShowAIPromptsModal}
           setShowMonthlyOvertimeModal={setShowMonthlyOvertimeModal}
           pendingOvertimeCount={pendingOvertimeCount}
+          pendingDirectReturnCount={pendingDirectReturnCount}
         />
       </aside>
 
