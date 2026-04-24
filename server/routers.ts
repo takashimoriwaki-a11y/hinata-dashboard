@@ -6734,6 +6734,17 @@ export const appRouter = router({
             }).catch((e) => console.error(`[Overtime] notify failed for userId=${admin.id}:`, e))
           );
           await Promise.allSettled(notifyPromises);
+
+          // 特級管理者にPush通知も送信
+          const pushTitle = `残業申請：${ctx.user.name ?? "不明"}`;
+          const pushBody = `${input.applicationDate} ${startTime}～${endTime}\n理由：${input.requestedReason ?? "（理由なし）"}`;
+          for (const admin of superAdmins) {
+            await sendPushToUser(admin.name ?? "", {
+              title: pushTitle,
+              body: pushBody,
+              url: "/overtime-approval",
+            }).catch((e) => console.error(`[Overtime] Push failed user=${admin.name}:`, e));
+          }
         } catch (e) {
           console.error("[Overtime] Super admin notification failed:", e);
         }
@@ -6818,6 +6829,13 @@ export const appRouter = router({
               body: `${record.applicationDate} ${startStr}～${endStr}\n${statusLabel}者：${ctx.user.name ?? "不明"}${input.approverComment ? `\nコメント：${input.approverComment}` : ""}`,
               resourceId: input.id,
             }).catch((e) => console.error("[Overtime] notify applicant failed:", e));
+
+            // 申請者にPush通知
+            sendPushToUser(record.applicantName ?? "", {
+              title: `残業申請が${statusLabel}されました`,
+              body: `${record.applicationDate} ${startStr}～${endStr}\n${statusLabel}者：${ctx.user.name ?? "不明"}${input.approverComment ? `\nコメント：${input.approverComment}` : ""}`,
+              url: "/overtime",
+            }).catch((e) => console.error("[Overtime] Push to applicant failed:", e));
           }
         }).catch((err) => {
           console.error("[Overtime] getOvertimeApprovalById failed:", err);
@@ -6898,6 +6916,13 @@ export const appRouter = router({
                   body: `${record.applicationDate} ${startStr}～${endStr}\n承認者：${ctx.user.name ?? "不明"}`,
                   resourceId: id,
                 }).catch((e) => console.error("[BulkApprove] notify failed:", e));
+
+                // 申請者にPush通知
+                sendPushToUser(record.applicantName ?? "", {
+                  title: "残業申請が承認されました",
+                  body: `${record.applicationDate} ${startStr}～${endStr}\n承認者：${ctx.user.name ?? "不明"}`,
+                  url: "/overtime",
+                }).catch((e) => console.error("[BulkApprove] Push to applicant failed:", e));
               }
             }).catch((err) => console.error("[BulkApprove] getById failed:", err));
             results.push({ id, success: true });
@@ -8037,11 +8062,11 @@ export const appRouter = router({
 
           // Push通知
           for (const admin of uniqueAdmins) {
-            await sendPushToUser(admin.id, {
+            await sendPushToUser(admin.name ?? "", {
               title,
               body,
               url: "/direct-return-approval",
-            }).catch((e) => console.error(`[DirectReturn] Push failed userId=${admin.id}:`, e));
+            }).catch((e) => console.error(`[DirectReturn] Push failed user=${admin.name}:`, e));
           }
 
           console.log(`[DirectReturn] Notified ${uniqueAdmins.length} admins`);
@@ -8151,8 +8176,8 @@ export const appRouter = router({
             isRead: 0,
           });
 
-          // Push通知
-          await sendPushToUser(request.applicantUserId, {
+          // Push通知（申請者名で送信）
+          await sendPushToUser(request.applicantName ?? "", {
             title,
             body,
             url: "/",
