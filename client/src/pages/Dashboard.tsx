@@ -6094,18 +6094,15 @@ export default function Dashboard() {
               <ClipboardEdit className="w-3.5 h-3.5 md:w-4 md:h-4" />
               訪問
             </Link>
-            {/* 7. 業務改善 */}
-            <button
-              onClick={() => {
-                const el = document.getElementById('improvement-box');
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
+            {/* 7. 直帰申請 */}
+            <Link
+              href="/direct-return"
               onPointerDown={() => {}}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#c0392b', touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#a93226')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#c0392b')}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#c0392b', touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#a93226')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#c0392b')}
             >
-              <span className="text-sm leading-none">💡</span>
-              業務改善
-            </button>
+              <span className="text-sm leading-none">🏠</span>
+              直帰申請
+            </Link>
             {/* 8. 個人タスク */}
             <Link
               href="/personal-tasks"
