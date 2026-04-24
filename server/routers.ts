@@ -7567,57 +7567,47 @@ export const appRouter = router({
             }
 
             // デフォルトシート名を「概要」にリネーム
+            // デフォルトシートを1つ目のチーム「身体」にリネーム
             const spreadsheetInfo = await sheets.spreadsheets.get({ spreadsheetId });
             const defaultSheetId = spreadsheetInfo.data.sheets?.[0]?.properties?.sheetId;
             const defaultSheetName = spreadsheetInfo.data.sheets?.[0]?.properties?.title ?? "Sheet1";
-            if (defaultSheetName !== "概要" && defaultSheetId !== undefined) {
+            if (defaultSheetName !== "身体" && defaultSheetId !== undefined) {
               await sheets.spreadsheets.batchUpdate({
                 spreadsheetId,
                 requestBody: {
                   requests: [{
                     updateSheetProperties: {
-                      properties: { sheetId: defaultSheetId, title: "概要" },
+                      properties: { sheetId: defaultSheetId, title: "身体" },
                       fields: "title",
                     },
                   }],
                 },
               });
             }
-            // 概要シートに説明
-            await sheets.spreadsheets.values.update({
+
+            // 残り3チームのタブを追加（天理、郡山北部、郡山南部）
+            await sheets.spreadsheets.batchUpdate({
               spreadsheetId,
-              range: "概要!A1:B5",
-              valueInputOption: "USER_ENTERED",
               requestBody: {
-                values: [
-                  ["看護計画開示記録", `${year}年度`],
-                  ["作成日時", new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })],
-                  ["内容", "訪問時に看護計画を利用者・家族に開示した記録が自動転記されます"],
-                  ["記載項目", "開示日 / 開示時刻 / 利用者ID / 利用者名 / チーム / 開示者ID / 開示者名 / 訪問枠ID"],
-                  ["重複防止", "同一利用者・同一日で1件まで（DBレベルで制御）"],
+                requests: [
+                  { addSheet: { properties: { title: "天理" } } },
+                  { addSheet: { properties: { title: "郡山北部" } } },
+                  { addSheet: { properties: { title: "郡山南部" } } },
                 ],
               },
             });
 
-            // データシート（記録）作成
-            await sheets.spreadsheets.batchUpdate({
-              spreadsheetId,
-              requestBody: {
-                requests: [{
-                  addSheet: {
-                    properties: { title: "記録" },
-                  },
-                }],
-              },
-            });
-            // ヘッダー行を追加
-            const HEADERS = ["開示日", "開示時刻", "利用者ID", "利用者名", "チーム", "開示者ID", "開示者名", "訪問枠ID"];
-            await sheets.spreadsheets.values.update({
-              spreadsheetId,
-              range: "記録!A1:H1",
-              valueInputOption: "USER_ENTERED",
-              requestBody: { values: [HEADERS] },
-            });
+            // 4チーム全タブにヘッダー行を追加
+            const HEADERS = ["開示日", "開示時刻", "利用者名", "チーム", "開示者名"];
+            const TEAM_TABS = ["身体", "天理", "郡山北部", "郡山南部"];
+            for (const tab of TEAM_TABS) {
+              await sheets.spreadsheets.values.update({
+                spreadsheetId,
+                range: `${tab}!A1:E1`,
+                valueInputOption: "USER_ENTERED",
+                requestBody: { values: [HEADERS] },
+              });
+            }
 
             // 共有設定（既存のsheet_share_emailsと特級管理者）
             try {
@@ -7649,25 +7639,23 @@ export const appRouter = router({
             });
           }
 
-          // 記録シートに行追加
-          sheetTabName = "記録";
+          // チームに応じたタブに行追加
+          const VALID_TEAMS = ["身体", "天理", "郡山北部", "郡山南部"];
+          sheetTabName = VALID_TEAMS.includes(input.team ?? "") ? input.team! : "身体";
           const newRow = [
             today,
             disclosedTimeStr,
-            String(input.patientId),
             input.patientName,
             input.team ?? "",
-            String(ctx.user.id),
             ctx.user.name ?? "不明",
-            input.slotIndex !== undefined ? String(input.slotIndex) : "",
           ];
           await sheets.spreadsheets.values.append({
             spreadsheetId,
-            range: `${sheetTabName}!A:H`,
+            range: `${sheetTabName}!A:E`,
             valueInputOption: "USER_ENTERED",
             requestBody: { values: [newRow] },
           });
-          console.log(`[CarePlanSheet] Appended row for patient ${input.patientId} (${input.patientName})`);
+          console.log(`[CarePlanSheet] Appended row to "${sheetTabName}" for patient ${input.patientId} (${input.patientName})`);
         } catch (sheetErr) {
           console.error("[CarePlanSheet] Sheets sync failed:", sheetErr);
           throw new TRPCError({
