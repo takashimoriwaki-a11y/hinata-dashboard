@@ -298,7 +298,7 @@ export type InsertVisitRecord = typeof visitRecords.$inferInsert;
 export const appNotifications = mysqlTable("app_notifications", {
   id: int("id").autoincrement().primaryKey(),
   /** 通知の種類 */
-  type: mysqlEnum("type", ["schedule_updated", "task_today", "new_message", "minutes_reminder", "minutes_posted", "overtime_request", "overtime_approved", "overtime_rejected"]).notNull(),
+  type: mysqlEnum("type", ["schedule_updated", "task_today", "new_message", "minutes_reminder", "minutes_posted", "overtime_request", "overtime_approved", "overtime_rejected", "direct_return_request", "direct_return_approved", "direct_return_rejected"]).notNull(),
   /** 通知のタイトル */
   title: varchar("title", { length: 200 }).notNull(),
   /** 通知の本文 */
@@ -1232,3 +1232,61 @@ export const carePlanSpreadsheets = mysqlTable("care_plan_spreadsheets", {
 });
 export type CarePlanSpreadsheet = typeof carePlanSpreadsheets.$inferSelect;
 export type InsertCarePlanSpreadsheet = typeof carePlanSpreadsheets.$inferInsert;
+
+// ========== 直帰申請 ==========
+/**
+ * 直帰申請テーブル
+ * スタッフが事業所に戻らず直接帰宅する旨を申請し、管理者が承認・却下する
+ * - 承認フローあり（pending → approved/rejected）
+ * - Google Sheetsに自動転記（申請時に1行追加、承認時にステータス列を更新）
+ */
+export const directReturnApprovals = mysqlTable("direct_return_approvals", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 申請者のユーザーID */
+  applicantUserId: int("applicantUserId").notNull(),
+  /** 申請者名（スナップショット） */
+  applicantName: varchar("applicantName", { length: 100 }).notNull(),
+  /** 申請日（YYYY-MM-DD） */
+  applicationDate: varchar("applicationDate", { length: 10 }).notNull(),
+  /** 申請日時（UNIXタイムスタンプ ms） */
+  appliedAt: bigint("appliedAt", { mode: "number" }).notNull(),
+  /** 理由カテゴリ */
+  reasonCategory: mysqlEnum("reasonCategory", ["遠方業務", "急用", "体調不良", "その他"]).notNull(),
+  /** 理由詳細（自由記述） */
+  reasonDetail: text("reasonDetail"),
+  /** 承認ステータス */
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  /** 承認者のユーザーID */
+  approverUserId: int("approverUserId"),
+  /** 承認者名（スナップショット） */
+  approverName: varchar("approverName", { length: 100 }),
+  /** 承認日時（UNIXタイムスタンプ ms） */
+  approvedAt: bigint("approvedAt", { mode: "number" }),
+  /** 承認者コメント */
+  approverComment: text("approverComment"),
+  /** スプレッドシート転記行番号（初回転記時に記録、承認時にステータス更新に使用） */
+  sheetRowNumber: int("sheetRowNumber"),
+  /** スプレッドシートタブ名（年月タブ名、例：2026-04） */
+  sheetTabName: varchar("sheetTabName", { length: 20 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type DirectReturnApproval = typeof directReturnApprovals.$inferSelect;
+export type InsertDirectReturnApproval = typeof directReturnApprovals.$inferInsert;
+
+/**
+ * 直帰申請スプレッドシート管理
+ * 年度ごとに1ファイル作成、初回時に自動生成
+ */
+export const directReturnSpreadsheets = mysqlTable("direct_return_spreadsheets", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 年度（西暦4桁） */
+  year: int("year").notNull().unique(),
+  /** スプレッドシートID */
+  spreadsheetId: varchar("spreadsheetId", { length: 100 }).notNull(),
+  /** スプレッドシートのラベル（表示用） */
+  label: varchar("label", { length: 200 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type DirectReturnSpreadsheet = typeof directReturnSpreadsheets.$inferSelect;
+export type InsertDirectReturnSpreadsheet = typeof directReturnSpreadsheets.$inferInsert;
