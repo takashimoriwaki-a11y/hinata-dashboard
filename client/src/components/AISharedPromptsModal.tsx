@@ -134,29 +134,75 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
     onError: () => toast.error("追加に失敗しました"),
   });
 
-  // 更新
+  // 更新（楽観的更新で即時反映）
   const updateMutation = trpc.sharedPrompts.update.useMutation({
-    onSuccess: async () => {
-      // キャッシュ無効化＋強制リフェッチで確実に最新データを反映
-      await utils.sharedPrompts.getAll.invalidate();
-      await utils.sharedPrompts.getAll.refetch();
-      toast.success("プロンプトを更新しました");
+    onMutate: async (newData) => {
+      // 1. 進行中の get クエリをキャンセル（楽観的更新を上書きさせない）
+      await utils.sharedPrompts.getAll.cancel();
+      // 2. 現在のキャッシュをバックアップ（エラー時のロールバック用）
+      const previousPrompts = utils.sharedPrompts.getAll.getData();
+      // 3. キャッシュを直接書き換えて画面を即座に更新
+      if (previousPrompts) {
+        utils.sharedPrompts.getAll.setData(undefined, (old) => {
+          if (!old) return old;
+          return old.map((p) =>
+            p.id === newData.id
+              ? {
+                  ...p,
+                  title: newData.title,
+                  body: newData.body,
+                  aiTool: newData.aiTool,
+                  category: newData.category ?? null,
+                  usageNotes: newData.usageNotes ?? null,
+                  updatedByName: user?.name ?? p.updatedByName,
+                  updatedAt: new Date(),
+                }
+              : p
+          );
+        });
+      }
+      // フォームを即時クローズ（レスポンスを待たない）
       setEditingId(null);
       resetForm();
+      toast.success("プロンプトを更新しました");
+      return { previousPrompts };
     },
-    onError: (err) => {
+    onError: (err, _newData, context) => {
+      // エラー時：バックアップから復元
+      if (context?.previousPrompts) {
+        utils.sharedPrompts.getAll.setData(undefined, context.previousPrompts);
+      }
       console.error("[sharedPrompts.update] error:", err);
       toast.error(`更新に失敗しました: ${err.message ?? "不明なエラー"}`);
     },
+    onSettled: () => {
+      // 成功・失敗どちらでも、最新のサーバ状態と整合性を取る
+      utils.sharedPrompts.getAll.invalidate();
+    },
   });
 
-  // 削除
+  // 削除（楽観的更新で即時反映）
   const deleteMutation = trpc.sharedPrompts.delete.useMutation({
-    onSuccess: () => {
-      utils.sharedPrompts.getAll.invalidate();
+    onMutate: async ({ id }) => {
+      await utils.sharedPrompts.getAll.cancel();
+      const previousPrompts = utils.sharedPrompts.getAll.getData();
+      // キャッシュから即座に削除
+      utils.sharedPrompts.getAll.setData(undefined, (old) => {
+        if (!old) return old;
+        return old.filter((p) => p.id !== id);
+      });
       toast.success("プロンプトを削除しました");
+      return { previousPrompts };
     },
-    onError: () => toast.error("削除に失敗しました"),
+    onError: (_err, _variables, context) => {
+      if (context?.previousPrompts) {
+        utils.sharedPrompts.getAll.setData(undefined, context.previousPrompts);
+      }
+      toast.error("削除に失敗しました");
+    },
+    onSettled: () => {
+      utils.sharedPrompts.getAll.invalidate();
+    },
   });
 
   // フォームstate
