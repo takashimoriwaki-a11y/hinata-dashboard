@@ -865,11 +865,36 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                 )}
               </div>
             )}
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5" />
-                ② 次回訪問日時
-              </p>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5" />
+                  ② 次回訪問日時
+                </p>
+                {/* チェックボックス：日時変更→連絡・予定から変更 */}
+                <label className="flex items-center gap-1 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={!!slotData.skipNextVisit}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      if (checked) {
+                        // チェック時：日付・時刻もクリア
+                        setNextVisitDate("");
+                        setNextVisitTime("");
+                        onNextVisitChange?.("", "");
+                        onSlotChange(slotIndex, { skipNextVisit: true, nextVisitDate: "", nextVisitTime: "" });
+                      } else {
+                        onSlotChange(slotIndex, { skipNextVisit: false });
+                      }
+                    }}
+                    className="w-3.5 h-3.5 cursor-pointer accent-primary"
+                  />
+                  <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium whitespace-nowrap">
+                    日時変更→連絡・予定から変更
+                  </span>
+                </label>
+              </div>
               <div className="flex items-center gap-1.5">
                 {/* 次回訪問日時スプレッドシートリンク */}
                 <a
@@ -885,7 +910,15 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
               </div>
             </div>
 
-            {/* 日付・時刻 + リセットボタン */}
+            {/* skipNextVisit時の説明枠 */}
+            {slotData.skipNextVisit && (
+              <div className="text-xs px-3 py-2 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300">
+                ℹ️ 日時変更は「連絡・予定」から行います。次回訪問日時の入力・スプレッドシート転記はスキップされます。
+              </div>
+            )}
+
+            {/* 日付・時刻 + リセットボタン（skipNextVisit時は非表示） */}
+            {!slotData.skipNextVisit && (
             <div className="flex gap-2 items-center">
               <div className="relative flex-1 min-w-0 overflow-hidden">
                 <Input
@@ -962,6 +995,7 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                 </button>
               )}
             </div>
+            )}
 
             {/* 伝達先・伝達方法 */}
             <div className="space-y-2">
