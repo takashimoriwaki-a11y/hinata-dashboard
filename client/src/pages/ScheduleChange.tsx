@@ -674,12 +674,22 @@ function DateTimePicker({
       const now = new Date();
       return String(now.getHours()).padStart(2, "0");
     }
+    // 時間未定（YYYY-MM-DD形式）の場合は現在時刻をデフォルト
+    if (!value.includes('T')) {
+      const now = new Date();
+      return String(now.getHours()).padStart(2, "0");
+    }
     return String(new Date(value).getHours()).padStart(2, "0");
   });
   const [minute, setMinute] = useState(() => {
     if (!value) {
       const now = new Date();
       // 10分刻みに丸める
+      return String(Math.round(now.getMinutes() / 10) * 10 % 60).padStart(2, "0");
+    }
+    // 時間未定（YYYY-MM-DD形式）の場合は現在時刻をデフォルト
+    if (!value.includes('T')) {
+      const now = new Date();
       return String(Math.round(now.getMinutes() / 10) * 10 % 60).padStart(2, "0");
     }
     const m = new Date(value).getMinutes();
@@ -758,13 +768,34 @@ function DateTimePicker({
   const handleHourChange = (h: string) => {
     setHour(h);
     setTimeUnspecified(false);
-    applyDateTime(selectedDate, h, minute, false);
+    // selectedDateが未設定の場合（時間未定→時刻選択時）は、現在valueから日付を取得
+    let dateToUse = selectedDate;
+    if (!dateToUse && value) {
+      // valueが "YYYY-MM-DD" 形式なら、その日付をDateオブジェクトに
+      const datePart = value.split('T')[0];
+      const [y, mo, d] = datePart.split('-').map(Number);
+      if (y && mo && d) {
+        dateToUse = new Date(y, mo - 1, d);
+        setSelectedDate(dateToUse);
+      }
+    }
+    applyDateTime(dateToUse, h, minute, false);
   };
 
   const handleMinuteChange = (m: string) => {
     setMinute(m);
     setTimeUnspecified(false);
-    applyDateTime(selectedDate, hour, m, false);
+    // selectedDateが未設定の場合（時間未定→時刻選択時）は、現在valueから日付を取得
+    let dateToUse = selectedDate;
+    if (!dateToUse && value) {
+      const datePart = value.split('T')[0];
+      const [y, mo, d] = datePart.split('-').map(Number);
+      if (y && mo && d) {
+        dateToUse = new Date(y, mo - 1, d);
+        setSelectedDate(dateToUse);
+      }
+    }
+    applyDateTime(dateToUse, hour, m, false);
   };
 
   const handleSetTimeUnspecified = () => {
@@ -899,41 +930,39 @@ function DateTimePicker({
                     時間未定
                   </button>
                 </div>
-                {/* timeUnspecifiedがfalse、またはvalueに時刻情報がある場合は時刻セレクトを表示 */}
-                {(!timeUnspecified || (value && value.includes('T'))) && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <Select value={hour} onValueChange={handleHourChange}>
-                      <SelectTrigger className="w-20 h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-48">
-                        {hours.map(h => (
-                          <SelectItem key={h} value={h}>{h}時</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <span className="text-muted-foreground font-medium">:</span>
-                    <Select value={minute} onValueChange={handleMinuteChange}>
-                      <SelectTrigger className="w-20 h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-48">
-                        {minutes.map(m => (
-                          <SelectItem key={m} value={m}>{m}分</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      size="sm"
-                      className="ml-auto"
-                      onClick={() => setOpen(false)}
-                    >
-                      決定
-                    </Button>
-                  </div>
-                )}
+                {/* 時刻セレクトと決定ボタンは常に表示（時間未定の場合は薄く表示して操作可能） */}
+                <div className="flex items-center gap-2 mt-2">
+                  <Select value={hour} onValueChange={handleHourChange}>
+                    <SelectTrigger className={cn("w-20 h-9", timeUnspecified && "opacity-60")}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-48">
+                      {hours.map(h => (
+                        <SelectItem key={h} value={h}>{h}時</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-muted-foreground font-medium">:</span>
+                  <Select value={minute} onValueChange={handleMinuteChange}>
+                    <SelectTrigger className={cn("w-20 h-9", timeUnspecified && "opacity-60")}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-48">
+                      {minutes.map(m => (
+                        <SelectItem key={m} value={m}>{m}分</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    className="ml-auto"
+                    onClick={() => setOpen(false)}
+                  >
+                    決定
+                  </Button>
+                </div>
                 {timeUnspecified && (
-                  <p className="text-xs text-muted-foreground mt-2">時間を選択すると自動で解除されます</p>
+                  <p className="text-xs text-muted-foreground mt-2">⓵ 時間を選択すると自動で解除されます</p>
                 )}
               </div>
             )}
