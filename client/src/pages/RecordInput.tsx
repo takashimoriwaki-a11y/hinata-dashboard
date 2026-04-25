@@ -253,9 +253,40 @@ export default function RecordInput() {
     { dateKey: todayKey },
     { enabled: !!user, staleTime: 0 }
   );
+  // 管理者からの訪問予定割り当て（dailyVisitAssignments）を取得
+  const { data: dailyAssignments } = trpc.dailyVisitAssignments.getMine.useQuery(
+    { date: todayKey },
+    { enabled: !!user, staleTime: 0 }
+  );
   useEffect(() => {
     // 同じ日付のデータが既に読み込み済みなら上書きしない
     if (_dbSlotLoadedDate === todayKey) return;
+
+    // 管理者割り当てが優先（上書きモード）
+    if (dailyAssignments?.assignments && dailyAssignments.assignments.length > 0) {
+      const newSlots: VisitSlotData[] = Array.from({ length: MAX_SLOTS }, () => ({ ...DEFAULT_SLOT }));
+      dailyAssignments.assignments.forEach((a) => {
+        if (a.slotIndex >= 0 && a.slotIndex < MAX_SLOTS) {
+          newSlots[a.slotIndex] = {
+            team: (a.team as Team) || "",
+            patientId: a.patientId,
+            patientName: a.patientName,
+            nextVisitDate: a.nextVisitDate || "",
+            nextVisitTime: a.nextVisitTime || "",
+            skipNextVisit: a.skipNextVisit === 1,
+          };
+        }
+      });
+      setSlots(newSlots);
+      setSlotSearchQueries(newSlots.map(s => s.patientName || ""));
+      localStorage.setItem(SLOTS_STORAGE_KEY, JSON.stringify(newSlots));
+      _dbSlotLoadedDate = todayKey;
+      // ユーザーへ通知（初回のみ、トーストで）
+      toast.info(`📋 管理者から本日の訪問予定（${dailyAssignments.assignments.length}件）が反映されました`);
+      return;
+    }
+
+    // 管理者割り当てがない場合、通常のDB保存スロットを復元
     if (!dbSlotData) return;
     if (dbSlotData.slotsJson) {
       try {
@@ -268,7 +299,7 @@ export default function RecordInput() {
       } catch {}
     }
     _dbSlotLoadedDate = todayKey;
-  }, [dbSlotData, todayKey]);
+  }, [dbSlotData, dailyAssignments, todayKey]);
 
   // DBへの保存mutation
   const saveSlotsMutation = trpc.visitSlots.save.useMutation();
