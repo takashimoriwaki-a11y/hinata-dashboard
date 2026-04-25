@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getTeamButtonClass, getTeamButtonStyle } from "@shared/teamColors";
 import TaskImport from "@/pages/TaskImport";
+import VisitAssignments from "@/pages/VisitAssignments";
 
 // ============================
 // スプレッドシートURL管理
@@ -971,7 +972,7 @@ export default function Admin() {
   }, []);
 
   // セクション切り替え
-  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "toolLogs" | "alcoholSheets" | "detectorSettings" | "timesheetSheets" | "monthlySignatures" | "improvementSheet" | "changeHistory" | "linkedSheets" | "taskImport">("sheets");
+  const [activeSection, setActiveSection] = useState<"sheets" | "patients" | "staff" | "import" | "settings" | "quickaccess" | "toolLogs" | "alcoholSheets" | "detectorSettings" | "timesheetSheets" | "monthlySignatures" | "improvementSheet" | "changeHistory" | "linkedSheets" | "taskImport" | "visitAssignments">("sheets");
   const { user: currentUser } = useAuth();
 
   return (
@@ -1143,6 +1144,20 @@ export default function Admin() {
             )}
           >
             タスク取込
+          </button>
+        ) : <div />}
+        {/* 訪問予定一括割り当て（管理者+特級管理者） */}
+        {(currentUser?.role === "admin" || currentUser?.role === "super_admin") ? (
+          <button
+            onClick={() => setActiveSection("visitAssignments")}
+            className={cn(
+              "px-2 py-2 text-xs font-medium rounded-lg border transition-colors text-center",
+              activeSection === "visitAssignments"
+                ? "bg-primary/10 border-primary text-primary"
+                : "border-border text-muted-foreground hover:text-foreground hover:border-primary/50"
+            )}
+          >
+            訪問予定割当
           </button>
         ) : <div />}
       </div>
@@ -1362,6 +1377,7 @@ export default function Admin() {
       {activeSection === "linkedSheets" && currentUser?.role === "super_admin" && <LinkedSheetsPanel />}
       {/* タスク一括取り込み（特級管理者のみ） */}
       {activeSection === "taskImport" && currentUser?.role === "super_admin" && <TaskImport />}
+      {activeSection === "visitAssignments" && (currentUser?.role === "admin" || currentUser?.role === "super_admin") && <VisitAssignments />}
 
     </div>
   );
