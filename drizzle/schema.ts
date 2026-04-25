@@ -1290,3 +1290,39 @@ export const directReturnSpreadsheets = mysqlTable("direct_return_spreadsheets",
 });
 export type DirectReturnSpreadsheet = typeof directReturnSpreadsheets.$inferSelect;
 export type InsertDirectReturnSpreadsheet = typeof directReturnSpreadsheets.$inferInsert;
+
+/**
+ * 訪問予定割り当てテーブル
+ * 管理者が朝、各職員に訪問予定を一括で割り当てるための保存先
+ * 職員はログイン時にこのテーブルから自分の当日分を取得し、訪問タブのスロットに展開する
+ */
+export const dailyVisitAssignments = mysqlTable("daily_visit_assignments", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 職員のユーザーID */
+  userId: int("userId").notNull(),
+  /** 職員名（表示用キャッシュ） */
+  userName: varchar("userName", { length: 100 }).notNull(),
+  /** 対象日付（YYYY-MM-DD） */
+  date: varchar("date", { length: 10 }).notNull(),
+  /** 訪問順序（0〜7） */
+  slotIndex: int("slotIndex").notNull(),
+  /** 利用者ID */
+  patientId: int("patientId"),
+  /** 利用者名 */
+  patientName: varchar("patientName", { length: 100 }).notNull(),
+  /** チーム */
+  team: varchar("team", { length: 20 }),
+  /** 次回訪問日（YYYY-MM-DD） */
+  nextVisitDate: varchar("nextVisitDate", { length: 10 }),
+  /** 次回訪問時刻（HH:MM or "unspecified"） */
+  nextVisitTime: varchar("nextVisitTime", { length: 20 }),
+  /** 日時変更スキップフラグ */
+  skipNextVisit: tinyint("skipNextVisit").notNull().default(0),
+  /** 割り当てた管理者のユーザーID */
+  assignedBy: int("assignedBy").notNull(),
+  /** 割り当てた管理者の名前 */
+  assignedByName: varchar("assignedByName", { length: 100 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type DailyVisitAssignment = typeof dailyVisitAssignments.$inferSelect;
+export type InsertDailyVisitAssignment = typeof dailyVisitAssignments.$inferInsert;
