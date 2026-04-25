@@ -3381,6 +3381,19 @@ JSON配列で返す。各要素は { patientName: string, nextVisitDate: string,
           return `${jst.getUTCFullYear()}/${String(jst.getUTCMonth()+1).padStart(2,"0")}/${String(jst.getUTCDate()).padStart(2,"0")} ${String(jst.getUTCHours()).padStart(2,"0")}:${String(jst.getUTCMinutes()).padStart(2,"0")}`;
         };
 
+        // 次回訪問日時専用フォーマット：時刻が00:00（時間未定）の場合は日付のみ表示
+        const formatNextVisitDate = (val: Date | number | null | undefined) => {
+          if (!val) return "";
+          const d = val instanceof Date ? val : new Date(val);
+          const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+          const h = jst.getUTCHours();
+          const m = jst.getUTCMinutes();
+          const datePart = `${jst.getUTCFullYear()}/${String(jst.getUTCMonth()+1).padStart(2,"0")}/${String(jst.getUTCDate()).padStart(2,"0")}`;
+          // 時刻が00:00 = 時間未定として日付のみ表示
+          if (h === 0 && m === 0) return `${datePart}（時間未定）`;
+          return `${datePart} ${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
+        };
+
         // ヘッダー行の定義（ダッシュボード入力項目と整合）
         const HEADER_ROW = [
           "転送日時",
@@ -3398,7 +3411,7 @@ JSON配列で返す。各要素は { patientName: string, nextVisitDate: string,
           record.createdByName ?? "",
           record.team ?? "",
           record.patientName ?? "",
-          formatDate(record.nextVisitAt),
+          formatNextVisitDate(record.nextVisitAt),
           record.notifiedTo ?? "",
           record.notifiedToOther ?? "",
           record.notifyMethod ?? "",
