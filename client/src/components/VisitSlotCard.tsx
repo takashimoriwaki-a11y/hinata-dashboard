@@ -385,13 +385,16 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
       toast.error("利用者を選択してください");
       return;
     }
-    if (!nextVisitDate) {
+    // skipNextVisitがtrueの場合、次回訪問日時の入力チェック・転記をスキップ
+    const isSkipNextVisit = !!slotData.skipNextVisit;
+    if (!isSkipNextVisit && !nextVisitDate) {
       toast.error("次回訪問日を入力してください");
       return;
     }
 
-    const dt = nextVisitTime ? `${nextVisitDate}T${nextVisitTime}` : `${nextVisitDate}T00:00`;
-    const nextVisitAt = new Date(dt);
+    const nextVisitAt = isSkipNextVisit
+      ? undefined
+      : new Date(nextVisitTime ? `${nextVisitDate}T${nextVisitTime}` : `${nextVisitDate}T00:00`);
 
     createRecord.mutate({
       patientId: slotData.patientId ?? undefined,
