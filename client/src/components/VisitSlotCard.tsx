@@ -394,7 +394,11 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
 
     const nextVisitAt = isSkipNextVisit
       ? undefined
-      : new Date(nextVisitTime ? `${nextVisitDate}T${nextVisitTime}` : `${nextVisitDate}T00:00`);
+      : new Date(
+          nextVisitTime && nextVisitTime !== "unspecified"
+            ? `${nextVisitDate}T${nextVisitTime}`
+            : `${nextVisitDate}T00:00`
+        );
 
     createRecord.mutate({
       patientId: slotData.patientId ?? undefined,
@@ -949,7 +953,9 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                   className="w-full flex items-center justify-between border rounded-md px-3 py-2 text-sm bg-background hover:bg-muted transition-colors"
                   onClick={() => setTimeDropdownOpen((o) => !o)}
                 >
-                  <span className={nextVisitTime ? "" : "text-muted-foreground"}>{nextVisitTime || "時刻"}</span>
+                  <span className={nextVisitTime ? "" : "text-muted-foreground"}>
+                    {nextVisitTime === "unspecified" ? "時間未定" : (nextVisitTime || "時刻")}
+                  </span>
                   <ChevronDown className="w-3 h-3 ml-1 text-muted-foreground" />
                 </button>
                 {timeDropdownOpen && (
@@ -957,6 +963,17 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                     ref={timeListRef}
                     className="absolute z-50 top-full mt-1 w-full border rounded-md bg-background shadow-md max-h-60 overflow-y-auto"
                   >
+                    {/* 時間未定オプション（先頭に固定） */}
+                    <button
+                      type="button"
+                      data-val="unspecified"
+                      className={`w-full text-left px-3 py-1.5 text-sm hover:bg-muted transition-colors border-b ${
+                        nextVisitTime === "unspecified" ? "bg-amber-100 dark:bg-amber-900/30 text-amber-900 dark:text-amber-200 font-medium" : "text-amber-700 dark:text-amber-400"
+                      }`}
+                      onClick={() => { setNextVisitTime("unspecified"); setTimeDropdownOpen(false); onNextVisitChange?.(nextVisitDate, "unspecified"); }}
+                    >
+                      時間未定
+                    </button>
                     {timeSlots.map((val) => (
                       <button
                         key={val}
@@ -1064,17 +1081,17 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                 type="button"
                 className={cn(
                   "w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200",
-                  (!nextVisitDate || !isPatientSelected || createRecord.isPending || exportToSheet.isPending)
+                  ((!slotData.skipNextVisit && !nextVisitDate) || !isPatientSelected || createRecord.isPending || exportToSheet.isPending)
                     ? "bg-muted border border-border text-muted-foreground cursor-not-allowed opacity-60"
                     : "bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg active:scale-95"
                 )}
                 onClick={handleSaveAndExport}
-                disabled={!nextVisitDate || !isPatientSelected || createRecord.isPending || exportToSheet.isPending}
+                disabled={(!slotData.skipNextVisit && !nextVisitDate) || !isPatientSelected || createRecord.isPending || exportToSheet.isPending}
               >
                 {createRecord.isPending || exportToSheet.isPending ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" />転送中...</>
+                  <><Loader2 className="w-4 h-4 animate-spin" />{slotData.skipNextVisit ? "保存中..." : "転送中..."}</>
                 ) : (
-                  <><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>スプレッドシートへ転記</>
+                  <><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>{slotData.skipNextVisit ? "訪問記録を保存（転記スキップ）" : "スプレッドシートへ転記"}</>
                 )}
               </button>
             )}
