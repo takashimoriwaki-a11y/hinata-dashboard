@@ -209,9 +209,11 @@ type VisitSlotData = {
   patientName: string;
   nextVisitDate?: string;
   nextVisitTime?: string;
+  /** 「日時変更→連絡・予定から変更」チェック時はtrue。次回訪問日時の入力・スプレッドシート転記をスキップする */
+  skipNextVisit?: boolean;
 };
 
-const DEFAULT_SLOT: VisitSlotData = { team: "", patientId: null, patientName: "", nextVisitDate: "", nextVisitTime: "" };
+const DEFAULT_SLOT: VisitSlotData = { team: "", patientId: null, patientName: "", nextVisitDate: "", nextVisitTime: "", skipNextVisit: false };
 
 const SLOTS_STORAGE_KEY = "hinata_visit_slots";
 
@@ -1560,8 +1562,32 @@ function SlotSelector({
               </button>
             </div>
             {/* 2行目：次回訪問日時入力（コンパクト） */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-muted-foreground flex-shrink-0 whitespace-nowrap">次回訪問日時</span>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-muted-foreground flex-shrink-0 whitespace-nowrap">次回訪問日時</span>
+                {/* チェックボックス：日時変更→連絡・予定から変更 */}
+                <label className="flex items-center gap-1 cursor-pointer select-none flex-shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={!!slot.skipNextVisit}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      // チェック時は日付・時刻もクリア
+                      if (checked) {
+                        onSlotChange({ skipNextVisit: true, nextVisitDate: "", nextVisitTime: "" });
+                      } else {
+                        onSlotChange({ skipNextVisit: false });
+                      }
+                    }}
+                    className="w-3.5 h-3.5 cursor-pointer accent-primary"
+                  />
+                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                    日時変更→連絡・予定から変更
+                  </span>
+                </label>
+              </div>
+              {!slot.skipNextVisit && (
+                <div className="flex items-center gap-1.5">
               {/* 日付入力：iOSではカレンダーアイコンが表示されないため、カスタムラッパーで包む */}
               <div className="relative flex-1 min-w-0">
                 <input
@@ -1651,6 +1677,13 @@ function SlotSelector({
                 >
                   <X className="w-3 h-3" />
                 </button>
+              )}
+                </div>
+              )}
+              {slot.skipNextVisit && (
+                <div className="text-xs px-2 py-1.5 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300">
+                  ℹ️ 日時変更は「連絡・予定」から行います。次回訪問日時の入力・転記はスキップされます。
+                </div>
               )}
             </div>
           </div>
