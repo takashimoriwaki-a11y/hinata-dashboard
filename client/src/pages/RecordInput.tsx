@@ -34,9 +34,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
-  ClipboardEdit, Search, Loader2, ChevronDown, ChevronUp, X, Users, Mic, MicOff, ExternalLink, GripVertical, Check
+  ClipboardEdit, Search, Loader2, ChevronDown, ChevronUp, X, Users, Mic, MicOff, ExternalLink, GripVertical, Check, Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -488,6 +489,63 @@ export default function RecordInput() {
     toast.success(`枠${emptySlotIndex + 1}に「${p.name}」を入力しました`);
   }, [slots]);
 
+  // ===== 訪問予定テキスト AI解析 =====
+  const [planText, setPlanText] = useState("");
+  const visitPlanParserMutation = trpc.visitPlanParser.parse.useMutation({
+    onSuccess: (data) => {
+      if (!data.visits || data.visits.length === 0) {
+        toast.warning("利用者情報を抽出できませんでした");
+        return;
+      }
+      // 空きスロットに順次反映
+      const emptySlots: number[] = [];
+      slots.forEach((s, i) => {
+        if (!s.patientName) emptySlots.push(i);
+      });
+      if (emptySlots.length === 0) {
+        toast.warning("全ての枠が埋まっています");
+        return;
+      }
+      let appliedCount = 0;
+      let unmatchedCount = 0;
+      const visitsToApply = data.visits.slice(0, emptySlots.length);
+      visitsToApply.forEach((v, idx) => {
+        const slotIdx = emptySlots[idx];
+        if (slotIdx === undefined) return;
+        handleSlotChange(slotIdx, {
+          team: (v.team as Team) || "",
+          patientId: v.patientId,
+          patientName: v.patientName,
+          nextVisitDate: v.nextVisitDate || "",
+          nextVisitTime: v.nextVisitTime || "",
+        });
+        if (v.patientName) {
+          setSlotSearch(slotIdx, v.patientName);
+        }
+        appliedCount++;
+        if (!v.matched) unmatchedCount++;
+      });
+      const overflowCount = data.visits.length - visitsToApply.length;
+      let msg = `${appliedCount}件を反映しました`;
+      if (unmatchedCount > 0) msg += `（${unmatchedCount}件は未マッチ`;
+      if (overflowCount > 0) msg += `${unmatchedCount > 0 ? "・" : "（"}${overflowCount}件は枠不足で未反映`;
+      if (unmatchedCount > 0 || overflowCount > 0) msg += "）";
+      toast.success(msg);
+      setPlanText(""); // 反映後はクリア
+    },
+    onError: (err) => {
+      toast.error(`AI解析エラー: ${err.message}`);
+    },
+  });
+
+  const handleParsePlanText = useCallback(() => {
+    if (!planText.trim()) {
+      toast.warning("テキストを入力してください");
+      return;
+    }
+    visitPlanParserMutation.mutate({ text: planText });
+  }, [planText, visitPlanParserMutation]);
+
   // ヘッダー検索フィールド外クリックで閉じる
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -799,6 +857,43 @@ export default function RecordInput() {
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                   <span className="whitespace-nowrap">全リセット</span>
                 </button>
+            </div>
+            {/* 訪問予定テキストAI解析 */}
+            <div className="flex flex-col gap-1.5 p-2 rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/10">
+              <div className="flex items-center gap-1.5 text-xs text-purple-900 dark:text-purple-300">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span className="font-semibold">今日の訪問予定をAIで解析</span>
+                <span className="text-[10px] text-muted-foreground">（利用者名と次回訪問日時を貼り付け）</span>
+              </div>
+              <Textarea
+                value={planText}
+                onChange={(e) => setPlanText(e.target.value)}
+                placeholder="例:&#10;田中花子さん 14:00&#10;佐藤太郎さん 次回 5/8 10時&#10;鈴木一郎さん 5月10日午後2時"
+                rows={3}
+                className="text-xs resize-y min-h-[60px]"
+                disabled={visitPlanParserMutation.isPending}
+              />
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  onClick={handleParsePlanText}
+                  disabled={visitPlanParserMutation.isPending || !planText.trim()}
+                  size="sm"
+                  className="h-8 px-3 bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  {visitPlanParserMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                      <span className="text-xs">解析中...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 mr-1" />
+                      <span className="text-xs">AI解析して反映</span>
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
             {/* 3行目：検索フィールド */}
             <div className="relative" ref={headerSearchRef}>
