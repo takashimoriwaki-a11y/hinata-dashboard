@@ -2791,6 +2791,290 @@ JSON配列で返す。各要素は { patientName: string, nextVisitDate: string,
       }),
   }),
 
+  // ========== 訪問予定一括割り当て（管理者+特級管理者専用） ===========
+  dailyVisitAssignments: router({
+    /**
+     * テキストを解析して各職員の訪問予定をプレビュー
+     * 入力フォーマット例:
+     * 【森本智保】
+     * 1. 田中花子 次回5/8 14:00
+     * 2. 佐藤太郎 次回5/10 9:30
+     */
+    bulkParse: protectedProcedure
+      .input(z.object({
+        text: z.string().min(1).max(20000),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ操作できます" });
+        }
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const { patients, users } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const { invokeLLM } = await import("./_core/llm");
+
+        // 利用者・職員一覧取得
+        const allPatients = await db.select().from(patients).where(eq(patients.active, 1));
+        const allUsers = await db.select().from(users);
+        const patientNames = allPatients.map(p => p.name);
+        const userNames = allUsers.map(u => u.name).filter(Boolean);
+
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+        const systemPrompt = `あなたは訪問看護ステーションの「全職員分の訪問予定」を解析するアシスタントです。
+入力テキストから、各職員ごとの訪問予定（利用者名 + 次回訪問日時）を抽出してJSON形式で返してください。
+
+# ルール
+- 入力テキストは【職員名】で職員ごとにブロック分けされている
+- 各ブロックの中で、番号付きまたは箇条書きで利用者と次回訪問日時が書かれている
+- 利用者名は登録されている利用者リストとマッチさせる
+- 職員名は登録されている職員リストとマッチさせる
+- 次回訪問日時は YYYY-MM-DD と HH:MM に分けて抽出（時刻が「未定」「不明」の場合はnextVisitTime="unspecified"）
+- 次回訪問日時の記載がない場合、nextVisitDate と nextVisitTime は空文字
+- 5/8 → 今年の5月8日として解釈
+- 14時 や 14:00 は 14:00 として解釈
+- 訪問順序は入力テキストに記載された順番をそのまま保持
+
+# 登録されている利用者一覧（${patientNames.length}名）
+${patientNames.join("、")}
+
+# 登録されている職員一覧（${userNames.length}名）
+${userNames.join("、")}
+
+# 今日の日付
+${todayStr}
+
+# 出力形式
+{
+  "assignments": [
+    {
+      "userName": "森本智保",
+      "visits": [
+        { "patientName": "田中花子", "nextVisitDate": "2026-05-08", "nextVisitTime": "14:00" },
+        { "patientName": "佐藤太郎", "nextVisitDate": "2026-05-10", "nextVisitTime": "09:30" }
+      ]
+    }
+  ]
+}`;
+
+        const result = await invokeLLM({
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: input.text },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              schema: {
+                type: "object",
+                properties: {
+                  assignments: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        userName: { type: "string" },
+                        visits: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              patientName: { type: "string" },
+                              nextVisitDate: { type: "string" },
+                              nextVisitTime: { type: "string" },
+                            },
+                            required: ["patientName", "nextVisitDate", "nextVisitTime"],
+                          },
+                        },
+                      },
+                      required: ["userName", "visits"],
+                    },
+                  },
+                },
+                required: ["assignments"],
+              },
+            },
+          },
+        });
+
+        const responseText = result.choices[0]?.message?.content ?? "{}";
+        let parsed: { assignments: Array<{ userName: string; visits: Array<{ patientName: string; nextVisitDate: string; nextVisitTime: string }> }> };
+        try {
+          parsed = JSON.parse(responseText);
+        } catch (e) {
+          throw new Error("AI解析結果のパースに失敗しました");
+        }
+
+        if (!parsed.assignments || !Array.isArray(parsed.assignments)) {
+          return { assignments: [], stats: { totalUsers: 0, totalVisits: 0, unmatchedUsers: 0, unmatchedPatients: 0 } };
+        }
+
+        // マッチング処理
+        let unmatchedUsers = 0;
+        let unmatchedPatients = 0;
+        let totalVisits = 0;
+
+        const assignmentsWithMatch = parsed.assignments.map((a) => {
+          // 職員マッチング
+          let matchedUser = allUsers.find(u => u.name === a.userName);
+          if (!matchedUser) {
+            matchedUser = allUsers.find(u => u.name?.includes(a.userName) || a.userName.includes(u.name ?? ""));
+          }
+          if (!matchedUser) unmatchedUsers++;
+
+          const visits = a.visits.map((v) => {
+            // 利用者マッチング
+            let matchedPatient = allPatients.find(p => p.name === v.patientName);
+            if (!matchedPatient) {
+              matchedPatient = allPatients.find(p => p.name.includes(v.patientName) || v.patientName.includes(p.name));
+            }
+            if (!matchedPatient) unmatchedPatients++;
+            totalVisits++;
+            return {
+              patientId: matchedPatient?.id ?? null,
+              patientName: matchedPatient?.name ?? v.patientName,
+              team: matchedPatient?.team ?? null,
+              nextVisitDate: v.nextVisitDate || "",
+              nextVisitTime: v.nextVisitTime || "",
+              matched: !!matchedPatient,
+            };
+          });
+
+          return {
+            userId: matchedUser?.id ?? null,
+            userName: matchedUser?.name ?? a.userName,
+            matched: !!matchedUser,
+            visits,
+          };
+        });
+
+        return {
+          assignments: assignmentsWithMatch,
+          stats: {
+            totalUsers: parsed.assignments.length,
+            totalVisits,
+            unmatchedUsers,
+            unmatchedPatients,
+          },
+        };
+      }),
+
+    /**
+     * プレビュー結果を一括保存（上書き）
+     * 当日の既存割り当てを削除して、新しい割り当てを保存
+     */
+    bulkAssign: protectedProcedure
+      .input(z.object({
+        date: z.string().min(10).max(10),
+        assignments: z.array(z.object({
+          userId: z.number(),
+          userName: z.string(),
+          visits: z.array(z.object({
+            patientId: z.number().nullable(),
+            patientName: z.string(),
+            team: z.string().nullable(),
+            nextVisitDate: z.string(),
+            nextVisitTime: z.string(),
+          })),
+        })),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ操作できます" });
+        }
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const { dailyVisitAssignments } = await import("../drizzle/schema");
+        const { eq, and, inArray } = await import("drizzle-orm");
+
+        // 1. 対象職員の当日分を全削除（上書き）
+        const userIds = input.assignments.map(a => a.userId);
+        if (userIds.length > 0) {
+          await db.delete(dailyVisitAssignments).where(
+            and(
+              eq(dailyVisitAssignments.date, input.date),
+              inArray(dailyVisitAssignments.userId, userIds)
+            )
+          );
+        }
+
+        // 2. 新規挿入
+        let insertedCount = 0;
+        for (const assignment of input.assignments) {
+          for (let i = 0; i < assignment.visits.length; i++) {
+            const v = assignment.visits[i];
+            await db.insert(dailyVisitAssignments).values({
+              userId: assignment.userId,
+              userName: assignment.userName,
+              date: input.date,
+              slotIndex: i,
+              patientId: v.patientId,
+              patientName: v.patientName,
+              team: v.team,
+              nextVisitDate: v.nextVisitDate || null,
+              nextVisitTime: v.nextVisitTime || null,
+              skipNextVisit: 0,
+              assignedBy: ctx.user.id,
+              assignedByName: ctx.user.name ?? "不明",
+            });
+            insertedCount++;
+          }
+        }
+        broadcastEvent("dailyVisitAssignments");
+        return { success: true, insertedCount, userCount: input.assignments.length };
+      }),
+
+    /**
+     * 自分の当日分の訪問予定を取得（職員ホーム画面用）
+     */
+    getMine: protectedProcedure
+      .input(z.object({ date: z.string().min(10).max(10) }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) return { assignments: [] };
+        const { dailyVisitAssignments } = await import("../drizzle/schema");
+        const { eq, and, asc } = await import("drizzle-orm");
+
+        const rows = await db
+          .select()
+          .from(dailyVisitAssignments)
+          .where(
+            and(
+              eq(dailyVisitAssignments.userId, ctx.user.id),
+              eq(dailyVisitAssignments.date, input.date)
+            )
+          )
+          .orderBy(asc(dailyVisitAssignments.slotIndex));
+
+        return { assignments: rows };
+      }),
+
+    /**
+     * 当日全職員の割り当て一覧を取得（管理画面確認用）
+     */
+    getAllByDate: protectedProcedure
+      .input(z.object({ date: z.string().min(10).max(10) }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ操作できます" });
+        }
+        const db = await getDb();
+        if (!db) return { assignments: [] };
+        const { dailyVisitAssignments } = await import("../drizzle/schema");
+        const { eq, asc } = await import("drizzle-orm");
+
+        const rows = await db
+          .select()
+          .from(dailyVisitAssignments)
+          .where(eq(dailyVisitAssignments.date, input.date))
+          .orderBy(asc(dailyVisitAssignments.userName), asc(dailyVisitAssignments.slotIndex));
+
+        return { assignments: rows };
+      }),
+  }),
+
   // ========== タスク一括取り込み（特級管理者専用） ===========
   taskImport: router({
     /**
@@ -8527,4 +8811,3 @@ JSON配列で返す。各要素は { patientName: string, nextVisitDate: string,
   }),
 });
 export type AppRouter = typeof appRouter;
-
