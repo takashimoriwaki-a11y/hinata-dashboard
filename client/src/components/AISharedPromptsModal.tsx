@@ -136,13 +136,18 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
 
   // 更新
   const updateMutation = trpc.sharedPrompts.update.useMutation({
-    onSuccess: () => {
-      utils.sharedPrompts.getAll.invalidate();
+    onSuccess: async () => {
+      // キャッシュ無効化＋強制リフェッチで確実に最新データを反映
+      await utils.sharedPrompts.getAll.invalidate();
+      await utils.sharedPrompts.getAll.refetch();
       toast.success("プロンプトを更新しました");
       setEditingId(null);
       resetForm();
     },
-    onError: () => toast.error("更新に失敗しました"),
+    onError: (err) => {
+      console.error("[sharedPrompts.update] error:", err);
+      toast.error(`更新に失敗しました: ${err.message ?? "不明なエラー"}`);
+    },
   });
 
   // 削除
