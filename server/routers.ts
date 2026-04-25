@@ -2675,6 +2675,122 @@ export const appRouter = router({
         ).orderBy(tasks.createdAt);
       }),
   }),
+  // ========== 訪問予定テキストAI解析 ===========
+  visitPlanParser: router({
+    /**
+     * テキストを解析して、利用者名と次回訪問日時のリストを抽出
+     * 「今日の訪問予定」を自由記述で入力 → AIが構造化データに変換
+     */
+    parse: protectedProcedure
+      .input(z.object({
+        text: z.string().min(1, "テキストを入力してください").max(5000),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const { patients } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const { invokeLLM } = await import("./_core/llm");
+
+        // 利用者一覧を取得（マッチング用）
+        const allPatients = await db.select().from(patients).where(eq(patients.active, 1));
+        const patientNames = allPatients.map(p => p.name);
+
+        // 今日の日付を基準に
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+        // Geminiで解析
+        const systemPrompt = `あなたは訪問看護ステーションの訪問予定テキストを解析するアシスタントです。
+入力されたテキストから、各訪問の「利用者名」と「次回訪問日時」を抽出してJSON形式で返してください。
+
+# ルール
+- 利用者名は「様」「さん」を除いた純粋な氏名で抽出
+- 利用者名は登録されている利用者リストの中からマッチさせる（部分一致でもOK）
+- 次回訪問日時はISO形式（YYYY-MM-DDTHH:MM）で返す
+- 日付のみで時刻が不明な場合は時刻を空文字にする
+- 時刻のみで日付が不明な場合、今日（${todayStr}）の日付を使う
+- 入力テキストの順番を保持する
+- 「次回」「次は」などの表現で次回訪問と判定
+- 何月何日（例: 5/6）のような表記は今年の日付として解釈
+- 訪問予定が含まれない行は無視する
+
+# 登録されている利用者一覧（${patientNames.length}名）
+${patientNames.join("、")}
+
+# 今日の日付
+${todayStr}
+
+# 出力形式
+JSON配列で返す。各要素は { patientName: string, nextVisitDate: string, nextVisitTime: string }
+- patientName: 上記利用者一覧と照合した正式な利用者名（マッチしない場合は入力された名前）
+- nextVisitDate: YYYY-MM-DD（不明な場合は空文字）
+- nextVisitTime: HH:MM（不明な場合は空文字）`;
+
+        const result = await invokeLLM({
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: input.text },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              schema: {
+                type: "object",
+                properties: {
+                  visits: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        patientName: { type: "string" },
+                        nextVisitDate: { type: "string" },
+                        nextVisitTime: { type: "string" },
+                      },
+                      required: ["patientName", "nextVisitDate", "nextVisitTime"],
+                    },
+                  },
+                },
+                required: ["visits"],
+              },
+            },
+          },
+        });
+
+        const responseText = result.choices[0]?.message?.content ?? "{}";
+        let parsed: { visits: Array<{ patientName: string; nextVisitDate: string; nextVisitTime: string }> };
+        try {
+          parsed = JSON.parse(responseText);
+        } catch (e) {
+          throw new Error("AI解析結果のパースに失敗しました");
+        }
+
+        if (!parsed.visits || !Array.isArray(parsed.visits)) {
+          return { visits: [] };
+        }
+
+        // 利用者マスタとマッチング（IDとチームを付与）
+        const visitsWithMatch = parsed.visits.map((v) => {
+          // 完全一致
+          let matched = allPatients.find(p => p.name === v.patientName);
+          // 部分一致（フォールバック）
+          if (!matched) {
+            matched = allPatients.find(p => p.name.includes(v.patientName) || v.patientName.includes(p.name));
+          }
+          return {
+            patientId: matched?.id ?? null,
+            patientName: matched?.name ?? v.patientName,
+            team: matched?.team ?? null,
+            nextVisitDate: v.nextVisitDate || "",
+            nextVisitTime: v.nextVisitTime || "",
+            matched: !!matched,
+          };
+        });
+
+        return { visits: visitsWithMatch };
+      }),
+  }),
+
   // ========== タスク一括取り込み（特級管理者専用） ===========
   taskImport: router({
     /**
