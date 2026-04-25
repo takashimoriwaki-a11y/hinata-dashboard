@@ -8514,4 +8514,3 @@ JSON配列で返す。各要素は { patientName: string, nextVisitDate: string,
   }),
 });
 export type AppRouter = typeof appRouter;
-
