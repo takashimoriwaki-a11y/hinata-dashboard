@@ -1200,18 +1200,18 @@ export default function Admin() {
           {/* リンク一覧・個別登録フォーム */}
           <Card className="shadow-sm">
             <CardHeader className="pb-2 pt-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <CardTitle className="text-base font-semibold">
                   {formatYearMonth(selectedYearMonth)} のスプレッドシートURL
                 </CardTitle>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   {selectedYearMonth === currentYearMonth && (
                     <Badge variant="secondary" className="text-xs bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400">今月</Badge>
                   )}
                   {selectedYearMonth > currentYearMonth && (
                     <Badge variant="secondary" className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400">来月以降</Badge>
                   )}
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant="outline" className="text-xs whitespace-nowrap">
                     {Object.keys(selectedLinks).length} / {LINK_DEFINITIONS.length} 件登録済み
                   </Badge>
                 </div>
