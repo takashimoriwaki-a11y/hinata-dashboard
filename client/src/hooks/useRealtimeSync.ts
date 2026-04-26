@@ -64,6 +64,11 @@ const EVENT_QUERY_MAP: Record<string, string[][]> = {
     ["overtime", "list"],
     ["overtime", "pendingCount"],
   ],
+  // 訪問予定一括割り当て（管理者の入力を職員側でリアルタイム反映）
+  dailyVisitAssignments: [
+    ["dailyVisitAssignments", "getMine"],
+    ["dailyVisitAssignments", "getAllByDate"],
+  ],
 };
 
 export function useRealtimeSync() {
