@@ -113,6 +113,18 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
     onError: (err) => toast.error(`設定エラー: ${err.message}`),
   });
 
+  // 精神科プロンプト選択
+  const { data: selectedPsychiatricPromptIdData } = trpc.sharedPrompts.getSelectedPsychiatricId.useQuery(undefined, {
+    enabled: open && isAdmin,
+  });
+  const setSelectedPsychiatricPromptIdMutation = trpc.sharedPrompts.setSelectedPsychiatricId.useMutation({
+    onSuccess: () => {
+      utils.sharedPrompts.getSelectedPsychiatricId.invalidate();
+      toast.success("（精神科）プロンプトを設定しました");
+    },
+    onError: (err) => toast.error(`設定エラー: ${err.message}`),
+  });
+
   // 並び替え保存
   const reorderMutation = trpc.sharedPrompts.reorder.useMutation({
     onSuccess: () => {
@@ -618,50 +630,101 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
 
           {/* 管理者向け：スクショ用プロンプト選択（一番下） */}
           {isAdmin && !isSortMode && (
-            <div className="mt-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3">
-              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-2 flex items-center gap-1.5">
-                <Camera className="w-3.5 h-3.5" />
-                管理者設定：ボイスメモコピー用プロンプト選択
-              </p>
-              <p className="text-xs text-amber-600 dark:text-amber-500 mb-2">
-                選択したプロンプトが「ボイスメモをNotebookLMに...」のコピーボタンで取得できます
-              </p>
-              <div className="space-y-1.5">
-                <button
-                  type="button"
-                  className={cn(
-                    "w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors",
-                    !selectedPromptIdData?.promptId
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "border-border hover:bg-muted"
-                  )}
-                  onClick={() => setSelectedPromptIdMutation.mutate({ promptId: null })}
-                >
-                  選択なし
-                </button>
-                {localOrder.map((p) => (
+            <div className="mt-3 space-y-3">
+              {/* 身体科用プロンプト選択 */}
+              <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3">
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-2 flex items-center gap-1.5">
+                  <Camera className="w-3.5 h-3.5" />
+                  管理者設定：（身体科）プロンプト選択
+                </p>
+                <p className="text-xs text-amber-600 dark:text-amber-500 mb-2">
+                  選択したプロンプトが「（身体科）プロンプトをコピー」ボタンで取得できます
+                </p>
+                <div className="space-y-1.5">
                   <button
-                    key={p.id}
                     type="button"
                     className={cn(
                       "w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors",
-                      selectedPromptIdData?.promptId === p.id
+                      !selectedPromptIdData?.promptId
                         ? "bg-primary text-primary-foreground border-primary"
                         : "border-border hover:bg-muted"
                     )}
-                    onClick={() => setSelectedPromptIdMutation.mutate({ promptId: p.id })}
+                    onClick={() => setSelectedPromptIdMutation.mutate({ promptId: null })}
                   >
-                    <span className="font-medium">{p.title}</span>
-                    {p.aiTool && (
-                      <span className="ml-2 text-[10px] opacity-70">[{p.aiTool}]</span>
-                    )}
+                    選択なし
                   </button>
-                ))}
-                {localOrder.length === 0 && (
-                  <p className="text-xs text-muted-foreground py-2 text-center">
-                    AI共有プロンプトが登録されていません
-                  </p>
-                )}
+                  {localOrder.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={cn(
+                        "w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors",
+                        selectedPromptIdData?.promptId === p.id
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "border-border hover:bg-muted"
+                      )}
+                      onClick={() => setSelectedPromptIdMutation.mutate({ promptId: p.id })}
+                    >
+                      <span className="font-medium">{p.title}</span>
+                      {p.aiTool && (
+                        <span className="ml-2 text-[10px] opacity-70">[{p.aiTool}]</span>
+                      )}
+                    </button>
+                  ))}
+                  {localOrder.length === 0 && (
+                    <p className="text-xs text-muted-foreground py-2 text-center">
+                      AI共有プロンプトが登録されていません
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* 精神科用プロンプト選択 */}
+              <div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/20 px-4 py-3">
+                <p className="text-xs font-semibold text-purple-700 dark:text-purple-400 mb-2 flex items-center gap-1.5">
+                  <Camera className="w-3.5 h-3.5" />
+                  管理者設定：（精神科）プロンプト選択
+                </p>
+                <p className="text-xs text-purple-600 dark:text-purple-500 mb-2">
+                  選択したプロンプトが「（精神科）プロンプトをコピー」ボタンで取得できます
+                </p>
+                <div className="space-y-1.5">
+                  <button
+                    type="button"
+                    className={cn(
+                      "w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors",
+                      !selectedPsychiatricPromptIdData?.promptId
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "border-border hover:bg-muted"
+                    )}
+                    onClick={() => setSelectedPsychiatricPromptIdMutation.mutate({ promptId: null })}
+                  >
+                    選択なし
+                  </button>
+                  {localOrder.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={cn(
+                        "w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors",
+                        selectedPsychiatricPromptIdData?.promptId === p.id
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "border-border hover:bg-muted"
+                      )}
+                      onClick={() => setSelectedPsychiatricPromptIdMutation.mutate({ promptId: p.id })}
+                    >
+                      <span className="font-medium">{p.title}</span>
+                      {p.aiTool && (
+                        <span className="ml-2 text-[10px] opacity-70">[{p.aiTool}]</span>
+                      )}
+                    </button>
+                  ))}
+                  {localOrder.length === 0 && (
+                    <p className="text-xs text-muted-foreground py-2 text-center">
+                      AI共有プロンプトが登録されていません
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           )}
