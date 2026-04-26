@@ -1815,7 +1815,7 @@ export const appRouter = router({
     getMyTeam: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) return { team: "身体" as const };
-      const result = await db.select({ team: users.team }).from(users).where(eq(users.id, ctx.user.id)).limit(1);
+      const result = await db.select({ team: users.team }).from(users).where(eq(users.id, Number(ctx.user.id))).limit(1);
       return { team: result[0]?.team ?? "身体" };
     }),
     // チームを更新
@@ -1830,7 +1830,7 @@ export const appRouter = router({
     getMyProfile: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) return { team: null, teamSetupDone: false };
-      const result = await db.select({ team: users.team, teamSetupDone: users.teamSetupDone }).from(users).where(eq(users.id, ctx.user.id)).limit(1);
+      const result = await db.select({ team: users.team, teamSetupDone: users.teamSetupDone }).from(users).where(eq(users.id, Number(ctx.user.id))).limit(1);
       return { team: result[0]?.team ?? null, teamSetupDone: (result[0]?.teamSetupDone ?? 0) === 1 };
     }),
     // 初回チーム設定を完了する
@@ -2422,7 +2422,7 @@ export const appRouter = router({
       if (!db) return [];
       const { eq } = await import("drizzle-orm");
       const { users } = await import("../drizzle/schema");
-      const userRows = await db.select().from(users).where(eq(users.id, ctx.user.id)).limit(1);
+      const userRows = await db.select().from(users).where(eq(users.id, Number(ctx.user.id))).limit(1);
       const userTeam = userRows[0]?.team ?? null;
       return getMyTasks(ctx.user.id, userTeam);
     }),
@@ -5705,7 +5705,7 @@ ${todayStr}
       const { minutes, minutesChecks } = await import("../drizzle/schema");
       const allMinutes = await db.select().from(minutes).orderBy(minutes.createdAt);
       // 自分がチェック済みの議事録IDを取得
-      const myChecks = await db.select().from(minutesChecks).where(eq(minutesChecks.userId, ctx.user.id));
+      const myChecks = await db.select().from(minutesChecks).where(eq(minutesChecks.userId, Number(ctx.user.id)));
       const checkedIds = new Set(myChecks.map((c) => c.minutesId));
       // 全員分の確認記録を取得（allCheckedAt計算に使用）
       const allChecks = await db.select({ minutesId: minutesChecks.minutesId, userId: minutesChecks.userId, checkedAt: minutesChecks.checkedAt }).from(minutesChecks);
@@ -5753,7 +5753,7 @@ ${todayStr}
       if (!db) return { count: 0 };
       const { minutes, minutesChecks } = await import("../drizzle/schema");
       const allMinutes = await db.select({ id: minutes.id }).from(minutes);
-      const myChecks = await db.select({ minutesId: minutesChecks.minutesId }).from(minutesChecks).where(eq(minutesChecks.userId, ctx.user.id));
+      const myChecks = await db.select({ minutesId: minutesChecks.minutesId }).from(minutesChecks).where(eq(minutesChecks.userId, Number(ctx.user.id)));
       const checkedIds = new Set(myChecks.map((c) => c.minutesId));
       const count = allMinutes.filter((m) => !checkedIds.has(m.id)).length;
       return { count };
@@ -5966,7 +5966,7 @@ ${todayStr}
         await db.delete(minutesChecks).where(
           and(
             eqOp(minutesChecks.minutesId, input.minutesId),
-            eqOp(minutesChecks.userId, ctx.user.id)
+            eqOp(minutesChecks.userId, Number(ctx.user.id))
           )
         );
         broadcastEvent("minutes");
@@ -6072,7 +6072,7 @@ ${todayStr}
       const rows = await db.select({
         googleAccessToken: usersTable.googleAccessToken,
         googleTokenExpiry: usersTable.googleTokenExpiry,
-      }).from(usersTable).where(eqOp(usersTable.id, ctx.user.id)).limit(1);
+      }).from(usersTable).where(eqOp(usersTable.id, Number(ctx.user.id))).limit(1);
       const row = rows[0];
       if (!row?.googleAccessToken) return { connected: false };
       return { connected: true, tokenExpiry: row.googleTokenExpiry };
@@ -6094,7 +6094,7 @@ ${todayStr}
           googleAccessToken: usersTable.googleAccessToken,
           googleRefreshToken: usersTable.googleRefreshToken,
           googleTokenExpiry: usersTable.googleTokenExpiry,
-        }).from(usersTable).where(eqOp(usersTable.id, ctx.user.id)).limit(1);
+        }).from(usersTable).where(eqOp(usersTable.id, Number(ctx.user.id))).limit(1);
         const row = rows[0];
         if (!row?.googleAccessToken) {
           throw new TRPCError({ code: "UNAUTHORIZED", message: "Google Calendar not connected" });
@@ -8811,3 +8811,4 @@ ${todayStr}
   }),
 });
 export type AppRouter = typeof appRouter;
+
