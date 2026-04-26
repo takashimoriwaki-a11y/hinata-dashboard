@@ -436,6 +436,7 @@ export default function RecordInput() {
 
   // 管理者が選択したプロンプトを取得
   const { data: selectedPromptIdData } = trpc.sharedPrompts.getSelectedId.useQuery();
+  const { data: selectedPsychiatricPromptIdData } = trpc.sharedPrompts.getSelectedPsychiatricId.useQuery();
   const { data: allPrompts = [] } = trpc.sharedPrompts.getAll.useQuery();
   const setSelectedPromptIdMutation = trpc.sharedPrompts.setSelectedId.useMutation({
     onSuccess: () => {
@@ -450,6 +451,12 @@ export default function RecordInput() {
     const found = allPrompts.find(p => p.id === selectedPromptIdData.promptId);
     return found?.body ?? null;
   }, [selectedPromptIdData, allPrompts]);
+
+  const selectedPsychiatricPromptBody = useMemo(() => {
+    if (!selectedPsychiatricPromptIdData?.promptId) return null;
+    const found = allPrompts.find(p => p.id === selectedPsychiatricPromptIdData.promptId);
+    return found?.body ?? null;
+  }, [selectedPsychiatricPromptIdData, allPrompts]);
 
   const isAdmin = user?.role === "admin" || user?.role === "super_admin";
 
@@ -1289,6 +1296,7 @@ export default function RecordInput() {
             slotData={slot}
             onSlotChange={handleSlotChange}
             selectedPromptBody={selectedPromptBody}
+            selectedPsychiatricPromptBody={selectedPsychiatricPromptBody}
             externalNextVisitDate={slot.nextVisitDate}
             externalNextVisitTime={slot.nextVisitTime}
             onNextVisitChange={(date, time) => handleSlotChange(index, { nextVisitDate: date, nextVisitTime: time })}
