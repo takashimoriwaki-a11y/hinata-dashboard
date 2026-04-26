@@ -258,12 +258,26 @@ export default function RecordInput() {
     { date: todayKey },
     { enabled: !!user, staleTime: 0 }
   );
+  // 前回反映した管理者割り当てのフィンガープリント（変化検知用）
+  const lastAppliedAssignmentRef = useRef<string>("");
   useEffect(() => {
-    // 同じ日付のデータが既に読み込み済みなら上書きしない
-    if (_dbSlotLoadedDate === todayKey) return;
-
-    // 管理者割り当てが優先（上書きモード）
+    // 管理者割り当てを最優先：変化があったら即座に反映（SSE自動更新対応）
     if (dailyAssignments?.assignments && dailyAssignments.assignments.length > 0) {
+      // 割り当て内容のフィンガープリント生成
+      const fingerprint = JSON.stringify(
+        dailyAssignments.assignments.map(a => ({
+          slot: a.slotIndex,
+          pid: a.patientId,
+          pn: a.patientName,
+          team: a.team,
+          nvd: a.nextVisitDate,
+          nvt: a.nextVisitTime,
+          skip: a.skipNextVisit,
+        }))
+      );
+      // 同じ内容なら何もしない（無限ループ防止）
+      if (fingerprint === lastAppliedAssignmentRef.current) return;
+
       const newSlots: VisitSlotData[] = Array.from({ length: MAX_SLOTS }, () => ({ ...DEFAULT_SLOT }));
       dailyAssignments.assignments.forEach((a) => {
         if (a.slotIndex >= 0 && a.slotIndex < MAX_SLOTS) {
@@ -281,12 +295,21 @@ export default function RecordInput() {
       setSlotSearchQueries(newSlots.map(s => s.patientName || ""));
       localStorage.setItem(SLOTS_STORAGE_KEY, JSON.stringify(newSlots));
       _dbSlotLoadedDate = todayKey;
-      // ユーザーへ通知（初回のみ、トーストで）
-      toast.info(`📋 管理者から本日の訪問予定（${dailyAssignments.assignments.length}件）が反映されました`);
+      // 初回反映（lastAppliedAssignmentRef === ""）か変更時かを区別してトースト
+      if (lastAppliedAssignmentRef.current === "") {
+        toast.info(`📋 管理者から本日の訪問予定（${dailyAssignments.assignments.length}件）が反映されました`);
+      } else {
+        toast.info(`🔄 管理者が訪問予定を更新しました（${dailyAssignments.assignments.length}件）`);
+      }
+      lastAppliedAssignmentRef.current = fingerprint;
       return;
     }
 
-    // 管理者割り当てがない場合、通常のDB保存スロットを復元
+    // 管理者割り当てがない場合
+    // 同じ日付のデータが既に読み込み済みなら通常DBスロット復元はスキップ
+    if (_dbSlotLoadedDate === todayKey) return;
+
+    // 通常のDB保存スロットを復元
     if (!dbSlotData) return;
     if (dbSlotData.slotsJson) {
       try {
