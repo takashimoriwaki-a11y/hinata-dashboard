@@ -40,7 +40,6 @@ import {
   Calendar,
   AlertTriangle,
   RotateCcw,
-  FolderOpen,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
