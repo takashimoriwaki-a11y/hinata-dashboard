@@ -1822,7 +1822,7 @@ export const appRouter = router({
     setMyTeam: protectedProcedure
       .input(z.object({ team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]) }))
       .mutation(async ({ ctx, input }) => {
-        await updateUserTeam(ctx.user.id, input.team);
+        await updateUserTeam(Number(ctx.user.id), input.team);
         broadcastEvent("users");
         return { success: true };
       }),
@@ -1837,7 +1837,7 @@ export const appRouter = router({
     completeTeamSetup: protectedProcedure
       .input(z.object({ team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]) }))
       .mutation(async ({ ctx, input }) => {
-        await completeTeamSetup(ctx.user.id, input.team);
+        await completeTeamSetup(Number(ctx.user.id), input.team);
         broadcastEvent("users");
         // 管理者へチーム参加通知を送信
         try {
@@ -1858,7 +1858,7 @@ export const appRouter = router({
   myLinks: router({
     // 自分のリンク一覧を取得
     list: protectedProcedure.query(async ({ ctx }) => {
-      return getMyLinks(ctx.user.id);
+      return getMyLinks(Number(ctx.user.id));
     }),
     // リンクを追加
     create: protectedProcedure
@@ -1871,10 +1871,10 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ ctx, input }) => {
-        const links = await getMyLinks(ctx.user.id);
+        const links = await getMyLinks(Number(ctx.user.id));
         const sortOrder = links.length;
         const id = await createMyLink({
-          userId: ctx.user.id,
+          userId: Number(ctx.user.id),
           label: input.label,
           url: input.url,
           emoji: input.emoji,
@@ -1898,7 +1898,7 @@ export const appRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         const { id, ...data } = input;
-        await updateMyLink(id, ctx.user.id, data);
+        await updateMyLink(id, Number(ctx.user.id), data);
         broadcastEvent("myLinks");
         return { success: true };
       }),
@@ -1906,7 +1906,7 @@ export const appRouter = router({
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
-        await deleteMyLink(input.id, ctx.user.id);
+        await deleteMyLink(input.id, Number(ctx.user.id));
         broadcastEvent("myLinks");
         return { success: true };
       }),
@@ -2067,7 +2067,7 @@ export const appRouter = router({
           url: input.url,
           color: input.color ?? "text-emerald-600",
           displayTarget,
-          createdBy: ctx.user.id,
+          createdBy: Number(ctx.user.id),
         });
         broadcastEvent("spreadsheetLinks");
         return { success: true, id };
@@ -2154,7 +2154,7 @@ export const appRouter = router({
               url: link.url,
               color: link.color ?? "text-emerald-600",
               displayTarget,
-              createdBy: ctx.user.id,
+              createdBy: Number(ctx.user.id),
             });
           })
         );
@@ -2243,7 +2243,7 @@ export const appRouter = router({
           imageUrl,
           imageKey,
           imageData,
-          uploadedBy: ctx.user.id,
+          uploadedBy: Number(ctx.user.id),
           uploadedByName: ctx.user.name ?? "不明",
         });
 
@@ -2257,7 +2257,7 @@ export const appRouter = router({
         await createScreenshotUploadLog({
           team: input.team,
           day: input.day,
-          uploadedBy: ctx.user.id,
+          uploadedBy: Number(ctx.user.id),
           uploadedByName: ctx.user.name ?? "不明",
         });
 
@@ -2351,7 +2351,7 @@ export const appRouter = router({
           team: input.team,
           day: input.day,
           content: input.content,
-          userId: ctx.user.id,
+          userId: Number(ctx.user.id),
           userName: ctx.user.name ?? "名前未設定",
         });
         // プッシュ通知を送信（非同期・エラーは無視）
@@ -2376,7 +2376,7 @@ export const appRouter = router({
     deleteComment: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
-        await deleteScheduleComment(input.id, ctx.user.id);
+        await deleteScheduleComment(input.id, Number(ctx.user.id));
         broadcastEvent("scheduleComments");
         return { success: true };
       }),
@@ -2386,7 +2386,7 @@ export const appRouter = router({
         content: z.string().min(1).max(500),
       }))
       .mutation(async ({ ctx, input }) => {
-        await updateScheduleComment(input.id, ctx.user.id, input.content);
+        await updateScheduleComment(input.id, Number(ctx.user.id), input.content);
         broadcastEvent("scheduleComments");
         return { success: true };
       }),
@@ -2398,7 +2398,7 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const result = await toggleScheduleCommentReaction(
           input.commentId,
-          ctx.user.id,
+          Number(ctx.user.id),
           ctx.user.name ?? "名前未設定",
           input.emoji
         );
@@ -2424,7 +2424,7 @@ export const appRouter = router({
       const { users } = await import("../drizzle/schema");
       const userRows = await db.select().from(users).where(eq(users.id, Number(ctx.user.id))).limit(1);
       const userTeam = userRows[0]?.team ?? null;
-      return getMyTasks(ctx.user.id, userTeam);
+      return getMyTasks(Number(ctx.user.id), userTeam);
     }),
 
     // タスクを作成する
@@ -2457,7 +2457,7 @@ export const appRouter = router({
           repeatType: input.repeatType,
           repeatDayOfWeek: input.repeatDayOfWeek,
           repeatDayOfMonth: input.repeatDayOfMonth,
-          createdBy: ctx.user.id,
+          createdBy: Number(ctx.user.id),
           createdByName: ctx.user.name ?? "不明",
           done: 0,
         });
@@ -2480,7 +2480,7 @@ export const appRouter = router({
     toggle: protectedProcedure
       .input(z.object({ id: z.number(), done: z.boolean() }))
       .mutation(async ({ ctx, input }) => {
-        await toggleTask(input.id, input.done, ctx.user.id);
+        await toggleTask(input.id, input.done, Number(ctx.user.id));
         broadcastEvent("tasks");
         return { success: true };
       }),
@@ -2491,10 +2491,10 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const task = await getTaskById(input.id);
         if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "タスクが見つかりません" });
-        if (task.createdBy !== ctx.user.id) {
+        if (task.createdBy !== Number(ctx.user.id)) {
           throw new TRPCError({ code: "FORBIDDEN", message: "作成者のみ削除できます" });
         }
-        await softDeleteTask(input.id, ctx.user.id);
+        await softDeleteTask(input.id, Number(ctx.user.id));
         broadcastEvent("tasks");
         return { success: true };
       }),
@@ -2505,17 +2505,17 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const task = await getTaskById(input.id);
         if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "タスクが見つかりません" });
-        if (task.createdBy !== ctx.user.id) {
+        if (task.createdBy !== Number(ctx.user.id)) {
           throw new TRPCError({ code: "FORBIDDEN", message: "作成者のみ復元できます" });
         }
-        await restoreTask(input.id, ctx.user.id);
+        await restoreTask(input.id, Number(ctx.user.id));
         broadcastEvent("tasks");
         return { success: true };
       }),
 
     // 削除済みタスク一覧を取得する（自分が作成したもの）
     getDeleted: protectedProcedure.query(async ({ ctx }) => {
-      return getDeletedTasks(ctx.user.id);
+      return getDeletedTasks(Number(ctx.user.id));
     }),
 
     // タスクを完全削除する（作成者のみ、削除済みタスクのみ）
@@ -2524,13 +2524,13 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const task = await getTaskById(input.id);
         if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "タスクが見つかりません" });
-        if (task.createdBy !== ctx.user.id) {
+        if (task.createdBy !== Number(ctx.user.id)) {
           throw new TRPCError({ code: "FORBIDDEN", message: "作成者のみ完全削除できます" });
         }
         if (!task.deletedAt) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "削除済みタスクのみ完全削除できます" });
         }
-        await deleteTaskDb(input.id, ctx.user.id);
+        await deleteTaskDb(input.id, Number(ctx.user.id));
         broadcastEvent("tasks");
         return { success: true };
       }),
@@ -2553,11 +2553,11 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const task = await getTaskById(input.id);
         if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "タスクが見つかりません" });
-        if (task.createdBy !== ctx.user.id) {
+        if (task.createdBy !== Number(ctx.user.id)) {
           throw new TRPCError({ code: "FORBIDDEN", message: "作成者のみ編集できます" });
         }
         const { id, ...data } = input;
-        await updateTask(id, ctx.user.id, data);
+        await updateTask(id, Number(ctx.user.id), data);
         broadcastEvent("tasks");
         return { success: true };
       }),
@@ -3016,7 +3016,7 @@ ${todayStr}
               nextVisitDate: v.nextVisitDate || null,
               nextVisitTime: v.nextVisitTime || null,
               skipNextVisit: 0,
-              assignedBy: ctx.user.id,
+              assignedBy: Number(ctx.user.id),
               assignedByName: ctx.user.name ?? "不明",
             });
             insertedCount++;
@@ -3266,7 +3266,7 @@ ${todayStr}
             done: 0,
             dueDate: row.dueDate ? new Date(row.dueDate) : null,
             taskKind: "by_deadline",
-            createdBy: ctx.user.id,
+            createdBy: Number(ctx.user.id),
             createdByName: ctx.user.name ?? "森脇　崇",
             assignType: row.assignType,
             assignTeam: row.assignTeam,
@@ -3303,7 +3303,7 @@ ${todayStr}
     getPending: protectedProcedure.query(async ({ ctx }) => {
       const msgs = await getPendingMessages();
       if (ctx.user.role === "admin") return msgs;
-      return msgs.filter((m) => m.createdBy === ctx.user.id);
+      return msgs.filter((m) => m.createdBy === Number(ctx.user.id));
     }),
 
     // メッセージを作成する
@@ -3319,7 +3319,7 @@ ${todayStr}
       .mutation(async ({ ctx, input }) => {
         const id = await createMessage({
           text: input.text,
-          createdBy: ctx.user.id,
+          createdBy: Number(ctx.user.id),
           createdByName: ctx.user.name ?? "不明",
           displayFrom: input.displayFrom,
           displayUntil: input.displayUntil,
@@ -3344,10 +3344,10 @@ ${todayStr}
         const msg = await getMessageById(input.id);
         if (!msg) throw new TRPCError({ code: "NOT_FOUND", message: "メッセージが見つかりません" });
         // 管理者は全員分削除可能、それ以外は作成者のみ
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin" && msg.createdBy !== ctx.user.id) {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin" && msg.createdBy !== Number(ctx.user.id)) {
           throw new TRPCError({ code: "FORBIDDEN", message: "作成者または管理者のみ削除できます" });
         }
-        await softDeleteMessage(input.id, ctx.user.id);
+        await softDeleteMessage(input.id, Number(ctx.user.id));
         broadcastEvent("messages");
         return { success: true };
       }),
@@ -3367,10 +3367,10 @@ ${todayStr}
         const msg = await getMessageById(input.id);
         if (!msg) throw new TRPCError({ code: "NOT_FOUND", message: "メッセージが見つかりません" });
         // 管理者は全員分編集可能、それ以外は作成者のみ
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin" && msg.createdBy !== ctx.user.id) {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin" && msg.createdBy !== Number(ctx.user.id)) {
           throw new TRPCError({ code: "FORBIDDEN", message: "作成者または管理者のみ編集できます" });
         }
-        await updateMessage(input.id, ctx.user.id, {
+        await updateMessage(input.id, Number(ctx.user.id), {
           text: input.text,
           displayFrom: input.displayFrom ?? null,
           displayUntil: input.displayUntil ?? null,
@@ -3387,7 +3387,7 @@ ${todayStr}
         broadcastEvent("messages");
         const result = await toggleReaction(
           input.messageId,
-          ctx.user.id,
+          Number(ctx.user.id),
           ctx.user.name ?? "不明",
           input.emoji
         );
@@ -3482,7 +3482,7 @@ ${todayStr}
           endpoint: input.endpoint,
           p256dh: input.p256dh,
           auth: input.auth,
-          userId: ctx.user.id,
+          userId: Number(ctx.user.id),
           userName: ctx.user.name ?? undefined,
           teamFilter: input.teamFilter ?? null,
         });
@@ -3605,7 +3605,7 @@ ${todayStr}
       .mutation(async ({ ctx, input }) => {
         const id = await upsertTodayVisitRecord({
           ...input,
-          createdBy: ctx.user.id,
+          createdBy: Number(ctx.user.id),
           createdByName: ctx.user.name ?? "不明",
         });
         broadcastEvent("visitRecords");
@@ -3614,7 +3614,7 @@ ${todayStr}
 
     // 自分の訪問記録一覧を取得
     getMine: protectedProcedure.query(async ({ ctx }) => {
-      return getVisitRecords(ctx.user.id);
+      return getVisitRecords(Number(ctx.user.id));
     }),
 
     // スプレッドシート転送済みフラグを更新
@@ -4198,11 +4198,11 @@ ${todayStr}
   notifications: router({
      // 未読通知一覧を取得（自分対象または全員対象のみ）
     getUnread: protectedProcedure.query(async ({ ctx }) => {
-      return getUnreadNotifications(ctx.user.id);
+      return getUnreadNotifications(Number(ctx.user.id));
     }),
     // 全通知一覧を取得（最新100件・自分対象または全員対象のみ）
     getAll: protectedProcedure.query(async ({ ctx }) => {
-      return getAllNotifications(ctx.user.id);
+      return getAllNotifications(Number(ctx.user.id));
     }),
 
     // 指定通知を既読にする
@@ -4292,7 +4292,7 @@ ${todayStr}
         if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者権限が必要です" });
         }
-        if (input.userId === ctx.user.id) {
+        if (input.userId === Number(ctx.user.id)) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "自分自身のアカウントは削除できません" });
         }
         await deleteStaffAccount(input.userId);
@@ -4610,7 +4610,7 @@ ${todayStr}
       .mutation(async ({ ctx, input }) => {
         const id = await createScheduleChange({
           ...input,
-          createdBy: ctx.user.id,
+          createdBy: Number(ctx.user.id),
           createdByName: ctx.user.name ?? "不明",
         });
         broadcastEvent("scheduleChanges");
@@ -5035,7 +5035,7 @@ ${todayStr}
           schedulePostDischargeEndDate: input.schedulePostDischargeEndDate,
           scheduleTargetName: input.scheduleTargetName,
           scheduleStaff: input.scheduleStaff,
-          createdBy: ctx.user.id,
+          createdBy: Number(ctx.user.id),
           createdByName: ctx.user.name ?? "不明",
         });
 
@@ -5646,7 +5646,7 @@ ${todayStr}
           emoji: input.emoji,
           color: input.color,
           sortOrder: input.sortOrder,
-          createdBy: ctx.user.id,
+          createdBy: Number(ctx.user.id),
         });
         broadcastEvent("teamTools");
         return { success: true, id: Number(result[0].insertId) };
@@ -5839,14 +5839,14 @@ ${todayStr}
           documentUrl: input.documentUrl || null,
           documentLabel: input.documentLabel || null,
           deadline: input.deadline ?? null,
-          createdBy: ctx.user.id,
+          createdBy: Number(ctx.user.id),
           createdByName: ctx.user.name ?? "",
         });
         // 全職員へアプリ内通知を送信（投稿者本人を除く）
         try {
           const allStaff = await getAllStaff();
           const preview = input.title.length > 40 ? input.title.slice(0, 40) + "…" : input.title;
-          const notifyTargets = allStaff.filter((s) => s.id !== ctx.user.id);
+          const notifyTargets = allStaff.filter((s) => s.id !== Number(ctx.user.id));
           await Promise.all(
             notifyTargets.map((s) =>
               createNotification({
@@ -5882,7 +5882,7 @@ ${todayStr}
         // 投稿者本人または管理者のみ編集可能
         const target = await db.select({ createdBy: minutes.createdBy }).from(minutes).where(eqOp(minutes.id, input.id)).limit(1);
         if (!target.length) throw new TRPCError({ code: "NOT_FOUND", message: "議事録が見つかりません" });
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin" && ctx.user.id !== target[0].createdBy) {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin" && Number(ctx.user.id) !== target[0].createdBy) {
           throw new TRPCError({ code: "FORBIDDEN", message: "投稿者本人または管理者のみ編集できます" });
         }
         const updateData: Record<string, unknown> = {};
@@ -5943,12 +5943,12 @@ ${todayStr}
         // 既にチェック済か確認
         const existing = await db.select().from(minutesChecks)
           .where(eq(minutesChecks.minutesId, input.minutesId));
-        const alreadyChecked = existing.some((c) => c.userId === ctx.user.id);
+        const alreadyChecked = existing.some((c) => c.userId === Number(ctx.user.id));
         if (alreadyChecked) return { success: true };
         // チェックを追加（個人の確認記録）
         await db.insert(minutesChecks).values({
           minutesId: input.minutesId,
-          userId: ctx.user.id,
+          userId: Number(ctx.user.id),
           userName: ctx.user.name ?? "",
         });
         broadcastEvent("minutes");
@@ -6004,7 +6004,7 @@ ${todayStr}
         // 投稿者本人または管理者のみ削除可能
         const targetDel = await db.select({ createdBy: minutes.createdBy }).from(minutes).where(eqDel(minutes.id, input.id)).limit(1);
         if (!targetDel.length) throw new TRPCError({ code: "NOT_FOUND", message: "議事録が見つかりません" });
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin" && ctx.user.id !== targetDel[0].createdBy) {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin" && Number(ctx.user.id) !== targetDel[0].createdBy) {
           throw new TRPCError({ code: "FORBIDDEN", message: "投稿者本人または管理者のみ削除できます" });
         }
         await db.delete(minutesChecks).where(eq(minutesChecks.minutesId, input.id));
@@ -6038,7 +6038,7 @@ ${todayStr}
           wrongValue: input.wrongValue ?? undefined,
           correctValue: input.correctValue ?? undefined,
           comment: input.comment ?? undefined,
-          reportedBy: ctx.user.id,
+          reportedBy: Number(ctx.user.id),
           reportedByName: ctx.user.name ?? "",
         };
         await db.insert(voiceFeedback).values(insertData);
@@ -6115,7 +6115,7 @@ ${todayStr}
               accessToken = credentials.access_token;
               const newExpiry = credentials.expiry_date ?? Date.now() + 3600_000;
               const { updateUserGoogleTokens } = await import("./db");
-              await updateUserGoogleTokens(ctx.user.id, accessToken, row.googleRefreshToken, newExpiry);
+              await updateUserGoogleTokens(Number(ctx.user.id), accessToken, row.googleRefreshToken, newExpiry);
             }
           } catch (e) {
             console.error("[Calendar] Token refresh failed", e);
@@ -6415,7 +6415,7 @@ ${todayStr}
           body: input.body ?? null,
           startDate: input.startDate ?? null,
           endDate: input.endDate ?? null,
-          createdBy: ctx.user.id,
+          createdBy: Number(ctx.user.id),
           createdByName: ctx.user.name ?? "不明",
         });
         broadcastEvent("teamGoals");
@@ -6477,7 +6477,7 @@ ${todayStr}
         const now = Date.now();
         const log = await clockAttendance({
           type: input.type,
-          userId: ctx.user.id,
+          userId: Number(ctx.user.id),
           userName: ctx.user.name ?? "不明",
           clockedAt: now,
           emergencyNote: input.emergencyNote ?? null,
@@ -6496,14 +6496,14 @@ ${todayStr}
         let clockInAt: number | null = null;
         if (input.type === "clock_out") {
           try {
-            const todayLogs = await getTodayAttendance(ctx.user.id);
+            const todayLogs = await getTodayAttendance(Number(ctx.user.id));
             const clockInLog = todayLogs.find((l) => l.type === "clock_in");
             if (clockInLog) {
               totalWorkMinutes = Math.round((now - clockInLog.clockedAt) / 60000);
               clockInAt = clockInLog.clockedAt;
             } else {
               // 今日の出勤ログがない場合、前日の出勤ログを検索（日付またぎ退勤）
-              const yesterdayLogs = await getYesterdayAttendance(ctx.user.id);
+              const yesterdayLogs = await getYesterdayAttendance(Number(ctx.user.id));
               const prevClockInLog = yesterdayLogs.find((l) => l.type === "clock_in");
               if (prevClockInLog) {
                 totalWorkMinutes = Math.round((now - prevClockInLog.clockedAt) / 60000);
@@ -6636,12 +6636,12 @@ ${todayStr}
         const now = Date.now();
         // ナンバープレートをユーザー情報に保存
         if (input.numberPlate) {
-          await updateUserNumberPlate(ctx.user.id, input.numberPlate);
+          await updateUserNumberPlate(Number(ctx.user.id), input.numberPlate);
         }
         // アルコールチェック記録
         const alcoholCheck = await saveAlcoholCheck({
           type: input.clockType,
-          userId: ctx.user.id,
+          userId: Number(ctx.user.id),
           userName: ctx.user.name ?? "不明",
           numberPlate: input.numberPlate,
           confirmMethod: input.confirmMethod,
@@ -6756,7 +6756,7 @@ ${todayStr}
             const jstNow = new Date(now + 9 * 60 * 60 * 1000);
             const applicationDate = `${jstNow.getUTCFullYear()}-${String(jstNow.getUTCMonth() + 1).padStart(2, '0')}-${String(jstNow.getUTCDate()).padStart(2, '0')}`;
             const overtimeRecord = await createOvertimeApproval({
-              applicantUserId: ctx.user.id,
+              applicantUserId: Number(ctx.user.id),
               applicantName: ctx.user.name ?? '不明',
               applicationDate,
               requestedStartAt: input.overtimeStartAt,
@@ -6944,13 +6944,13 @@ ${todayStr}
     /** 今日の自分の打刻履歴を取得する */
     today: protectedProcedure
       .query(async ({ ctx }) => {
-        return getTodayAttendance(ctx.user.id);
+        return getTodayAttendance(Number(ctx.user.id));
       }),
     /** ユーザーのナンバープレートを更新する */
     updateNumberPlate: protectedProcedure
       .input(z.object({ numberPlate: z.string().max(20) }))
       .mutation(async ({ input, ctx }) => {
-        await updateUserNumberPlate(ctx.user.id, input.numberPlate);
+        await updateUserNumberPlate(Number(ctx.user.id), input.numberPlate);
         return { success: true };
       }),
   }),
@@ -7027,7 +7027,7 @@ ${todayStr}
           aiTool: input.aiTool,
           category: input.category,
           usageNotes: input.usageNotes,
-          createdBy: ctx.user.id,
+          createdBy: Number(ctx.user.id),
           createdByName: ctx.user.name ?? "不明",
         });
         return { success: true, prompt };
@@ -7322,7 +7322,7 @@ ${todayStr}
     getMine: protectedProcedure
       .query(async ({ ctx }) => {
         const { getOvertimeApprovalsByUser } = await import("./db");
-        return getOvertimeApprovalsByUser(ctx.user.id);
+        return getOvertimeApprovalsByUser(Number(ctx.user.id));
       }),
     /** 残業申請を作成する */
     create: protectedProcedure
@@ -7335,7 +7335,7 @@ ${todayStr}
       .mutation(async ({ ctx, input }) => {
         const { createOvertimeApproval, getSuperAdminUsers, createOvertimeNotification } = await import("./db");
         const record = await createOvertimeApproval({
-          applicantUserId: ctx.user.id,
+          applicantUserId: Number(ctx.user.id),
           applicantName: ctx.user.name ?? "不明",
           ...input,
         });
@@ -7385,7 +7385,7 @@ ${todayStr}
         const approvedAt = Date.now();
         await approveOvertimeApproval({
           id: input.id,
-          approverUserId: ctx.user.id,
+          approverUserId: Number(ctx.user.id),
           approverName: ctx.user.name ?? "不明",
           status: input.status,
           adjustedStartAt: input.adjustedStartAt,
@@ -7470,7 +7470,7 @@ ${todayStr}
       .input(z.object({ id: z.number().int() }))
       .mutation(async ({ ctx, input }) => {
         const { deleteOvertimeApproval } = await import("./db");
-        await deleteOvertimeApproval(input.id, ctx.user.id);
+        await deleteOvertimeApproval(input.id, Number(ctx.user.id));
         return { success: true };
       }),
     /** 残業申請を一括承認する（特級管理者・管理者のみ） */
@@ -7487,7 +7487,7 @@ ${todayStr}
           try {
             await approveOvertimeApproval({
               id,
-              approverUserId: ctx.user.id,
+              approverUserId: Number(ctx.user.id),
               approverName: ctx.user.name ?? "不明",
               status: "approved",
             });
@@ -7560,7 +7560,7 @@ ${todayStr}
       .input(z.object({ year: z.number().int(), month: z.number().int() }))
       .query(async ({ ctx, input }) => {
         const { getOvertimeApprovalsByUser } = await import("./db");
-        const all = await getOvertimeApprovalsByUser(ctx.user.id);
+        const all = await getOvertimeApprovalsByUser(Number(ctx.user.id));
         // applicationDate は "YYYY-MM-DD" 形式
         const prefix = `${input.year}-${String(input.month).padStart(2, '0')}`;
         return all.filter(r => r.applicationDate.startsWith(prefix));
@@ -7570,7 +7570,7 @@ ${todayStr}
       .input(z.object({ year: z.number().int(), month: z.number().int(), dateStr: z.string() }))
       .query(async ({ ctx, input }) => {
         const { getOvertimeApprovalsByUser } = await import("./db");
-        const all = await getOvertimeApprovalsByUser(ctx.user.id);
+        const all = await getOvertimeApprovalsByUser(Number(ctx.user.id));
         const approved = all.filter(r => r.status === 'approved');
         // 当日の承認済み残業
         const todayApproved = approved.filter(r => r.applicationDate === input.dateStr);
@@ -7611,14 +7611,14 @@ ${todayStr}
     list: protectedProcedure
       .query(async ({ ctx }) => {
         const { getMonthlySignaturesByUser } = await import("./db");
-        return await getMonthlySignaturesByUser(ctx.user.id);
+        return await getMonthlySignaturesByUser(Number(ctx.user.id));
       }),
     /** 特定年月の署名を取得する */
     get: protectedProcedure
       .input(z.object({ targetYear: z.number().int(), targetMonth: z.number().int() }))
       .query(async ({ ctx, input }) => {
         const { getMonthlySignature } = await import("./db");
-        return await getMonthlySignature(ctx.user.id, input.targetYear, input.targetMonth);
+        return await getMonthlySignature(Number(ctx.user.id), input.targetYear, input.targetMonth);
       }),
     /** 月次署名を作成または更新する */
     sign: protectedProcedure
@@ -7643,7 +7643,7 @@ ${todayStr}
         const { upsertMonthlySignature, getTimesheetSpreadsheets } = await import("./db");
         const signedAt = Date.now();
         const result = await upsertMonthlySignature({
-          userId: ctx.user.id,
+          userId: Number(ctx.user.id),
           userName: ctx.user.name ?? "不明",
           targetYear: input.targetYear,
           targetMonth: input.targetMonth,
@@ -7725,7 +7725,7 @@ ${todayStr}
         const { createImprovementSuggestion, getImprovementSpreadsheet, markImprovementSuggestionSynced } = await import("./db");
         const displayName = ctx.user.name ?? "不明";
         const result = await createImprovementSuggestion({
-          createdBy: ctx.user.id,
+          createdBy: Number(ctx.user.id),
           createdByName: displayName,
           category: input.category,
           content: input.content,
@@ -7834,13 +7834,13 @@ ${todayStr}
       }))
       .query(async ({ ctx, input }) => {
         const { getMyPersonalTasks } = await import("./db");
-        return await getMyPersonalTasks(ctx.user.id, ctx.user.team ?? null, input.showDone);
+        return await getMyPersonalTasks(Number(ctx.user.id), ctx.user.team ?? null, input.showDone);
       }),
 
     /** 今日の個人タスク（ホーム画面用） */
     getTodayTasks: protectedProcedure.query(async ({ ctx }) => {
       const { getTodayPersonalTasks } = await import("./db");
-      return await getTodayPersonalTasks(ctx.user.id, ctx.user.team ?? null);
+      return await getTodayPersonalTasks(Number(ctx.user.id), ctx.user.team ?? null);
     }),
 
     /** タスクを作成する */
@@ -7868,7 +7868,7 @@ ${todayStr}
         const { createPersonalTask } = await import("./db");
         const result = await createPersonalTask({
           ...input,
-          createdBy: ctx.user.id,
+          createdBy: Number(ctx.user.id),
           createdByName: ctx.user.name ?? "不明",
         });
         // SSEブロードキャスト
@@ -7887,7 +7887,7 @@ ${todayStr}
       }))
       .mutation(async ({ ctx, input }) => {
         const { togglePersonalTaskDone } = await import("./db");
-        const result = await togglePersonalTaskDone(input.id, input.done, ctx.user.id);
+        const result = await togglePersonalTaskDone(input.id, input.done, Number(ctx.user.id));
         try { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("personalTasks"); } catch {}
         return result;
       }),
@@ -7916,7 +7916,7 @@ ${todayStr}
       }))
       .mutation(async ({ ctx, input }) => {
         const { updatePersonalTask } = await import("./db");
-        const result = await updatePersonalTask(input.id, input, ctx.user.id);
+        const result = await updatePersonalTask(input.id, input, Number(ctx.user.id));
         try { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("personalTasks"); } catch {}
         return result;
       }),
@@ -7926,7 +7926,7 @@ ${todayStr}
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         const { deletePersonalTask } = await import("./db");
-        const result = await deletePersonalTask(input.id, ctx.user.id);
+        const result = await deletePersonalTask(input.id, Number(ctx.user.id));
         try { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("personalTasks"); } catch {}
         return result;
       }),
@@ -7965,7 +7965,7 @@ ${todayStr}
         const { createIrregularSchedule } = await import("./db");
         const record = await createIrregularSchedule({
           ...input,
-          createdBy: ctx.user.id,
+          createdBy: Number(ctx.user.id),
           createdByName: ctx.user.name ?? "不明",
         });
         try {
@@ -7995,7 +7995,7 @@ ${todayStr}
       }))
       .mutation(async ({ ctx, input }) => {
         const { updateIrregularSchedule } = await import("./db");
-        const record = await updateIrregularSchedule(input.id, input, ctx.user.id);
+        const record = await updateIrregularSchedule(input.id, input, Number(ctx.user.id));
         try {
           const { syncIrregularScheduleToSheet } = await import("./irregularScheduleSync");
           await syncIrregularScheduleToSheet(input.id);
@@ -8010,7 +8010,7 @@ ${todayStr}
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         const { deleteIrregularSchedule } = await import("./db");
-        await deleteIrregularSchedule(input.id, ctx.user.id);
+        await deleteIrregularSchedule(input.id, Number(ctx.user.id));
         try { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("irregularSchedules"); } catch {}
         return { ok: true };
       }),
@@ -8032,7 +8032,7 @@ ${todayStr}
       }))
       .mutation(async ({ ctx, input }) => {
         const { upsertVisitSlotOrder } = await import("./db");
-        await upsertVisitSlotOrder(ctx.user.id, input.dateKey, input.slotsJson);
+        await upsertVisitSlotOrder(Number(ctx.user.id), input.dateKey, input.slotsJson);
         return { ok: true };
       }),
     /** 訪問予定スロットの順番をDBから取得する */
@@ -8042,7 +8042,7 @@ ${todayStr}
       }))
       .query(async ({ ctx, input }) => {
         const { getVisitSlotOrder } = await import("./db");
-        const slotsJson = await getVisitSlotOrder(ctx.user.id, input.dateKey);
+        const slotsJson = await getVisitSlotOrder(Number(ctx.user.id), input.dateKey);
         return { slotsJson };
       }),
   }),
@@ -8071,7 +8071,7 @@ ${todayStr}
         await upsertScheduleNote({
           screenshotId: input.screenshotId,
           content: input.content,
-          updatedBy: ctx.user.id,
+          updatedBy: Number(ctx.user.id),
           updatedByName: ctx.user.name ?? "不明",
         });
         // 全職員にリアルタイム同期
@@ -8356,7 +8356,7 @@ ${todayStr}
             team: input.team ?? null,
             disclosedDate: today,
             disclosedAt,
-            disclosedByUserId: ctx.user.id,
+            disclosedByUserId: Number(ctx.user.id),
             disclosedByName: ctx.user.name ?? "不明",
             slotIndex: input.slotIndex ?? null,
             spreadsheetId,
@@ -8473,7 +8473,7 @@ ${todayStr}
 
         // DBに申請レコード作成（status=pending）
         const insertResult = await db.insert(directReturnApprovals).values({
-          applicantUserId: ctx.user.id,
+          applicantUserId: Number(ctx.user.id),
           applicantName: ctx.user.name ?? "不明",
           applicationDate: today,
           appliedAt,
@@ -8733,7 +8733,7 @@ ${todayStr}
         await db.update(directReturnApprovals)
           .set({
             status: input.status,
-            approverUserId: ctx.user.id,
+            approverUserId: Number(ctx.user.id),
             approverName: ctx.user.name ?? "不明",
             approvedAt,
             approverComment: input.approverComment ?? null,
