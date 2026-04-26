@@ -762,30 +762,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </div>
           <div className="flex items-center gap-1.5 md:gap-2">
-            {/* Instagramボタン */}
-            <a
-              href="https://www.instagram.com/kokoronohinata/"
-              target="_blank"
-              rel="noopener noreferrer"
-              title="ヒナタ公式Instagramを開く"
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-accent transition-colors flex-shrink-0"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{ color: "oklch(0.62 0.22 15)" }}
-              >
-                <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-                <circle cx="12" cy="12" r="4" />
-                <circle cx="17.5" cy="6.5" r="0.8" fill="currentColor" stroke="none" />
-              </svg>
-            </a>
             <GlobalLoadingIndicator />
             {/* オフラインキュー件数バッジ */}
             {queueCount > 0 && (
