@@ -84,8 +84,10 @@ type Props = {
   slotIndex: number; // 0-7
   slotData: VisitSlotData;
   onSlotChange: (index: number, data: Partial<VisitSlotData>) => void;
-  /** 管理者が選択したプロンプト本文（nullなら未選択） */
+  /** 管理者が選択した（身体科）プロンプト本文（nullなら未選択） */
   selectedPromptBody: string | null;
+  /** 管理者が選択した（精神科）プロンプト本文（nullなら未選択） */
+  selectedPsychiatricPromptBody: string | null;
   /** 次回訪問日時が変更されたときに呼ばれるコールバック（利用者カードとの同期用） */
   onNextVisitChange?: (date: string, time: string) => void;
   /** 外部から次回訪問日時を設定するための初期値（利用者カードから入力された値） */
@@ -131,7 +133,7 @@ function loadCardState(slotIndex: number): CardSavedState | null {
   }
 }
 
-export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromptBody, onNextVisitChange, externalNextVisitDate, externalNextVisitTime }: Props) {
+export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromptBody, selectedPsychiatricPromptBody, onNextVisitChange, externalNextVisitDate, externalNextVisitTime }: Props) {
   const utils = trpc.useUtils();
   const todayStr = useMemo(() => getTodayStr(), []);
 
@@ -162,8 +164,10 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
   // 特記事項
   const [specialNote, setSpecialNote] = useState(savedState?.specialNote ?? "");
 
-  // コピー完了フラグ
+  // コピー完了フラグ（身体科）
   const [copied, setCopied] = useState(false);
+  // コピー完了フラグ（精神科）
+  const [psychiatricCopied, setPsychiatricCopied] = useState(false);
 
   // 訪問完了フラグ
   const [completed, setCompleted] = useState(savedState?.completed ?? false);
@@ -416,17 +420,33 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
     onSlotChange(slotIndex, { patientId: null, patientName: "" });
   };
 
-  // プロンプトをコピーする
+  // （身体科）プロンプトをコピーする
   const handleCopyPrompt = async () => {
     if (!selectedPromptBody) {
-      toast.error("管理者がプロンプトを選択していません");
+      toast.error("管理者が（身体科）プロンプトを選択していません");
       return;
     }
     try {
       await navigator.clipboard.writeText(selectedPromptBody);
       setCopied(true);
-      toast.success("プロンプトをコピーしました");
+      toast.success("（身体科）プロンプトをコピーしました");
       setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("コピーに失敗しました");
+    }
+  };
+
+  // （精神科）プロンプトをコピーする
+  const handleCopyPsychiatricPrompt = async () => {
+    if (!selectedPsychiatricPromptBody) {
+      toast.error("管理者が（精神科）プロンプトを選択していません");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(selectedPsychiatricPromptBody);
+      setPsychiatricCopied(true);
+      toast.success("（精神科）プロンプトをコピーしました");
+      setTimeout(() => setPsychiatricCopied(false), 2000);
     } catch {
       toast.error("コピーに失敗しました");
     }
@@ -1110,15 +1130,16 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                 <span className="text-sm text-foreground">処置内容・外観・環境・視覚情報等を追加録音</span>
               </div>
 
-              {/* ボイスメモをNotebookLMに... + コピーボタン */}
+              {/* ボイスメモをNotebookLMに... + コピーボタン（身体科＋精神科） */}
               <div className="flex flex-col gap-2 p-2.5 rounded-lg border border-border bg-background">
                 <span className="text-sm text-foreground leading-snug">
                   ボイスメモをNotebookLMにソースとして追加し、指定のプロンプトで文章を作成
                 </span>
+                {/* 身体科ボタン */}
                 <button
                   type="button"
                   onClick={handleCopyPrompt}
-                  title={selectedPromptBody ? "プロンプトをコピー" : "管理者がプロンプトを選択していません"}
+                  title={selectedPromptBody ? "（身体科）プロンプトをコピー" : "管理者が（身体科）プロンプトを選択していません"}
                   className={cn(
                     "w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200",
                     selectedPromptBody
@@ -1131,7 +1152,27 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                   {copied ? (
                     <><Check className="w-4 h-4" />コピー済み</>
                   ) : (
-                    <><Copy className="w-4 h-4" />プロンプトをコピー</>
+                    <><Copy className="w-4 h-4" />（身体科）プロンプトをコピー</>
+                  )}
+                </button>
+                {/* 精神科ボタン */}
+                <button
+                  type="button"
+                  onClick={handleCopyPsychiatricPrompt}
+                  title={selectedPsychiatricPromptBody ? "（精神科）プロンプトをコピー" : "管理者が（精神科）プロンプトを選択していません"}
+                  className={cn(
+                    "w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200",
+                    selectedPsychiatricPromptBody
+                      ? psychiatricCopied
+                        ? "bg-emerald-500 dark:bg-emerald-600 text-white shadow-sm"
+                        : "bg-purple-600 hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-800 text-white shadow-md hover:shadow-lg active:scale-95"
+                      : "bg-muted border border-border text-muted-foreground cursor-not-allowed opacity-60"
+                  )}
+                >
+                  {psychiatricCopied ? (
+                    <><Check className="w-4 h-4" />コピー済み</>
+                  ) : (
+                    <><Copy className="w-4 h-4" />（精神科）プロンプトをコピー</>
                   )}
                 </button>
               </div>
