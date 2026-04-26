@@ -3042,7 +3042,7 @@ ${todayStr}
           .from(dailyVisitAssignments)
           .where(
             and(
-              eq(dailyVisitAssignments.userId, ctx.user.id),
+              eq(dailyVisitAssignments.userId, Number(ctx.user.id)),
               eq(dailyVisitAssignments.date, input.date)
             )
           )
