@@ -159,7 +159,6 @@ const formLinks: { label: string; href: string; color: string }[] = [
 // 業務ツール - その他
 const otherLinks = [
   { label: "NotebookLM — 就業規則・社内マニュアル", href: "https://notebooklm.google.com/notebook/4781c6de-6e18-456d-b557-a202c3b03747", color: "text-blue-600" },
-  { label: "ひなた 公式 Instagram", href: "https://www.instagram.com/kokoronohinata/", color: "text-pink-600" },
 ];
 
 
