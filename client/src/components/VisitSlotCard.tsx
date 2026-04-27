@@ -633,40 +633,6 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
             <div>
               <p className="text-xs text-muted-foreground mb-1.5">訪問前・訪問中</p>
               <div className="space-y-1.5">
-                {/* ZESTで次回訪問日時確認チェック項目（ボイスメモの前） */}
-                <label
-                  className={cn(
-                    "flex items-center justify-between gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors select-none",
-                    zestChecked
-                      ? "bg-primary/5 border-primary/30"
-                      : "bg-background border-border hover:bg-muted/50"
-                  )}
-                >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <input
-                      type="checkbox"
-                      checked={zestChecked}
-                      onChange={() => setZestChecked(prev => !prev)}
-                      className="w-4 h-4 accent-primary flex-shrink-0"
-                    />
-                    <span className={cn(
-                      "text-sm leading-snug",
-                      zestChecked ? "line-through text-muted-foreground" : "text-foreground"
-                    )}>
-                      ZESTで次回訪問日時確認し入力欄へ
-                    </span>
-                  </div>
-                  <a
-                    href="https://homecare.zest.jp/login"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={e => e.stopPropagation()}
-                    className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-800/60 transition-colors"
-                  >
-                    <ExternalLink className="w-3 h-3" />
-                    ZEST
-                  </a>
-                </label>
                 {tasksBefore.map((task) => (
                   <label
                     key={task.id}
@@ -902,15 +868,8 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
                     checked={!!slotData.skipNextVisit}
                     onChange={(e) => {
                       const checked = e.target.checked;
-                      if (checked) {
-                        // チェック時：日付・時刻もクリア
-                        setNextVisitDate("");
-                        setNextVisitTime("");
-                        onNextVisitChange?.("", "");
-                        onSlotChange(slotIndex, { skipNextVisit: true, nextVisitDate: "", nextVisitTime: "" });
-                      } else {
-                        onSlotChange(slotIndex, { skipNextVisit: false });
-                      }
+                      // 日付・時刻はクリアせず保持（チェックを外したら入力値が復元される）
+                      onSlotChange(slotIndex, { skipNextVisit: checked });
                     }}
                     className="w-3.5 h-3.5 cursor-pointer accent-primary"
                   />
@@ -934,8 +893,8 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
               </div>
             </div>
 
-            {/* skipNextVisit時の説明枠 */}
-            {slotData.skipNextVisit && (
+            {/* skipNextVisit時の説明枠（日時が未入力の場合のみ表示） */}
+            {slotData.skipNextVisit && !nextVisitDate && (
               <div className="text-xs px-3 py-2 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300">
                 ℹ️ 日時変更は「連絡・予定」から行います。次回訪問日時の入力・スプレッドシート転記はスキップされます。
               </div>
