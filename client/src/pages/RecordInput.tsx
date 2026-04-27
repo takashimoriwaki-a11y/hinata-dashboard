@@ -259,7 +259,18 @@ export default function RecordInput() {
     { enabled: !!user, staleTime: 0 }
   );
   // 前回反映した管理者割り当てのフィンガープリント（変化検知用）
+  // localStorageで永続化することで、ページ再訪問時の重複通知を防ぐ
+  const ASSIGNMENT_NOTIFIED_KEY = user ? `assignment_notified_${user.id}_${todayKey}` : "";
   const lastAppliedAssignmentRef = useRef<string>("");
+  // 初回マウント時にlocalStorageから前回のフィンガープリントを復元
+  useEffect(() => {
+    if (!ASSIGNMENT_NOTIFIED_KEY) return;
+    try {
+      const saved = localStorage.getItem(ASSIGNMENT_NOTIFIED_KEY);
+      if (saved) lastAppliedAssignmentRef.current = saved;
+    } catch {}
+  }, [ASSIGNMENT_NOTIFIED_KEY]);
+
   useEffect(() => {
     // 管理者割り当てを最優先：変化があったら即座に反映（SSE自動更新対応）
     if (dailyAssignments?.assignments && dailyAssignments.assignments.length > 0) {
@@ -275,7 +286,7 @@ export default function RecordInput() {
           skip: a.skipNextVisit,
         }))
       );
-      // 同じ内容なら何もしない（無限ループ防止）
+      // 同じ内容なら何もしない（無限ループ防止 + 通知重複防止）
       if (fingerprint === lastAppliedAssignmentRef.current) return;
 
       const newSlots: VisitSlotData[] = Array.from({ length: MAX_SLOTS }, () => ({ ...DEFAULT_SLOT }));
@@ -302,6 +313,12 @@ export default function RecordInput() {
         toast.info(`🔄 管理者が訪問予定を更新しました（${dailyAssignments.assignments.length}件）`);
       }
       lastAppliedAssignmentRef.current = fingerprint;
+      // localStorageにも保存（次回ページ訪問時の重複通知を防ぐ）
+      if (ASSIGNMENT_NOTIFIED_KEY) {
+        try {
+          localStorage.setItem(ASSIGNMENT_NOTIFIED_KEY, fingerprint);
+        } catch {}
+      }
       return;
     }
 
