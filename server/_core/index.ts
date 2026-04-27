@@ -682,10 +682,11 @@ ${medicalPrompt}${feedbackSection}`;
     // 接続確立を通知
     res.write(`event: connected\ndata: ${JSON.stringify({ ts: Date.now() })}\n\n`);
 
-    // 30秒ごとにハートビートを送信（接続維持）
+    // 30秒ごとにハートビートを送信（接続維持＋クライアントの切断検知用）
+    // 正式なイベント形式で送信することで、クライアント側で接続状態を確認できる
     const heartbeat = setInterval(() => {
       try {
-        res.write(`:heartbeat\n\n`);
+        res.write(`event: heartbeat\ndata: ${JSON.stringify({ ts: Date.now() })}\n\n`);
       } catch {
         clearInterval(heartbeat);
       }
