@@ -3645,17 +3645,51 @@ export function TeamToolsCard() {
   const [newHref, setNewHref] = useState("");
   const [newEmoji, setNewEmoji] = useState("🔗");
   const [newTargetTeam, setNewTargetTeam] = useState<TeamTabId>("身体"); // 全チームタブ時のチーム選択
+  // 画像登録用（追加フォーム）
+  const [newImageData, setNewImageData] = useState<string | null>(null); // Base64
+  const [newImageType, setNewImageType] = useState<string | null>(null);
+  const [newImageName, setNewImageName] = useState<string | null>(null);
+  // 編集フォーム
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editLabel, setEditLabel] = useState("");
   const [editHref, setEditHref] = useState("");
   const [editEmoji, setEditEmoji] = useState("");
+  // 編集時の画像
+  const [editImageData, setEditImageData] = useState<string | null>(null);
+  const [editImageType, setEditImageType] = useState<string | null>(null);
+  const [editImageName, setEditImageName] = useState<string | null>(null);
+  const [editHasExistingImage, setEditHasExistingImage] = useState(false); // 既存画像が登録されているか
+  const [editImageChanged, setEditImageChanged] = useState(false); // 画像が変更されたか（保存時に判定）
+  const [editImageRemoved, setEditImageRemoved] = useState(false); // 画像を削除する指示
+  // 画像プレビューモーダル
+  const [previewImage, setPreviewImage] = useState<{ data: string; type: string; label: string; href?: string } | null>(null);
 
   const createTool = trpc.teamTools.create.useMutation({
-    onSuccess: () => { utils.teamTools.list.invalidate(); toast.success("ツールを追加しました"); setShowAddForm(false); setNewLabel(""); setNewHref(""); setNewEmoji("🔗"); },
+    onSuccess: () => {
+      utils.teamTools.list.invalidate();
+      toast.success("ツールを追加しました");
+      setShowAddForm(false);
+      setNewLabel("");
+      setNewHref("");
+      setNewEmoji("🔗");
+      setNewImageData(null);
+      setNewImageType(null);
+      setNewImageName(null);
+    },
     onError: (e) => toast.error(e.message),
   });
   const updateTool = trpc.teamTools.update.useMutation({
-    onSuccess: () => { utils.teamTools.list.invalidate(); setEditingId(null); toast.success("ツールを更新しました"); },
+    onSuccess: () => {
+      utils.teamTools.list.invalidate();
+      setEditingId(null);
+      setEditImageData(null);
+      setEditImageType(null);
+      setEditImageName(null);
+      setEditHasExistingImage(false);
+      setEditImageChanged(false);
+      setEditImageRemoved(false);
+      toast.success("ツールを更新しました");
+    },
     onError: (e) => toast.error(e.message),
   });
   const deleteTool = trpc.teamTools.delete.useMutation({
@@ -3663,20 +3697,102 @@ export function TeamToolsCard() {
     onError: (e) => toast.error(e.message),
   });
 
-  const addTool = () => {
-    if (!newLabel.trim() || !newHref.trim()) { toast.error("ラベルとURLを入力してください"); return; }
-    const targetTeam: Exclude<TeamTabId, "全チーム"> = (activeTeam === "全チーム" ? newTargetTeam : activeTeam) as Exclude<TeamTabId, "全チーム">;
-    createTool.mutate({ team: targetTeam, label: newLabel.trim(), href: newHref.trim(), emoji: newEmoji || "🔗" });
+  // ファイルをBase64に変換するヘルパー
+  const handleFileSelect = async (
+    file: File,
+    setData: (v: string) => void,
+    setType: (v: string) => void,
+    setName: (v: string) => void,
+  ) => {
+    // 画像のみ受け付け
+    if (!file.type.startsWith("image/")) {
+      toast.error("画像ファイルを選択してください");
+      return;
+    }
+    // 5MB上限（Base64でも余裕で収まる）
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("画像サイズは5MB以下にしてください");
+      return;
+    }
+
+    // 画像を圧縮してBase64化（最大幅800px、JPEG品質85%）
+    try {
+      const compressed = await compressImage(file);
+      setData(compressed.base64);
+      setType(compressed.type);
+      setName(file.name);
+      toast.success(`画像を登録しました（${Math.round(compressed.size / 1024)} KB）`);
+    } catch (err) {
+      console.error(err);
+      toast.error("画像の処理に失敗しました");
+    }
   };
 
-  const startEdit = (tool: { id: number; label: string; href: string; emoji: string }) => {
-    setEditingId(tool.id); setEditLabel(tool.label); setEditHref(tool.href); setEditEmoji(tool.emoji ?? "🔗");
+  const addTool = () => {
+    if (!newLabel.trim()) { toast.error("ラベルを入力してください"); return; }
+    if (!newHref.trim() && !newImageData) {
+      toast.error("URLまたは画像のいずれかを登録してください");
+      return;
+    }
+    const targetTeam: Exclude<TeamTabId, "全チーム"> = (activeTeam === "全チーム" ? newTargetTeam : activeTeam) as Exclude<TeamTabId, "全チーム">;
+    createTool.mutate({
+      team: targetTeam,
+      label: newLabel.trim(),
+      href: newHref.trim(),
+      emoji: newEmoji || "🔗",
+      imageData: newImageData ?? undefined,
+      imageType: newImageType ?? undefined,
+      imageName: newImageName ?? undefined,
+    });
+  };
+
+  const startEdit = (tool: { id: number; label: string; href: string; emoji: string; imageData?: string | null; imageType?: string | null }) => {
+    setEditingId(tool.id);
+    setEditLabel(tool.label);
+    setEditHref(tool.href);
+    setEditEmoji(tool.emoji ?? "🔗");
+    setEditImageData(null); // 新規アップロード時のみセット
+    setEditImageType(null);
+    setEditImageName(null);
+    setEditHasExistingImage(!!tool.imageData);
+    setEditImageChanged(false);
+    setEditImageRemoved(false);
   };
 
   const saveEdit = () => {
     if (editingId === null) return;
-    if (!editLabel.trim() || !editHref.trim()) { toast.error("ラベルとURLを入力してください"); return; }
-    updateTool.mutate({ id: editingId, label: editLabel.trim(), href: editHref.trim(), emoji: editEmoji || "🔗" });
+    if (!editLabel.trim()) { toast.error("ラベルを入力してください"); return; }
+    // hrefも画像（既存または新規）も両方なければエラー
+    const willHaveImage = editImageRemoved ? false : (editImageChanged || editHasExistingImage);
+    if (!editHref.trim() && !willHaveImage) {
+      toast.error("URLまたは画像のいずれかを登録してください");
+      return;
+    }
+    const updateData: {
+      id: number;
+      label?: string;
+      href?: string;
+      emoji?: string;
+      imageData?: string | null;
+      imageType?: string | null;
+      imageName?: string | null;
+    } = {
+      id: editingId,
+      label: editLabel.trim(),
+      href: editHref.trim(),
+      emoji: editEmoji || "🔗",
+    };
+    // 画像が変更されたとき or 削除されたときだけ送信
+    if (editImageRemoved) {
+      updateData.imageData = null;
+      updateData.imageType = null;
+      updateData.imageName = null;
+    } else if (editImageChanged) {
+      updateData.imageData = editImageData;
+      updateData.imageType = editImageType;
+      updateData.imageName = editImageName;
+    }
+    updateTool.mutate(updateData);
   };
 
   return (
@@ -3769,7 +3885,51 @@ export function TeamToolsCard() {
                       <input value={editEmoji} onChange={e => setEditEmoji(e.target.value)} className="w-10 text-center border rounded px-1 py-1 text-sm bg-background" placeholder="🔗" />
                       <input value={editLabel} onChange={e => setEditLabel(e.target.value)} className="flex-1 border rounded px-2 py-1 text-sm bg-background" placeholder="ラベル" />
                     </div>
-                    <input value={editHref} onChange={e => setEditHref(e.target.value)} className="border rounded px-2 py-1 text-sm bg-background" placeholder="https://..." />
+                    <input value={editHref} onChange={e => setEditHref(e.target.value)} className="border rounded px-2 py-1 text-sm bg-background" placeholder="https://...（画像のみ登録の場合は空欄可）" />
+                    {/* 画像アップロード */}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-muted-foreground">画像（任意）</label>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {(editImageData || (editHasExistingImage && !editImageRemoved)) && (
+                          <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                            <span>📸</span>
+                            <span>{editImageChanged ? `新しい画像: ${editImageName ?? ""}` : "登録済み画像あり"}</span>
+                          </span>
+                        )}
+                        <label className="cursor-pointer text-xs px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800/60">
+                          {(editImageData || (editHasExistingImage && !editImageRemoved)) ? "画像を変更" : "画像を選択"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              await handleFileSelect(file, (d) => { setEditImageData(d); }, setEditImageType as (v: string) => void, setEditImageName as (v: string) => void);
+                              setEditImageChanged(true);
+                              setEditImageRemoved(false);
+                              e.target.value = ""; // 同じファイルを再選択できるよう
+                            }}
+                          />
+                        </label>
+                        {(editImageData || (editHasExistingImage && !editImageRemoved)) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditImageData(null);
+                              setEditImageType(null);
+                              setEditImageName(null);
+                              setEditImageChanged(false);
+                              setEditImageRemoved(true);
+                              toast.info("画像を削除します（保存後に反映）");
+                            }}
+                            className="text-xs px-2 py-1 rounded bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800/60"
+                          >
+                            画像削除
+                          </button>
+                        )}
+                      </div>
+                    </div>
                     <div className="flex gap-1 justify-end">
                       <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setEditingId(null)}>キャンセル</Button>
                       <Button size="sm" className="h-6 text-xs" onClick={saveEdit} disabled={updateTool.isPending}>保存</Button>
@@ -3777,16 +3937,36 @@ export function TeamToolsCard() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-1 group">
-                    {/* チームに応じた文字色：インラインスタイルで夜間モード対応 */}
-                    <LinkRow
-                      href={tool.href}
-                      label={tool.label}
-                      colorStyle={isNight ? getTeamTextStyleNight(activeTeam === "全チーム" ? (tool as any).team ?? activeTeam : activeTeam) : getTeamTextStyle(activeTeam === "全チーム" ? (tool as any).team ?? activeTeam : activeTeam)}
-                      emoji={tool.emoji ?? undefined}
-                    />
+                    {/* 画像があるツール: クリックで画像モーダル表示 */}
+                    {(tool as any).imageData ? (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewImage({
+                          data: (tool as any).imageData,
+                          type: (tool as any).imageType ?? "image/jpeg",
+                          label: tool.label,
+                          href: tool.href,
+                        })}
+                        className="flex items-center gap-2 flex-1 min-w-0 px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors text-left"
+                        style={{
+                          ...(isNight ? getTeamTextStyleNight(activeTeam === "全チーム" ? (tool as any).team ?? activeTeam : activeTeam) : getTeamTextStyle(activeTeam === "全チーム" ? (tool as any).team ?? activeTeam : activeTeam))
+                        }}
+                      >
+                        <span className="text-lg flex-shrink-0">{tool.emoji ?? "🖼️"}</span>
+                        <span className="text-sm font-medium truncate">{tool.label}</span>
+                        <span className="text-xs opacity-60 ml-auto flex-shrink-0">📸 画像</span>
+                      </button>
+                    ) : (
+                      <LinkRow
+                        href={tool.href}
+                        label={tool.label}
+                        colorStyle={isNight ? getTeamTextStyleNight(activeTeam === "全チーム" ? (tool as any).team ?? activeTeam : activeTeam) : getTeamTextStyle(activeTeam === "全チーム" ? (tool as any).team ?? activeTeam : activeTeam)}
+                        emoji={tool.emoji ?? undefined}
+                      />
+                    )}
                     {isAdmin && (
                       <>
-                        <button onClick={() => startEdit(tool)} onPointerDown={() => {}} style={{ touchAction: 'pan-y' }} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95 touch-pan-y" title="編集">
+                        <button onClick={() => startEdit(tool as any)} onPointerDown={() => {}} style={{ touchAction: 'pan-y' }} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95 touch-pan-y" title="編集">
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </button>
                         <button onClick={() => deleteTool.mutate({ id: tool.id })} onPointerDown={() => {}} style={{ touchAction: 'pan-y' }} className="text-muted-foreground hover:text-destructive p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95 touch-pan-y" title="削除">
@@ -3823,9 +4003,48 @@ export function TeamToolsCard() {
                 <input value={newEmoji} onChange={e => setNewEmoji(e.target.value)} className="w-10 text-center border rounded px-1 py-1 text-sm bg-background" placeholder="🔗" />
                 <input value={newLabel} onChange={e => setNewLabel(e.target.value)} className="flex-1 border rounded px-2 py-1 text-sm bg-background" placeholder="ラベル" />
               </div>
-              <input value={newHref} onChange={e => setNewHref(e.target.value)} className="border rounded px-2 py-1 text-sm bg-background" placeholder="https://..." />
+              <input value={newHref} onChange={e => setNewHref(e.target.value)} className="border rounded px-2 py-1 text-sm bg-background" placeholder="https://...（画像のみ登録の場合は空欄可）" />
+              {/* 画像アップロード */}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">画像（任意・QRコードなど。クリックで拡大表示されます）</label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {newImageData && (
+                    <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                      <span>📸</span>
+                      <span>{newImageName}</span>
+                    </span>
+                  )}
+                  <label className="cursor-pointer text-xs px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800/60">
+                    {newImageData ? "画像を変更" : "画像を選択"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        await handleFileSelect(file, setNewImageData as (v: string) => void, setNewImageType as (v: string) => void, setNewImageName as (v: string) => void);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                  {newImageData && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewImageData(null);
+                        setNewImageType(null);
+                        setNewImageName(null);
+                      }}
+                      className="text-xs px-2 py-1 rounded bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800/60"
+                    >
+                      画像削除
+                    </button>
+                  )}
+                </div>
+              </div>
               <div className="flex gap-1 justify-end">
-                <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => { setShowAddForm(false); setNewLabel(""); setNewHref(""); setNewEmoji("🔗"); }}>キャンセル</Button>
+                <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => { setShowAddForm(false); setNewLabel(""); setNewHref(""); setNewEmoji("🔗"); setNewImageData(null); setNewImageType(null); setNewImageName(null); }}>キャンセル</Button>
                 <Button size="sm" className="h-6 text-xs" onClick={addTool} disabled={createTool.isPending}>追加</Button>
               </div>
             </div>
@@ -3836,8 +4055,94 @@ export function TeamToolsCard() {
 
 
       </CardContent>
+
+      {/* 画像プレビューモーダル */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 cursor-pointer"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div
+            className="relative max-w-full max-h-full flex flex-col items-center gap-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-white text-center">
+              <p className="text-base font-semibold">{previewImage.label}</p>
+              <p className="text-xs opacity-70 mt-1">画像をタップで閉じる</p>
+            </div>
+            <img
+              src={`data:${previewImage.type};base64,${previewImage.data}`}
+              alt={previewImage.label}
+              className="max-w-full max-h-[70vh] rounded-lg shadow-2xl bg-white cursor-pointer"
+              onClick={() => setPreviewImage(null)}
+            />
+            {previewImage.href && (
+              <a
+                href={previewImage.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium shadow-lg"
+                onClick={(e) => e.stopPropagation()}
+              >
+                🔗 URLを開く
+              </a>
+            )}
+            <button
+              type="button"
+              onClick={() => setPreviewImage(null)}
+              className="px-4 py-2 rounded-lg bg-white/20 hover:bg-white/30 text-white text-sm font-medium"
+            >
+              閉じる
+            </button>
+          </div>
+        </div>
+      )}
     </Card>
   );
+}
+
+// 画像圧縮ヘルパー（最大幅800px、JPEG品質85%）
+async function compressImage(file: File): Promise<{ base64: string; type: string; size: number }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX_DIM = 800;
+        let { width, height } = img;
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width > height) {
+            height = (height / width) * MAX_DIM;
+            width = MAX_DIM;
+          } else {
+            width = (width / height) * MAX_DIM;
+            height = MAX_DIM;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Canvas context unavailable"));
+          return;
+        }
+        // 白い背景を塗る（PNG透過用）
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        const base64 = dataUrl.split(",")[1];
+        // サイズ概算
+        const size = base64.length * 0.75;
+        resolve({ base64, type: "image/jpeg", size });
+      };
+      img.onerror = () => reject(new Error("Image load failed"));
+      img.src = (e.target?.result as string) ?? "";
+    };
+    reader.onerror = () => reject(new Error("File read failed"));
+    reader.readAsDataURL(file);
+  });
 }
 
 
