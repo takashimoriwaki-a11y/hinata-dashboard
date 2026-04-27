@@ -565,7 +565,7 @@ export const teamTools = mysqlTable("team_tools", {
   team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部"]).notNull(),
   /** 表示名 */
   label: varchar("label", { length: 200 }).notNull(),
-  /** リンクURL */
+  /** リンクURL（任意・画像のみ登録時はnull可） */
   href: varchar("href", { length: 2000 }).notNull(),
   /** 絵文字アイコン（例: 📄） */
   emoji: varchar("emoji", { length: 10 }).default("🔗").notNull(),
@@ -573,6 +573,12 @@ export const teamTools = mysqlTable("team_tools", {
   color: varchar("color", { length: 100 }).default("text-blue-600").notNull(),
   /** 表示順（小さいほど上） */
   sortOrder: int("sortOrder").default(0).notNull(),
+  /** 画像データ（Base64エンコード文字列・QRコード画像等の埋込用） */
+  imageData: mediumtext("imageData"),
+  /** 画像のMIMEタイプ（例: image/jpeg） */
+  imageType: varchar("imageType", { length: 50 }),
+  /** 元画像のファイル名（任意） */
+  imageName: varchar("imageName", { length: 255 }),
   /** 登録したユーザーID */
   createdBy: int("createdBy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
