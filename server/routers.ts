@@ -5647,15 +5647,22 @@ ${todayStr}
       .input(z.object({
         team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]),
         label: z.string().min(1).max(200),
-        href: z.string().url(),
+        href: z.string().max(2000).default(""), // 画像のみ登録時は空文字列でOK
         emoji: z.string().max(10).default("🔗"),
         color: z.string().max(100).default("text-blue-600"),
         sortOrder: z.number().int().default(0),
+        imageData: z.string().max(15_000_000).optional(),  // Base64画像データ（最大~15MB）
+        imageType: z.string().max(50).optional(),          // 例: image/jpeg
+        imageName: z.string().max(255).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const canManageTTCreate = ctx.user.role === "admin" || ctx.user.role === "super_admin";
         if (!canManageTTCreate) {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
+        }
+        // hrefも画像も両方空ならエラー
+        if (!input.href && !input.imageData) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "URLまたは画像のいずれかを登録してください" });
         }
         const { getDb } = await import("./db");
         const db = await getDb();
@@ -5664,10 +5671,13 @@ ${todayStr}
         const result = await db.insert(teamTools).values({
           team: input.team,
           label: input.label,
-          href: input.href,
+          href: input.href || "",
           emoji: input.emoji,
           color: input.color,
           sortOrder: input.sortOrder,
+          imageData: input.imageData ?? null,
+          imageType: input.imageType ?? null,
+          imageName: input.imageName ?? null,
           createdBy: Number(ctx.user.id),
         });
         broadcastEvent("teamTools");
@@ -5678,10 +5688,13 @@ ${todayStr}
       .input(z.object({
         id: z.number().int(),
         label: z.string().min(1).max(200).optional(),
-        href: z.string().url().optional(),
+        href: z.string().max(2000).optional(),
         emoji: z.string().max(10).optional(),
         color: z.string().max(100).optional(),
         sortOrder: z.number().int().optional(),
+        imageData: z.string().max(15_000_000).nullable().optional(), // null送信で画像削除
+        imageType: z.string().max(50).nullable().optional(),
+        imageName: z.string().max(255).nullable().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const canManageTTUpdate = ctx.user.role === "admin" || ctx.user.role === "super_admin";
