@@ -247,6 +247,9 @@ export default function RecordInput() {
     return Array.from({ length: MAX_SLOTS }, () => ({ ...DEFAULT_SLOT }));
   });
 
+  // 🔧 BUGFIX: DB読み込み完了フラグ（マウント時の空配列上書き防止）
+  const [dbLoaded, setDbLoaded] = useState(false);
+  
   // DBから今日のスロット順番を復元する
   // モジュールレベル変数_dbSlotLoadedDateで管理することで、タブ切り替え後の再マウント時にも状態が保持される
   const { data: dbSlotData } = trpc.visitSlots.load.useQuery(
@@ -306,6 +309,7 @@ export default function RecordInput() {
       setSlotSearchQueries(newSlots.map(s => s.patientName || ""));
       localStorage.setItem(SLOTS_STORAGE_KEY, JSON.stringify(newSlots));
       _dbSlotLoadedDate = todayKey;
+      setDbLoaded(true);
       // 初回反映（lastAppliedAssignmentRef === ""）か変更時かを区別してトースト
       if (lastAppliedAssignmentRef.current === "") {
         toast.info(`📋 管理者から本日の訪問予定（${dailyAssignments.assignments.length}件）が反映されました`);
@@ -324,7 +328,10 @@ export default function RecordInput() {
 
     // 管理者割り当てがない場合
     // 同じ日付のデータが既に読み込み済みなら通常DBスロット復元はスキップ
-    if (_dbSlotLoadedDate === todayKey) return;
+   if (_dbSlotLoadedDate === todayKey) {
+      setDbLoaded(true);
+      return;
+    }
 
     // 通常のDB保存スロットを復元
     if (!dbSlotData) return;
@@ -339,6 +346,7 @@ export default function RecordInput() {
       } catch {}
     }
     _dbSlotLoadedDate = todayKey;
+    setDbLoaded(true);
   }, [dbSlotData, dailyAssignments, todayKey]);
 
   // DBへの保存mutation
@@ -365,9 +373,11 @@ export default function RecordInput() {
     try {
       localStorage.setItem(SLOTS_STORAGE_KEY, json);
     } catch {}
+    // ⚠️ DB保存はDB読込完了後のみ実行（マウント時の空配列でDB上書きを防止）
+    if (!dbLoaded) return;
     if (!user) return;
     saveSlotsMutation.mutate({ dateKey: todayKey, slotsJson: json });
-  }, [slots]);
+  }, [slots,dbLoaded]);
 
   // スロットデータの更新ハンドラ
   const handleSlotChange = (index: number, data: Partial<VisitSlotData>) => {
@@ -440,6 +450,8 @@ export default function RecordInput() {
         setSlotShowLists(Array.from({ length: MAX_SLOTS }, () => false));
         localStorage.removeItem(SLOTS_STORAGE_KEY);
         _dbSlotLoadedDate = ""; // 新しい日付のDBデータを再取得
+        // 🔧 BUGFIX: 新しい日付のDB読込完了を待つ
+        setDbLoaded(false);
         toast.success(`日付が変わりました（${newKey}）。訪問予定をリセットしました。`);
         return newKey;
       });
