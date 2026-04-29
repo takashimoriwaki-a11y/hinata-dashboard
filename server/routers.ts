@@ -1373,7 +1373,7 @@ import {
   getTaskById,
   updateTask,
   getActiveMessages,
-  getPendingMessages,
+  getActiveMessagesForUser,
   createMessage,
   softDeleteMessage,
   updateMessage,
@@ -2657,8 +2657,6 @@ export const appRouter = router({
         } catch {
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AIの応答を解析できませんでした" });
         }
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("tasks"); }
       }),
 
     // 利用者名でタスクを取得する（訪問チェック項目用）
@@ -2952,8 +2950,6 @@ ${todayStr}
           };
         });
 
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("dailyVisitAssignments"); }
         return {
           assignments: assignmentsWithMatch,
           stats: {
@@ -3292,7 +3288,7 @@ ${todayStr}
     getActive: protectedProcedure.query(async () => {
       // 期限切れを先に自動削除
       await expireMessages();
-      const msgs = await getActiveMessages();
+      const msgs = await getActiveMessagesForUser(Number(ctx.user.id));
       if (msgs.length === 0) return [];
       const ids = msgs.map((m) => m.id);
       const reactions = await getReactionsByMessageIds(ids);
@@ -3302,14 +3298,6 @@ ${todayStr}
       }));
     }),
 
-    // 予約送信待ちメッセージ一覧（まだ送信されていないもの）
-    // 管理者は全件、一般ユーザーは自分が登録したものだけ返す
-    getPending: protectedProcedure.query(async ({ ctx }) => {
-      const msgs = await getPendingMessages();
-      if (ctx.user.role === "admin" || ctx.user.role === "super_admin") return msgs;
-      return msgs.filter((m) => m.createdBy === Number(ctx.user.id));
-    }),
-
     // メッセージを作成する
     create: protectedProcedure
       .input(
@@ -3317,7 +3305,6 @@ ${todayStr}
           text: z.string().min(1).max(1000),
           displayFrom: z.date().optional(),
           displayUntil: z.date().optional(),
-          scheduledAt: z.date().optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -3327,16 +3314,19 @@ ${todayStr}
           createdByName: ctx.user.name ?? "不明",
           displayFrom: input.displayFrom,
           displayUntil: input.displayUntil,
-          scheduledAt: input.scheduledAt,
         });
-        // 新着メッセージ通知を生成
-        const preview = input.text.length > 40 ? input.text.slice(0, 40) + "…" : input.text;
-        await createNotification({
-          type: "new_message",
-          title: `新しいメッセージが追加されました`,
-          body: `${ctx.user.name ?? "不明"}さん：「${preview}」`,
-          resourceId: id,
-        });
+        // 新着メッセージ通知を生成（表示開始日時が現在より未来なら通知保留）
+        const now = new Date();
+        const shouldNotifyNow = !input.displayFrom || input.displayFrom <= now;
+        if (shouldNotifyNow) {
+          const preview = input.text.length > 40 ? input.text.slice(0, 40) + "…" : input.text;
+          await createNotification({
+            type: "new_message",
+            title: `新しいメッセージが追加されました`,
+            body: `${ctx.user.name ?? "不明"}さん:「${preview}」`,
+            resourceId: id,
+          });
+        }
         broadcastEvent("messages");
         return { success: true, id };
       }),
@@ -3364,7 +3354,6 @@ ${todayStr}
           text: z.string().min(1).max(1000),
           displayFrom: z.date().optional().nullable(),
           displayUntil: z.date().optional().nullable(),
-          scheduledAt: z.date().optional().nullable(),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -3378,7 +3367,6 @@ ${todayStr}
           text: input.text,
           displayFrom: input.displayFrom ?? null,
           displayUntil: input.displayUntil ?? null,
-          scheduledAt: input.scheduledAt ?? null,
         });
         broadcastEvent("messages");
         return { success: true };
@@ -3420,12 +3408,10 @@ ${todayStr}
 
 抽出項目:
 - text: メッセージ本文（必須）。音声から読み取れる内容を自然な文章にまとめてください
-- displayFromDate: 表示開始日（YYYY-MM-DD形式）。「〜から表示」「〜以降」などが含まれる場合に抽出。不明な場合はnull
+- displayFromDate: 表示開始日（YYYY-MM-DD形式）。「〜から表示」「〜以降」「〜に送信」「〜に投稿」「〜に表示」などが含まれる場合に抽出。不明な場合はnull
 - displayFromTime: 表示開始時刻（HH:mm形式）。不明な場合はnull
 - displayUntilDate: 表示終了日（YYYY-MM-DD形式）。「〜まで」「〜以降は削除」などが含まれる場合に抽出。不明な場合はnull
 - displayUntilTime: 表示終了時刻（HH:mm形式）。不明な場合はnull
-- scheduledAtDate: 予約送信日（YYYY-MM-DD形式）。「〜に送信」「〜に投稿」などが含まれる場合に抽出。不明な場合はnull
-- scheduledAtTime: 予約送信時刻（HH:mm形式）。不明な場合はnull
 不明な項目はnullを返してください。必ず有効なJSONのみを返してください。`;
         const res = await invokeLLM({
           messages: [
@@ -3445,10 +3431,8 @@ ${todayStr}
                   displayFromTime: { type: ["string", "null"] },
                   displayUntilDate: { type: ["string", "null"] },
                   displayUntilTime: { type: ["string", "null"] },
-                  scheduledAtDate: { type: ["string", "null"] },
-                  scheduledAtTime: { type: ["string", "null"] },
                 },
-                required: ["text", "displayFromDate", "displayFromTime", "displayUntilDate", "displayUntilTime", "scheduledAtDate", "scheduledAtTime"],
+                required: ["text", "displayFromDate", "displayFromTime", "displayUntilDate", "displayUntilTime"],
                 additionalProperties: false,
               },
             },
@@ -3933,8 +3917,6 @@ ${todayStr}
 
         // 転送済みフラグを立てる
         await markVisitRecordExported(input.id);
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("visitRecords"); }
         return { success: true };
       }),
 
@@ -4087,8 +4069,6 @@ ${todayStr}
         } catch {
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AIの応答を解析できませんでした" });
         }
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("visitRecords"); }
       }),
 
     // 次回訪問日時スプレッドシートにフィルター・書式を後付け適用
@@ -4198,8 +4178,6 @@ ${todayStr}
           }
         }
 
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("visitRecords"); }
         return { results };
       }),
   }),
@@ -4276,8 +4254,6 @@ ${todayStr}
         } catch (err: any) {
           throw new TRPCError({ code: "BAD_REQUEST", message: err.message ?? "アカウント作成に失敗しました" });
         }
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("staff"); }
       }),
 
     // スタッフのパスワードをリセット（管理者のみ）
@@ -4565,8 +4541,6 @@ ${todayStr}
           }
         }
 
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("patients"); }
         return result;
       }),
 
@@ -4601,8 +4575,6 @@ ${todayStr}
             .where(drizzleEq(usersTable.id, item.id));
           updated++;
         }
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("patients"); }
         return { updated };
       }),
   }),
@@ -4866,8 +4838,6 @@ ${todayStr}
         }
 
         await markScheduleChangeExported(input.id);
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("scheduleChanges"); }
         return { success: true };
       }),
 
@@ -5007,8 +4977,6 @@ ${todayStr}
         } catch {
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AIの応答を解析できませんでした" });
         }
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("scheduleChanges"); }
       }),
 
     /** 作成と同時にスプレッドシートへ転記する（ワンステップ） */
@@ -5498,8 +5466,6 @@ ${todayStr}
           }
         }
 
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("scheduleChanges"); }
         return { results };
       }),
   }),
@@ -5574,7 +5540,7 @@ ${todayStr}
         sortOrder: z.number().int().default(0),
       }))
       .mutation(async ({ ctx, input }) => {
-        const canManage2857 = ctx.user.role === "admin" || ctx.user.role === "super_admin";
+        const canManage2857 = ctx.user.role === "admin";
         if (!canManage2857) {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
         }
@@ -5595,7 +5561,7 @@ ${todayStr}
         sortOrder: z.number().int().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const canManageQAUpdate = ctx.user.role === "admin" || ctx.user.role === "super_admin";
+        const canManageQAUpdate = ctx.user.role === "admin";
         if (!canManageQAUpdate) {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
         }
@@ -5609,7 +5575,7 @@ ${todayStr}
     delete: protectedProcedure
       .input(z.object({ id: z.number().int() }))
       .mutation(async ({ ctx, input }) => {
-        const canManageQADelete = ctx.user.role === "admin" || ctx.user.role === "super_admin";
+        const canManageQADelete = ctx.user.role === "admin";
         if (!canManageQADelete) {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
         }
@@ -5647,22 +5613,15 @@ ${todayStr}
       .input(z.object({
         team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]),
         label: z.string().min(1).max(200),
-        href: z.string().max(2000).default(""), // 画像のみ登録時は空文字列でOK
+        href: z.string().url(),
         emoji: z.string().max(10).default("🔗"),
         color: z.string().max(100).default("text-blue-600"),
         sortOrder: z.number().int().default(0),
-        imageData: z.string().max(15_000_000).optional(),  // Base64画像データ（最大~15MB）
-        imageType: z.string().max(50).optional(),          // 例: image/jpeg
-        imageName: z.string().max(255).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const canManageTTCreate = ctx.user.role === "admin" || ctx.user.role === "super_admin";
+        const canManageTTCreate = ctx.user.role === "admin";
         if (!canManageTTCreate) {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
-        }
-        // hrefも画像も両方空ならエラー
-        if (!input.href && !input.imageData) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "URLまたは画像のいずれかを登録してください" });
         }
         const { getDb } = await import("./db");
         const db = await getDb();
@@ -5671,13 +5630,10 @@ ${todayStr}
         const result = await db.insert(teamTools).values({
           team: input.team,
           label: input.label,
-          href: input.href || "",
+          href: input.href,
           emoji: input.emoji,
           color: input.color,
           sortOrder: input.sortOrder,
-          imageData: input.imageData ?? null,
-          imageType: input.imageType ?? null,
-          imageName: input.imageName ?? null,
           createdBy: Number(ctx.user.id),
         });
         broadcastEvent("teamTools");
@@ -5688,16 +5644,13 @@ ${todayStr}
       .input(z.object({
         id: z.number().int(),
         label: z.string().min(1).max(200).optional(),
-        href: z.string().max(2000).optional(),
+        href: z.string().url().optional(),
         emoji: z.string().max(10).optional(),
         color: z.string().max(100).optional(),
         sortOrder: z.number().int().optional(),
-        imageData: z.string().max(15_000_000).nullable().optional(), // null送信で画像削除
-        imageType: z.string().max(50).nullable().optional(),
-        imageName: z.string().max(255).nullable().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const canManageTTUpdate = ctx.user.role === "admin" || ctx.user.role === "super_admin";
+        const canManageTTUpdate = ctx.user.role === "admin";
         if (!canManageTTUpdate) {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
         }
@@ -5715,7 +5668,7 @@ ${todayStr}
     delete: protectedProcedure
       .input(z.object({ id: z.number().int() }))
       .mutation(async ({ ctx, input }) => {
-        const canManageTTDelete = ctx.user.role === "admin" || ctx.user.role === "super_admin";
+        const canManageTTDelete = ctx.user.role === "admin";
         if (!canManageTTDelete) {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
         }
@@ -6203,7 +6156,7 @@ ${todayStr}
         toolType: z.enum(["team", "common", "all"]).default("all"),
       }))
       .query(async ({ ctx, input }) => {
-        const canView = ctx.user.role === "admin" || ctx.user.role === "super_admin" || (ctx.user as any).team === "事務員";
+        const canView = ctx.user.role === "admin" || (ctx.user as any).team === "事務員";
         if (!canView) {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者または事務員のみ閲覧できます" });
         }
@@ -6230,7 +6183,7 @@ ${todayStr}
         userId: z.number().int().optional(),
       }).optional())
       .query(async ({ ctx, input }) => {
-        const canView = ctx.user.role === "admin" || ctx.user.role === "super_admin" || (ctx.user as any).team === "事務員";
+        const canView = ctx.user.role === "admin" || (ctx.user as any).team === "事務員";
         if (!canView) {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者または事務員のみ閲覧できます" });
         }
@@ -6633,8 +6586,6 @@ ${todayStr}
         }).catch((err) => {
           console.error("[Timesheet] getTimesheetSpreadsheets failed:", err);
         });
-        // SSE: 全職員に即時反映（出退勤状況・残業申請等）
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("attendance"); }
         return { success: true, log };
       }),
     /** アルコールチェックを記録しスプレッドシートに転記する */
@@ -6824,8 +6775,6 @@ ${todayStr}
             console.warn('[OvertimeAuto] Failed to create overtime approval from alcohol check:', e);
           }
         }
-        // SSE: 全職員に即時反映（アルコールチェック・残業申請の同期）
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("attendance"); broadcastEvent("overtimeApprovals"); }
         return { success: true, alcoholCheckId: alcoholCheck.id };
       }),
     /** 月別スプレッドシート一覧を取得する（管理者用） */
@@ -6843,8 +6792,6 @@ ${todayStr}
       }))
       .mutation(async ({ input }) => {
         await upsertAlcoholCheckSpreadsheet(input);
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("attendance"); }
         return { success: true };
       }),
     /** 月別スプレッドシート登録を削除する（管理者用） */
@@ -6852,8 +6799,6 @@ ${todayStr}
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
         await deleteAlcoholCheckSpreadsheet(input.id);
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("attendance"); }
         return { success: true };
       }),
     /** 指定年月のアルコールチェック用スプレッドシートを手動で自動作成する（管理者用） */
@@ -6867,8 +6812,6 @@ ${todayStr}
         if (!spreadsheetId) {
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "スプレッドシートの作成に失敗しました" });
         }
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("attendance"); }
         return { success: true, spreadsheetId };
       }),
     /** アルコールチェック記録を期間指定でCSV形式にエクスポートする（管理者用） */
@@ -6947,8 +6890,6 @@ ${todayStr}
           } catch (_) { /* 既に共有済みの場合は無視 */ }
         }
         const url = `https://docs.google.com/spreadsheets/d/${input.spreadsheetId}/edit`;
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("attendance"); }
         return { success: true, url, alreadyShared };
       }),
     /** 未同期のアルコールチェック記録をスプレッドシートに再転記する（管理者用） */
@@ -6986,8 +6927,6 @@ ${todayStr}
             failCount++;
           }
         }
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("attendance"); }
         return { success: true, successCount, failCount, total: records.length };
       }),
     /** 今日の自分の打刻履歴を取得する */
@@ -7000,8 +6939,6 @@ ${todayStr}
       .input(z.object({ numberPlate: z.string().max(20) }))
       .mutation(async ({ input, ctx }) => {
         await updateUserNumberPlate(Number(ctx.user.id), input.numberPlate);
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("attendance"); }
         return { success: true };
       }),
   }),
@@ -7028,8 +6965,6 @@ ${todayStr}
       }))
       .mutation(async ({ input }) => {
         const id = await createAlcoholDetector(input);
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("alcoholDetector"); }
         return { success: true, id };
       }),
     /** 検知器を更新する */
@@ -7045,8 +6980,6 @@ ${todayStr}
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         await updateAlcoholDetector(id, data);
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("alcoholDetector"); }
         return { success: true };
       }),
     /** 検知器を削除する */
@@ -7054,8 +6987,6 @@ ${todayStr}
       .input(z.object({ id: z.number().int() }))
       .mutation(async ({ input }) => {
         await deleteAlcoholDetector(input.id);
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("alcoholDetector"); }
         return { success: true };
       }),
   }),
@@ -7087,8 +7018,6 @@ ${todayStr}
           createdBy: Number(ctx.user.id),
           createdByName: ctx.user.name ?? "不明",
         });
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("sharedPrompts"); }
         return { success: true, prompt };
       }),
     /** プロンプトを更新する */
@@ -7110,8 +7039,6 @@ ${todayStr}
           usageNotes: input.usageNotes,
           updatedByName: ctx.user.name ?? "不明",
         });
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("sharedPrompts"); }
         return { success: true };
       }),
     /** プロンプトを削除する */
@@ -7119,8 +7046,6 @@ ${todayStr}
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
         await deleteSharedPrompt(input.id);
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("sharedPrompts"); }
         return { success: true };
       }),
     /** プロンプトの並び順を一括更新する（管理者・特級管理者のみ） */
@@ -7131,8 +7056,6 @@ ${todayStr}
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ操作できます" });
         }
         await reorderSharedPrompts(input.orderedIds);
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("sharedPrompts"); }
         return { success: true };
       }),
     /** 管理者が選択した訪問チェック用プロンプトIDを取得する */
@@ -7153,30 +7076,6 @@ ${todayStr}
         } else {
           await setSetting("visit_selected_prompt_id", String(input.promptId));
         }
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("sharedPrompts"); }
-        return { success: true };
-      }),
-    /** 管理者が選択した訪問チェック用（精神科）プロンプトIDを取得する */
-    getSelectedPsychiatricId: protectedProcedure
-      .query(async () => {
-        const val = await getSetting("visit_selected_psychiatric_prompt_id", "");
-        return { promptId: val ? parseInt(val, 10) : null };
-      }),
-    /** 管理者が訪問チェック用（精神科）プロンプトを選択する（管理者のみ） */
-    setSelectedPsychiatricId: protectedProcedure
-      .input(z.object({ promptId: z.number().nullable() }))
-      .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
-          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ操作できます" });
-        }
-        if (input.promptId === null) {
-          await setSetting("visit_selected_psychiatric_prompt_id", "");
-        } else {
-          await setSetting("visit_selected_psychiatric_prompt_id", String(input.promptId));
-        }
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("sharedPrompts"); }
         return { success: true };
       }),
   }),
@@ -7205,8 +7104,6 @@ ${todayStr}
         }
         const { createAccidentLink } = await import("./db");
         const id = await createAccidentLink(input);
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("accidentLinks"); }
         return { success: true, id };
       }),
     /** 事故リンクを削除する（管理者のみ） */
@@ -7218,8 +7115,6 @@ ${todayStr}
         }
         const { deleteAccidentLink } = await import("./db");
         await deleteAccidentLink(input.id);
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("accidentLinks"); }
         return { success: true };
       }),
   }),
@@ -7273,8 +7168,6 @@ ${todayStr}
         if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
         const { createTimesheetSpreadsheet } = await import("./db");
         await createTimesheetSpreadsheet(input);
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("timesheet"); }
         return { success: true };
       }),
      /** スプレッドシートを削除する */
@@ -7284,8 +7177,6 @@ ${todayStr}
         if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
         const { deleteTimesheetSpreadsheet } = await import("./db");
         await deleteTimesheetSpreadsheet(input.id);
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("timesheet"); }
         return { success: true };
       }),
     /** 指定年月の出退勤スプレッドシートを自動作成する */
@@ -7381,8 +7272,6 @@ ${todayStr}
         if (!spreadsheetId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "スプレッドシートの作成に失敗しました（spreadsheetId が null）" });
         const { getTimesheetSpreadsheets } = await import("./db");
         const sheets = await getTimesheetSpreadsheets(year, month);
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("timesheet"); }
         return { success: true, spreadsheetId, spreadsheetUrl: sheets[0]?.spreadsheetUrl ?? `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit` };
       }),
     /** 出退勤スプレッドシートのURLをコピーする（共有URLを返す） */
@@ -7394,8 +7283,6 @@ ${todayStr}
         const all = await getAllTimesheetSpreadsheets();
         const sheet = all.find((s) => s.id === input.id);
         if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("timesheet"); }
         return { url: sheet.spreadsheetUrl };
       }),
   }),
@@ -7469,10 +7356,6 @@ ${todayStr}
         } catch (e) {
           console.error("[Overtime] Super admin notification failed:", e);
         }
-        // SSE: 管理者の承認画面と申請者の申請一覧を即時更新
-        const { broadcastEvent } = await import("./_core/sse");
-        broadcastEvent("overtimeApprovals", { created: true });
-        broadcastEvent("notifications");
         return { success: true };
       }),
     /** 残業申請を承認・却下する（管理者用） */
@@ -7576,9 +7459,6 @@ ${todayStr}
       .mutation(async ({ ctx, input }) => {
         const { deleteOvertimeApproval } = await import("./db");
         await deleteOvertimeApproval(input.id, Number(ctx.user.id));
-        // SSE: 管理者の承認画面を即時更新
-        const { broadcastEvent } = await import("./_core/sse");
-        broadcastEvent("overtimeApprovals", { deleted: true });
         return { success: true };
       }),
     /** 残業申請を一括承認する（特級管理者・管理者のみ） */
@@ -7776,8 +7656,6 @@ ${todayStr}
         } catch (sheetErr) {
           console.error("[Signature] Spreadsheet append failed (non-fatal):", sheetErr);
         }
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("monthlySignatures"); }
         return result;
       }),
     /** 管理者：未署名スタッフを含む月次署名一覧を取得する */
@@ -7821,8 +7699,6 @@ ${todayStr}
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
         const { adminConfirmMonthlySignature } = await import("./db");
         await adminConfirmMonthlySignature(input.id, ctx.user.name ?? "不明");
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("monthlySignatures"); }
         return { success: true };
       }),
   }),
@@ -7896,8 +7772,6 @@ ${todayStr}
           console.error("[Improvement] Sheet sync failed:", e);
         }
 
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("improvementSuggestions"); }
         return { success: true, id: insertId };
       }),
 
@@ -7914,8 +7788,6 @@ ${todayStr}
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
         const { replyToImprovementSuggestion } = await import("./db");
         await replyToImprovementSuggestion(input.id, input.reply, ctx.user.name ?? "管理者");
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("improvementSuggestions"); }
         return { success: true };
       }),
 
@@ -7937,8 +7809,6 @@ ${todayStr}
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
         const { upsertImprovementSpreadsheet } = await import("./db");
         await upsertImprovementSpreadsheet(input);
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("improvementSuggestions"); }
         return { success: true };
       }),
   }),
@@ -8136,8 +8006,6 @@ ${todayStr}
     syncFromSheet: protectedProcedure
       .mutation(async () => {
         const { syncAllFromSheet } = await import("./irregularScheduleSync");
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("irregularSchedules"); }
         return syncAllFromSheet();
       }),
   }),
@@ -8153,8 +8021,6 @@ ${todayStr}
       .mutation(async ({ ctx, input }) => {
         const { upsertVisitSlotOrder } = await import("./db");
         await upsertVisitSlotOrder(Number(ctx.user.id), input.dateKey, input.slotsJson);
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("visitSlots"); }
         return { ok: true };
       }),
     /** 訪問予定スロットの順番をDBから取得する */
@@ -8496,8 +8362,6 @@ ${todayStr}
           throw dbErr;
         }
 
-        // SSE: 全職員に即時反映
-        { const { broadcastEvent } = await import("./_core/sse"); broadcastEvent("carePlanDisclosures"); }
         return { success: true, disclosedAt, spreadsheetId };
       }),
   }),
@@ -8818,11 +8682,6 @@ ${todayStr}
           console.error("[DirectReturn] Notification failed:", notifyErr);
         }
 
-        // SSE: 管理者の承認画面と申請者の申請一覧を即時更新
-        const { broadcastEvent } = await import("./_core/sse");
-        broadcastEvent("directReturnApprovals", { created: true });
-        broadcastEvent("notifications");
-
         return { success: true, id: insertedId };
       }),
     /** 管理者が承認・却下する */
@@ -8934,11 +8793,6 @@ ${todayStr}
         } catch (e) {
           console.error("[DirectReturn] Applicant notify failed:", e);
         }
-
-        // SSE: 管理者の承認画面と申請者の申請一覧を即時更新
-        const { broadcastEvent } = await import("./_core/sse");
-        broadcastEvent("directReturnApprovals", { id: input.id, status: input.status });
-        broadcastEvent("notifications");
 
         return { success: true };
       }),
