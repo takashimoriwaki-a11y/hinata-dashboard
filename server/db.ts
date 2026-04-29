@@ -599,10 +599,9 @@ export async function getTaskById(id: number) {
 
 
 /**
- * 現在表示すべきメッセージ一覧を取得する
+ * 現在表示すべきメッセージ一覧を取得する（全員向け：表示開始済みのみ）
  * 条件:
  *   - deletedAt IS NULL（手動削除されていない）
- *   - scheduledAt IS NULL OR scheduledAt <= now（予約送信済み or 即時）
  *   - displayFrom IS NULL OR displayFrom <= now（表示開始済み）
  *   - displayUntil IS NULL OR displayUntil > now（表示期限内）
  */
@@ -616,7 +615,6 @@ export async function getActiveMessages() {
     .where(
       and(
         isNull(messages.deletedAt),
-        or(isNull(messages.scheduledAt), lte(messages.scheduledAt, now)),
         or(isNull(messages.displayFrom), lte(messages.displayFrom, now)),
         or(isNull(messages.displayUntil), gte(messages.displayUntil, now))
       )
@@ -625,12 +623,16 @@ export async function getActiveMessages() {
 }
 
 /**
- * 予約送信待ちのメッセージ一覧を取得する
+ * 投稿者本人向けのメッセージ一覧を取得する
+ * 通常の表示中メッセージ + 自分が投稿した「表示待ち」メッセージ（displayFromが未来）
  * 条件:
  *   - deletedAt IS NULL
- *   - scheduledAt IS NOT NULL AND scheduledAt > now（まだ送信されていない）
+ *   - displayUntil IS NULL OR displayUntil > now
+ *   - 以下のいずれか:
+ *     a) displayFrom IS NULL OR displayFrom <= now（表示開始済み）
+ *     b) createdBy = 自分 AND displayFrom > now（自分の表示待ち分）
  */
-export async function getPendingMessages() {
+export async function getActiveMessagesForUser(userId: number) {
   const db = await getDb();
   if (!db) return [];
   const now = new Date();
@@ -640,11 +642,15 @@ export async function getPendingMessages() {
     .where(
       and(
         isNull(messages.deletedAt),
-        isNotNull(messages.scheduledAt),
-        gt(messages.scheduledAt, now)
+        or(isNull(messages.displayUntil), gte(messages.displayUntil, now)),
+        or(
+          isNull(messages.displayFrom),
+          lte(messages.displayFrom, now),
+          and(eq(messages.createdBy, userId), gt(messages.displayFrom, now))
+        )
       )
     )
-    .orderBy(messages.scheduledAt);
+    .orderBy(desc(messages.createdAt));
 }
 
 /** メッセージを作成する */
@@ -1251,7 +1257,6 @@ export async function updateMessage(
     text: string;
     displayFrom?: Date | null;
     displayUntil?: Date | null;
-    scheduledAt?: Date | null;
   }
 ) {
   const db = await getDb();
@@ -1262,7 +1267,6 @@ export async function updateMessage(
       text: data.text,
       displayFrom: data.displayFrom ?? null,
       displayUntil: data.displayUntil ?? null,
-      scheduledAt: data.scheduledAt ?? null,
     })
     .where(and(eq(messages.id, id), eq(messages.createdBy, userId)));
 }
