@@ -159,6 +159,7 @@ const formLinks: { label: string; href: string; color: string }[] = [
 // 業務ツール - その他
 const otherLinks = [
   { label: "NotebookLM — 就業規則・社内マニュアル", href: "https://notebooklm.google.com/notebook/4781c6de-6e18-456d-b557-a202c3b03747", color: "text-blue-600" },
+  { label: "ひなた 公式 Instagram", href: "https://www.instagram.com/kokoronohinata/", color: "text-pink-600" },
 ];
 
 
@@ -3645,51 +3646,17 @@ export function TeamToolsCard() {
   const [newHref, setNewHref] = useState("");
   const [newEmoji, setNewEmoji] = useState("🔗");
   const [newTargetTeam, setNewTargetTeam] = useState<TeamTabId>("身体"); // 全チームタブ時のチーム選択
-  // 画像登録用（追加フォーム）
-  const [newImageData, setNewImageData] = useState<string | null>(null); // Base64
-  const [newImageType, setNewImageType] = useState<string | null>(null);
-  const [newImageName, setNewImageName] = useState<string | null>(null);
-  // 編集フォーム
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editLabel, setEditLabel] = useState("");
   const [editHref, setEditHref] = useState("");
   const [editEmoji, setEditEmoji] = useState("");
-  // 編集時の画像
-  const [editImageData, setEditImageData] = useState<string | null>(null);
-  const [editImageType, setEditImageType] = useState<string | null>(null);
-  const [editImageName, setEditImageName] = useState<string | null>(null);
-  const [editHasExistingImage, setEditHasExistingImage] = useState(false); // 既存画像が登録されているか
-  const [editImageChanged, setEditImageChanged] = useState(false); // 画像が変更されたか（保存時に判定）
-  const [editImageRemoved, setEditImageRemoved] = useState(false); // 画像を削除する指示
-  // 画像プレビューモーダル
-  const [previewImage, setPreviewImage] = useState<{ data: string; type: string; label: string; href?: string } | null>(null);
 
   const createTool = trpc.teamTools.create.useMutation({
-    onSuccess: () => {
-      utils.teamTools.list.invalidate();
-      toast.success("ツールを追加しました");
-      setShowAddForm(false);
-      setNewLabel("");
-      setNewHref("");
-      setNewEmoji("🔗");
-      setNewImageData(null);
-      setNewImageType(null);
-      setNewImageName(null);
-    },
+    onSuccess: () => { utils.teamTools.list.invalidate(); toast.success("ツールを追加しました"); setShowAddForm(false); setNewLabel(""); setNewHref(""); setNewEmoji("🔗"); },
     onError: (e) => toast.error(e.message),
   });
   const updateTool = trpc.teamTools.update.useMutation({
-    onSuccess: () => {
-      utils.teamTools.list.invalidate();
-      setEditingId(null);
-      setEditImageData(null);
-      setEditImageType(null);
-      setEditImageName(null);
-      setEditHasExistingImage(false);
-      setEditImageChanged(false);
-      setEditImageRemoved(false);
-      toast.success("ツールを更新しました");
-    },
+    onSuccess: () => { utils.teamTools.list.invalidate(); setEditingId(null); toast.success("ツールを更新しました"); },
     onError: (e) => toast.error(e.message),
   });
   const deleteTool = trpc.teamTools.delete.useMutation({
@@ -3697,102 +3664,20 @@ export function TeamToolsCard() {
     onError: (e) => toast.error(e.message),
   });
 
-  // ファイルをBase64に変換するヘルパー
-  const handleFileSelect = async (
-    file: File,
-    setData: (v: string) => void,
-    setType: (v: string) => void,
-    setName: (v: string) => void,
-  ) => {
-    // 画像のみ受け付け
-    if (!file.type.startsWith("image/")) {
-      toast.error("画像ファイルを選択してください");
-      return;
-    }
-    // 5MB上限（Base64でも余裕で収まる）
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("画像サイズは5MB以下にしてください");
-      return;
-    }
-
-    // 画像を圧縮してBase64化（最大幅800px、JPEG品質85%）
-    try {
-      const compressed = await compressImage(file);
-      setData(compressed.base64);
-      setType(compressed.type);
-      setName(file.name);
-      toast.success(`画像を登録しました（${Math.round(compressed.size / 1024)} KB）`);
-    } catch (err) {
-      console.error(err);
-      toast.error("画像の処理に失敗しました");
-    }
-  };
-
   const addTool = () => {
-    if (!newLabel.trim()) { toast.error("ラベルを入力してください"); return; }
-    if (!newHref.trim() && !newImageData) {
-      toast.error("URLまたは画像のいずれかを登録してください");
-      return;
-    }
+    if (!newLabel.trim() || !newHref.trim()) { toast.error("ラベルとURLを入力してください"); return; }
     const targetTeam: Exclude<TeamTabId, "全チーム"> = (activeTeam === "全チーム" ? newTargetTeam : activeTeam) as Exclude<TeamTabId, "全チーム">;
-    createTool.mutate({
-      team: targetTeam,
-      label: newLabel.trim(),
-      href: newHref.trim(),
-      emoji: newEmoji || "🔗",
-      imageData: newImageData ?? undefined,
-      imageType: newImageType ?? undefined,
-      imageName: newImageName ?? undefined,
-    });
+    createTool.mutate({ team: targetTeam, label: newLabel.trim(), href: newHref.trim(), emoji: newEmoji || "🔗" });
   };
 
-  const startEdit = (tool: { id: number; label: string; href: string; emoji: string; imageData?: string | null; imageType?: string | null }) => {
-    setEditingId(tool.id);
-    setEditLabel(tool.label);
-    setEditHref(tool.href);
-    setEditEmoji(tool.emoji ?? "🔗");
-    setEditImageData(null); // 新規アップロード時のみセット
-    setEditImageType(null);
-    setEditImageName(null);
-    setEditHasExistingImage(!!tool.imageData);
-    setEditImageChanged(false);
-    setEditImageRemoved(false);
+  const startEdit = (tool: { id: number; label: string; href: string; emoji: string }) => {
+    setEditingId(tool.id); setEditLabel(tool.label); setEditHref(tool.href); setEditEmoji(tool.emoji ?? "🔗");
   };
 
   const saveEdit = () => {
     if (editingId === null) return;
-    if (!editLabel.trim()) { toast.error("ラベルを入力してください"); return; }
-    // hrefも画像（既存または新規）も両方なければエラー
-    const willHaveImage = editImageRemoved ? false : (editImageChanged || editHasExistingImage);
-    if (!editHref.trim() && !willHaveImage) {
-      toast.error("URLまたは画像のいずれかを登録してください");
-      return;
-    }
-    const updateData: {
-      id: number;
-      label?: string;
-      href?: string;
-      emoji?: string;
-      imageData?: string | null;
-      imageType?: string | null;
-      imageName?: string | null;
-    } = {
-      id: editingId,
-      label: editLabel.trim(),
-      href: editHref.trim(),
-      emoji: editEmoji || "🔗",
-    };
-    // 画像が変更されたとき or 削除されたときだけ送信
-    if (editImageRemoved) {
-      updateData.imageData = null;
-      updateData.imageType = null;
-      updateData.imageName = null;
-    } else if (editImageChanged) {
-      updateData.imageData = editImageData;
-      updateData.imageType = editImageType;
-      updateData.imageName = editImageName;
-    }
-    updateTool.mutate(updateData);
+    if (!editLabel.trim() || !editHref.trim()) { toast.error("ラベルとURLを入力してください"); return; }
+    updateTool.mutate({ id: editingId, label: editLabel.trim(), href: editHref.trim(), emoji: editEmoji || "🔗" });
   };
 
   return (
@@ -3885,51 +3770,7 @@ export function TeamToolsCard() {
                       <input value={editEmoji} onChange={e => setEditEmoji(e.target.value)} className="w-10 text-center border rounded px-1 py-1 text-sm bg-background" placeholder="🔗" />
                       <input value={editLabel} onChange={e => setEditLabel(e.target.value)} className="flex-1 border rounded px-2 py-1 text-sm bg-background" placeholder="ラベル" />
                     </div>
-                    <input value={editHref} onChange={e => setEditHref(e.target.value)} className="border rounded px-2 py-1 text-sm bg-background" placeholder="https://...（画像のみ登録の場合は空欄可）" />
-                    {/* 画像アップロード */}
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs text-muted-foreground">画像（任意）</label>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {(editImageData || (editHasExistingImage && !editImageRemoved)) && (
-                          <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                            <span>📸</span>
-                            <span>{editImageChanged ? `新しい画像: ${editImageName ?? ""}` : "登録済み画像あり"}</span>
-                          </span>
-                        )}
-                        <label className="cursor-pointer text-xs px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800/60">
-                          {(editImageData || (editHasExistingImage && !editImageRemoved)) ? "画像を変更" : "画像を選択"}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={async (e) => {
-                              const file = e.target.files?.[0];
-                              if (!file) return;
-                              await handleFileSelect(file, (d) => { setEditImageData(d); }, setEditImageType as (v: string) => void, setEditImageName as (v: string) => void);
-                              setEditImageChanged(true);
-                              setEditImageRemoved(false);
-                              e.target.value = ""; // 同じファイルを再選択できるよう
-                            }}
-                          />
-                        </label>
-                        {(editImageData || (editHasExistingImage && !editImageRemoved)) && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditImageData(null);
-                              setEditImageType(null);
-                              setEditImageName(null);
-                              setEditImageChanged(false);
-                              setEditImageRemoved(true);
-                              toast.info("画像を削除します（保存後に反映）");
-                            }}
-                            className="text-xs px-2 py-1 rounded bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800/60"
-                          >
-                            画像削除
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                    <input value={editHref} onChange={e => setEditHref(e.target.value)} className="border rounded px-2 py-1 text-sm bg-background" placeholder="https://..." />
                     <div className="flex gap-1 justify-end">
                       <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setEditingId(null)}>キャンセル</Button>
                       <Button size="sm" className="h-6 text-xs" onClick={saveEdit} disabled={updateTool.isPending}>保存</Button>
@@ -3937,36 +3778,16 @@ export function TeamToolsCard() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-1 group">
-                    {/* 画像があるツール: クリックで画像モーダル表示 */}
-                    {(tool as any).imageData ? (
-                      <button
-                        type="button"
-                        onClick={() => setPreviewImage({
-                          data: (tool as any).imageData,
-                          type: (tool as any).imageType ?? "image/jpeg",
-                          label: tool.label,
-                          href: tool.href,
-                        })}
-                        className="flex items-center gap-2 flex-1 min-w-0 px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors text-left"
-                        style={{
-                          ...(isNight ? getTeamTextStyleNight(activeTeam === "全チーム" ? (tool as any).team ?? activeTeam : activeTeam) : getTeamTextStyle(activeTeam === "全チーム" ? (tool as any).team ?? activeTeam : activeTeam))
-                        }}
-                      >
-                        <span className="text-lg flex-shrink-0">{tool.emoji ?? "🖼️"}</span>
-                        <span className="text-sm font-medium truncate">{tool.label}</span>
-                        <span className="text-xs opacity-60 ml-auto flex-shrink-0">📸 画像</span>
-                      </button>
-                    ) : (
-                      <LinkRow
-                        href={tool.href}
-                        label={tool.label}
-                        colorStyle={isNight ? getTeamTextStyleNight(activeTeam === "全チーム" ? (tool as any).team ?? activeTeam : activeTeam) : getTeamTextStyle(activeTeam === "全チーム" ? (tool as any).team ?? activeTeam : activeTeam)}
-                        emoji={tool.emoji ?? undefined}
-                      />
-                    )}
+                    {/* チームに応じた文字色：インラインスタイルで夜間モード対応 */}
+                    <LinkRow
+                      href={tool.href}
+                      label={tool.label}
+                      colorStyle={isNight ? getTeamTextStyleNight(activeTeam === "全チーム" ? (tool as any).team ?? activeTeam : activeTeam) : getTeamTextStyle(activeTeam === "全チーム" ? (tool as any).team ?? activeTeam : activeTeam)}
+                      emoji={tool.emoji ?? undefined}
+                    />
                     {isAdmin && (
                       <>
-                        <button onClick={() => startEdit(tool as any)} onPointerDown={() => {}} style={{ touchAction: 'pan-y' }} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95 touch-pan-y" title="編集">
+                        <button onClick={() => startEdit(tool)} onPointerDown={() => {}} style={{ touchAction: 'pan-y' }} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95 touch-pan-y" title="編集">
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </button>
                         <button onClick={() => deleteTool.mutate({ id: tool.id })} onPointerDown={() => {}} style={{ touchAction: 'pan-y' }} className="text-muted-foreground hover:text-destructive p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95 touch-pan-y" title="削除">
@@ -4003,48 +3824,9 @@ export function TeamToolsCard() {
                 <input value={newEmoji} onChange={e => setNewEmoji(e.target.value)} className="w-10 text-center border rounded px-1 py-1 text-sm bg-background" placeholder="🔗" />
                 <input value={newLabel} onChange={e => setNewLabel(e.target.value)} className="flex-1 border rounded px-2 py-1 text-sm bg-background" placeholder="ラベル" />
               </div>
-              <input value={newHref} onChange={e => setNewHref(e.target.value)} className="border rounded px-2 py-1 text-sm bg-background" placeholder="https://...（画像のみ登録の場合は空欄可）" />
-              {/* 画像アップロード */}
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-muted-foreground">画像（任意・QRコードなど。クリックで拡大表示されます）</label>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {newImageData && (
-                    <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                      <span>📸</span>
-                      <span>{newImageName}</span>
-                    </span>
-                  )}
-                  <label className="cursor-pointer text-xs px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800/60">
-                    {newImageData ? "画像を変更" : "画像を選択"}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        await handleFileSelect(file, setNewImageData as (v: string) => void, setNewImageType as (v: string) => void, setNewImageName as (v: string) => void);
-                        e.target.value = "";
-                      }}
-                    />
-                  </label>
-                  {newImageData && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setNewImageData(null);
-                        setNewImageType(null);
-                        setNewImageName(null);
-                      }}
-                      className="text-xs px-2 py-1 rounded bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800/60"
-                    >
-                      画像削除
-                    </button>
-                  )}
-                </div>
-              </div>
+              <input value={newHref} onChange={e => setNewHref(e.target.value)} className="border rounded px-2 py-1 text-sm bg-background" placeholder="https://..." />
               <div className="flex gap-1 justify-end">
-                <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => { setShowAddForm(false); setNewLabel(""); setNewHref(""); setNewEmoji("🔗"); setNewImageData(null); setNewImageType(null); setNewImageName(null); }}>キャンセル</Button>
+                <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => { setShowAddForm(false); setNewLabel(""); setNewHref(""); setNewEmoji("🔗"); }}>キャンセル</Button>
                 <Button size="sm" className="h-6 text-xs" onClick={addTool} disabled={createTool.isPending}>追加</Button>
               </div>
             </div>
@@ -4055,94 +3837,8 @@ export function TeamToolsCard() {
 
 
       </CardContent>
-
-      {/* 画像プレビューモーダル */}
-      {previewImage && (
-        <div
-          className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 cursor-pointer"
-          onClick={() => setPreviewImage(null)}
-        >
-          <div
-            className="relative max-w-full max-h-full flex flex-col items-center gap-3"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="text-white text-center">
-              <p className="text-base font-semibold">{previewImage.label}</p>
-              <p className="text-xs opacity-70 mt-1">画像をタップで閉じる</p>
-            </div>
-            <img
-              src={`data:${previewImage.type};base64,${previewImage.data}`}
-              alt={previewImage.label}
-              className="max-w-full max-h-[70vh] rounded-lg shadow-2xl bg-white cursor-pointer"
-              onClick={() => setPreviewImage(null)}
-            />
-            {previewImage.href && (
-              <a
-                href={previewImage.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium shadow-lg"
-                onClick={(e) => e.stopPropagation()}
-              >
-                🔗 URLを開く
-              </a>
-            )}
-            <button
-              type="button"
-              onClick={() => setPreviewImage(null)}
-              className="px-4 py-2 rounded-lg bg-white/20 hover:bg-white/30 text-white text-sm font-medium"
-            >
-              閉じる
-            </button>
-          </div>
-        </div>
-      )}
     </Card>
   );
-}
-
-// 画像圧縮ヘルパー（最大幅800px、JPEG品質85%）
-async function compressImage(file: File): Promise<{ base64: string; type: string; size: number }> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        const MAX_DIM = 800;
-        let { width, height } = img;
-        if (width > MAX_DIM || height > MAX_DIM) {
-          if (width > height) {
-            height = (height / width) * MAX_DIM;
-            width = MAX_DIM;
-          } else {
-            width = (width / height) * MAX_DIM;
-            height = MAX_DIM;
-          }
-        }
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          reject(new Error("Canvas context unavailable"));
-          return;
-        }
-        // 白い背景を塗る（PNG透過用）
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, width, height);
-        ctx.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-        const base64 = dataUrl.split(",")[1];
-        // サイズ概算
-        const size = base64.length * 0.75;
-        resolve({ base64, type: "image/jpeg", size });
-      };
-      img.onerror = () => reject(new Error("Image load failed"));
-      img.src = (e.target?.result as string) ?? "";
-    };
-    reader.onerror = () => reject(new Error("File read failed"));
-    reader.readAsDataURL(file);
-  });
 }
 
 
@@ -4698,12 +4394,6 @@ function MessageBoard({ title }: { title: string }) {
     refetchOnWindowFocus: true,
   });
 
-  // 予約送信待ちメッセージ
-  const { data: pendingMessages = [] } = trpc.messages.getPending.useQuery(undefined, {
-    refetchInterval: 60 * 1000,
-    refetchOnWindowFocus: true,
-  });
-  const [showPending, setShowPending] = useState(false);
   const [showAllMessages, setShowAllMessages] = useState(false);
   const MESSAGE_PREVIEW_COUNT = 3;
 
@@ -4713,8 +4403,6 @@ function MessageBoard({ title }: { title: string }) {
   const [displayFromTime, setDisplayFromTime] = useState("");
   const [displayUntil, setDisplayUntil] = useState("");
   const [displayUntilTime, setDisplayUntilTime] = useState("");
-  const [scheduledAt, setScheduledAt] = useState("");
-  const [scheduledAtTime, setScheduledAtTime] = useState("");
   // 音声入力 AI 自動転記
   const [isAnalyzingMsg, setIsAnalyzingMsg] = useState(false);
   const [msgVoiceError, setMsgVoiceError] = useState<string | null>(null);
@@ -4784,11 +4472,6 @@ function MessageBoard({ title }: { title: string }) {
         setDisplayUntil(prev => prev.trim() ? prev : f.displayUntilDate!);
         if (f.displayUntilTime) setDisplayUntilTime(prev => prev.trim() ? prev : f.displayUntilTime!);
       }
-      // 予約送信（空欄のみ上書き）
-      if (f.scheduledAtDate) {
-        setScheduledAt(prev => prev.trim() ? prev : f.scheduledAtDate!);
-        if (f.scheduledAtTime) setScheduledAtTime(prev => prev.trim() ? prev : f.scheduledAtTime!);
-      }
       setMissingMsgFields(missing);
       setMsgVoiceTranscribed(true); // 誤変換報告ボタンを表示する
       if (missing.length === 0) {
@@ -4800,7 +4483,6 @@ function MessageBoard({ title }: { title: string }) {
       if (f.text) flashMsgIds.push("msg-content-textarea");
       if (f.displayFromDate) flashMsgIds.push("msg-display-from");
       if (f.displayUntilDate) flashMsgIds.push("msg-display-until");
-      if (f.scheduledAtDate) flashMsgIds.push("msg-scheduled-at");
       setTimeout(() => {
         flashMsgIds.forEach((id) => {
           const el = document.getElementById(id);
@@ -4839,7 +4521,6 @@ function MessageBoard({ title }: { title: string }) {
       setNewMsg("");
       setDisplayFrom(""); setDisplayFromTime("");
       setDisplayUntil(""); setDisplayUntilTime("");
-      setScheduledAt(""); setScheduledAtTime("");
       setShowForm(false);
       // 投稿後は誤変換報告を非表示にする
       setMsgVoiceTranscribed(false);
@@ -4879,7 +4560,7 @@ function MessageBoard({ title }: { title: string }) {
     onSettled: () => utils.messages.getActive.invalidate(),
   });
 
-  // メッセージ削除（通常削除・予約送信キャンセル共用）
+  // メッセージ削除
   const deleteMsg = trpc.messages.delete.useMutation({
     onMutate: async ({ id }) => {
       await utils.messages.getActive.cancel();
@@ -4893,28 +4574,8 @@ function MessageBoard({ title }: { title: string }) {
     },
     onSettled: () => {
       utils.messages.getActive.invalidate();
-      utils.messages.getPending.invalidate();
     },
   });
-
-  // 予約送信キャンセル確認ダイアログ用state
-  const [cancelTargetId, setCancelTargetId] = useState<number | null>(null);
-  const [cancelTargetText, setCancelTargetText] = useState("");
-
-  // 予約送信編集ダイアログ用state
-  const [editTargetId, setEditTargetId] = useState<number | null>(null);
-  const [editText, setEditText] = useState("");
-  const [editScheduledDate, setEditScheduledDate] = useState("");
-  const [editScheduledTime, setEditScheduledTime] = useState("");
-  const [editDisplayFrom, setEditDisplayFrom] = useState("");
-  const [editDisplayUntil, setEditDisplayUntil] = useState("");
-
-  // 予約送信編集用日時変換ヘルパー
-  const buildEditDateTime = (date: string, time: string): Date | undefined => {
-    if (!date) return undefined;
-    const t = time || "00:00";
-    return new Date(`${date}T${t}:00`);
-  };
 
   // リアクショントグル
   const toggleReaction = trpc.messages.toggleReaction.useMutation({
@@ -4941,7 +4602,6 @@ function MessageBoard({ title }: { title: string }) {
       text: newMsg.trim(),
       displayFrom: buildDateTime(displayFrom, displayFromTime),
       displayUntil: buildDateTime(displayUntil, displayUntilTime),
-      scheduledAt: buildDateTime(scheduledAt, scheduledAtTime),
     };
     // オフライン中はキューに保存して後で送信
     if (isOffline) {
@@ -4949,7 +4609,6 @@ function MessageBoard({ title }: { title: string }) {
       setNewMsg("");
       setDisplayFrom(""); setDisplayFromTime("");
       setDisplayUntil(""); setDisplayUntilTime("");
-      setScheduledAt(""); setScheduledAtTime("");
       setShowForm(false);
       return;
     }
@@ -5138,7 +4797,6 @@ function MessageBoard({ title }: { title: string }) {
                         "メッセージ本文": "msg-content-textarea",
                         "表示開始": "msg-display-from",
                         "表示終了": "msg-display-until",
-                        "予約送信": "msg-scheduled-at",
                       };
                       const targetId = fieldIdMap[fieldName];
                       return (
@@ -5272,32 +4930,6 @@ function MessageBoard({ title }: { title: string }) {
                       )}
                     </div>
                   </div>
-                  {/* 予約送信 */}
-                  <div>
-                    <label className="text-xs font-medium text-foreground block mb-1">予約送信（任意）</label>
-                    <div className="flex items-center gap-1.5">
-                      <input id="msg-scheduled-at" type="date" value={scheduledAt} onChange={(e) => { setScheduledAt(e.target.value); if (e.target.value && !scheduledAtTime) setScheduledAtTime("13:00"); }}
-                        className="flex-1 text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
-                      {scheduledAt && (
-                        <button type="button" onClick={(e) => { e.preventDefault(); setScheduledAt(""); setScheduledAtTime(""); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all active:scale-95 touch-pan-y" title="クリア">
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1.5 mt-1.5">
-                      <select value={scheduledAtTime} onChange={(e) => setScheduledAtTime(e.target.value)}
-                        disabled={!scheduledAt}
-                        className="flex-1 text-sm border border-border rounded px-2 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40">
-                        <option value="">時刻選択...</option>
-                        {timeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                      {scheduledAtTime && (
-                        <button type="button" onClick={(e) => { e.preventDefault(); setScheduledAtTime(""); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all active:scale-95 touch-pan-y" title="時刻クリア">
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
                 </>
               );
             })()}
@@ -5306,11 +4938,10 @@ function MessageBoard({ title }: { title: string }) {
                 setNewMsg("");
                 setDisplayFrom(""); setDisplayFromTime("");
                 setDisplayUntil(""); setDisplayUntilTime("");
-                setScheduledAt(""); setScheduledAtTime("");
                 setShowForm(false);
               }}>キャンセル</Button>
               <Button size="default" className="flex-1 text-sm" onClick={handlePost} disabled={createMsg.isPending || !newMsg.trim()}>
-                {scheduledAt ? "予約送信" : "投稿"}
+                投稿
               </Button>
             </div>
           </div>
@@ -5348,8 +4979,10 @@ function MessageBoard({ title }: { title: string }) {
                             → {new Date(msg.displayUntil).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}まで
                           </span>
                         )}
-                        {msg.scheduledAt && new Date(msg.scheduledAt) > new Date() && (
-                          <span className={cn("text-xs px-1 rounded", isNight ? "text-blue-400 bg-blue-900/40" : "text-blue-600 bg-blue-50")}>予約</span>
+                        {msg.displayFrom && new Date(msg.displayFrom) > new Date() && msg.createdBy === user?.id && (
+                          <span className={cn("text-xs px-1.5 py-0.5 rounded font-medium", isNight ? "text-blue-300 bg-blue-900/50 border border-blue-700" : "text-blue-700 bg-blue-50 border border-blue-200")} title="この投稿は表示開始日時まで他のスタッフには表示されません">
+                            📅 表示待ち：{new Date(msg.displayFrom).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}から
+                          </span>
                         )}
                       </div>
                       {editingMsgId === msg.id ? (
@@ -5486,129 +5119,6 @@ function MessageBoard({ title }: { title: string }) {
             )}
           </div>
         )}
-        {/* 予約送信確認セクション */}
-        {pendingMessages.length > 0 && (
-          <div className="mt-2">
-            <button
-              onClick={() => setShowPending((v) => !v)}
-              className={cn(
-                "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors",
-                isNight
-                  ? "bg-blue-900/30 text-blue-300 hover:bg-blue-900/50"
-                  : "bg-blue-50 text-blue-700 hover:bg-blue-100"
-              )}
-            >
-              <div className="flex items-center gap-1.5">
-                <CalendarClock className="w-3.5 h-3.5" />
-                <span>予約送信待ち</span>
-                <span className={cn(
-                  "inline-flex items-center justify-center w-4 h-4 text-xs font-bold rounded-full",
-                  isNight ? "bg-blue-700 text-white" : "bg-blue-600 text-white"
-                )}>{pendingMessages.length}</span>
-              </div>
-              {showPending ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            </button>
-            {showPending && (
-              <div className={cn(
-                "mt-1.5 rounded-xl border p-3 space-y-2",
-                isNight ? "border-blue-800/50 bg-blue-950/30" : "border-blue-100 bg-blue-50/50"
-              )}>
-                {pendingMessages.map((msg) => (
-                  <div key={msg.id} className={cn(
-                    "p-2.5 rounded-lg border animate-list-item-in",
-                    isNight ? "border-blue-800/40 bg-blue-900/20" : "border-blue-100 bg-blue-50/30"
-                  )}>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <div className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-600">
-                        {(msg.createdByName ?? "不明")[0]}
-                      </div>
-                      <span className="text-xs font-semibold text-foreground">
-                        {msg.createdByName ?? "不明"}
-                      </span>
-                      <span className={cn(
-                        "text-xs px-1.5 py-0.5 rounded-full font-medium",
-                        isNight ? "bg-blue-800/60 text-blue-300" : "bg-blue-100 text-blue-700"
-                      )}>
-                        送信予定: {new Date(msg.scheduledAt!).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                      {/* 自分または管理者の場合に編集・キャンセルボタンを表示 */}
-                      {(msg.createdBy === user?.id || user?.role === "admin" || user?.role === "super_admin") && (
-                        <div className="ml-auto flex items-center gap-1">
-                          <button
-                            type="button"
-                            className={cn(
-                              "text-xs px-2 py-0.5 rounded-full font-medium border transition-colors",
-                              isNight
-                                ? "border-blue-700/50 text-blue-400 hover:bg-blue-900/40"
-                                : "border-blue-200 text-blue-500 hover:bg-blue-50"
-                            )}
-                            onClick={() => {
-                              // 編集ダイアログを開く（現在値で初期化）
-                              setEditTargetId(msg.id);
-                              setEditText(msg.text);
-                              if (msg.scheduledAt) {
-                                const d = new Date(msg.scheduledAt);
-                                setEditScheduledDate(d.toISOString().slice(0, 10));
-                                setEditScheduledTime(d.toTimeString().slice(0, 5));
-                              } else {
-                                setEditScheduledDate("");
-                                setEditScheduledTime("");
-                              }
-                              if (msg.displayFrom) {
-                                const d = new Date(msg.displayFrom);
-                                setEditDisplayFrom(d.toISOString().slice(0, 10));
-                              } else {
-                                setEditDisplayFrom("");
-                              }
-                              if (msg.displayUntil) {
-                                const d = new Date(msg.displayUntil);
-                                setEditDisplayUntil(d.toISOString().slice(0, 10));
-                              } else {
-                                setEditDisplayUntil("");
-                              }
-                            }}
-                          >
-                            編集
-                          </button>
-                          <button
-                            type="button"
-                            className={cn(
-                              "text-xs px-2 py-0.5 rounded-full font-medium border transition-colors",
-                              isNight
-                                ? "border-red-700/50 text-red-400 hover:bg-red-900/40"
-                                : "border-red-200 text-red-500 hover:bg-red-50"
-                            )}
-                            onClick={() => {
-                              setCancelTargetId(msg.id);
-                              setCancelTargetText(msg.text);
-                            }}
-                          >
-                            キャンセル
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-xs text-red-600 dark:text-red-400 leading-relaxed pl-6.5">{msg.text}</p>
-                    {(msg.displayFrom || msg.displayUntil) && (
-                      <div className="flex flex-wrap gap-1 mt-1 pl-6.5">
-                        {msg.displayFrom && (
-                          <span className="text-xs text-muted-foreground">
-                            表示開始: {new Date(msg.displayFrom).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                        )}
-                        {msg.displayUntil && (
-                          <span className="text-xs text-muted-foreground">
-                            表示終了: {new Date(msg.displayUntil).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* 新しい投稿ボタン */}
         <button
@@ -5662,141 +5172,6 @@ function MessageBoard({ title }: { title: string }) {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* 予約送信キャンセル確認ダイアログ */}
-      <Dialog open={cancelTargetId !== null} onOpenChange={(open) => { if (!open) { setCancelTargetId(null); setCancelTargetText(""); } }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-base">予約送信をキャンセルしますか？</DialogTitle>
-          </DialogHeader>
-          <div className="py-2">
-            <p className="text-sm text-muted-foreground mb-3">以下のメッセージの予約送信をキャンセルします。この操作は元に戻せません。</p>
-            <div className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-foreground/80 line-clamp-3">
-              {cancelTargetText}
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => { setCancelTargetId(null); setCancelTargetText(""); }}
-            >
-              戻る
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              disabled={deleteMsg.isPending}
-              onClick={() => {
-                if (cancelTargetId === null) return;
-                deleteMsg.mutate(
-                  { id: cancelTargetId },
-                  {
-                    onSuccess: () => {
-                      toast.success("予約送信をキャンセルしました");
-                      setCancelTargetId(null);
-                      setCancelTargetText("");
-                    },
-                    onError: (e) => toast.error(e.message),
-                  }
-                );
-              }}
-            >
-              {deleteMsg.isPending ? "キャンセル中…" : "キャンセルする"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* 予約送信編集ダイアログ */}
-      <Dialog open={editTargetId !== null} onOpenChange={(open) => { if (!open) setEditTargetId(null); }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-base">予約送信を編集</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-1">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">メッセージ</label>
-              <Textarea
-                value={editText}
-                onChange={(e) => setEditText(e.target.value)}
-                rows={4}
-                maxLength={1000}
-                className="text-sm resize-none"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">送信予約日時</label>
-              <div className="flex gap-2">
-                <input
-                  type="date"
-                  value={editScheduledDate}
-                  onChange={(e) => setEditScheduledDate(e.target.value)}
-                  className="flex-1 text-xs border rounded-md px-2 py-1.5 bg-background text-foreground"
-                />
-                <input
-                  type="time"
-                  step="600"
-                  value={editScheduledTime}
-                  onChange={(e) => setEditScheduledTime(e.target.value)}
-                  className="w-28 text-xs border rounded-md px-2 py-1.5 bg-background text-foreground"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">表示開始日</label>
-                <input
-                  type="date"
-                  value={editDisplayFrom}
-                  onChange={(e) => setEditDisplayFrom(e.target.value)}
-                  className="w-full text-xs border rounded-md px-2 py-1.5 bg-background text-foreground"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">表示終了日</label>
-                <input
-                  type="date"
-                  value={editDisplayUntil}
-                  onChange={(e) => setEditDisplayUntil(e.target.value)}
-                  className="w-full text-xs border rounded-md px-2 py-1.5 bg-background text-foreground"
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEditTargetId(null)}
-            >
-              戻る
-            </Button>
-            <Button
-              size="sm"
-              disabled={!editText.trim() || updateMsg.isPending}
-              onClick={() => {
-                if (editTargetId === null) return;
-                updateMsg.mutate({
-                  id: editTargetId,
-                  text: editText.trim(),
-                  scheduledAt: buildEditDateTime(editScheduledDate, editScheduledTime),
-                  displayFrom: editDisplayFrom ? buildEditDateTime(editDisplayFrom, "00:00") : null,
-                  displayUntil: editDisplayUntil ? buildEditDateTime(editDisplayUntil, "23:59") : null,
-                }, {
-                  onSuccess: () => {
-                    toast.success("予約送信を更新しました");
-                    setEditTargetId(null);
-                    utils.messages.getPending.invalidate();
-                  },
-                });
-              }}
-            >
-              {updateMsg.isPending ? "更新中…" : "保存する"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* 誤変換報告ダイアログ */}
       {showMsgFeedbackDialog && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in-overlay">
@@ -5824,7 +5199,6 @@ function MessageBoard({ title }: { title: string }) {
                   <option value="メッセージ本文">メッセージ本文</option>
                   <option value="表示開始日時">表示開始日時</option>
                   <option value="表示終了日時">表示終了日時</option>
-                  <option value="予約送信日時">予約送信日時</option>
                   <option value="その他">その他</option>
                 </select>
               </div>
