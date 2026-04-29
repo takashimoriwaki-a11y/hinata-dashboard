@@ -7058,13 +7058,13 @@ ${todayStr}
         await reorderSharedPrompts(input.orderedIds);
         return { success: true };
       }),
-    /** 管理者が選択した訪問チェック用プロンプトIDを取得する */
+    /** 管理者が選択した訪問チェック用プロンプトIDを取得する（身体科） */
     getSelectedId: protectedProcedure
       .query(async () => {
         const val = await getSetting("visit_selected_prompt_id", "");
         return { promptId: val ? parseInt(val, 10) : null };
       }),
-    /** 管理者が訪問チェック用プロンプトを選択する（管理者のみ） */
+    /** 管理者が訪問チェック用プロンプトを選択する（身体科・管理者のみ） */
     setSelectedId: protectedProcedure
       .input(z.object({ promptId: z.number().nullable() }))
       .mutation(async ({ ctx, input }) => {
@@ -7075,6 +7075,26 @@ ${todayStr}
           await setSetting("visit_selected_prompt_id", "");
         } else {
           await setSetting("visit_selected_prompt_id", String(input.promptId));
+        }
+        return { success: true };
+      }),
+    /** 管理者が選択した精神科訪問チェック用プロンプトIDを取得する */
+    getSelectedPsychiatricId: protectedProcedure
+      .query(async () => {
+        const val = await getSetting("visit_selected_prompt_id_psychiatric", "");
+        return { promptId: val ? parseInt(val, 10) : null };
+      }),
+    /** 管理者が精神科訪問チェック用プロンプトを選択する（管理者のみ） */
+    setSelectedPsychiatricId: protectedProcedure
+      .input(z.object({ promptId: z.number().nullable() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ操作できます" });
+        }
+        if (input.promptId === null) {
+          await setSetting("visit_selected_prompt_id_psychiatric", "");
+        } else {
+          await setSetting("visit_selected_prompt_id_psychiatric", String(input.promptId));
         }
         return { success: true };
       }),
