@@ -248,7 +248,7 @@ export default function RecordInput() {
   });
 
   // 🔧 BUGFIX: DB読み込み完了フラグ（マウント時の空配列上書き防止）
-  const [dbLoaded, setDbLoaded] = useState(false);
+  const dbLoadedRef = useRef(false);
   
   // DBから今日のスロット順番を復元する
   // モジュールレベル変数_dbSlotLoadedDateで管理することで、タブ切り替え後の再マウント時にも状態が保持される
@@ -309,7 +309,7 @@ export default function RecordInput() {
       setSlotSearchQueries(newSlots.map(s => s.patientName || ""));
       localStorage.setItem(SLOTS_STORAGE_KEY, JSON.stringify(newSlots));
       _dbSlotLoadedDate = todayKey;
-      setDbLoaded(true);
+      dbLoadedRef.current = true;
       // 初回反映（lastAppliedAssignmentRef === ""）か変更時かを区別してトースト
       if (lastAppliedAssignmentRef.current === "") {
         toast.info(`📋 管理者から本日の訪問予定（${dailyAssignments.assignments.length}件）が反映されました`);
@@ -329,7 +329,7 @@ export default function RecordInput() {
     // 管理者割り当てがない場合
     // 同じ日付のデータが既に読み込み済みなら通常DBスロット復元はスキップ
    if (_dbSlotLoadedDate === todayKey) {
-      setDbLoaded(true);
+      dbLoadedRef.current = true;
       return;
     }
 
@@ -346,7 +346,7 @@ export default function RecordInput() {
       } catch {}
     }
     _dbSlotLoadedDate = todayKey;
-    setDbLoaded(true);
+    dbLoadedRef.current = true;
   }, [dbSlotData, dailyAssignments, todayKey]);
 
   // DBへの保存mutation
