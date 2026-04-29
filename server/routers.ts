@@ -3285,7 +3285,7 @@ ${todayStr}
   // ========== メッセージ ===========
   messages: router({
     // 現在表示すべきメッセージ一覧（リアクション付き）
-    getActive: protectedProcedure.query(async () => {
+    getActive: protectedProcedure.query(async ({ ctx }) => {
       // 期限切れを先に自動削除
       await expireMessages();
       const msgs = await getActiveMessagesForUser(Number(ctx.user.id));
