@@ -292,7 +292,9 @@ export default function RecordInput() {
       localStorage.setItem(SLOTS_STORAGE_KEY, json);
     } catch {}
     if (!user) return;
-    saveSlotsMutation.mutate({ dateKey: todayKey, slotsJson: json });
+    if (dbLoadedRef.current) {
+     setHasUnsavedChanges(true);
+   }
   }, [slots]);
 
   // スロットデータの更新ハンドラ
