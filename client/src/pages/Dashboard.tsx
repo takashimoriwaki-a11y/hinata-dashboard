@@ -4960,14 +4960,42 @@ function MessageBoard({ title }: { title: string }) {
           <div className="space-y-2 overflow-x-hidden">
             {(showAllMessages ? messages : messages.slice(0, MESSAGE_PREVIEW_COUNT)).map((msg) => {
               const reactionCounts = getReactionCounts(msg.reactions ?? []);
+              const isPending = !!(msg.displayFrom && new Date(msg.displayFrom) > new Date() && msg.createdBy === user?.id);
               return (
-                <div key={msg.id} className={cn("p-2.5 rounded-xl group animate-list-item-in", isNight ? "bg-red-950/30" : "bg-red-50")}>
+                <div
+                  key={msg.id}
+                  className={cn(
+                    "p-2.5 rounded-xl group animate-list-item-in transition-all",
+                    isPending
+                      ? cn(
+                          "border-2 border-dashed opacity-75",
+                          isNight
+                            ? "bg-slate-800/40 border-blue-700/60"
+                            : "bg-slate-100/80 border-blue-300"
+                        )
+                      : isNight ? "bg-red-950/30" : "bg-red-50"
+                  )}
+                >
+                  {/* 表示待ちヘッダーバナー（投稿者本人のみ） */}
+                  {isPending && (
+                    <div
+                      className={cn(
+                        "flex items-center gap-1.5 px-2 py-1 -mx-1 -mt-1 mb-2 rounded-lg text-xs font-bold",
+                        isNight
+                          ? "bg-blue-900/50 text-blue-200 border border-blue-700/60"
+                          : "bg-blue-100 text-blue-800 border border-blue-300"
+                      )}
+                    >
+                      <span className="text-sm">👁</span>
+                      <span>表示待ち中(あなたにのみ表示)</span>
+                    </div>
+                  )}
                   <div className="flex gap-2">
                     <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
                       {(msg.createdByName ?? "不明")[0]}
                     </div>
                     <div className="flex-1 min-w-0 w-full">
-                      <div className="flex items-center gap-1.5 mb-0.5">
+                      <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
                         <span className="text-xs font-semibold text-foreground">
                           {msg.createdByName ?? "不明"}
                         </span>
@@ -4979,9 +5007,9 @@ function MessageBoard({ title }: { title: string }) {
                             → {new Date(msg.displayUntil).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}まで
                           </span>
                         )}
-                        {msg.displayFrom && new Date(msg.displayFrom) > new Date() && msg.createdBy === user?.id && (
+                        {isPending && (
                           <span className={cn("text-xs px-1.5 py-0.5 rounded font-medium", isNight ? "text-blue-300 bg-blue-900/50 border border-blue-700" : "text-blue-700 bg-blue-50 border border-blue-200")} title="この投稿は表示開始日時まで他のスタッフには表示されません">
-                            📅 表示待ち：{new Date(msg.displayFrom).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}から
+                            📅 {new Date(msg.displayFrom!).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}から全員に表示
                           </span>
                         )}
                       </div>
