@@ -292,7 +292,7 @@ export default function RecordInput() {
       // 同じ内容なら何もしない（無限ループ防止 + 通知重複防止）
       if (fingerprint === lastAppliedAssignmentRef.current) return;
 
-      const newSlots: VisitSlotData[] = Array.from({ length: MAX_SLOTS }, () => ({ ...DEFAULT_SLOT }));
+      const newSlots: VisitSlotData[] = [...slots];
       dailyAssignments.assignments.forEach((a) => {
         if (a.slotIndex >= 0 && a.slotIndex < MAX_SLOTS) {
           newSlots[a.slotIndex] = {
