@@ -236,16 +236,9 @@ export default function RecordInput() {
   const [todayKey, setTodayKey] = useState(() => getTodayJstKey());
 
   // 8枠分の訪問予定データ（初期値はlocalStorageから）
-  const [slots, setSlots] = useState<VisitSlotData[]>(() => {
-    try {
-      const raw = localStorage.getItem(SLOTS_STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length === MAX_SLOTS) return parsed;
-      }
-    } catch {}
-    return Array.from({ length: MAX_SLOTS }, () => ({ ...DEFAULT_SLOT }));
-  });
+  const [slots, setSlots] = useState<VisitSlotData[]>(() =>
+    Array.from({ length: MAX_SLOTS }, () => ({ ...DEFAULT_SLOT }))
+  );
 
   // 🔧 BUGFIX: DB読み込み完了フラグ（マウント時の空配列上書き防止）
   const dbLoadedRef = useRef(false);
