@@ -465,7 +465,7 @@ export default function RecordInput() {
         localStorage.removeItem(SLOTS_STORAGE_KEY);
         _dbSlotLoadedDate = ""; // 新しい日付のDBデータを再取得
         // 🔧 BUGFIX: 新しい日付のDB読込完了を待つ
-        setDbLoaded(false);
+        dbLoadedRef.current = false;
         toast.success(`日付が変わりました（${newKey}）。訪問予定をリセットしました。`);
         return newKey;
       });
