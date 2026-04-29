@@ -366,20 +366,32 @@ export default function RecordInput() {
     }
   }, [user?.team]);
 
-  // スロットデータの変更をlocalStorageとDBに即時保存
-  // dbLoadedチェックを削除し、userがいれば常にDBに保存する（リセット時も確実に保存）
+  // スロットデータの変更をlocalStorageに保存（DB保存は手動の保存ボタン経由）
   useEffect(() => {
     const json = JSON.stringify(slots);
     try {
       localStorage.setItem(SLOTS_STORAGE_KEY, json);
     } catch {}
-    // ⚠️ DB保存はDB読込完了後のみ実行（マウント時の空配列でDB上書きを防止）
-　　 // 全枠が空の場合は保存しない（マウント時・dailyAssignments空配列上書き防止）
-    if (slots.every(s => !s.patientName)) return;
+    // 未保存フラグを立てる（DB読込完了後のユーザー操作のみ）
     if (!dbLoadedRef.current) return;
-    if (!user) return;
-    saveSlotsMutation.mutate({ dateKey: todayKey, slotsJson: json });
+    setHasUnsavedChanges(true);
   }, [slots]);
+
+  // 🔧 未保存フラグ（DB保存ボタンの状態管理）
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // 🔧 手動保存ハンドラ（明示的な保存ボタン押下時のみ実行）
+  const handleSaveSlots = async () => {
+    if (!user) return;
+    const json = JSON.stringify(slots);
+    try {
+      await saveSlotsMutation.mutateAsync({ dateKey: todayKey, slotsJson: json });
+      setHasUnsavedChanges(false);
+      toast.success("訪問予定を保存しました");
+    } catch (e) {
+      toast.error("保存に失敗しました。もう一度お試しください。");
+    }
+  };
 
   // スロットデータの更新ハンドラ
   const handleSlotChange = (index: number, data: Partial<VisitSlotData>) => {
@@ -941,7 +953,23 @@ export default function RecordInput() {
                   )}
                   <span className="whitespace-nowrap">一括入力</span>
                 </button>
-                {/* 全リセットボタン */}
+              {/* 💾 保存ボタン */}
+              <button
+                type="button"
+                onClick={handleSaveSlots}
+                disabled={!hasUnsavedChanges || saveSlotsMutation.isPending}
+                title={hasUnsavedChanges ? "DBに保存する" : "保存済み"}
+                className={`flex items-center gap-1 h-8 px-2.5 rounded-full border transition-colors ${
+                  hasUnsavedChanges
+                    ? "border-orange-500 bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-300"
+                    : "border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-500"
+                }`}
+              >
+                <span className="whitespace-nowrap text-xs">
+                  {saveSlotsMutation.isPending ? "保存中..." : hasUnsavedChanges ? "💾 保存" : "✓ 保存済み"}
+                </span>
+              </button> 
+              {/* 全リセットボタン */}
                 <button
                   type="button"
                   onClick={handleResetAll}
