@@ -374,10 +374,10 @@ export default function RecordInput() {
       localStorage.setItem(SLOTS_STORAGE_KEY, json);
     } catch {}
     // ⚠️ DB保存はDB読込完了後のみ実行（マウント時の空配列でDB上書きを防止）
-    if (!dbLoaded) return;
+　　 if (!dbLoadedRef.current) return;
     if (!user) return;
     saveSlotsMutation.mutate({ dateKey: todayKey, slotsJson: json });
-  }, [slots,dbLoaded]);
+  }, [slots]);
 
   // スロットデータの更新ハンドラ
   const handleSlotChange = (index: number, data: Partial<VisitSlotData>) => {
