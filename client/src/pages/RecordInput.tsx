@@ -374,7 +374,9 @@ export default function RecordInput() {
       localStorage.setItem(SLOTS_STORAGE_KEY, json);
     } catch {}
     // ⚠️ DB保存はDB読込完了後のみ実行（マウント時の空配列でDB上書きを防止）
-　　 if (!dbLoadedRef.current) return;
+　　 // 全枠が空の場合は保存しない（マウント時・dailyAssignments空配列上書き防止）
+    if (slots.every(s => !s.patientName)) return;
+    if (!dbLoadedRef.current) return;
     if (!user) return;
     saveSlotsMutation.mutate({ dateKey: todayKey, slotsJson: json });
   }, [slots]);
