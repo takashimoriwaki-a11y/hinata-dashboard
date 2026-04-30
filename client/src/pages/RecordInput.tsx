@@ -376,9 +376,26 @@ export default function RecordInput() {
   // 🔧 手動保存ハンドラ（明示的な保存ボタン押下時のみ実行）
   const handleSaveSlots = async () => {
     if (!user) return;
-    const json = JSON.stringify(slots);
     try {
+      // 最新のDBデータを取得してマージ（他デバイスでの変更を保護）
+      const latest = await utils.visitSlots.load.fetch({ dateKey: todayKey });
+      let latestSlots: VisitSlotData[] = Array.from({ length: MAX_SLOTS }, () => ({ ...DEFAULT_SLOT }));
+      if (latest?.slotsJson) {
+        try {
+          const parsed = JSON.parse(latest.slotsJson);
+          if (Array.isArray(parsed) && parsed.length === MAX_SLOTS) {
+            latestSlots = parsed;
+          }
+        } catch {}
+      }
+      // マージ：自分のslotsで埋まっている枠を優先、空の枠はDBから補完
+      const merged = slots.map((s, i) => {
+        if (s.patientName) return s;
+        return latestSlots[i];
+      });
+      const json = JSON.stringify(merged);
       await saveSlotsMutation.mutateAsync({ dateKey: todayKey, slotsJson: json });
+      setSlots(merged);
       setHasUnsavedChanges(false);
       toast.success("訪問予定を保存しました");
     } catch (e) {
