@@ -38,7 +38,12 @@ async function startServer() {
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
-
+　// CDN/プロキシのキャッシュを無効化（API レスポンスのみ）
+app.use("/api", (_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  res.setHeader("Pragma", "no-cache");
+  next();
+});
   // ヘルスチェックエンドポイント（Railway等のデプロイ監視用）
   // 認証不要、DBアクセスなしで即座にレスポンスを返す
   app.get("/api/health", (_req, res) => {
