@@ -1097,15 +1097,14 @@ export type InsertPersonalTask = typeof personalTasks.$inferInsert;
  */
 export const visitSlotOrders = mysqlTable("visitSlotOrders", {
   id: int("id").autoincrement().primaryKey(),
-  /** ユーザーID */
   userId: int("userId").notNull(),
-  /** 日付（YYYY-MM-DD形式、JSTベース） */
   dateKey: varchar("dateKey", { length: 10 }).notNull(),
-  /** スロットデータ（JSON配列文字列） */
   slotsJson: mediumtext("slotsJson").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  uniqueUserDate: unique("unique_user_date").on(table.userId, table.dateKey),
+}));
 export type VisitSlotOrder = typeof visitSlotOrders.$inferSelect;
 export type InsertVisitSlotOrder = typeof visitSlotOrders.$inferInsert;
 
