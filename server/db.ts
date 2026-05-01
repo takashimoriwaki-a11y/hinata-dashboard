@@ -26,7 +26,7 @@ import {
   improvementSuggestions, InsertImprovementSuggestion,
   improvementSpreadsheets, InsertImprovementSpreadsheet,
   personalTasks, PersonalTask,
-  visitSlotOrders,
+  visitSlotOrders, visitCardStates,
   irregularSchedules, IrregularSchedule, InsertIrregularSchedule,
   scheduleNotes, InsertScheduleNote,
 } from "../drizzle/schema";
@@ -2949,4 +2949,63 @@ export async function deleteScheduleNote(screenshotId: number) {
   await db
     .delete(scheduleNotes)
     .where(eq(scheduleNotes.screenshotId, screenshotId));
+}
+// ========== 訪問カード状態保存（端末跨ぎ同期用） ==========
+/**
+ * 訪問カードの状態をupsertする（ユーザーID+日付+スロット番号で一意）
+ * チェック・メモ・バイタル・完了等を端末跨ぎで同期する保存先
+ * @param userId ユーザーID
+ * @param dateKey 日付（YYYY-MM-DD形式、JSTベース）
+ * @param slotIndex スロット番号（0〜7）
+ * @param cardStateJson CardSavedState型のJSON文字列
+ */
+export async function upsertVisitCardState(userId: number, dateKey: string, slotIndex: number, cardStateJson: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(visitCardStates).values({
+    userId,
+    dateKey,
+    slotIndex,
+    cardStateJson,
+  }).onDuplicateKeyUpdate({
+    set: { cardStateJson, updatedAt: new Date() },
+  });
+}
+
+/**
+ * 訪問カードの状態を取得する
+ * @param userId ユーザーID
+ * @param dateKey 日付（YYYY-MM-DD形式、JSTベース）
+ * @param slotIndex スロット番号（0〜7）
+ * @returns cardStateJson文字列、または null
+ */
+export async function getVisitCardState(userId: number, dateKey: string, slotIndex: number): Promise<string | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select({ cardStateJson: visitCardStates.cardStateJson })
+    .from(visitCardStates)
+    .where(and(
+      eq(visitCardStates.userId, userId),
+      eq(visitCardStates.dateKey, dateKey),
+      eq(visitCardStates.slotIndex, slotIndex),
+    ))
+    .limit(1);
+  return rows[0]?.cardStateJson ?? null;
+}
+
+/**
+ * 訪問カードの状態を削除する（リセット用）
+ * @param userId ユーザーID
+ * @param dateKey 日付（YYYY-MM-DD形式、JSTベース）
+ * @param slotIndex スロット番号（0〜7）
+ */
+export async function deleteVisitCardState(userId: number, dateKey: string, slotIndex: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(visitCardStates)
+    .where(and(
+      eq(visitCardStates.userId, userId),
+      eq(visitCardStates.dateKey, dateKey),
+      eq(visitCardStates.slotIndex, slotIndex),
+    ));
 }
