@@ -522,7 +522,7 @@ export default function RecordInput() {
     return;
   };
 
-  const executeResetAll = () => {
+  const executeResetAll = async () => {
     // スロットデータをリセット
     const empty = Array.from({ length: MAX_SLOTS }, () => ({ ...DEFAULT_SLOT }));
     const emptyJson = JSON.stringify(empty);
@@ -536,6 +536,15 @@ export default function RecordInput() {
     }
     // setSlots(empty)によりslots変更検知useEffectが発火してDBに自動保存される
     // dbLoadedをtrueに保ち、invalidate後のDB再取得でリセット済みデータが上書きされないようにする
+    // 🔥 DBに空配列を直接保存（マージロジックでの復活を防止）
+    try {
+      await saveSlotsMutation.mutateAsync({ 
+        dateKey: todayKey, 
+        slotsJson: emptyJson 
+      });
+    } catch (e) {
+      console.error("リセット時のDB保存に失敗", e);
+    }
     setSlots(empty);
     setSlotSearchQueries(Array.from({ length: MAX_SLOTS }, () => ""));
     setSlotShowLists(Array.from({ length: MAX_SLOTS }, () => false));
