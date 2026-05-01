@@ -338,7 +338,57 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
       }
     },
   });
+// 訪問カード状態 端末跨ぎ同期 mutation
+  const saveCardStateMutation = trpc.visitCardStates.save.useMutation({
+    onError: (err) => {
+      console.error("[VisitCard] DB保存失敗:", err.message);
+    },
+  });
+  const resetCardStateMutation = trpc.visitCardStates.reset.useMutation({
+    onError: (err) => {
+      console.error("[VisitCard] DBリセット失敗:", err.message);
+    },
+  });
+// 訪問カード状態 端末跨ぎ同期: DB から読み込み
+  const { data: dbCardStateRaw } = trpc.visitCardStates.load.useQuery(
+    { dateKey: todayStr, slotIndex },
+    { refetchOnWindowFocus: false, staleTime: 5000 }
+  );
 
+  // DB から取得したら localStorage と各 state を上書き（端末跨ぎ同期）
+  useEffect(() => {
+    if (!dbCardStateRaw) return;
+    try {
+      const parsed: CardSavedState = JSON.parse(dbCardStateRaw);
+      if (parsed.date !== todayStr) return;
+      // タスクチェック
+      if (Array.isArray(parsed.tasksBefore)) {
+        setTasksBefore(VISIT_TASKS_BEFORE_DEFAULT.map(t => {
+          const found = parsed.tasksBefore.find(s => s.id === t.id);
+          return { ...t, checked: found?.checked ?? false };
+        }));
+      }
+      // テキスト系
+      if (typeof parsed.specialNote === "string") setSpecialNote(parsed.specialNote);
+      if (typeof parsed.nextVisitDate === "string") setNextVisitDate(parsed.nextVisitDate);
+      if (typeof parsed.nextVisitTime === "string") setNextVisitTime(parsed.nextVisitTime);
+      if (typeof parsed.notifiedTo === "string") setNotifiedTo(parsed.notifiedTo);
+      if (typeof parsed.notifiedToOther === "string") setNotifiedToOther(parsed.notifiedToOther);
+      if (typeof parsed.notifyMethod === "string") setNotifyMethod(parsed.notifyMethod);
+      if (typeof parsed.notifyMethodOther === "string") setNotifyMethodOther(parsed.notifyMethodOther);
+      // boolean
+      if (typeof parsed.completed === "boolean") setCompleted(parsed.completed);
+      if (typeof parsed.exported === "boolean") setExported(parsed.exported);
+      if (typeof parsed.zestChecked === "boolean") setZestChecked(parsed.zestChecked);
+      // バイタル
+      if (parsed.vitals && typeof parsed.vitals === "object") setVitals(parsed.vitals);
+      // localStorage も同期
+      localStorage.setItem(getCardStorageKey(slotIndex), dbCardStateRaw);
+    } catch (e) {
+      console.error("[VisitCard] DB 読込パースエラー:", e);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dbCardStateRaw]);  
   const handleSyncCarePlan = useCallback(() => {
     if (!slotData.patientId || !slotData.patientName) {
       toast.error("利用者を選択してください");
@@ -352,7 +402,8 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
     });
   }, [slotData.patientId, slotData.patientName, slotData.team, slotIndex, carePlanSync]);
 
-
+// DB 保存 debounce 用 ref
+  const dbSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // localStorageへの状態保存
   const saveToStorage = useCallback(() => {
     try {
@@ -372,7 +423,17 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
         zestChecked,
       };
       localStorage.setItem(getCardStorageKey(slotIndex), JSON.stringify(state));
+      // DB 保存（debounce 1秒）端末跨ぎ同期
+        if (dbSaveTimerRef.current) clearTimeout(dbSaveTimerRef.current);
+        dbSaveTimerRef.current = setTimeout(() => {
+          saveCardStateMutation.mutate({
+            dateKey: todayStr,
+            slotIndex,
+            cardStateJson: JSON.stringify(state),
+          });
+        }, 1000);
     } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slotIndex, todayStr, tasksBefore, specialNote, nextVisitDate, nextVisitTime, notifiedTo, notifiedToOther, notifyMethod, notifyMethodOther, completed, exported, vitals, zestChecked]);
 
   // 状態変更時に自動保存
@@ -480,6 +541,11 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
     setShowTaskForm(false);
     try {
       localStorage.removeItem(getCardStorageKey(slotIndex));
+      // DB からも削除（端末跨ぎ同期）
+      resetCardStateMutation.mutate({
+        dateKey: todayStr,
+        slotIndex,
+      });
     } catch {}
     toast.success(`カード${slotIndex + 1}をリセットしました`);
   };
