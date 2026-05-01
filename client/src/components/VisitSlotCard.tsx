@@ -338,6 +338,8 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
       }
     },
   });
+// DB からの初回読み込みが完了したか
+  const [hasLoadedFromDb, setHasLoadedFromDb] = useState(false);
 // 訪問カード状態 端末跨ぎ同期 mutation
   const saveCardStateMutation = trpc.visitCardStates.save.useMutation({
     onError: (err) => {
@@ -387,6 +389,7 @@ const parsed = (typeof dbCardStateRaw === "string" ? JSON.parse(dbCardStateRaw) 
     } catch (e) {
       console.error("[VisitCard] DB 読込パースエラー:", e);
     }
+    setHasLoadedFromDb(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dbCardStateRaw]);  
   const handleSyncCarePlan = useCallback(() => {
@@ -406,6 +409,8 @@ const parsed = (typeof dbCardStateRaw === "string" ? JSON.parse(dbCardStateRaw) 
   const dbSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // localStorageへの状態保存
   const saveToStorage = useCallback(() => {
+    // DB から読み込み完了するまでは save しない（空データの上書き防止）
+    if (!hasLoadedFromDb) return;
     try {
       const state: CardSavedState = {
         date: todayStr,
