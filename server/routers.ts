@@ -8054,6 +8054,43 @@ ${todayStr}
         return { slotsJson };
       }),
   }),
+  // ========== 訪問カード状態保存（端末跨ぎ同期用） ==========
+    visitCardStates: router({
+      /** 訪問カードの状態をDBに保存する */
+      save: protectedProcedure
+        .input(z.object({
+          dateKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+          slotIndex: z.number().int().min(0).max(7),
+          cardStateJson: z.string(),
+        }))
+        .mutation(async ({ ctx, input }) => {
+          const { upsertVisitCardState } = await import("./db");
+          await upsertVisitCardState(Number(ctx.user.id), input.dateKey, input.slotIndex, input.cardStateJson);
+          return { ok: true };
+        }),
+      /** 訪問カードの状態をDBから取得する */
+      load: protectedProcedure
+        .input(z.object({
+          dateKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+          slotIndex: z.number().int().min(0).max(7),
+        }))
+        .query(async ({ ctx, input }) => {
+          const { getVisitCardState } = await import("./db");
+          const cardStateJson = await getVisitCardState(Number(ctx.user.id), input.dateKey, input.slotIndex);
+          return { cardStateJson };
+        }),
+      /** 訪問カードの状態をDBから削除する（リセット用） */
+      reset: protectedProcedure
+        .input(z.object({
+          dateKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+          slotIndex: z.number().int().min(0).max(7),
+        }))
+        .mutation(async ({ ctx, input }) => {
+          const { deleteVisitCardState } = await import("./db");
+          await deleteVisitCardState(Number(ctx.user.id), input.dateKey, input.slotIndex);
+          return { ok: true };
+        }),
+    }),
   // ========== スケジュールメモ ==========
   scheduleNotes: router({
     /** 複数スクリーンショットIDのメモを一括取得する */
