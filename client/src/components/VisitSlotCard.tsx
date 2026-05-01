@@ -359,7 +359,7 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
   useEffect(() => {
     if (!dbCardStateRaw) return;
     try {
-      const parsed: CardSavedState = JSON.parse(dbCardStateRaw);
+const parsed = (typeof dbCardStateRaw === "string" ? JSON.parse(dbCardStateRaw) : dbCardStateRaw) as CardSavedState;
       if (parsed.date !== todayStr) return;
       // タスクチェック
       if (Array.isArray(parsed.tasksBefore)) {
