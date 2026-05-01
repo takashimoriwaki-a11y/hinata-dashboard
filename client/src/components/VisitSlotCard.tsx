@@ -359,7 +359,7 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
 
   // DB から取得したら localStorage と各 state を上書き（端末跨ぎ同期）
   useEffect(() => {
-    if (!dbCardStateRaw) return;
+    if (!dbCardStateRaw) { setHasLoadedFromDb(true); return; }
     try {
 const parsed = (typeof dbCardStateRaw === "string" ? JSON.parse(dbCardStateRaw) : dbCardStateRaw) as CardSavedState;
       if (parsed.date !== todayStr) return;
