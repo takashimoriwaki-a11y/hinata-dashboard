@@ -1321,3 +1321,23 @@ export const dailyVisitAssignments = mysqlTable("daily_visit_assignments", {
 }));
 export type DailyVisitAssignment = typeof dailyVisitAssignments.$inferSelect;
 export type InsertDailyVisitAssignment = typeof dailyVisitAssignments.$inferInsert;
+// ========== 訪問カード状態保存（端末跨ぎ同期用） ==========
+/**
+ * 訪問カード状態保存テーブル
+ * VisitSlotCard 内部のチェック・メモ・バイタル・完了等を端末跨ぎで同期する保存先
+ * 1ユーザー × 1日 × 1スロット につき1レコード（upsert）
+ * 同一スタッフが PC/iPhone/iPad で同じ状態を見られるようにするために使用
+ */
+export const visitCardStates = mysqlTable("visit_card_states", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  dateKey: varchar("dateKey", { length: 10 }).notNull(),
+  slotIndex: int("slotIndex").notNull(),
+  cardStateJson: mediumtext("cardStateJson").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  uniqueUserDateSlot: unique("unique_user_date_slot_card").on(table.userId, table.dateKey, table.slotIndex),
+}));
+export type VisitCardState = typeof visitCardStates.$inferSelect;
+export type InsertVisitCardState = typeof visitCardStates.$inferInsert;
