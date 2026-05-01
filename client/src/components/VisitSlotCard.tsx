@@ -477,7 +477,44 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
     });
   };
 
-  const handleClearPatient = () => {
+const handleClearPatient = () => {
+    // 何か入力されているか判定
+    const hasInput = !!(
+      specialNote || nextVisitDate || nextVisitTime ||
+      notifiedTo || notifyMethod ||
+      vitals.temp || vitals.pulse || vitals.spo2 || vitals.sbp || vitals.dbp ||
+      tasksBefore.some(t => t.checked) || zestChecked || completed
+    );
+    // 入力済みなら確認ダイアログ
+    if (hasInput) {
+      if (!window.confirm(`${slotData.patientName || ""}さんの入力内容（バイタル・メモ等）も全てクリアします。よろしいですか？`)) {
+        return;
+      }
+      // カード内容を全リセット
+      setTasksBefore(VISIT_TASKS_BEFORE_DEFAULT.map(t => ({ ...t })));
+      setSpecialNote("");
+      setNextVisitDate("");
+      setNextVisitTime("");
+      setNotifiedTo("");
+      setNotifiedToOther("");
+      setNotifyMethod("");
+      setNotifyMethodOther("");
+      setCompleted(false);
+      setExported(false);
+      setSavedRecordId(null);
+      setVitals({ temp: "", pulse: "", spo2: "", sbp: "", dbp: "" });
+      setZestChecked(false);
+      setShowTaskForm(false);
+      try {
+        localStorage.removeItem(getCardStorageKey(slotIndex));
+        // DB からも削除（端末跨ぎ同期）
+        resetCardStateMutation.mutate({
+          dateKey: todayStr,
+          slotIndex,
+        });
+      } catch {}
+    }
+    // 親に「利用者をクリア」と通知
     onSlotChange(slotIndex, { patientId: null, patientName: "" });
   };
 
