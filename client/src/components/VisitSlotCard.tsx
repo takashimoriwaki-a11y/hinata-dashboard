@@ -362,7 +362,7 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
     if (!dbCardStateRaw) { setHasLoadedFromDb(true); return; }
     try {
 const parsed = (typeof dbCardStateRaw === "string" ? JSON.parse(dbCardStateRaw) : dbCardStateRaw) as CardSavedState;
-      if (parsed.date !== todayStr) return;
+      if (parsed.date !== todayStr) { setHasLoadedFromDb(true); return; }
       // タスクチェック
       if (Array.isArray(parsed.tasksBefore)) {
         setTasksBefore(VISIT_TASKS_BEFORE_DEFAULT.map(t => {
