@@ -242,7 +242,7 @@ export default function RecordInput() {
 
   // 🔧 BUGFIX: DB読み込み完了フラグ（マウント時の空配列上書き防止）
   const dbLoadedRef = useRef(false);
-  
+  const dbSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   // DBから今日のスロット順番を復元する
   // モジュールレベル変数_dbSlotLoadedDateで管理することで、タブ切り替え後の再マウント時にも状態が保持される
   const { data: dbSlotData } = trpc.visitSlots.load.useQuery(
@@ -359,7 +359,7 @@ export default function RecordInput() {
     }
   }, [user?.team]);
 
-  // スロットデータの変更をlocalStorageに保存（DB保存は手動の保存ボタン経由）
+  // スロットデータの変更をlocalStorageに保存 + DB自動保存（端末跨ぎ同期）
   useEffect(() => {
     const json = JSON.stringify(slots);
     try {
@@ -368,6 +368,21 @@ export default function RecordInput() {
     // 未保存フラグを立てる（DB読込完了後のユーザー操作のみ）
     if (!dbLoadedRef.current) return;
     setHasUnsavedChanges(true);
+    // 🆕 1秒後にDB自動保存（端末跨ぎ同期）
+    if (dbSaveTimerRef.current) {
+      clearTimeout(dbSaveTimerRef.current);
+    }
+    dbSaveTimerRef.current = setTimeout(() => {
+      saveSlotsMutation.mutate(
+        { dateKey: todayKey, slotsJson: json },
+        {
+          onSuccess: () => {
+            setHasUnsavedChanges(false);
+          },
+        }
+      );
+    }, 1000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slots]);
 
   // 🔧 未保存フラグ（DB保存ボタンの状態管理）
