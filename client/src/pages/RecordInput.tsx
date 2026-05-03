@@ -249,6 +249,12 @@ export default function RecordInput() {
     { dateKey: todayKey },
     { enabled: !!user, staleTime: 0 }
   );
+  // 訪問カードの全 slot 状態を一括取得（端末跨ぎ同期）
+  const { data: cardStateData } = trpc.visitCardStates.loadAll.useQuery(
+    { dateKey: todayKey },
+    { refetchOnWindowFocus: false, staleTime: 0, refetchOnMount: 'always', enabled: !!user }
+  );
+  const cardStateMap = cardStateData?.stateMap ?? {};
   // 管理者からの訪問予定割り当て（dailyVisitAssignments）を取得
   const { data: dailyAssignments } = trpc.dailyVisitAssignments.getMine.useQuery(
     { date: todayKey },
@@ -1371,6 +1377,7 @@ export default function RecordInput() {
         <div key={`${cardResetKey}-${index}`} id={`visit-check-card-${index}`}>
           <VisitSlotCard
             slotIndex={index}
+            dbCardStateRaw={cardStateMap[index] ?? null}
             slotData={slot}
             onSlotChange={handleSlotChange}
             selectedPromptBody={selectedPromptBody}

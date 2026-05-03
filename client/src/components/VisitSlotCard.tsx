@@ -83,6 +83,7 @@ type CardSavedState = {
 type Props = {
   slotIndex: number; // 0-7
   slotData: VisitSlotData;
+  dbCardStateRaw: string | null;
   onSlotChange: (index: number, data: Partial<VisitSlotData>) => void;
   /** 管理者が選択した（身体科）プロンプト本文（nullなら未選択） */
   selectedPromptBody: string | null;
@@ -133,7 +134,7 @@ function loadCardState(slotIndex: number): CardSavedState | null {
   }
 }
 
-export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromptBody, selectedPsychiatricPromptBody, onNextVisitChange, externalNextVisitDate, externalNextVisitTime }: Props) {
+export function VisitSlotCard({ slotIndex, slotData, dbCardStateRaw, onSlotChange, selectedPromptBody, selectedPsychiatricPromptBody, onNextVisitChange, externalNextVisitDate, externalNextVisitTime }: Props) {
   const utils = trpc.useUtils();
   const todayStr = useMemo(() => getTodayStr(), []);
 
@@ -351,16 +352,7 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
       console.error("[VisitCard] DBリセット失敗:", err.message);
     },
   });
-// 訪問カード状態 端末跨ぎ同期: DB から読み込み
-console.log('[VisitSlotCard] useQuery check', { slotIndex, todayStr });
-  const { data: dbCardStateRaw } = trpc.visitCardStates.load.useQuery(
-    { dateKey: todayStr, slotIndex },
-    { refetchOnWindowFocus: false, staleTime: 0, enabled: !!todayStr, refetchOnMount: 'always' }
-  );
-// 強制再取得（バッチング dedup 対策）
-    useEffect(() => {
-      utils.visitCardStates.load.invalidate({ dateKey: todayStr, slotIndex });
-    }, [slotIndex, todayStr]);
+
   // DB から取得したら localStorage と各 state を上書き（端末跨ぎ同期）
   useEffect(() => {
     if (!dbCardStateRaw) { setHasLoadedFromDb(true); return; }
