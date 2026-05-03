@@ -352,9 +352,10 @@ export function VisitSlotCard({ slotIndex, slotData, onSlotChange, selectedPromp
     },
   });
 // 訪問カード状態 端末跨ぎ同期: DB から読み込み
+console.log('[VisitSlotCard] useQuery check', { slotIndex, todayStr });
   const { data: dbCardStateRaw } = trpc.visitCardStates.load.useQuery(
     { dateKey: todayStr, slotIndex },
-    { refetchOnWindowFocus: false, staleTime: 0, enabled: !!todayStr }
+    { refetchOnWindowFocus: false, staleTime: 0, enabled: !!todayStr, refetchOnMount: 'always' }
   );
 
   // DB から取得したら localStorage と各 state を上書き（端末跨ぎ同期）
