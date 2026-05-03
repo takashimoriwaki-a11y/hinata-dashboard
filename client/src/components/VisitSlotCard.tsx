@@ -357,7 +357,10 @@ console.log('[VisitSlotCard] useQuery check', { slotIndex, todayStr });
     { dateKey: todayStr, slotIndex },
     { refetchOnWindowFocus: false, staleTime: 0, enabled: !!todayStr, refetchOnMount: 'always' }
   );
-
+// 強制再取得（バッチング dedup 対策）
+    useEffect(() => {
+      utils.visitCardStates.load.invalidate({ dateKey: todayStr, slotIndex });
+    }, [slotIndex, todayStr]);
   // DB から取得したら localStorage と各 state を上書き（端末跨ぎ同期）
   useEffect(() => {
     if (!dbCardStateRaw) { setHasLoadedFromDb(true); return; }
