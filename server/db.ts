@@ -2992,7 +2992,32 @@ export async function getVisitCardState(userId: number, dateKey: string, slotInd
     .limit(1);
   return rows[0]?.cardStateJson ?? null;
 }
-
+/**
+ * 訪問カードの全 slot の状態を一括取得する（端末跨ぎ同期用）
+ * @param userId ユーザーID
+ * @param dateKey 日付（YYYY-MM-DD形式、JSTベース）
+ * @returns slotIndex => cardStateJson のマップ
+ */
+export async function getAllVisitCardStates(
+  userId: number, dateKey: string
+): Promise<Record<number, string>> {
+  const db = await getDb();
+  if (!db) return {};
+  const rows = await db.select({
+    slotIndex: visitCardStates.slotIndex,
+    cardStateJson: visitCardStates.cardStateJson,
+  })
+    .from(visitCardStates)
+    .where(and(
+      eq(visitCardStates.userId, userId),
+      eq(visitCardStates.dateKey, dateKey)
+    ));
+  const map: Record<number, string> = {};
+  for (const row of rows) {
+    map[row.slotIndex] = row.cardStateJson;
+  }
+  return map;
+}
 /**
  * 訪問カードの状態を削除する（リセット用）
  * @param userId ユーザーID

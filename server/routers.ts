@@ -8079,6 +8079,16 @@ ${todayStr}
           const cardStateJson = await getVisitCardState(Number(ctx.user.id), input.dateKey, input.slotIndex);
           return { cardStateJson };
         }),
+        /** 訪問カードの全 slot の状態をDBから一括取得する（端末跨ぎ同期用） */
+    loadAll: protectedProcedure
+      .input(z.object({
+        dateKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      }))
+      .query(async ({ ctx, input }) => {
+        const { getAllVisitCardStates } = await import("./db");
+        const stateMap = await getAllVisitCardStates(Number(ctx.user.id), input.dateKey);
+        return { stateMap };
+      }),
       /** 訪問カードの状態をDBから削除する（リセット用） */
       reset: protectedProcedure
         .input(z.object({
