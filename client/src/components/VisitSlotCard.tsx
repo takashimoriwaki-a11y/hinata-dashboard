@@ -355,7 +355,12 @@ export function VisitSlotCard({ slotIndex, slotData, dbCardStateRaw, onSlotChang
 
   // DB から取得したら localStorage と各 state を上書き（端末跨ぎ同期）
   useEffect(() => {
-    if (!dbCardStateRaw) { setHasLoadedFromDb(true); return; }
+    if (!dbCardStateRaw) {
+  // DB に状態がない（リセット直後など）→ localStorageの残骸を削除
+  // hasLoadedFromDbはtrueにしない → 自動保存をスキップさせ続ける
+  try { localStorage.removeItem(getCardStorageKey(slotIndex)); } catch {}
+  return;
+}
     try {
 const parsed = (typeof dbCardStateRaw === "string" ? JSON.parse(dbCardStateRaw) : dbCardStateRaw) as CardSavedState;
       if (parsed.date !== todayStr) { setHasLoadedFromDb(true); return; }
