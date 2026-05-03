@@ -559,8 +559,10 @@ export default function RecordInput() {
     setSlotShowLists(Array.from({ length: MAX_SLOTS }, () => false));
     // VisitSlotCardを再マウントして全stateを初期化
     setCardResetKey(k => k + 1);
-    // DBから最新のカード状態を再取得（空のstateMapが伝播される）
-      utils.visitCardStates.loadAll.invalidate({ dateKey: todayKey });
+    // キャッシュを空のstateMapに即座に上書き（再マウント直後の props.dbCardStateRaw を null/undefined にする）
+      utils.visitCardStates.loadAll.setData({ dateKey: todayKey }, { stateMap: {} });
+      // その後DBから最新（空）を再取得して確定
+      await utils.visitCardStates.loadAll.refetch();
     toast.success("訪問時チェック項目を全てリセットしました");
   };
 
