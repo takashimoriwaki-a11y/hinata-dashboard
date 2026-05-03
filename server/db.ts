@@ -3034,3 +3034,18 @@ export async function deleteVisitCardState(userId: number, dateKey: string, slot
       eq(visitCardStates.slotIndex, slotIndex),
     ));
 }
+/**
+ * 訪問カード状態を該当ユーザー・該当日付で全削除する（全リセット用）
+ * loadAllと対称的な設計。executeResetAllからこの関数を1回だけ呼ぶ
+ * @param userId ユーザーID
+ * @param dateKey 日付（YYYY-MM-DD形式、JSTベース）
+ */
+export async function deleteAllVisitCardStates(userId: number, dateKey: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(visitCardStates)
+    .where(and(
+      eq(visitCardStates.userId, userId),
+      eq(visitCardStates.dateKey, dateKey),
+    ));
+}

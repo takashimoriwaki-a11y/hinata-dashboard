@@ -350,6 +350,7 @@ export default function RecordInput() {
 
   // DBへの保存mutation
   const saveSlotsMutation = trpc.visitSlots.save.useMutation();
+  const resetAllCardStatesMutation = trpc.visitCardStates.resetAll.useMutation();
 
   // ログインユーザーの所属チームを初期値に自動設定
   useEffect(() => {
@@ -544,6 +545,8 @@ export default function RecordInput() {
     // dbLoadedをtrueに保ち、invalidate後のDB再取得でリセット済みデータが上書きされないようにする
     // 🔥 DBに空配列を直接保存（マージロジックでの復活を防止）
     try {
+      // 訪問カード状態もDBから全削除（resetAll）
+        await resetAllCardStatesMutation.mutateAsync({ dateKey: todayKey });
       await saveSlotsMutation.mutateAsync({ 
         dateKey: todayKey, 
         slotsJson: emptyJson 
@@ -556,6 +559,8 @@ export default function RecordInput() {
     setSlotShowLists(Array.from({ length: MAX_SLOTS }, () => false));
     // VisitSlotCardを再マウントして全stateを初期化
     setCardResetKey(k => k + 1);
+    // DBから最新のカード状態を再取得（空のstateMapが伝播される）
+      utils.visitCardStates.loadAll.invalidate({ dateKey: todayKey });
     toast.success("訪問時チェック項目を全てリセットしました");
   };
 

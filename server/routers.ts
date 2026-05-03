@@ -8100,6 +8100,16 @@ ${todayStr}
           await deleteVisitCardState(Number(ctx.user.id), input.dateKey, input.slotIndex);
           return { ok: true };
         }),
+        /** 訪問カードの状態をDBから全削除する（全リセット用） */
+    resetAll: protectedProcedure
+      .input(z.object({
+        dateKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { deleteAllVisitCardStates } = await import("./db");
+        await deleteAllVisitCardStates(Number(ctx.user.id), input.dateKey);
+        return { ok: true };
+      }),
     }),
   // ========== スケジュールメモ ==========
   scheduleNotes: router({
