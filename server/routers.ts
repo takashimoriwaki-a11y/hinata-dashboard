@@ -8066,6 +8066,7 @@ ${todayStr}
         .mutation(async ({ ctx, input }) => {
           const { upsertVisitCardState } = await import("./db");
           await upsertVisitCardState(Number(ctx.user.id), input.dateKey, input.slotIndex, input.cardStateJson);
+          broadcastEvent("visitCardStates");
           return { ok: true };
         }),
       /** 訪問カードの状態をDBから取得する */
@@ -8098,6 +8099,7 @@ ${todayStr}
         .mutation(async ({ ctx, input }) => {
           const { deleteVisitCardState } = await import("./db");
           await deleteVisitCardState(Number(ctx.user.id), input.dateKey, input.slotIndex);
+          broadcastEvent("visitCardStates");
           return { ok: true };
         }),
         /** 訪問カードの状態をDBから全削除する（全リセット用） */
@@ -8108,6 +8110,7 @@ ${todayStr}
       .mutation(async ({ ctx, input }) => {
         const { deleteAllVisitCardStates } = await import("./db");
         await deleteAllVisitCardStates(Number(ctx.user.id), input.dateKey);
+        broadcastEvent("visitCardStates");
         return { ok: true };
       }),
     }),

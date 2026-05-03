@@ -122,6 +122,10 @@ const EVENT_QUERY_MAP: Record<string, string[][]> = {
   visitSlots: [
     ["visitSlots", "load"],
   ],
+  // 訪問カード状態（チェック・バイタル・メモなど）
+    visitCardStates: [
+      ["visitCardStates", "loadAll"],
+    ],
   // ケアプラン開示記録
   carePlanDisclosures: [
     ["carePlanDisclosures", "checkToday"],
