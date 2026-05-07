@@ -148,8 +148,8 @@ interface SavedState {
   overtimeEndHour?: number;
   overtimeEndMinute?: number;
   overtimeReasonType?: string;
-  overtimeContactTarget?: string;
-  overtimeRecordCount?: number;
+  overtimeContactTargets?: Record<string, string>;
+  overtimeRecordCounts?: Record<string, number>;
   overtimeFreeText?: string;
   voiceMemoDeleted?: boolean;
 }
@@ -316,8 +316,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   // 後方互換のため単一選択用の変数も残す（buildOvertimeReason等で使用）
   const overtimeReasonType = overtimeReasonTypes[0] ?? "";
   const setOvertimeReasonType = (v: string) => setOvertimeReasonTypes(v ? [v] : []);
-  const [overtimeContactTarget, setOvertimeContactTarget] = useState(savedState?.overtimeContactTarget ?? "");
-  const [overtimeRecordCount, setOvertimeRecordCount] = useState(savedState?.overtimeRecordCount ?? 1);
+  const [overtimeContactTargets, setOvertimeContactTargets] = useState<Record<string, string>>(savedState?.overtimeContactTargets ?? {});
+  const [overtimeRecordCounts, setOvertimeRecordCounts] = useState<Record<string, number>>(savedState?.overtimeRecordCounts ?? {});
   const [overtimeFreeText, setOvertimeFreeText] = useState(savedState?.overtimeFreeText ?? "");
 
   // 位置情報
@@ -355,8 +355,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       overtimeEndMinute: undefined,
       // 複数選択理由を「、」区切りで保存
       overtimeReasonType: overtimeReasonTypes.join("、"),
-      overtimeContactTarget,
-      overtimeRecordCount,
+      overtimeContactTargets,
+      overtimeRecordCounts,
       overtimeFreeText,
       voiceMemoDeleted,
     };
@@ -365,7 +365,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     } catch {
       // ignore storage errors
     }
-  }, [type, done, alcoholRecorded, alcoholSkipped, clockInDone, clockOutDone, hasOvertime, overtimeStartHour, overtimeStartMinute, overtimeReasonTypes, overtimeContactTarget, overtimeRecordCount, overtimeFreeText, voiceMemoDeleted]);
+  }, [type, done, alcoholRecorded, alcoholSkipped, clockInDone, clockOutDone, hasOvertime, overtimeStartHour, overtimeStartMinute, overtimeReasonTypes, overtimeContactTargets, overtimeRecordCounts, overtimeFreeText, voiceMemoDeleted]);
 
   // モーダルが開いている間、bodyとmainのスクロールをロックする
   // ❗ position:fixedは使わない（iOSで100svhの計算が崩れてフッターが画面外になるため）
@@ -499,11 +499,17 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     const parts = overtimeReasonTypes.map((reason) => {
       switch (reason) {
         case "訪問看護実施": return "訪問看護実施";
-        case "支援者連絡": return overtimeContactTarget ? `支援者連絡（${overtimeContactTarget}）` : "支援者連絡";
-        case "家族連絡": return overtimeContactTarget ? `家族連絡（${overtimeContactTarget}）` : "家族連絡";
-        case "記録書Ⅱ作成": return `記録書Ⅱ作成（${overtimeRecordCount}人分）`;
-        case "月次報告書作成": return `月次報告書作成（${overtimeRecordCount}人分）`;
-        case "状態報告書作成": return `状態報告書作成（${overtimeRecordCount}人分）`;
+        case "支援者連絡": {
+          const v = overtimeContactTargets["支援者連絡"];
+          return v ? `支援者連絡（${v}）` : "支援者連絡";
+        }
+        case "家族連絡": {
+          const v = overtimeContactTargets["家族連絡"];
+          return v ? `家族連絡（${v}）` : "家族連絡";
+        }
+        case "記録書Ⅱ作成": return `記録書Ⅱ作成（${overtimeRecordCounts["記録書Ⅱ作成"] ?? 1}人分）`;
+        case "月次報告書作成": return `月次報告書作成（${overtimeRecordCounts["月次報告書作成"] ?? 1}人分）`;
+        case "状態報告書作成": return `状態報告書作成（${overtimeRecordCounts["状態報告書作成"] ?? 1}人分）`;
         case "その他": return overtimeFreeText || "その他";
         default: return reason;
       }
@@ -589,9 +595,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       toast.error("残業理由を少なくとと1つ選択してください");
       return;
     }
-    const needsContact = overtimeReasonTypes.includes("支援者連絡") || overtimeReasonTypes.includes("家族連絡");
-    if (needsContact && !overtimeContactTarget.trim()) {
-      toast.error("連絡先を入力してください");
+    const contactReasons = (["支援者連絡", "家族連絡"] as const).filter((r) => overtimeReasonTypes.includes(r));
+    const missingContact = contactReasons.find((r) => !(overtimeContactTargets[r] ?? "").trim());
+    if (missingContact) {
+      toast.error(`${missingContact}の連絡先を入力してください`);
       return;
     }
     if (overtimeReasonTypes.includes("その他") && !overtimeFreeText.trim()) {
@@ -739,9 +746,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       toast.error("残業理由を少なくとと1つ選択してください");
       return;
     }
-    const needsContact = overtimeReasonTypes.includes("支援者連絡") || overtimeReasonTypes.includes("家族連絡");
-    if (!isClockIn && hasOvertime && needsContact && !overtimeContactTarget.trim()) {
-      toast.error("連絡先を入力してください");
+    const contactReasonsAlc = (["支援者連絡", "家族連絡"] as const).filter((r) => overtimeReasonTypes.includes(r));
+    const missingContactAlc = contactReasonsAlc.find((r) => !(overtimeContactTargets[r] ?? "").trim());
+    if (!isClockIn && hasOvertime && missingContactAlc) {
+      toast.error(`${missingContactAlc}の連絡先を入力してください`);
       return;
     }
     if (!isClockIn && hasOvertime && overtimeReasonTypes.includes("その他") && !overtimeFreeText.trim()) {
@@ -761,8 +769,23 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       overtimeStartAt: (!isClockIn && hasOvertime) ? toTodayMs(overtimeStartHour, overtimeStartMinute) : undefined,
       overtimeEndAt: (!isClockIn && hasOvertime) ? toTodayMs(overtimeEndHour, overtimeEndMinute) : undefined,
       overtimeReason: (!isClockIn && hasOvertime) ? buildOvertimeReason() : undefined,
-      overtimeContact: (!isClockIn && hasOvertime && overtimeContactTarget.trim()) ? overtimeContactTarget.trim() : undefined,
-      overtimeCount: (!isClockIn && hasOvertime && overtimeReasonTypes.some((r) => ["記録書Ⅱ作成", "月次報告書作成", "状態報告書作成"].includes(r))) ? overtimeRecordCount : undefined,
+      overtimeContact: ((): string | undefined => {
+        if (!(!isClockIn && hasOvertime)) return undefined;
+        const parts = (["支援者連絡", "家族連絡"] as const)
+          .filter((r) => overtimeReasonTypes.includes(r))
+          .map((r) => ({ r, v: (overtimeContactTargets[r] ?? "").trim() }))
+          .filter((x) => x.v.length > 0)
+          .map((x) => `${x.r}: ${x.v}`);
+        return parts.length > 0 ? parts.join(" / ") : undefined;
+      })(),
+      overtimeCount: ((): number | undefined => {
+        if (!(!isClockIn && hasOvertime)) return undefined;
+        const counts = (["記録書Ⅱ作成", "月次報告書作成", "状態報告書作成"] as const)
+          .filter((r) => overtimeReasonTypes.includes(r))
+          .map((r) => overtimeRecordCounts[r] ?? 1);
+        if (counts.length === 0) return undefined;
+        return counts.reduce((a, b) => a + b, 0);
+      })(),
       latitude: latitude ?? undefined,
       longitude: longitude ?? undefined,
       locationAddress: locationAddress ?? undefined,
@@ -1397,7 +1420,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">残業理由 <span className="text-red-500">*</span> <span className="text-gray-400 font-normal ml-1">(複数選択可)</span></label>
-              <button type="button" onClick={() => { setOvertimeReasonTypes([]); setOvertimeContactTarget(""); setOvertimeRecordCount(1); setOvertimeFreeText(""); }} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
+              <button type="button" onClick={() => { setOvertimeReasonTypes([]); setOvertimeContactTargets({}); setOvertimeRecordCounts({}); setOvertimeFreeText(""); }} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
             </div>
             <div className="grid grid-cols-2 gap-1.5">
               {["訪問看護実施", "支援者連絡", "家族連絡", "記録書Ⅱ作成", "月次報告書作成", "状態報告書作成", "その他"].map((reason) => {
@@ -1429,35 +1452,35 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             )}
           </div>
 
-          {/* 支援者連絡 or 家族連絡：連絡先入力 */}
-          {(overtimeReasonTypes.includes("支援者連絡") || overtimeReasonTypes.includes("家族連絡")) && (
-            <div>
+          {/* 支援者連絡 or 家族連絡：連絡先入力（理由ごとに別欄） */}
+          {(["支援者連絡", "家族連絡"] as const).filter((r) => overtimeReasonTypes.includes(r)).map((reason) => (
+            <div key={reason}>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                 <Users className="w-3.5 h-3.5 inline mr-1 mb-0.5" />
-                誰に連絡したか <span className="text-red-500">*</span>
+                {reason}：誰に連絡したか <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                value={overtimeContactTarget}
-                onChange={(e) => setOvertimeContactTarget(e.target.value)}
-                placeholder={overtimeReasonTypes.includes("支援者連絡") ? "例: 相談支援専門員 山田さん" : "例: ○○様の長女 鈴木さん"}
+                value={overtimeContactTargets[reason] ?? ""}
+                onChange={(e) => setOvertimeContactTargets((prev) => ({ ...prev, [reason]: e.target.value }))}
+                placeholder={reason === "支援者連絡" ? "例: 相談支援専門員 山田さん" : "例: ○○様の長女 鈴木さん"}
                 className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-400"
                 style={{ fontSize: "16px" }}
               />
             </div>
-          )}
+          ))}
 
-          {/* 記録書Ⅱ・月次・状態報告書：人数プルダウン */}
-          {overtimeReasonTypes.some((r) => ["記録書Ⅱ作成", "月次報告書作成", "状態報告書作成"].includes(r)) && (
-            <div>
+          {/* 記録書Ⅱ・月次・状態報告書：人数プルダウン（理由ごとに別欄） */}
+          {(["記録書Ⅱ作成", "月次報告書作成", "状態報告書作成"] as const).filter((r) => overtimeReasonTypes.includes(r)).map((reason) => (
+            <div key={reason}>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                 <FileText className="w-3.5 h-3.5 inline mr-1 mb-0.5" />
-                何人分 <span className="text-red-500">*</span>
+                {reason}：何人分 <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <select
-                  value={overtimeRecordCount}
-                  onChange={(e) => setOvertimeRecordCount(Number(e.target.value))}
+                  value={overtimeRecordCounts[reason] ?? 1}
+                  onChange={(e) => setOvertimeRecordCounts((prev) => ({ ...prev, [reason]: Number(e.target.value) }))}
                   className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outlifocus:ring-2 focus:ring-blue-400 appearance-none pr-7"
                   >                    {Array.from({length: 20}, (_, i) => i + 1).map(n => (
                       <option key={n} value={n}>{n}人</option>
@@ -1466,7 +1489,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               </div>
             </div>
-          )}
+          ))}
 
           {/* その他：自由記述 */}
           {overtimeReasonTypes.includes("その他") && (
@@ -1658,8 +1681,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
               setOvertimeEndHour(getJSTHours(openedAt));
               setOvertimeEndMinute(floorToTenMinutes(openedAt));
               setOvertimeReasonType("");
-              setOvertimeContactTarget("");
-              setOvertimeRecordCount(1);
+              setOvertimeContactTargets({});
+              setOvertimeRecordCounts({});
               setOvertimeFreeText("");
               setShowOvertimeResetConfirm(false);
             }}
@@ -1800,20 +1823,20 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                   <span className="text-muted-foreground flex-shrink-0">残業理由</span>
                   <span className="font-medium text-foreground text-right">{buildOvertimeReason()}</span>
                 </div>
-                {/* 連絡先（支援者・家族連絡が含まれる場合） */}
-                {(overtimeReasonTypes.includes("支援者連絡") || overtimeReasonTypes.includes("家族連絡")) && overtimeContactTarget && (
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-muted-foreground flex-shrink-0">連絡先</span>
-                    <span className="font-medium text-foreground text-right">{overtimeContactTarget}</span>
+                {/* 連絡先（支援者連絡・家族連絡それぞれ） */}
+                {(["支援者連絡", "家族連絡"] as const).filter((r) => overtimeReasonTypes.includes(r) && (overtimeContactTargets[r] ?? "").trim()).map((reason) => (
+                  <div key={reason} className="flex items-start justify-between gap-2">
+                    <span className="text-muted-foreground flex-shrink-0">{reason}</span>
+                    <span className="font-medium text-foreground text-right">{overtimeContactTargets[reason]}</span>
                   </div>
-                )}
-                {/* 人数（記録書系が含まれる場合） */}
-                {overtimeReasonTypes.some((r) => ["記録書Ⅱ作成", "月次報告書作成", "状態報告書作成"].includes(r)) && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">対象人数</span>
-                    <span className="font-medium text-foreground">{overtimeRecordCount}人分</span>
+                ))}
+                {/* 人数（記録書系それぞれ） */}
+                {(["記録書Ⅱ作成", "月次報告書作成", "状態報告書作成"] as const).filter((r) => overtimeReasonTypes.includes(r)).map((reason) => (
+                  <div key={reason} className="flex items-center justify-between">
+                    <span className="text-muted-foreground">{reason}</span>
+                    <span className="font-medium text-foreground">{overtimeRecordCounts[reason] ?? 1}人分</span>
                   </div>
-                )}
+                ))}
                 {/* 自由記述（その他が含まれる場合） */}
                 {overtimeReasonTypes.includes("その他") && overtimeFreeText && (
                   <div className="flex items-start justify-between gap-2">
