@@ -410,8 +410,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   useEffect(() => {
     if (!isClockIn) return;
     const allStepsDone = steps.every((step) => done[step.id]);
-    // 事務員はスキップでもOK
-    const alcoholDone = alcoholRecorded || (isOfficeStaff && alcoholSkipped);
+    // 事務員はアルコールチェック自体を不要とする
+    const alcoholDone = isOfficeStaff || alcoholRecorded;
     if (allStepsDone && alcoholDone && clockInDone) {
       // 全タスク完了時の触覚フィードバック（iOS: ダブルバイブレーション）
       if (typeof navigator !== 'undefined' && navigator.vibrate) {
@@ -439,9 +439,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   // 退勤画面：退勤打刻済み + アルコール記録済み + みまもドライブ停止済み → ホームへ自動遷移
   useEffect(() => {
     if (isClockIn) return;
-    const mimamoStopDone = done["mimamodrive_out"];
-    // 事務員はスキップでもOK
-    const alcoholDone = alcoholRecorded || (isOfficeStaff && alcoholSkipped);
+    // 事務員はみまもドライブ停止も不要（パッチ①でstepsから除外済み）
+    const mimamoStopDone = isOfficeStaff || done["mimamodrive_out"];
+    // 事務員はアルコールチェック自体を不要とする
+    const alcoholDone = isOfficeStaff || alcoholRecorded;
     if (clockOutDone && alcoholDone && mimamoStopDone) {
       // 全タスク完了時の触覚フィードバック（iOS: ダブルバイブレーション）
       if (typeof navigator !== 'undefined' && navigator.vibrate) {
@@ -1932,10 +1933,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           {/* 進捗インジケーター */}
           {(() => {
             if (isClockIn) {
-              // 出勤時：手順ステップ数 + アルコール + 打刻
-              const total = steps.length + 2; // 手順ステップ + アルコール + 打刻
+              // 出勤時：手順ステップ数 + アルコール（事務員除く） + 打刻
+              const total = steps.length + (isOfficeStaff ? 1 : 2); // 事務員はアルコールなし
               const completedSteps = steps.filter(s => done[s.id]).length;
-              const completedAlcohol = alcoholDoneForBanner ? 1 : 0;
+              const completedAlcohol = isOfficeStaff ? 0 : (alcoholDoneForBanner ? 1 : 0);
               const completedClockIn = clockInDone ? 1 : 0;
               const completed = completedSteps + completedAlcohol + completedClockIn;
               return (
@@ -1949,12 +1950,14 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 </div>
               );
             } else {
-              // 退勤時：打刻 + アルコール + 手順ステップ + ボイスメモ削除
-              const total = 1 + 1 + steps.length + 1; // 退勤打刻 + アルコール + みまもドライブ + ボイスメモ削除
+              // 退勤時：打刻 + アルコール（事務員除く） + 手順ステップ（事務員除く） + ボイスメモ削除（事務員除く）
+              const total = isOfficeStaff
+                ? 1 // 事務員：退勤打刻のみ
+                : 1 + 1 + steps.length + 1; // 看護スタッフ：退勤打刻 + アルコール + みまもドライブ + ボイスメモ削除
               const completedClockOut = clockOutDone ? 1 : 0;
-              const completedAlcohol = alcoholDoneForBanner ? 1 : 0;
-              const completedSteps = steps.filter(s => done[s.id]).length;
-              const completedVoiceMemo = voiceMemoDeleted ? 1 : 0;
+              const completedAlcohol = isOfficeStaff ? 0 : (alcoholDoneForBanner ? 1 : 0);
+              const completedSteps = isOfficeStaff ? 0 : steps.filter(s => done[s.id]).length;
+              const completedVoiceMemo = isOfficeStaff ? 0 : (voiceMemoDeleted ? 1 : 0);
               const completed = completedClockOut + completedAlcohol + completedSteps + completedVoiceMemo;
               return (
                 <div className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
@@ -1982,15 +1985,16 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         <div ref={scrollContainerRef} className="attendance-scroll-container pt-2 pb-0 overflow-y-auto min-h-0 flex-shrink overscroll-contain touch-auto" style={{WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain'}}>
 
           {isClockIn ? (
-            // ── 出勤画面レイアウト：手順チェック → アルコールチェック ──
+            // ── 出勤画面レイアウト：手順チェック → アルコールチェック（事務員はアルコール非表示） ──
             <>
               {steps.map(renderStepItem)}
-              {alcoholCheckForm}
+              {!isOfficeStaff && alcoholCheckForm}
               {/* アルコール記録後のスクロールターゲット（出勤打刻ボタンの直前） */}
               <div ref={afterAlcoholRef} />
             </>
           ) : (
-            // ── 退勤画面レイアウト：ボイスメモ削除 → 残業カード → 退勤打刻 → アルコールチェック → アルコール記録 → みまもドライブ停止 ──
+            // ── 退勤画面レイアウト：残業カード → 退勤打刻 → アルコールチェック → アルコール記録 → みまもドライブ停止 ──
+            // 事務員: 残業カード → 退勤打刻 のみ
             <>
               {/* 0. ボイスメモ・NotebookLM削除（事務員は非表示） */}
               {!isOfficeStaff && (
@@ -2087,12 +2091,12 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 )}
               </div>
               )}
-              {/* 3. アルコールチェック（フォーム） */}
-              {alcoholCheckForm}
+              {/* 3. アルコールチェック（フォーム）— 事務員は非表示 */}
+              {!isOfficeStaff && alcoholCheckForm}
               {/* アルコール記録後のスクロールターゲット（アルコール記録ボタンの直前） */}
               <div ref={afterAlcoholRef} />
-              {/* 4. アルコール記録ボタン（スキップ済みの場合は非表示） */}
-              {!alcoholSkipped && (
+              {/* 4. アルコール記録ボタン（スキップ済み・事務員の場合は非表示） */}
+              {!alcoholSkipped && !isOfficeStaff && (
               <div className="mx-3 my-2">
                 <button
                   type="button"
@@ -2143,8 +2147,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 </span>
               </div>
             )}
-            {/* アルコールチェック記録ボタン（先）・スキップ済みの場合はスキップ済み表示 */}
-            {alcoholSkipped && !alcoholRecorded ? (
+            {/* アルコールチェック記録ボタン（事務員には非表示） */}
+            {isOfficeStaff ? null : alcoholSkipped && !alcoholRecorded ? (
               <div className="flex items-center justify-center gap-2 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                 <CheckCircle2 className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                 <span className="text-sm font-medium text-gray-500 dark:text-gray-400">アルコールチェックスキップ済み</span>
