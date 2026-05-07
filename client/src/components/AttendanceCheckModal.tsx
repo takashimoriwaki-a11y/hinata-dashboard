@@ -167,12 +167,19 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
   // 当月URLが取得できた場合は業務日報リンクを差し替える
   const steps = isClockIn
-    ? CLOCK_IN_STEPS.map((step) => {
-        if (step.id === "daily_report_in" && dailyReportLink?.url) {
-          return { ...step, link: { ...step.link!, url: dailyReportLink.url } };
-        }
-        return step;
-      })
+    ? CLOCK_IN_STEPS
+        .filter((step) => {
+          if (isEmergency && (step.id === "daily_report_in" || step.id === "ibow_in")) {
+            return false;
+          }
+          return true;
+        })
+        .map((step) => {
+          if (step.id === "daily_report_in" && dailyReportLink?.url) {
+            return { ...step, link: { ...step.link!, url: dailyReportLink.url } };
+          }
+          return step;
+        })
     : CLOCK_OUT_STEPS;
 
   // 事務員はアルコールチェックが任意
@@ -392,7 +399,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   // 出勤画面：全ステップ完了 + アルコール記録済み + 打刻済み → ホームへ自動遷移
   useEffect(() => {
     if (!isClockIn) return;
-    const allStepsDone = CLOCK_IN_REQUIRED_STEP_IDS.every((id) => done[id]);
+    const allStepsDone = steps.every((step) => done[step.id]);
     // 事務員はスキップでもOK
     const alcoholDone = alcoholRecorded || (isOfficeStaff && alcoholSkipped);
     if (allStepsDone && alcoholDone && clockInDone) {
@@ -418,7 +425,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       }, 800);
       return () => clearTimeout(timer);
     }
-  }, [isClockIn, done, alcoholRecorded, alcoholSkipped, isOfficeStaff, clockInDone, onClose, onConfirm, type]);
+  }, [isClockIn, done, alcoholRecorded, alcoholSkipped, isOfficeStaff, clockInDone, onClose, onConfirm, type, isEmergency, steps]);
   // 退勤画面：退勤打刻済み + アルコール記録済み + みまもドライブ停止済み → ホームへ自動遷移
   useEffect(() => {
     if (isClockIn) return;
@@ -774,7 +781,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   const isAlcoholPending = saveAlcoholCheckMutation.isPending;
 
   // 出勤画面：全ステップ完了チェック
-  const allClockInStepsDone = isClockIn && CLOCK_IN_REQUIRED_STEP_IDS.every((id) => done[id]);
+  const allClockInStepsDone = isClockIn && steps.every((step) => done[step.id]);
   const alcoholDoneForBanner = alcoholRecorded || (isOfficeStaff && alcoholSkipped);
   const allClockInTasksDone = isClockIn && allClockInStepsDone && alcoholDoneForBanner && clockInDone;
 
@@ -1966,7 +1973,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 </button>
               </div>
               {/* 1. 残業申請 */}
-              {overtimeCard}
+              {!isEmergency && overtimeCard}
               {/* 2. 退勤打刻ボタン */}
               <div className="mx-3 my-2">
                 {clockOutDone ? (
@@ -1998,7 +2005,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                   </button>
                 )}
               </div>
-              {/* 2.5 退勤時チェックリスト（任意・最後の退勤者用） */}
+              {/* 2.5 退勤時チェックリスト（任意・最後の退勤者用、緊急退勤時は非表示） */}
+              {!isEmergency && (
               <div className="mx-3 my-2">
                 {checkoutChecklistUrl ? (
                   <a
@@ -2019,6 +2027,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                   </div>
                 )}
               </div>
+              )}
               {/* 3. アルコールチェック（フォーム） */}
               {alcoholCheckForm}
               {/* アルコール記録後のスクロールターゲット（アルコール記録ボタンの直前） */}
