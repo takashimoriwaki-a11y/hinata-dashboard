@@ -5515,30 +5515,38 @@ export default function Dashboard() {
   // localStorageに保存済みの当日状態を読み込んで初期値に反映
   const [clockInAllDone, setClockInAllDone] = useState(() => {
     try {
-      const today = new Date();
-      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-      // 完了フラグ専用キー（完了後に保存される）を優先確認
-      if (localStorage.getItem(`attendance_done_clock_in_${dateStr}`) === "true") return true;
-      // モーダル進行中の状態（まだ完了フラグが保存されていない場合）
-      const saved = localStorage.getItem(`attendance_clock_in_${dateStr}`);
-      if (saved) {
-        const state = JSON.parse(saved);
-        return state.clockInDone === true && state.alcoholRecorded === true;
+      // 日付に関係なく完了フラグをチェック（毎朝リセットボタン必須仕様）
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("attendance_done_clock_in_") && localStorage.getItem(key) === "true") return true;
+        if (key && key.startsWith("attendance_clock_in_")) {
+          const saved = localStorage.getItem(key);
+          if (saved) {
+            try {
+              const state = JSON.parse(saved);
+              if (state.clockInDone === true && state.alcoholRecorded === true) return true;
+            } catch {}
+          }
+        }
       }
     } catch {}
     return false;
   });
   const [clockOutAllDone, setClockOutAllDone] = useState(() => {
     try {
-      const today = new Date();
-      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-      // 完了フラグ専用キー（完了後に保存される）を優先確認
-      if (localStorage.getItem(`attendance_done_clock_out_${dateStr}`) === "true") return true;
-      // モーダル進行中の状態
-      const saved = localStorage.getItem(`attendance_clock_out_${dateStr}`);
-      if (saved) {
-        const state = JSON.parse(saved);
-        return state.clockOutDone === true && state.alcoholRecorded === true;
+      // 日付に関係なく完了フラグをチェック（毎朝リセットボタン必須仕様）
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("attendance_done_clock_out_") && localStorage.getItem(key) === "true") return true;
+        if (key && key.startsWith("attendance_clock_out_")) {
+          const saved = localStorage.getItem(key);
+          if (saved) {
+            try {
+              const state = JSON.parse(saved);
+              if (state.clockOutDone === true && state.alcoholRecorded === true) return true;
+            } catch {}
+          }
+        }
       }
     } catch {}
     return false;
@@ -5598,12 +5606,18 @@ export default function Dashboard() {
   // 出勤・退勤の打刻状態をlocalStorageからリセットする
   const handleResetAttendance = () => {
     try {
-      const today = new Date();
-      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-      localStorage.removeItem(`attendance_done_clock_in_${dateStr}`);
-      localStorage.removeItem(`attendance_done_clock_out_${dateStr}`);
-      localStorage.removeItem(`attendance_clock_in_${dateStr}`);
-      localStorage.removeItem(`attendance_clock_out_${dateStr}`);
+      // 全ての勤怠関連キーを削除（日付に関係なく）
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (
+          key.startsWith("attendance_done_clock_in_") ||
+          key.startsWith("attendance_done_clock_out_") ||
+          key.startsWith("attendance_clock_in_") ||
+          key.startsWith("attendance_clock_out_")
+        )) keysToRemove.push(key);
+      }
+      keysToRemove.forEach(k => localStorage.removeItem(k));
       setClockInAllDone(false);
       setClockOutAllDone(false);
       toast.success("打刻状態をリセットしました");
