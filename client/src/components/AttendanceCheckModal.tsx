@@ -166,9 +166,16 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   );
 
   // 当月URLが取得できた場合は業務日報リンクを差し替える
+  // 事務員はアルコールチェックが任意
+  const isOfficeStaff = (user as any)?.team === "事務員";
+
   const steps = isClockIn
     ? CLOCK_IN_STEPS
         .filter((step) => {
+          // 事務員はみまもドライブを除外（業務日報・iBow・打刻のみ）
+          if (isOfficeStaff && step.id === "mimamodrive_in") {
+            return false;
+          }
           if (isEmergency && (step.id === "daily_report_in" || step.id === "ibow_in")) {
             return false;
           }
@@ -180,10 +187,13 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           }
           return step;
         })
-    : CLOCK_OUT_STEPS;
-
-  // 事務員はアルコールチェックが任意
-  const isOfficeStaff = (user as any)?.team === "事務員";
+    : CLOCK_OUT_STEPS.filter((step) => {
+        // 事務員は退勤時のみまもドライブ停止を除外
+        if (isOfficeStaff && step.id === "mimamodrive_out") {
+          return false;
+        }
+        return true;
+      });
 
   // localStorageから保存済み状態を読み込む（緊急打刻時はリセット）
   const loadSavedState = (): SavedState | null => {
@@ -1416,7 +1426,29 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             </div>
           </div>
 
-          {/* 残業理由プリセット（複数選択対応） */}
+          {/* 事務員：自由記述一枠 / 看護スタッフ：プリセット複数選択 */}
+          {isOfficeStaff ? (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">残業理由 <span className="text-red-500">*</span></label>
+                <button type="button" onClick={() => setOvertimeFreeText("")} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
+              </div>
+              <textarea
+                value={overtimeFreeText}
+                onChange={(e) => {
+                  setOvertimeFreeText(e.target.value);
+                  if (e.target.value.trim() && !overtimeReasonTypes.includes("その他")) {
+                    setOvertimeReasonTypes(["その他"]);
+                  } else if (!e.target.value.trim()) {
+                    setOvertimeReasonTypes([]);
+                  }
+                }}
+                placeholder="例: 月次レセプト処理のため / 週次資料作成のため / 来客対応のため"
+                rows={3}
+                className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-400 resize-none"
+              />
+            </div>
+          ) : (
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">残業理由 <span className="text-red-500">*</span> <span className="text-gray-400 font-normal ml-1">(複数選択可)</span></label>
@@ -1452,8 +1484,10 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             )}
           </div>
 
-          {/* 支援者連絡 or 家族連絡：連絡先入力（理由ごとに別欄） */}
-          {(["支援者連絡", "家族連絡"] as const).filter((r) => overtimeReasonTypes.includes(r)).map((reason) => (
+          )}
+
+          {/* 支援者連絡 or 家族連絡：連絡先入力（看護スタッフのみ） */}
+          {!isOfficeStaff && (["支援者連絡", "家族連絡"] as const).filter((r) => overtimeReasonTypes.includes(r)).map((reason) => (
             <div key={reason}>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                 <Users className="w-3.5 h-3.5 inline mr-1 mb-0.5" />
@@ -1470,8 +1504,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             </div>
           ))}
 
-          {/* 記録書Ⅱ・月次・状態報告書：人数プルダウン（理由ごとに別欄） */}
-          {(["記録書Ⅱ作成", "月次報告書作成", "状態報告書作成"] as const).filter((r) => overtimeReasonTypes.includes(r)).map((reason) => (
+          {/* 記録書Ⅱ・月次・状態報告書：人数プルダウン（看護スタッフのみ） */}
+          {!isOfficeStaff && (["記録書Ⅱ作成", "月次報告書作成", "状態報告書作成"] as const).filter((r) => overtimeReasonTypes.includes(r)).map((reason) => (
             <div key={reason}>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                 <FileText className="w-3.5 h-3.5 inline mr-1 mb-0.5" />
@@ -1491,8 +1525,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             </div>
           ))}
 
-          {/* その他：自由記述 */}
-          {overtimeReasonTypes.includes("その他") && (
+          {/* その他：自由記述（看護スタッフのみ。事務員は上の自由記述欄が既に表示されている） */}
+          {!isOfficeStaff && overtimeReasonTypes.includes("その他") && (
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                 <BarChart2 className="w-3.5 h-3.5 inline mr-1 mb-0.5" />
@@ -1958,7 +1992,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           ) : (
             // ── 退勤画面レイアウト：ボイスメモ削除 → 残業カード → 退勤打刻 → アルコールチェック → アルコール記録 → みまもドライブ停止 ──
             <>
-              {/* 0. ボイスメモ・NotebookLM削除 */}
+              {/* 0. ボイスメモ・NotebookLM削除（事務員は非表示） */}
+              {!isOfficeStaff && (
               <div className="mx-3 my-2">
                 <button
                   type="button"
@@ -1995,6 +2030,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                   )}
                 </button>
               </div>
+              )}
               {/* 1. 残業申請 */}
               {!isEmergency && overtimeCard}
               {/* 2. 退勤打刻ボタン */}
