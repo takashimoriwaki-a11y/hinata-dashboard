@@ -1148,210 +1148,265 @@ function scheduleTrashCleanup() {
 }
 scheduleTrashCleanup();
 
-// ========== 毎月末25日（JST）に翌月分アルコールチェックスプレッドシートを自動作成・DB登録 ==========
+// ========== 25-31日（JST）に翌月分アルコールチェックスプレッドシートを自動作成・DB登録（堅牢版） ==========
+// 旧仕様: 25日9:00ちょうどの1分間のみ → サーバー再起動で取りこぼしリスクあり
+// 新仕様: 25-31日の毎時0分 + サーバー起動時にも実行 → 取りこぼし防止
 function scheduleNextMonthAlcoholSheet() {
   const checkInterval = 60 * 1000; // 1分ごとにチェック
   let lastCreatedMonth = "";
 
-  setInterval(async () => {
+  // 翌月分のアルコールチェックシートを作成する処理（cron + 起動時の両方から呼ぶ）
+  async function tryCreateNextMonthAlcoholSheet() {
     const now = new Date();
-    const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000); // UTC+9（JST）
-    const h = jstNow.getUTCHours();
-    const m = jstNow.getUTCMinutes();
-    const d = jstNow.getUTCDate();
+    const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
     const currentYear = jstNow.getUTCFullYear();
     const currentMonth = jstNow.getUTCMonth() + 1;
     const monthKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
 
-    // 毎月25日 9:00（JST）に1回だけ実行
-    if (d === 25 && h === 9 && m === 0 && lastCreatedMonth !== monthKey) {
-      lastCreatedMonth = monthKey;
-      try {
-        // 翌月の年・月を計算
-        const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
-        const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
-        const nextMonthLabel = `${nextYear}年${nextMonth}月`;
+    // 同じ月で一度処理済みならスキップ
+    if (lastCreatedMonth === monthKey) return;
 
-        console.log(`[AlcoholSheetAuto] ${nextMonthLabel}のアルコールチェックスプレッドシートを自動作成します`);
+    // 翌月の年・月を計算
+    const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+    const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
+    const nextMonthLabel = `${nextYear}年${nextMonth}月`;
 
-        // 既に登録済みの場合はスキップ
-        const existing = await getAlcoholCheckSpreadsheet(nextYear, nextMonth);
-        if (existing) {
-          console.log(`[AlcoholSheetAuto] ${nextMonthLabel}は既に登録済みです（ID: ${existing.spreadsheetId}）。スキップします。`);
-          return;
-        }
-
-        // Google Sheets APIでスプレッドシートを新規作成
-        const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-        const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
-        if (!email || !privateKey) {
-          console.warn("[AlcoholSheetAuto] サービスアカウント設定がありません。スキップします。");
-          return;
-        }
-        const { GoogleAuth } = await import("google-auth-library");
-        const auth = new GoogleAuth({
-          credentials: { client_email: email, private_key: privateKey.replace(/\\n/g, "\n") },
-          scopes: ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"],
-        });
-        const client = await auth.getClient();
-        const tokenObj = await client.getAccessToken();
-        const token = tokenObj.token;
-        if (!token) {
-          console.warn("[AlcoholSheetAuto] 認証トークン取得失敗。スキップします。");
-          return;
-        }
-
-        // スプレッドシートを新規作成
-        const createRes = await fetch("https://sheets.googleapis.com/v4/spreadsheets", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            properties: { title: `アルコールチェック記録_${nextMonthLabel}` },
-          }),
-        });
-        if (!createRes.ok) {
-          const text = await createRes.text();
-          console.error(`[AlcoholSheetAuto] スプレッドシート作成失敗: ${text}`);
-          return;
-        }
-        const created = await createRes.json() as { spreadsheetId?: string };
-        const newSpreadsheetId = created.spreadsheetId;
-        if (!newSpreadsheetId) {
-          console.error("[AlcoholSheetAuto] spreadsheetIdが取得できませんでした");
-          return;
-        }
-
-        // ヘッダー行を挿入
-        const ALCOHOL_HEADER = [
-          "実施日時", "区分", "氏名", "ナンバープレート",
-          "出勤打刻", "退勤打刻", "確認方法", "検知器使用",
-          "酒気帯有無", "確認者", "残業時間", "残業理由",
-          "連絡先", "人数", "備考", "登録日時"
-        ];
-        const headerUrl = `https://sheets.googleapis.com/v4/spreadsheets/${newSpreadsheetId}/values/${encodeURIComponent("Sheet1!A1")}?valueInputOption=USER_ENTERED`;
-        const headerRes = await fetch(headerUrl, {
-          method: "PUT",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ values: [ALCOHOL_HEADER] }),
-        });
-        if (!headerRes.ok) {
-          const text = await headerRes.text();
-          console.warn(`[AlcoholSheetAuto] ヘッダー行挿入失敗（続行）: ${text}`);
-        } else {
-          console.log(`[AlcoholSheetAuto] ヘッダー行を挿入しました`);
-        }
-
-        // ヘッダー行を太字・背景色で書式設定
-        const formatRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${newSpreadsheetId}:batchUpdate`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            requests: [
-              {
-                repeatCell: {
-                  range: { sheetId: 0, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: ALCOHOL_HEADER.length },
-                  cell: {
-                    userEnteredFormat: {
-                      backgroundColor: { red: 0.267, green: 0.533, blue: 0.667 },
-                      textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } },
-                      horizontalAlignment: "CENTER",
-                    },
-                  },
-                  fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
-                },
-              },
-              {
-                updateSheetProperties: {
-                  properties: { sheetId: 0, gridProperties: { frozenRowCount: 1 } },
-                  fields: "gridProperties.frozenRowCount",
-                },
-              },
-            ],
-          }),
-        });
-        if (!formatRes.ok) {
-          const text = await formatRes.text();
-          console.warn(`[AlcoholSheetAuto] ヘッダー書式設定失敗（続行）: ${text}`);
-        } else {
-          console.log(`[AlcoholSheetAuto] ヘッダー行の書式設定完了`);
-        }
-
-        // DBに登録
-        await upsertAlcoholCheckSpreadsheet({
-          year: nextYear,
-          month: nextMonth,
-          spreadsheetId: newSpreadsheetId,
-          label: nextMonthLabel,
-        });
-
-        console.log(`[AlcoholSheetAuto] ${nextMonthLabel}のスプレッドシートを作成・登録しました（ID: ${newSpreadsheetId}）`);
-
-        // 管理者に通知
-        await notifyOwner({
-          title: `📋 ${nextMonthLabel}アルコールチェックシート自動作成完了`,
-          content: `${nextMonthLabel}分のアルコールチェック記録スプレッドシートを自動作成しました。\nスプレッドシートID: ${newSpreadsheetId}\nhttps://docs.google.com/spreadsheets/d/${newSpreadsheetId}`,
-        });
-      } catch (e) {
-        console.error(`[AlcoholSheetAuto] エラー:`, e);
+    try {
+      // 既に登録済みの場合はスキップ
+      const existing = await getAlcoholCheckSpreadsheet(nextYear, nextMonth);
+      if (existing) {
+        console.log(`[AlcoholSheetAuto] ${nextMonthLabel}は既に登録済みです（ID: ${existing.spreadsheetId}）。スキップします。`);
+        lastCreatedMonth = monthKey; // その月の処理は完了とみなす
+        return;
       }
+
+      console.log(`[AlcoholSheetAuto] ${nextMonthLabel}のアルコールチェックスプレッドシートを自動作成します`);
+
+      // Google Sheets APIでスプレッドシートを新規作成
+      const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+      const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+      if (!email || !privateKey) {
+        console.warn("[AlcoholSheetAuto] サービスアカウント設定がありません。スキップします。");
+        return;
+      }
+      const { GoogleAuth } = await import("google-auth-library");
+      const auth = new GoogleAuth({
+        credentials: { client_email: email, private_key: privateKey.replace(/\\n/g, "\n") },
+        scopes: ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"],
+      });
+      const client = await auth.getClient();
+      const tokenObj = await client.getAccessToken();
+      const token = tokenObj.token;
+      if (!token) {
+        console.warn("[AlcoholSheetAuto] 認証トークン取得失敗。スキップします。");
+        return;
+      }
+
+      // スプレッドシートを新規作成
+      const createRes = await fetch("https://sheets.googleapis.com/v4/spreadsheets", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          properties: { title: `アルコールチェック記録_${nextMonthLabel}` },
+        }),
+      });
+      if (!createRes.ok) {
+        const text = await createRes.text();
+        console.error(`[AlcoholSheetAuto] スプレッドシート作成失敗: ${text}`);
+        return;
+      }
+      const created = await createRes.json() as { spreadsheetId?: string };
+      const newSpreadsheetId = created.spreadsheetId;
+      if (!newSpreadsheetId) {
+        console.error("[AlcoholSheetAuto] spreadsheetIdが取得できませんでした");
+        return;
+      }
+
+      // ヘッダー行を挿入
+      const ALCOHOL_HEADER = [
+        "実施日時", "区分", "氏名", "ナンバープレート",
+        "出勤打刻", "退勤打刻", "確認方法", "検知器使用",
+        "酒気帯有無", "確認者", "残業時間", "残業理由",
+        "連絡先", "人数", "備考", "登録日時"
+      ];
+      const headerUrl = `https://sheets.googleapis.com/v4/spreadsheets/${newSpreadsheetId}/values/${encodeURIComponent("Sheet1!A1")}?valueInputOption=USER_ENTERED`;
+      const headerRes = await fetch(headerUrl, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ values: [ALCOHOL_HEADER] }),
+      });
+      if (!headerRes.ok) {
+        const text = await headerRes.text();
+        console.warn(`[AlcoholSheetAuto] ヘッダー行挿入失敗（続行）: ${text}`);
+      } else {
+        console.log(`[AlcoholSheetAuto] ヘッダー行を挿入しました`);
+      }
+
+      // ヘッダー行を太字・背景色で書式設定
+      const formatRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${newSpreadsheetId}:batchUpdate`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requests: [
+            {
+              repeatCell: {
+                range: { sheetId: 0, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: ALCOHOL_HEADER.length },
+                cell: {
+                  userEnteredFormat: {
+                    backgroundColor: { red: 0.267, green: 0.533, blue: 0.667 },
+                    textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } },
+                    horizontalAlignment: "CENTER",
+                  },
+                },
+                fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
+              },
+            },
+            {
+              updateSheetProperties: {
+                properties: { sheetId: 0, gridProperties: { frozenRowCount: 1 } },
+                fields: "gridProperties.frozenRowCount",
+              },
+            },
+          ],
+        }),
+      });
+      if (!formatRes.ok) {
+        const text = await formatRes.text();
+        console.warn(`[AlcoholSheetAuto] ヘッダー書式設定失敗（続行）: ${text}`);
+      } else {
+        console.log(`[AlcoholSheetAuto] ヘッダー行の書式設定完了`);
+      }
+
+      // DBに登録
+      await upsertAlcoholCheckSpreadsheet({
+        year: nextYear,
+        month: nextMonth,
+        spreadsheetId: newSpreadsheetId,
+        label: nextMonthLabel,
+      });
+
+      console.log(`[AlcoholSheetAuto] ${nextMonthLabel}のスプレッドシートを作成・登録しました（ID: ${newSpreadsheetId}）`);
+      lastCreatedMonth = monthKey; // 成功したらフラグセット
+
+      // 管理者に通知
+      await notifyOwner({
+        title: `📋 ${nextMonthLabel}アルコールチェックシート自動作成完了`,
+        content: `${nextMonthLabel}分のアルコールチェック記録スプレッドシートを自動作成しました。\nスプレッドシートID: ${newSpreadsheetId}\nhttps://docs.google.com/spreadsheets/d/${newSpreadsheetId}`,
+      });
+    } catch (e) {
+      console.error(`[AlcoholSheetAuto] エラー:`, e);
+    }
+  }
+
+  // 25-31日の毎時0分にチェック（24回 × 7日 = 168回のチャンス）
+  setInterval(async () => {
+    const now = new Date();
+    const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    const m = jstNow.getUTCMinutes();
+    const d = jstNow.getUTCDate();
+
+    // 25-31日の毎時0分に実行
+    if (d >= 25 && d <= 31 && m === 0) {
+      await tryCreateNextMonthAlcoholSheet();
     }
   }, checkInterval);
 
-  console.log("[AlcoholSheetAuto] 毎月25日9:00の翌月スプレッドシート自動作成スケジューラーを開始しました");
+  // サーバー起動時にも一度実行（25-31日なら）
+  (async () => {
+    const now = new Date();
+    const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    const d = jstNow.getUTCDate();
+    if (d >= 25 && d <= 31) {
+      console.log(`[AlcoholSheetAuto] サーバー起動時チェック（${d}日）`);
+      await tryCreateNextMonthAlcoholSheet();
+    }
+  })();
+
+  console.log("[AlcoholSheetAuto] 25-31日の毎時0分・サーバー起動時に翌月スプレッドシート自動作成スケジューラーを開始しました");
 }
 scheduleNextMonthAlcoholSheet();
 
-// ========== 毎月末25日（JST）に翌月分出退勤スプレッドシートを自動作成・DB登録 ==========
+// ========== 25-31日（JST）に翌月分出退勤スプレッドシートを自動作成・DB登録（堅牢版） ==========
+// 旧仕様: 25日9:05ちょうどの1分間のみ → サーバー再起動で取りこぼしリスクあり
+// 新仕様: 25-31日の毎時5分 + サーバー起動時にも実行 → 取りこぼし防止
 function scheduleNextMonthTimesheetSheet() {
   const checkInterval = 60 * 1000; // 1分ごとにチェック
   let lastCreatedMonth = "";
-  setInterval(async () => {
+
+  // 翌月分の出退勤シートを作成する処理（cron + 起動時の両方から呼ぶ）
+  async function tryCreateNextMonthTimesheet() {
     const now = new Date();
-    const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000); // UTC+9（JST）
-    const h = jstNow.getUTCHours();
-    const m = jstNow.getUTCMinutes();
-    const d = jstNow.getUTCDate();
+    const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
     const currentYear = jstNow.getUTCFullYear();
     const currentMonth = jstNow.getUTCMonth() + 1;
     const monthKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
-    // 毎月25日 9:05（JST）に1回だけ実行（アルコールチェックシートと5分ずらす）
-    if (d === 25 && h === 9 && m === 5 && lastCreatedMonth !== monthKey) {
-      lastCreatedMonth = monthKey;
-      try {
-        // 翌月の年・月を計算
-        const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
-        const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
-        const nextMonthLabel = `${nextYear}年${nextMonth}月`;
 
-        // 既に登録済みかチェック
-        const { getTimesheetSpreadsheets } = await import("../db");
-        const existing = await getTimesheetSpreadsheets(nextYear, nextMonth);
-        if (existing && existing.length > 0) {
-          console.log(`[TimesheetSheetAuto] ${nextMonthLabel}分は既に登録済みのためスキップ`);
-          return;
-        }
+    // 同じ月で一度処理済みならスキップ
+    if (lastCreatedMonth === monthKey) return;
 
-        // 累月スプレッドシートを自動作成
-        const { autoCreateTimesheetSpreadsheet } = await import("../routers");
-        const newSpreadsheetId = await autoCreateTimesheetSpreadsheet(nextYear, nextMonth);
-        if (!newSpreadsheetId) {
-          console.error(`[TimesheetSheetAuto] ${nextMonthLabel}分のスプレッドシート作成に失敗しました`);
-          return;
-        }
+    // 翌月の年・月を計算
+    const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+    const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
+    const nextMonthLabel = `${nextYear}年${nextMonth}月`;
 
-        console.log(`[TimesheetSheetAuto] ${nextMonthLabel}分のスプレッドシートを作成しました: ${newSpreadsheetId}`);
-        // 管理者に通知
-        await notifyOwner({
-          title: `📊 ${nextMonthLabel}出退勤シート自動作成完了`,
-          content: `${nextMonthLabel}分の出退勤記録スプレッドシートを自動作成しました。\nスプレッドシートID: ${newSpreadsheetId}\nhttps://docs.google.com/spreadsheets/d/${newSpreadsheetId}`,
-        });
-      } catch (e) {
-        console.error(`[TimesheetSheetAuto] エラー:`, e);
+    try {
+      // 既に登録済みかチェック
+      const { getTimesheetSpreadsheets } = await import("../db");
+      const existing = await getTimesheetSpreadsheets(nextYear, nextMonth);
+      if (existing && existing.length > 0) {
+        console.log(`[TimesheetSheetAuto] ${nextMonthLabel}分は既に登録済みのためスキップ`);
+        lastCreatedMonth = monthKey; // その月の処理は完了とみなす
+        return;
       }
+
+      console.log(`[TimesheetSheetAuto] ${nextMonthLabel}分のスプレッドシートを自動作成します`);
+
+      // 翌月スプレッドシートを自動作成
+      const { autoCreateTimesheetSpreadsheet } = await import("../routers");
+      const newSpreadsheetId = await autoCreateTimesheetSpreadsheet(nextYear, nextMonth);
+      if (!newSpreadsheetId) {
+        console.error(`[TimesheetSheetAuto] ${nextMonthLabel}分のスプレッドシート作成に失敗しました`);
+        return;
+      }
+
+      console.log(`[TimesheetSheetAuto] ${nextMonthLabel}分のスプレッドシートを作成しました: ${newSpreadsheetId}`);
+      lastCreatedMonth = monthKey; // 成功したらフラグセット
+
+      // 管理者に通知
+      await notifyOwner({
+        title: `📊 ${nextMonthLabel}出退勤シート自動作成完了`,
+        content: `${nextMonthLabel}分の出退勤記録スプレッドシートを自動作成しました。\nスプレッドシートID: ${newSpreadsheetId}\nhttps://docs.google.com/spreadsheets/d/${newSpreadsheetId}`,
+      });
+    } catch (e) {
+      console.error(`[TimesheetSheetAuto] エラー:`, e);
+    }
+  }
+
+  // 25-31日の毎時5分にチェック（アルコールシートと5分ずらす）
+  setInterval(async () => {
+    const now = new Date();
+    const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    const m = jstNow.getUTCMinutes();
+    const d = jstNow.getUTCDate();
+
+    // 25-31日の毎時5分に実行
+    if (d >= 25 && d <= 31 && m === 5) {
+      await tryCreateNextMonthTimesheet();
     }
   }, checkInterval);
 
-  console.log("[TimesheetSheetAuto] 毎月25日9:05の翌月出退勤スプレッドシート自動作成スケジューラーを開始しました");
+  // サーバー起動時にも一度実行（25-31日なら）
+  (async () => {
+    const now = new Date();
+    const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    const d = jstNow.getUTCDate();
+    if (d >= 25 && d <= 31) {
+      console.log(`[TimesheetSheetAuto] サーバー起動時チェック（${d}日）`);
+      await tryCreateNextMonthTimesheet();
+    }
+  })();
+
+  console.log("[TimesheetSheetAuto] 25-31日の毎時5分・サーバー起動時に翌月出退勤スプレッドシート自動作成スケジューラーを開始しました");
 }
 scheduleNextMonthTimesheetSheet();
 
