@@ -51,6 +51,7 @@ const VISIT_TASKS_BEFORE_DEFAULT = [
 type Team = "身体" | "天理" | "郡山北部" | "郡山南部";
 
 type VisitSlotData = {
+  slotKey: string;
   team: Team | "";
   patientId: number | null;
   patientName: string;
@@ -434,7 +435,7 @@ const parsed = (typeof dbCardStateRaw === "string" ? JSON.parse(dbCardStateRaw) 
         dbSaveTimerRef.current = setTimeout(() => {
           saveCardStateMutation.mutate({
             dateKey: todayStr,
-            slotIndex,
+            slotKey: slotData.slotKey,
             cardStateJson: JSON.stringify(state),
           });
         }, 1000);
@@ -516,7 +517,7 @@ const handleClearPatient = () => {
         // DB からも削除（端末跨ぎ同期）
         resetCardStateMutation.mutate({
           dateKey: todayStr,
-          slotIndex,
+          slotKey: slotData.slotKey,
         });
       } catch {}
     }
@@ -587,7 +588,7 @@ const handleClearPatient = () => {
       // DB からも削除（端末跨ぎ同期）
       resetCardStateMutation.mutate({
         dateKey: todayStr,
-        slotIndex,
+        slotKey: slotData.slotKey,
       });
     } catch {}
     toast.success(`カード${slotIndex + 1}をリセットしました`);

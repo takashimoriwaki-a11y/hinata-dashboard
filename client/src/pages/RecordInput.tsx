@@ -204,6 +204,7 @@ const MAX_SLOTS = 8;
 const CONTINUOUS_SILENCE_TIMEOUT_MS = 10000; // 無音10秒で自動停止
 
 type VisitSlotData = {
+  slotKey: string;
   team: Team | "";
   patientId: number | null;
   patientName: string;
@@ -213,7 +214,7 @@ type VisitSlotData = {
   skipNextVisit?: boolean;
 };
 
-const DEFAULT_SLOT: VisitSlotData = { team: "", patientId: null, patientName: "", nextVisitDate: "", nextVisitTime: "", skipNextVisit: false };
+const DEFAULT_SLOT: VisitSlotData = { slotKey: "", team: "", patientId: null, patientName: "", nextVisitDate: "", nextVisitTime: "", skipNextVisit: false };
 
 const SLOTS_STORAGE_KEY = "hinata_visit_slots";
 
@@ -221,6 +222,13 @@ const SLOTS_STORAGE_KEY = "hinata_visit_slots";
 // タブ切り替え後に再度DBから古いデータが読み込まれる問題を防ぐ
 let _dbSlotLoadedDate = ""; // 読み込み済みの日付キー（日付が変わったときのみ再読み込みを許可）
 
+/** スロット用のuuidを生成する */
+function generateSlotKey(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
 /** JSTの今日の日付を YYYY-MM-DD 形式で返す */
 function getTodayJstKey(): string {
   const now = new Date();
@@ -295,6 +303,7 @@ export default function RecordInput() {
       dailyAssignments.assignments.forEach((a) => {
         if (a.slotIndex >= 0 && a.slotIndex < MAX_SLOTS) {
           newSlots[a.slotIndex] = {
+            slotKey: newSlots[a.slotIndex]?.slotKey || generateSlotKey(),
             team: (a.team as Team) || "",
             patientId: a.patientId,
             patientName: a.patientName,
@@ -338,9 +347,10 @@ export default function RecordInput() {
       try {
         const parsed = JSON.parse(dbSlotData.slotsJson);
         if (Array.isArray(parsed) && parsed.length === MAX_SLOTS) {
-          setSlots(parsed);
-          setSlotSearchQueries(parsed.map((s: VisitSlotData) => s.patientName || ""));
-          localStorage.setItem(SLOTS_STORAGE_KEY, dbSlotData.slotsJson);
+          const withKeys = parsed.map((s: VisitSlotData) => ({ ...s, slotKey: s.slotKey || generateSlotKey() }));
+            setSlots(withKeys);
+          setSlotSearchQueries(withKeys.map((s: VisitSlotData) => s.patientName || ""));
+          localStorage.setItem(SLOTS_STORAGE_KEY, JSON.stringify(withKeys));
         }
       } catch {}
     }
@@ -1384,7 +1394,7 @@ export default function RecordInput() {
         <div key={`${cardResetKey}-${index}`} id={`visit-check-card-${index}`}>
           <VisitSlotCard
             slotIndex={index}
-            dbCardStateRaw={cardStateMap[index] ?? null}
+            dbCardStateRaw={cardStateMap[slot.slotKey] ?? null}
             slotData={slot}
             onSlotChange={handleSlotChange}
             selectedPromptBody={selectedPromptBody}
