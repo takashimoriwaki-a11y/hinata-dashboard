@@ -1004,8 +1004,8 @@ const handleClearPatient = () => {
               </div>
             </div>
 
-            {/* skipNextVisit時の説明枠（日時が未入力の場合のみ表示） */}
-            {slotData.skipNextVisit && !nextVisitDate && (
+            {/* skipNextVisit時の説明枠 */}
+            {slotData.skipNextVisit && (
               <div className="text-xs px-3 py-2 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300">
                 ℹ️ 日時変更は「連絡・予定」から行います。次回訪問日時の入力・スプレッドシート転記はスキップされます。
               </div>
@@ -1014,7 +1014,7 @@ const handleClearPatient = () => {
             {/* 日付・時刻 + リセットボタン（skipNextVisit時は非表示） */}
             {!slotData.skipNextVisit && (
             <div className="flex gap-2 items-center">
-              <div className="relative flex-1 min-w-0 overflow-hidden">
+              <div className="relative flex-1 min-w-0">
                 <Input
                   type="date"
                   className="text-sm w-full"
