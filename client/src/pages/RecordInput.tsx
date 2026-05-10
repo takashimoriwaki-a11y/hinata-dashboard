@@ -237,6 +237,25 @@ function getTodayJstKey(): string {
 }
 
 export default function RecordInput() {
+  // === デバイス制限：訪問入力は iPhone/Android のみ許可 ===
+  const isMobile = useMemo(() => {
+    if (typeof navigator === "undefined") return true; // SSR保険
+    return /iPhone|Android/i.test(navigator.userAgent);
+  }, []);
+
+  if (!isMobile) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center gap-4">
+        <div className="text-5xl">📱</div>
+        <h2 className="text-xl font-bold">iPhoneで開いてください</h2>
+        <p className="text-muted-foreground text-sm leading-relaxed">
+          訪問入力はiPhone専用です。<br />
+          現在のデバイスでは閲覧・操作はできません。<br />
+          iPhoneのChromeまたはSafariでアクセスしてください。
+        </p>
+      </div>
+    );
+  }
   const { user } = useAuth();
   const utils = trpc.useUtils();
 
