@@ -2952,20 +2952,20 @@ export async function deleteScheduleNote(screenshotId: number) {
 }
 // ========== 訪問カード状態保存（端末跨ぎ同期用） ==========
 /**
- * 訪問カードの状態をupsertする（ユーザーID+日付+スロット番号で一意）
+ * 訪問カードの状態をupsertする（ユーザーID+日付+スロットキーで一意）
  * チェック・メモ・バイタル・完了等を端末跨ぎで同期する保存先
  * @param userId ユーザーID
  * @param dateKey 日付（YYYY-MM-DD形式、JSTベース）
- * @param slotIndex スロット番号（0〜7）
+ * @param slotKey スロットキー（uuid、利用者追加時に生成）
  * @param cardStateJson CardSavedState型のJSON文字列
  */
-export async function upsertVisitCardState(userId: number, dateKey: string, slotIndex: number, cardStateJson: string): Promise<void> {
+export async function upsertVisitCardState(userId: number, dateKey: string, slotKey: string, cardStateJson: string): Promise<void> {
   const db = await getDb();
   if (!db) return;
   await db.insert(visitCardStates).values({
     userId,
     dateKey,
-    slotIndex,
+    slotKey,
     cardStateJson,
   }).onDuplicateKeyUpdate({
     set: { cardStateJson, updatedAt: new Date() },
@@ -2976,10 +2976,10 @@ export async function upsertVisitCardState(userId: number, dateKey: string, slot
  * 訪問カードの状態を取得する
  * @param userId ユーザーID
  * @param dateKey 日付（YYYY-MM-DD形式、JSTベース）
- * @param slotIndex スロット番号（0〜7）
+ * @param slotKey スロットキー（uuid）
  * @returns cardStateJson文字列、または null
  */
-export async function getVisitCardState(userId: number, dateKey: string, slotIndex: number): Promise<string | null> {
+export async function getVisitCardState(userId: number, dateKey: string, slotKey: string): Promise<string | null> {
   const db = await getDb();
   if (!db) return null;
   const rows = await db.select({ cardStateJson: visitCardStates.cardStateJson })
@@ -2987,7 +2987,7 @@ export async function getVisitCardState(userId: number, dateKey: string, slotInd
     .where(and(
       eq(visitCardStates.userId, userId),
       eq(visitCardStates.dateKey, dateKey),
-      eq(visitCardStates.slotIndex, slotIndex),
+      eq(visitCardStates.slotKey, slotKey),
     ))
     .limit(1);
   return rows[0]?.cardStateJson ?? null;
@@ -2996,15 +2996,15 @@ export async function getVisitCardState(userId: number, dateKey: string, slotInd
  * 訪問カードの全 slot の状態を一括取得する（端末跨ぎ同期用）
  * @param userId ユーザーID
  * @param dateKey 日付（YYYY-MM-DD形式、JSTベース）
- * @returns slotIndex => cardStateJson のマップ
+ * @returns slotKey => cardStateJson のマップ
  */
 export async function getAllVisitCardStates(
   userId: number, dateKey: string
-): Promise<Record<number, string>> {
+): Promise<Record<string, string>> {
   const db = await getDb();
   if (!db) return {};
   const rows = await db.select({
-    slotIndex: visitCardStates.slotIndex,
+    slotKey: visitCardStates.slotKey,
     cardStateJson: visitCardStates.cardStateJson,
   })
     .from(visitCardStates)
@@ -3012,9 +3012,9 @@ export async function getAllVisitCardStates(
       eq(visitCardStates.userId, userId),
       eq(visitCardStates.dateKey, dateKey)
     ));
-  const map: Record<number, string> = {};
+  const map: Record<string, string> = {};
   for (const row of rows) {
-    map[row.slotIndex] = row.cardStateJson;
+    map[row.slotKey] = row.cardStateJson;
   }
   return map;
 }
@@ -3022,16 +3022,16 @@ export async function getAllVisitCardStates(
  * 訪問カードの状態を削除する（リセット用）
  * @param userId ユーザーID
  * @param dateKey 日付（YYYY-MM-DD形式、JSTベース）
- * @param slotIndex スロット番号（0〜7）
+ * @param slotKey スロットキー（uuid）
  */
-export async function deleteVisitCardState(userId: number, dateKey: string, slotIndex: number): Promise<void> {
+export async function deleteVisitCardState(userId: number, dateKey: string, slotKey: string): Promise<void> {
   const db = await getDb();
   if (!db) return;
   await db.delete(visitCardStates)
     .where(and(
       eq(visitCardStates.userId, userId),
       eq(visitCardStates.dateKey, dateKey),
-      eq(visitCardStates.slotIndex, slotIndex),
+      eq(visitCardStates.slotKey, slotKey),
     ));
 }
 /**

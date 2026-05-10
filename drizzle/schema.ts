@@ -1332,12 +1332,12 @@ export const visitCardStates = mysqlTable("visit_card_states", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
   dateKey: varchar("dateKey", { length: 10 }).notNull(),
-  slotIndex: int("slotIndex").notNull(),
+  slotKey: varchar("slotKey", { length: 64 }).notNull(),
   cardStateJson: mediumtext("cardStateJson").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({
-  uniqueUserDateSlot: unique("unique_user_date_slot_card").on(table.userId, table.dateKey, table.slotIndex),
+  uniqueUserDateSlot: unique("unique_user_date_slot_card").on(table.userId, table.dateKey, table.slotKey),
 }));
 export type VisitCardState = typeof visitCardStates.$inferSelect;
 export type InsertVisitCardState = typeof visitCardStates.$inferInsert;

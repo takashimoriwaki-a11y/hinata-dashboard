@@ -8060,12 +8060,12 @@ ${todayStr}
       save: protectedProcedure
         .input(z.object({
           dateKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-          slotIndex: z.number().int().min(0).max(7),
+          slotKey: z.string().min(1).max(64),
           cardStateJson: z.string(),
         }))
         .mutation(async ({ ctx, input }) => {
           const { upsertVisitCardState } = await import("./db");
-          await upsertVisitCardState(Number(ctx.user.id), input.dateKey, input.slotIndex, input.cardStateJson);
+          await upsertVisitCardState(Number(ctx.user.id), input.dateKey, input.slotKey, input.cardStateJson);
           broadcastEvent("visitCardStates");
           return { ok: true };
         }),
@@ -8073,46 +8073,46 @@ ${todayStr}
       load: protectedProcedure
         .input(z.object({
           dateKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-          slotIndex: z.number().int().min(0).max(7),
+          slotKey: z.string().min(1).max(64),
         }))
         .query(async ({ ctx, input }) => {
           const { getVisitCardState } = await import("./db");
-          const cardStateJson = await getVisitCardState(Number(ctx.user.id), input.dateKey, input.slotIndex);
+          const cardStateJson = await getVisitCardState(Number(ctx.user.id), input.dateKey, input.slotKey);
           return { cardStateJson };
         }),
-        /** 訪問カードの全 slot の状態をDBから一括取得する（端末跨ぎ同期用） */
-    loadAll: protectedProcedure
-      .input(z.object({
-        dateKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      }))
-      .query(async ({ ctx, input }) => {
-        const { getAllVisitCardStates } = await import("./db");
-        const stateMap = await getAllVisitCardStates(Number(ctx.user.id), input.dateKey);
-        return { stateMap };
-      }),
+      /** 訪問カードの全 slot の状態をDBから一括取得する（端末跨ぎ同期用） */
+      loadAll: protectedProcedure
+        .input(z.object({
+          dateKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        }))
+        .query(async ({ ctx, input }) => {
+          const { getAllVisitCardStates } = await import("./db");
+          const stateMap = await getAllVisitCardStates(Number(ctx.user.id), input.dateKey);
+          return { stateMap };
+        }),
       /** 訪問カードの状態をDBから削除する（リセット用） */
       reset: protectedProcedure
         .input(z.object({
           dateKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-          slotIndex: z.number().int().min(0).max(7),
+          slotKey: z.string().min(1).max(64),
         }))
         .mutation(async ({ ctx, input }) => {
           const { deleteVisitCardState } = await import("./db");
-          await deleteVisitCardState(Number(ctx.user.id), input.dateKey, input.slotIndex);
+          await deleteVisitCardState(Number(ctx.user.id), input.dateKey, input.slotKey);
           broadcastEvent("visitCardStates");
           return { ok: true };
         }),
-        /** 訪問カードの状態をDBから全削除する（全リセット用） */
-    resetAll: protectedProcedure
-      .input(z.object({
-        dateKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      }))
-      .mutation(async ({ ctx, input }) => {
-        const { deleteAllVisitCardStates } = await import("./db");
-        await deleteAllVisitCardStates(Number(ctx.user.id), input.dateKey);
-        broadcastEvent("visitCardStates");
-        return { ok: true };
-      }),
+      /** 訪問カードの状態をDBから全削除する（全リセット用） */
+      resetAll: protectedProcedure
+        .input(z.object({
+          dateKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        }))
+        .mutation(async ({ ctx, input }) => {
+          const { deleteAllVisitCardStates } = await import("./db");
+          await deleteAllVisitCardStates(Number(ctx.user.id), input.dateKey);
+          broadcastEvent("visitCardStates");
+          return { ok: true };
+        }),
     }),
   // ========== スケジュールメモ ==========
   scheduleNotes: router({
