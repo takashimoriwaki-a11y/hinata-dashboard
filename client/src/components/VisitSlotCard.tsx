@@ -360,6 +360,7 @@ export function VisitSlotCard({ slotIndex, slotData, dbCardStateRaw, onSlotChang
   // DB に状態がない（リセット直後など）→ localStorageの残骸を削除
   // hasLoadedFromDbはtrueにしない → 自動保存をスキップさせ続ける
   try { localStorage.removeItem(getCardStorageKey(slotIndex)); } catch {}
+  setHasLoadedFromDb(true);
   return;
 }
     try {
