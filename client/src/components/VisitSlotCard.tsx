@@ -1013,8 +1013,8 @@ const handleClearPatient = () => {
 
             {/* 日付・時刻 + リセットボタン（skipNextVisit時は非表示） */}
             {!slotData.skipNextVisit && (
-            <div className="flex gap-2 items-center">
-              <div className="relative flex-1 min-w-0">
+            <div className="flex flex-col gap-2">
+              <div className="relative flex-1 min-w-0 overflow-hidden">
                 <Input
                   type="date"
                   className="text-sm w-full"
