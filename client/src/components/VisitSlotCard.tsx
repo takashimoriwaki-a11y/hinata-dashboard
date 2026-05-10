@@ -442,7 +442,7 @@ const parsed = (typeof dbCardStateRaw === "string" ? JSON.parse(dbCardStateRaw) 
         }, 1000);
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slotIndex, todayStr, tasksBefore, specialNote, nextVisitDate, nextVisitTime, notifiedTo, notifiedToOther, notifyMethod, notifyMethodOther, completed, exported, vitals, zestChecked]);
+  }, [slotIndex, todayStr, tasksBefore, specialNote, nextVisitDate, nextVisitTime, notifiedTo, notifiedToOther, notifyMethod, notifyMethodOther, completed, exported, vitals, zestChecked, skipNextVisit]);
 
   // 状態変更時に自動保存
   useEffect(() => {
