@@ -266,7 +266,31 @@ export default function RecordInput() {
   const [slots, setSlots] = useState<VisitSlotData[]>(() =>
     Array.from({ length: MAX_SLOTS }, () => ({ ...DEFAULT_SLOT }))
   );
+// マウント時にlocalStorageから復元（タブ切り替え時の状態保持）
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(SLOTS_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed) || parsed.length !== MAX_SLOTS) return;
+      if (parsed.every((s: VisitSlotData) => !s.patientName)) return;
+      setSlots(parsed.map((s: VisitSlotData) => ({
+        ...DEFAULT_SLOT,
+        ...s,
+        slotKey: s.slotKey || generateSlotKey(),
+      })));
+    } catch {}
+  }, []);
 
+  // slots変更時にlocalStorage保存（タブ切り替え時の状態保持）
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (slots.every((s) => !s.patientName)) return;
+    try {
+      localStorage.setItem(SLOTS_STORAGE_KEY, JSON.stringify(slots));
+    } catch {}
+  }, [slots]);
   // 🔧 BUGFIX: DB読み込み完了フラグ（マウント時の空配列上書き防止）
   const dbLoadedRef = useRef(false);
   const dbSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
