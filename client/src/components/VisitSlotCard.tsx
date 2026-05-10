@@ -1027,15 +1027,6 @@ const handleClearPatient = () => {
                   }}
                   style={{ colorScheme: "light dark" }}
                 />
-                {/* 日付の日本語表示オーバーレイ（iOSでのロケール依存表示を回避） */}
-                {nextVisitDate && (
-                  <span className="absolute inset-0 flex items-center pl-3 pr-8 text-sm text-foreground pointer-events-none bg-background rounded-md border border-input">
-                    {(() => {
-                      const [y, m, d] = nextVisitDate.split("-");
-                      return `${parseInt(m)}月${parseInt(d)}日`;
-                    })()}
-                  </span>
-                )}
               </div>
               <div className="relative w-28">
                 <button
