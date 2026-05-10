@@ -424,7 +424,7 @@ export default function RecordInput() {
   const handleSlotChange = (index: number, data: Partial<VisitSlotData>) => {
     setSlots(prev => {
       const next = [...prev];
-      next[index] = { ...next[index], ...data };
+      next[index] = { ...next[index], ...data, slotKey: next[index].slotKey || generateSlotKey() };
       return next;
     });
   };
