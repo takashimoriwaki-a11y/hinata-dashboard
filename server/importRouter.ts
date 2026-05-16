@@ -167,7 +167,8 @@ export const importRouter = router({
     .mutation(async ({ input }) => {
       requireImportSecret(input);
 
-      const { db } = await import("./db");
+      const { getDb } = await import("./db");
+    const db = await getDb();
       const { irregularSchedules, patients } = await import("../drizzle/schema");
 
       // 利用者マスタをプリロード
@@ -346,7 +347,8 @@ export const importRouter = router({
     .mutation(async ({ input }) => {
       requireImportSecret(input);
 
-      const { db } = await import("./db");
+      const { getDb } = await import("./db");
+    const db = await getDb();
       const { tasks, patients, users } = await import("../drizzle/schema");
 
       const allPatients = await db.select().from(patients);
