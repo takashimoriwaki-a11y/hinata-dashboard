@@ -1,3 +1,4 @@
+import { importRouter } from "./importRouter";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { google } from "googleapis";
 
@@ -8114,7 +8115,10 @@ ${todayStr}
           return { ok: true };
         }),
     }),
-  // ========== スケジュールメモ ==========
+　　　// ========== データ移行（2026/5/18 運用開始時、不要になり次第削除可） ==========
+  importData: importRouter,
+
+    // ========== スケジュールメモ ==========
   scheduleNotes: router({
     /** 複数スクリーンショットIDのメモを一括取得する */
     getByIds: protectedProcedure
