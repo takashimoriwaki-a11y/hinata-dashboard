@@ -54,14 +54,22 @@ type EventDestination =
   | { kind: "schedule_change"; changeType: ChangeType }
   | { kind: "skip"; reason: string };
 
+// 施設名キーワード（個別利用者ではない訪問先）
+const FACILITY_KEYWORDS = /ふきのとう|ハナミズキ|サントアース|こもれび|ひかりの丘|日の出/;
+
 /**
  * カレンダーイベントの行き先を判定する
  */
 function routeEvent(calendarName: string, summary: string): EventDestination {
   const title = summary || "";
 
-  // 施設訪問パターン（個別利用者ではない）→ 除外
+  // 施設訪問パターン①: 日の出検温N棟（明示）
   if (/日の出検温|検温\s*\d+棟/.test(title)) {
+    return { kind: "skip", reason: "施設訪問のため対象外（個別利用者ではない）" };
+  }
+
+  // 施設訪問パターン②: 施設名キーワードを含むが、利用者名（様/さん）を含まない
+  if (FACILITY_KEYWORDS.test(title) && !/様|さん/.test(title)) {
     return { kind: "skip", reason: "施設訪問のため対象外（個別利用者ではない）" };
   }
 
@@ -72,20 +80,30 @@ function routeEvent(calendarName: string, summary: string): EventDestination {
 
   // 訪問予定カレンダー → scheduleChanges
   if (calendarName.includes("訪問予定")) {
-    // 振替を含む（「○日に振替」「○日分振替」など）→ visit_change
+    // 振替を含む → visit_change
     if (/振替|振り替え|振り換え/.test(title)) {
       return { kind: "schedule_change", changeType: "visit_change" };
     }
     // 訪問なし／キャンセル → visit_cancel
-    if (/訪問なし|キャンセル|中止/.test(title)) {
+    // 「訪問なし」「キャンセル」「中止」 or 「様なし」（「あり」を含まない）
+    if (
+      /訪問なし|キャンセル|中止/.test(title) ||
+      (/様[\s　]?なし/.test(title) && !/あり/.test(title))
+    ) {
       return { kind: "schedule_change", changeType: "visit_cancel" };
     }
-    // 訪問あり／追加 → visit_add
-    if (/訪問あり|追加訪問|訪問追加|\d+時訪問|時訪問/.test(title)) {
+    // 訪問あり系 → visit_add（強化版）
+    if (
+      /訪問あり|追加訪問|訪問追加/.test(title) ||
+      /\d+時訪問|時訪問/.test(title) ||
+      /様[\s　]?あり/.test(title) || // 「○○様あり16時」
+      /あり[\s　]?\d+時/.test(title) || // 「あり16時」
+      /面談|相談|来所/.test(title) // 「○○様面談」「相談」
+    ) {
       return { kind: "schedule_change", changeType: "visit_add" };
     }
-    // フォールバック：訪問予定カレンダーで判定不能なら visit_add 扱い（タイトルに利用者名様+訪問の組み合わせ）
-    if (/様.*訪問|訪問.*様/.test(title)) {
+    // フォールバック：利用者名と訪問/時間どちらか含む
+    if (/様.*訪問|訪問.*様|様.*\d+時|\d+時.*様/.test(title)) {
       return { kind: "schedule_change", changeType: "visit_add" };
     }
     return {
@@ -146,10 +164,21 @@ function extractNameCandidate(text: string): string | null {
   return null;
 }
 
+// ============================================================================
+// 利用者名エイリアス（Googleカレンダー側の誤字 → patientsマスタの正しい表記）
+// ============================================================================
+const NAME_ALIASES: Record<string, string> = {
+  "竹林虎太郎": "竹林虎太朗",
+  "竹林琥太郎": "竹林虎太朗",
+  "松吉友子": "松末友子",
+};
+
+function applyAlias(name: string): string {
+  return NAME_ALIASES[name] || name;
+}
+
 /**
  * テキストから利用者を解決する（多段戦略）
- * 1. patientMap の name で部分一致
- * 2. 「○○様」「○○さん」候補名 → patients の name に対して前方一致
  */
 function resolvePatient(
   text: string,
@@ -157,27 +186,34 @@ function resolvePatient(
 ): { name: string; team: string; id: number; candidate?: string } | null {
   if (!text) return null;
 
+  // 戦略0: エイリアス Map のキーがテキストに含まれていれば、正しい名前に置換した上で探索
+  let workingText = text;
+  for (const wrongName of Object.keys(NAME_ALIASES)) {
+    if (workingText.includes(wrongName)) {
+      workingText = workingText.split(wrongName).join(NAME_ALIASES[wrongName]);
+    }
+  }
+
   // 戦略1: patientMap の登録名で部分一致探索（長い名前優先）
   const names = Array.from(patientMap.keys()).sort((a, b) => b.length - a.length);
   for (const name of names) {
-    if (text.includes(name)) {
+    if (workingText.includes(name)) {
       const info = patientMap.get(name)!;
       return { name, team: info.team, id: info.id };
     }
   }
 
-  // 戦略2: 「○○様/さん」候補名抽出 → patients に対して fuzzy 突合
-  const candidate = extractNameCandidate(text);
-  if (candidate) {
+  // 戦略2: 「○○様/さん」候補名抽出 → エイリアス変換 → patients に対して fuzzy 突合
+  const rawCandidate = extractNameCandidate(text);
+  if (rawCandidate) {
+    const candidate = applyAlias(rawCandidate);
     const candNorm = candidate.replace(/\s+/g, "");
-    // 候補名と patients の名前が一方向の前方一致
     for (const name of names) {
       const nameNorm = name.replace(/\s+/g, "");
       if (nameNorm === candNorm) {
         const info = patientMap.get(name)!;
         return { name, team: info.team, id: info.id, candidate };
       }
-      // 候補名が patients名の前方一致 or 逆（漢字違い1文字差は許さない厳格モード）
       if (
         candNorm.length >= 2 &&
         nameNorm.length >= 2 &&
@@ -187,16 +223,12 @@ function resolvePatient(
         return { name, team: info.team, id: info.id, candidate };
       }
     }
-    // 戦略3: マスタ未登録の候補名を返す（呼び出し側で扱う）
     return null;
   }
 
   return null;
 }
 
-/**
- * 候補名のみ抽出（マスタにないがタイトルから取れた利用者名）
- */
 function extractCandidateOnly(text: string): string | null {
   return extractNameCandidate(text);
 }
@@ -234,11 +266,6 @@ function extractUserName(
 // 日時組み立て（fromDatetime/toDatetime 用）
 // ============================================================================
 
-/**
- * startDate + startTime → ISO風文字列に組み立てる
- * 例: "2026-05-18" + "14:00" → "2026-05-18T14:00:00"
- * 終日: "2026-05-18T00:00:00"
- */
 function buildDateTime(date: string, time: string | null | undefined): string {
   if (time) {
     return `${date}T${time}:00`;
@@ -288,7 +315,6 @@ export const importRouter = router({
         "../drizzle/schema"
       );
 
-      // 利用者マスタをプリロード
       const allPatients = await db.select().from(patients);
       const patientMap = buildPatientNameMap(allPatients);
 
@@ -366,7 +392,6 @@ export const importRouter = router({
 
         // ステップ4: 行き先別の処理
         if (dest.kind === "irregular") {
-          // 重複チェック（irregularSchedules）
           const existing = await db
             .select()
             .from(irregularSchedules)
@@ -420,28 +445,22 @@ export const importRouter = router({
             scheduleType: dest.scheduleType,
           });
         } else if (dest.kind === "schedule_change") {
-          // scheduleChanges に投入
           const eventDateTime = buildDateTime(ev.startDate, ev.startTime);
 
-          // changeType に応じた fromDatetime/toDatetime の設定
           let fromDatetime: string | null = null;
           let toDatetime: string | null = null;
 
           if (dest.changeType === "visit_add") {
-            // 訪問追加：変更前なし、追加された日時が toDatetime
             fromDatetime = null;
             toDatetime = eventDateTime;
           } else if (dest.changeType === "visit_cancel") {
-            // 訪問キャンセル：キャンセルされる元日時 = カレンダー日時
             fromDatetime = eventDateTime;
             toDatetime = null;
           } else if (dest.changeType === "visit_change") {
-            // 訪問日時変更：振替元 = カレンダー日時、振替先は手動補正
             fromDatetime = eventDateTime;
-            toDatetime = null; // タイトルから抽出困難なため、reasonに元情報を残す
+            toDatetime = null;
           }
 
-          // 重複チェック（scheduleChanges、changeType + patientName + 該当日付）
           const existing = await db
             .select()
             .from(scheduleChanges)
@@ -451,7 +470,7 @@ export const importRouter = router({
                 eq(scheduleChanges.changeType, dest.changeType),
               ),
             )
-            .limit(50); // 同患者の同種変更は複数ありうるので、reason一致で判定
+            .limit(50);
 
           const isDup = existing.some(
             (e: any) =>
@@ -509,7 +528,6 @@ export const importRouter = router({
         }
       }
 
-      // dryRun でなければ実際に投入
       if (!input.dryRun) {
         for (const row of irregularToInsert) {
           await db.insert(irregularSchedules).values(row);
