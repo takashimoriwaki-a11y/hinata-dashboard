@@ -551,6 +551,153 @@ export const importRouter = router({
     }),
 
   // Chat タスク一括投入
+  // ============================================================================
+  // 移行データを取得（スプレッドシート同期用）
+  // ============================================================================
+  getMigrationData: publicProcedure
+    .input(z.object({ secret: z.string() }))
+    .mutation(async ({ input }) => {
+      requireImportSecret(input);
+
+      const { getDb } = await import("./db");
+      const db = await getDb();
+      const { irregularSchedules, scheduleChanges } = await import(
+        "../drizzle/schema"
+      );
+
+      // changeType -> 日本語表記マップ
+      const changeTypeMap: Record<string, string> = {
+        visit_change: "訪問日時変更",
+        visit_cancel: "訪問キャンセル",
+        visit_add: "訪問追加",
+        meeting_add: "会議追加",
+        meeting_change: "会議変更",
+        schedule_visit: "受診",
+        schedule_short_stay: "ショートステイ",
+        schedule_special_instruction: "特別指示書",
+        schedule_hospitalization: "入院",
+        schedule_discharge: "退院",
+        schedule_new_contract: "新規契約・面談",
+        schedule_visit_doctor: "訪問診療同席",
+      };
+
+      // ヘルパー関数
+      const formatDateTime = (dt: Date | null | undefined): string => {
+        if (!dt) return "";
+        const d = new Date(dt);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        const hh = String(d.getHours()).padStart(2, "0");
+        const mi = String(d.getMinutes()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+      };
+      const formatIsoDt = (s: string | null | undefined): string => {
+        if (!s) return "";
+        return s.replace("T", " ").slice(0, 16);
+      };
+      const cleanText = (s: string | null | undefined): string => {
+        if (!s) return "";
+        return s.replace(/[\n\r\t]+/g, " ").trim();
+      };
+      const joinDateTime = (
+        date: string | null | undefined,
+        time: string | null | undefined,
+      ): string => {
+        if (!date) return "";
+        return time ? `${date} ${time}` : date;
+      };
+
+      // scheduleChanges 取得
+      const changes = await db
+        .select()
+        .from(scheduleChanges)
+        .where(eq(scheduleChanges.createdByName, "森脇崇（カレンダー移行）"));
+
+      // irregularSchedules 取得
+      const irregulars = await db
+        .select()
+        .from(irregularSchedules)
+        .where(
+          eq(irregularSchedules.createdByName, "森脇崇（カレンダー移行）"),
+        );
+
+      // team別グルーピング用
+      const grouped: Record<string, any[][]> = {
+        身体: [],
+        天理: [],
+        郡山北部: [],
+        郡山南部: [],
+      };
+
+      // scheduleChanges を変換
+      for (const c of changes) {
+        const row = [
+          formatDateTime(c.createdAt),
+          c.createdByName || "",
+          changeTypeMap[c.changeType] || c.changeType,
+          c.team,
+          c.patientName || "",
+          formatIsoDt(c.fromDatetime),
+          formatIsoDt(c.toDatetime),
+          c.staffBefore || "",
+          c.staffAfter || "",
+          c.meetingName || "",
+          c.meetingStaff || "",
+          cleanText(c.reason),
+          c.scheduleFacility || "",
+          c.schedulePostDischargeEndDate || "",
+          c.scheduleTargetName || "",
+          c.scheduleStaff || "",
+        ];
+        if (grouped[c.team]) {
+          grouped[c.team].push(row);
+        }
+      }
+
+      // irregularSchedules を変換
+      for (const ir of irregulars) {
+        const row = [
+          formatDateTime(ir.createdAt),
+          ir.createdByName || "",
+          ir.scheduleType,
+          ir.team,
+          ir.patientName,
+          joinDateTime(ir.startDate, ir.startTime),
+          ir.endDate ? joinDateTime(ir.endDate, ir.endTime) : "",
+          "",
+          "",
+          "",
+          "",
+          cleanText(ir.notes),
+          ir.facilityName || "",
+          ir.postDischargeEndDate || "",
+          "",
+          "",
+        ];
+        if (grouped[ir.team]) {
+          grouped[ir.team].push(row);
+        }
+      }
+
+      // 入力日時昇順にソート（各team内）
+      for (const team of Object.keys(grouped)) {
+        grouped[team].sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+      }
+
+      return {
+        totalCount: changes.length + irregulars.length,
+        scheduleChangeCount: changes.length,
+        irregularCount: irregulars.length,
+        teams: grouped,
+        counts: {
+          身体: grouped["身体"].length,
+          天理: grouped["天理"].length,
+          郡山北部: grouped["郡山北部"].length,
+          郡山南部: grouped["郡山南部"].length,
+        },
+      };
+    }),
   importChatTasks: publicProcedure
     .input(
       z.object({
