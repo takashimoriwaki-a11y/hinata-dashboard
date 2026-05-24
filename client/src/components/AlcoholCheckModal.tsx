@@ -22,12 +22,12 @@ interface AlcoholCheckModalProps {
 
 // 時間の選択肢（0〜23時）
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => i);
-// 分の選択肢（10分単位）
-const MINUTE_OPTIONS = [0, 10, 20, 30, 40, 50];
+// 分の選択肢（5分単位）
+const MINUTE_OPTIONS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 
-/** 現在時刻から10分単位（一の位切り捨て）の分を返す */
-function floorToTenMinutes(date: Date): number {
-  return Math.floor(date.getMinutes() / 10) * 10;
+/** 現在時刻から5分単位（切り捨て）の分を返す */
+function floorToFiveMinutes(date: Date): number {
+  return Math.floor(date.getMinutes() / 5) * 5;
 }
 
 export function AlcoholCheckModal({ clockType, onClose, clockInAt, clockOutAt, initialOvertimeReason }: AlcoholCheckModalProps) {
@@ -52,9 +52,9 @@ export function AlcoholCheckModal({ clockType, onClose, clockInAt, clockOutAt, i
   // 開始：デフォルト17時00分
   const [overtimeStartHour, setOvertimeStartHour] = useState(17);
   const [overtimeStartMinute, setOvertimeStartMinute] = useState(0);
-  // 終了：デフォルトはモーダルを開いた時刻（10分切り捨て）
+  // 終了：デフォルトはモーダルを開いた時刻（5分切り捨て）
   const [overtimeEndHour, setOvertimeEndHour] = useState(() => openedAt.getHours());
-  const [overtimeEndMinute, setOvertimeEndMinute] = useState(() => floorToTenMinutes(openedAt));
+  const [overtimeEndMinute, setOvertimeEndMinute] = useState(() => floorToFiveMinutes(openedAt));
   // 残業理由プリセット（ウェルカムバナーから事前入力された場合はそれを初期値に）
   const [overtimeReasonType, setOvertimeReasonType] = useState<string>(initialOvertimeReason ?? "");
   // 連動入力欄の値
@@ -204,7 +204,7 @@ export function AlcoholCheckModal({ clockType, onClose, clockInAt, clockOutAt, i
       overtimeEndAt: (!isClockIn && hasOvertime) ? toTodayMs(overtimeEndHour, overtimeEndMinute) : undefined,
       overtimeReason: (!isClockIn && hasOvertime) ? buildOvertimeReason() : undefined,
       overtimeContact: (!isClockIn && hasOvertime && overtimeContactTarget.trim()) ? overtimeContactTarget.trim() : undefined,
-      overtimeCount: (!isClockIn && hasOvertime && ["\u8a18\u9332\u66f8\u2161\u4f5c\u6210", "\u6708\u6b21\u5831\u544a\u66f8\u4f5c\u6210", "\u72b6\u614b\u5831\u544a\u66f8\u4f5c\u6210"].includes(overtimeReasonType)) ? overtimeRecordCount : undefined,
+      overtimeCount: (!isClockIn && hasOvertime && ["記録書Ⅱ作成", "月次報告書作成", "状態報告書作成"].includes(overtimeReasonType)) ? overtimeRecordCount : undefined,
       // 位置情報
       latitude: latitude ?? undefined,
       longitude: longitude ?? undefined,

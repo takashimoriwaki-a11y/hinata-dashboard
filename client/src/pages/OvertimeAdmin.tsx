@@ -33,11 +33,11 @@ function currentYearMonth(): string {
   return jst.toISOString().slice(0, 7);
 }
 
-// 時刻の選択肢を生成（00:00〜23:50、10分単位）
+// 時刻の選択肢を生成（00:00〜23:55、5分単位）
 function generateTimeOptions(): string[] {
   const opts: string[] = [];
   for (let h = 0; h < 24; h++) {
-    for (let m = 0; m < 60; m += 10) {
+    for (let m = 0; m < 60; m += 5) {
       opts.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
     }
   }
@@ -50,7 +50,7 @@ function tsToHHMM(ts: number): string {
   const d = new Date(ts);
   const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
   const h = String(jst.getUTCHours()).padStart(2, "0");
-  const m = String(Math.floor(jst.getUTCMinutes() / 10) * 10).padStart(2, "0");
+  const m = String(Math.floor(jst.getUTCMinutes() / 5) * 5).padStart(2, "0");
   return `${h}:${m}`;
 }
 
