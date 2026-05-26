@@ -5097,7 +5097,7 @@ ${todayStr}
             typeLabel[record.changeType] ?? record.changeType,
             record.team ?? "",
             record.patientName ?? "",
-            fmtDt(record.fromDatetime),
+            record.changeType === "visit_cancel" ? fmtDate(record.fromDatetime) : fmtDt(record.fromDatetime),
             fmtDt(record.toDatetime),
             record.staffBefore ?? "",
             record.staffAfter ?? "",
