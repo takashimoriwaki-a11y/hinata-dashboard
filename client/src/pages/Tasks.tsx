@@ -1152,7 +1152,7 @@ export default function Tasks() {
 
                     {/* 編集・削除ボタン（作成者のみ） */}
                     {(
-                      <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
+                      <div className="flex items-center gap-3 flex-shrink-0 mt-0.5">
                         <button
                           onClick={() => startEdit(task)}
                           className="text-muted-foreground hover:text-primary transition-colors"

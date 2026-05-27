@@ -2492,9 +2492,6 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const task = await getTaskById(input.id);
         if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "タスクが見つかりません" });
-        if (task.createdBy !== Number(ctx.user.id)) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "作成者のみ削除できます" });
-        }
         await softDeleteTask(input.id, Number(ctx.user.id));
         broadcastEvent("tasks");
         return { success: true };
@@ -2506,9 +2503,6 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const task = await getTaskById(input.id);
         if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "タスクが見つかりません" });
-        if (task.createdBy !== Number(ctx.user.id)) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "作成者のみ復元できます" });
-        }
         await restoreTask(input.id, Number(ctx.user.id));
         broadcastEvent("tasks");
         return { success: true };
@@ -2525,9 +2519,6 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const task = await getTaskById(input.id);
         if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "タスクが見つかりません" });
-        if (task.createdBy !== Number(ctx.user.id)) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "作成者のみ完全削除できます" });
-        }
         if (!task.deletedAt) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "削除済みタスクのみ完全削除できます" });
         }
@@ -2554,9 +2545,6 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const task = await getTaskById(input.id);
         if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "タスクが見つかりません" });
-        if (task.createdBy !== Number(ctx.user.id)) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "作成者のみ編集できます" });
-        }
         const { id, ...data } = input;
         await updateTask(id, Number(ctx.user.id), data);
         broadcastEvent("tasks");
