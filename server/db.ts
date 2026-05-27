@@ -583,7 +583,7 @@ export async function updateTask(
   await db
     .update(tasks)
     .set({ ...data, updatedAt: new Date() })
-    .where(and(eq(tasks.id, id), eq(tasks.createdBy, createdBy)));
+    .where(eq(tasks.id, id));
 }
 
 /** タスクを取得する（ID指定） */
