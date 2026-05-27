@@ -1151,8 +1151,8 @@ export default function Tasks() {
                     </div>
 
                     {/* 編集・削除ボタン（作成者のみ） */}
-                    {task.createdBy === user?.id && (
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 mt-0.5">
+                    {(
+                      <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
                         <button
                           onClick={() => startEdit(task)}
                           className="text-muted-foreground hover:text-primary transition-colors"
