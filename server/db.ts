@@ -512,7 +512,7 @@ export async function softDeleteTask(id: number, deletedBy: number) {
   await db
     .update(tasks)
     .set({ deletedAt: new Date(), deletedBy, updatedAt: new Date() })
-    .where(and(eq(tasks.id, id), eq(tasks.createdBy, deletedBy)));
+    .where(eq(tasks.id, id));
 }
 
 /** タスクを完全削除する（作成者のみ） */
@@ -521,7 +521,7 @@ export async function deleteTask(id: number, createdBy: number) {
   if (!db) return;
   await db
     .delete(tasks)
-    .where(and(eq(tasks.id, id), eq(tasks.createdBy, createdBy)));
+    .where(eq(tasks.id, id));
 }
 
 /** 削除済みタスクを復元する（作成者のみ） */
@@ -531,7 +531,7 @@ export async function restoreTask(id: number, restoredBy: number) {
   await db
     .update(tasks)
     .set({ deletedAt: null, deletedBy: null, updatedAt: new Date() })
-    .where(and(eq(tasks.id, id), eq(tasks.createdBy, restoredBy)));
+    .where(eq(tasks.id, id));
 }
 
 /** 削除済みタスク一覧を取得する（自分が作成したもの） */
