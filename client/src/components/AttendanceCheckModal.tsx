@@ -2026,7 +2026,6 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                       ボイスメモとNotebookLM削除・訪問タブ全リセット
                     </p>
           　　　　　</div>
-                  </div>
                   {voiceMemoDeleted && (
                     <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
                   )}
