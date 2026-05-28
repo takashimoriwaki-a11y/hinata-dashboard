@@ -5529,7 +5529,7 @@ ${todayStr}
         sortOrder: z.number().int().default(0),
       }))
       .mutation(async ({ ctx, input }) => {
-        const canManage2857 = ctx.user.role === "admin";
+        const canManage2857 = ctx.user.role === "admin" || ctx.user.role === "super_admin";
         if (!canManage2857) {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
         }
@@ -5550,7 +5550,7 @@ ${todayStr}
         sortOrder: z.number().int().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const canManageQAUpdate = ctx.user.role === "admin";
+        const canManageQAUpdate = ctx.user.role === "admin" || ctx.user.role === "super_admin";
         if (!canManageQAUpdate) {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
         }
@@ -5564,7 +5564,7 @@ ${todayStr}
     delete: protectedProcedure
       .input(z.object({ id: z.number().int() }))
       .mutation(async ({ ctx, input }) => {
-        const canManageQADelete = ctx.user.role === "admin";
+        const canManageQADelete = ctx.user.role === "admin" || ctx.user.role === "super_admin";
         if (!canManageQADelete) {
           throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
         }
