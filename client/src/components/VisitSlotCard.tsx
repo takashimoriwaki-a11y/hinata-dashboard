@@ -187,6 +187,9 @@ export function VisitSlotCard({ slotIndex, slotData, dbCardStateRaw, onSlotChang
 
   // ZESTチェック
   const [zestChecked, setZestChecked] = useState(savedState?.zestChecked ?? false);
+  // メモ入力中の保護フラグ（IME変換中・フォーカス中はDB同期で上書きしない）
+  const isComposingRef = useRef(false);
+  const isNoteFocusedRef = useRef(false);
 
   // 外部（利用者カード）から次回訪問日時が変更されたときに同期
   useEffect(() => {
@@ -374,7 +377,10 @@ const parsed = (typeof dbCardStateRaw === "string" ? JSON.parse(dbCardStateRaw) 
         }));
       }
       // テキスト系
-      if (typeof parsed.specialNote === "string") setSpecialNote(parsed.specialNote);
+      // メモ入力中（IME変換中・フォーカス中）は上書きしない
+        if (typeof parsed.specialNote === "string" && !isComposingRef.current && !isNoteFocusedRef.current) {
+          setSpecialNote(parsed.specialNote);
+        }
       if (typeof parsed.nextVisitDate === "string") setNextVisitDate(parsed.nextVisitDate);
       if (typeof parsed.nextVisitTime === "string") setNextVisitTime(parsed.nextVisitTime);
       if (typeof parsed.notifiedTo === "string") setNotifiedTo(parsed.notifiedTo);
@@ -909,6 +915,13 @@ const handleClearPatient = () => {
                 placeholder="例：看護記録Ⅱ作成時に使用するキーワード、支援者・家族への連絡等"
                 value={specialNote}
                 onChange={(e) => setSpecialNote(e.target.value)}
+                onCompositionStart={() => { isComposingRef.current = true; }}
+              onCompositionEnd={(e) => {
+                isComposingRef.current = false;
+                setSpecialNote((e.target as HTMLTextAreaElement).value);
+              }}
+              onFocus={() => { isNoteFocusedRef.current = true; }}
+              onBlur={() => { isNoteFocusedRef.current = false; }}
               />
               <p className="text-[11px] text-muted-foreground/60 mt-0.5">（注）リセットボタンでメモ削除</p>
             </div>
