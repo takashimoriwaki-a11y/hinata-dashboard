@@ -5521,7 +5521,7 @@ ${todayStr}
     /** クイックアクセスリンクを作成（adminのみ） */
     create: protectedProcedure
       .input(z.object({
-        category: z.enum(["スプレッドシート", "ドキュメント", "フォーム", "その他"]),
+        category: z.enum(["スプレッドシート", "ドキュメント", "フォーム", "その他", "新規契約"]),
         label: z.string().min(1).max(200),
         href: z.string().url(),
         emoji: z.string().max(10).default(""),
@@ -5542,7 +5542,7 @@ ${todayStr}
     update: protectedProcedure
       .input(z.object({
         id: z.number().int(),
-        category: z.enum(["スプレッドシート", "ドキュメント", "フォーム", "その他"]).optional(),
+        category: z.enum(["スプレッドシート", "ドキュメント", "フォーム", "その他", "新規契約"]).optional(),
         label: z.string().min(1).max(200).optional(),
         href: z.string().url().optional(),
         emoji: z.string().max(10).optional(),
