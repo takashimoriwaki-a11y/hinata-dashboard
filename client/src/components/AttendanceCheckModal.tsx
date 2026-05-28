@@ -97,7 +97,7 @@ const CLOCK_IN_REQUIRED_STEP_IDS = CLOCK_IN_STEPS.map((s) => s.id);
 
 // 時間の選択肢
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => i);
-const MINUTE_OPTIONS = [0, 10, 20, 30, 40, 50];
+const MINUTE_OPTIONS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 
 /** JSTの時を取得（ブラウザのロケールに依存せず常にAsia/Tokyo基準） */
 function getJSTHours(date: Date): number {
@@ -116,7 +116,7 @@ function getJSTMinutes(date: Date): number {
 }
 
 function floorToTenMinutes(date: Date): number {
-  return Math.floor(getJSTMinutes(date) / 10) * 10;
+  return Math.floor(getJSTMinutes(date) / 5) * 5;
 }
 
 interface AttendanceCheckModalProps {
