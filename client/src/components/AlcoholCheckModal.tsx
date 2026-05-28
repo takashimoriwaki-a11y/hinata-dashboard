@@ -22,7 +22,7 @@ interface AlcoholCheckModalProps {
 
 // 時間の選択肢（0〜23時）
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => i);
-// 分の選択肢（5分単位）
+// 分の選択肢（5分単位）2026-05-28 cache bust
 const MINUTE_OPTIONS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 
 /** 現在時刻から5分単位（切り捨て）の分を返す */
