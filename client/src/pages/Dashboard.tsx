@@ -625,7 +625,7 @@ function VisitCountCard() {
                 getPctColor(totalPct)
               )}>{Math.round(totalPct)}%</p>
               {data.mainTarget > 0 && (
-                <p className="text-xs font-medium text-emerald-600/80 dark:text-emerald-400/80">月目標 {data.mainTarget}</p>
+                <p className="text-xs font-medium text-emerald-600/80 dark:text-emerald-400/80">月目標 {data.mainTarget + data.subTarget / 2}</p>
               )}
             </div>
             {(() => {
