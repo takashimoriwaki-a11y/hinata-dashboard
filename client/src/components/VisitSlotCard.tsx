@@ -190,6 +190,8 @@ export function VisitSlotCard({ slotIndex, slotData, dbCardStateRaw, onSlotChang
   // メモ入力中の保護フラグ（IME変換中・フォーカス中はDB同期で上書きしない）
   const isComposingRef = useRef(false);
   const isNoteFocusedRef = useRef(false);
+  // 次回訪問日時の保護：前回の利用者IDを記憶（利用者が変わったら日時を再同期するため）
+  const prevPatientIdRef = useRef<number | null>(slotData.patientId);
 
   // 外部（利用者カード）から次回訪問日時が変更されたときに同期
   useEffect(() => {
@@ -205,6 +207,15 @@ export function VisitSlotCard({ slotIndex, slotData, dbCardStateRaw, onSlotChang
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [externalNextVisitTime]);
+  // 利用者が変わったら次回訪問日時を再同期（位置スロットに残った前利用者の日時が残るのを防ぐ）
+  useEffect(() => {
+    if (prevPatientIdRef.current !== slotData.patientId) {
+      prevPatientIdRef.current = slotData.patientId;
+      setNextVisitDate(externalNextVisitDate ?? "");
+      setNextVisitTime(externalNextVisitTime ?? "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slotData.patientId]);
 
   // 利用者タスク追加フォーム表示
   const [showTaskForm, setShowTaskForm] = useState(false);
