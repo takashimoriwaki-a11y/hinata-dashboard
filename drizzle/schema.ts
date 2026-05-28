@@ -507,7 +507,7 @@ export type InsertScheduleChange = typeof scheduleChanges.$inferInsert;
 export const quickAccessLinks = mysqlTable("quick_access_links", {
   id: int("id").autoincrement().primaryKey(),
   /** カテゴリ */
-  category: mysqlEnum("category", ["スプレッドシート", "スプレッドシート（日々使用）", "スプレッドシート（その他）", "ドキュメント", "フォーム", "その他"]).notNull(),
+  category: mysqlEnum("category", ["スプレッドシート", "スプレッドシート（日々使用）", "スプレッドシート（その他）", "ドキュメント", "フォーム", "その他", "新規契約"]).notNull(),
   /** 表示名 */
   label: varchar("label", { length: 200 }).notNull(),
   /** リンクURL */
