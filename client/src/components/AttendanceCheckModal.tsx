@@ -2023,11 +2023,9 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                     <p className={`text-sm font-semibold ${
                       voiceMemoDeleted ? "text-green-700 dark:text-green-400" : "text-foreground"
                     }`}>
-                      今日のボイスメモ・NotebookLM削除
+                      ボイスメモとNotebookLM削除・訪問タブ全リセット
                     </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      iCloudボイスメモとNotebookLMの今日分を削除する
-                    </p>
+          　　　　　</div>
                   </div>
                   {voiceMemoDeleted && (
                     <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
