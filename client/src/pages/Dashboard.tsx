@@ -4064,21 +4064,14 @@ function TasksCard() {
           {/* 詳細フォーム（PersonalTasksページと同じモーダルフォームを使用） */}
           {showForm && user && (
             <CreateTaskForm
-              onClose={() => setShowForm(false)}
-              onCreated={() => {
-                utils.personalTasks.getMyTasks.invalidate();
-                utils.personalTasks.getTodayTasks.invalidate();
-                setShowForm(false);
-              }}
-              userTeam={user.team ?? null}
-              defaultDueDate={(() => {
-                const now = new Date();
-                const y = now.getFullYear();
-                const m = String(now.getMonth() + 1).padStart(2, "0");
-                const d = String(now.getDate()).padStart(2, "0");
-                return `${y}-${m}-${d}`;
-              })()}
-            />
+            onClose={() => setShowForm(false)}
+            onCreated={() => {
+              utils.personalTasks.getMyTasks.invalidate();
+              utils.personalTasks.getTodayTasks.invalidate();
+              setShowForm(false);
+            }}
+            userTeam={user.team ?? null}
+          />
           )}
         </CardContent>
       </Card>
