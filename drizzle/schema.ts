@@ -1046,7 +1046,7 @@ export const personalTasks = mysqlTable("personal_tasks", {
    */
   assignType: mysqlEnum("assignType", ["self", "personal", "team", "all"]).default("self").notNull(),
   /** チーム指定の場合のチーム名 */
-  assignTeam: mysqlEnum("assignTeam", ["身体", "天理", "郡山北部", "郡山南部"]),
+  assignTeam: mysqlEnum("assignTeam", ["身体", "天理", "郡山北部", "郡山南部", "事務員"]),
   /** 個人指定の場合の対象ユーザーID */
   assignUserId: int("assignUserId"),
   /** 個人指定の場合の対象ユーザー名（表示用キャッシュ） */
@@ -1089,6 +1089,24 @@ export const personalTasks = mysqlTable("personal_tasks", {
 
 export type PersonalTask = typeof personalTasks.$inferSelect;
 export type InsertPersonalTask = typeof personalTasks.$inferInsert;
+/**
+ * 個人タスクのユーザー別完了状態
+ * チーム/全職員/事務員指定のタスクで、誰がどのタスクを完了したかをユーザー別に記録
+ * - taskId + userId のユニーク制約で重複防止
+ */
+export const personalTaskCompletions = mysqlTable("personal_task_completions", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 対象タスクID */
+  taskId: int("taskId").notNull(),
+  /** 完了したユーザーID */
+  userId: int("userId").notNull(),
+  /** 完了日時 */
+  completedAt: timestamp("completedAt").defaultNow().notNull(),
+}, (table) => ({
+  uniqueTaskUser: unique("unique_task_user").on(table.taskId, table.userId),
+}));
+export type PersonalTaskCompletion = typeof personalTaskCompletions.$inferSelect;
+export type InsertPersonalTaskCompletion = typeof personalTaskCompletions.$inferInsert;
 
 // ========== 訪問予定スロット順番保存 ==========
 /**
