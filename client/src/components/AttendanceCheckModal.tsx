@@ -698,9 +698,27 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     }
   };
 
+  // iOS standalone PWAでは window.open はアプリ内ブラウザで開くため、
+  // <a target="_blank"> をプログラム的にクリックして端末標準ブラウザ（Safari本体）で開く。
+  // これによりブラウザ側の認証済みセッションが使われ、ibowの2段階認証を省略できる。
+  const openInExternalBrowser = (url: string) => {
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
   const openLink = (step: ClockInStep) => {
     if (!step.link) return;
-    window.open(step.link.url, "_blank", "noopener,noreferrer");
+    // ibowのみ端末標準ブラウザで開く（みまもドライブ等は従来通りwindow.open）
+    if (step.id === "ibow_in") {
+      openInExternalBrowser(step.link.url);
+    } else {
+      window.open(step.link.url, "_blank", "noopener,noreferrer");
+    }
     setDone((prev) => ({ ...prev, [step.id]: true }));
     setJustCompletedStepId(step.id);
     setTimeout(() => setJustCompletedStepId(null), 600);
