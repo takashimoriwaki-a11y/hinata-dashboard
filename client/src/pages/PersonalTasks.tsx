@@ -56,17 +56,18 @@ function matchStaffByKana(query: string, staffList: any[]): any[] {
 
 // ---- 型定義 ----
 type AssignType = "self" | "personal" | "team" | "all";
-type TeamName = "身体" | "天理" | "郡山北部" | "郡山南部";
+type TeamName = "身体" | "天理" | "郡山北部" | "郡山南部" | "事務員";
 type RepeatType = "none" | "daily" | "weekly" | "biweekly" | "monthly" | "nth_weekday";
 type TaskKind = "at_time" | "by_deadline";
 type FilterMode = "all" | "at_time" | "by_deadline" | "delegated";
 
-const TEAMS: TeamName[] = ["身体", "天理", "郡山北部", "郡山南部"];
+const TEAMS: TeamName[] = ["身体", "天理", "郡山北部", "郡山南部", "事務員"];
 const TEAM_COLORS: Record<TeamName, string> = {
   "身体": "bg-emerald-700/80 text-emerald-100",
   "天理": "bg-sky-700/80 text-sky-100",
   "郡山北部": "bg-orange-700/80 text-orange-100",
   "郡山南部": "bg-rose-700/80 text-rose-100",
+  "事務員": "bg-violet-700/80 text-violet-100",
 };
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
 const NTH_WEEK_LABELS = ["第1", "第2", "第3", "第4", "最終"];

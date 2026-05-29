@@ -26,6 +26,7 @@ import {
   improvementSuggestions, InsertImprovementSuggestion,
   improvementSpreadsheets, InsertImprovementSpreadsheet,
   personalTasks, PersonalTask,
+  personalTaskCompletions,
   visitSlotOrders, visitCardStates,
   irregularSchedules, IrregularSchedule, InsertIrregularSchedule,
   scheduleNotes, InsertScheduleNote,
@@ -2483,6 +2484,42 @@ function isRepeatTaskDueToday(task: PersonalTask, today: Date): boolean {
   }
 }
 
+/** チーム指定タスクの対象になりうるチーム名 */
+const PERSONAL_TASK_TEAMS = ["身体", "天理", "郡山北部", "郡山南部", "事務員"];
+
+/**
+ * 個人タスクの done を「scope別の自分の完了状態」に書き換える（B方式）
+ * - assignType="self": personalTasks.done をそのまま使う（従来通り）
+ * - それ以外（personal / team / all）: personal_task_completions の有無で判定
+ *   - 「依頼した」タスク（personal で自分以外が受任者）の場合は受任者の完了状態を見る
+ */
+async function applyScopedDone(
+  db: NonNullable<Awaited<ReturnType<typeof getDb>>>,
+  rows: PersonalTask[],
+  userId: number
+): Promise<PersonalTask[]> {
+  const nonSelf = rows.filter(r => r.assignType !== "self");
+  if (nonSelf.length === 0) return rows;
+
+  const { inArray } = await import("drizzle-orm");
+  const taskIds = nonSelf.map(r => r.id);
+  const completions = await db
+    .select()
+    .from(personalTaskCompletions)
+    .where(inArray(personalTaskCompletions.taskId, taskIds));
+  const completedSet = new Set(completions.map(c => `${c.taskId}:${c.userId}`));
+
+  return rows.map(r => {
+    if (r.assignType === "self") return r;
+    // 「依頼した」タスク（personal で受任者が自分以外）は受任者の完了状態を表示する
+    const lookupUserId =
+      r.assignType === "personal" && r.assignUserId != null && r.assignUserId !== userId
+        ? r.assignUserId
+        : userId;
+    return { ...r, done: completedSet.has(`${r.id}:${lookupUserId}`) ? 1 : 0 };
+  });
+}
+
 /**
  * 自分の個人タスク一覧を取得する（期日順）
  * - 自分宛て（assignType=self, createdBy=userId）
@@ -2506,20 +2543,20 @@ export async function getMyPersonalTasks(
       // 自分が他者に依頼したタスク（「依頼した」タブ表示用）
       and(eq(personalTasks.assignType, "personal"), eq(personalTasks.createdBy, userId)),
       eq(personalTasks.assignType, "all"),
-      ...(userTeam && ["身体", "天理", "郡山北部", "郡山南部"].includes(userTeam)
+      ...(userTeam && PERSONAL_TASK_TEAMS.includes(userTeam)
         ? [and(eq(personalTasks.assignType, "team"), eq(personalTasks.assignTeam, userTeam as any))]
         : []),
     ),
   ];
-  if (!showDone) {
-    conditions.push(eq(personalTasks.done, 0));
-  }
-  const rows = await db
+  // done のフィルタはJS側で行う（scope別にdoneを再計算するため）
+  const rawRows = await db
     .select()
     .from(personalTasks)
     .where(and(...conditions))
     .orderBy(personalTasks.dueDate, personalTasks.createdAt);
-  return rows;
+
+  const rows = await applyScopedDone(db, rawRows, userId);
+  return showDone ? rows : rows.filter(r => r.done === 0);
 }
 /**
  * 今日の個人タスクを取得するする（ホーム画面用）
@@ -2539,12 +2576,11 @@ export async function getTodayPersonalTasks(
 
   const conditions = [
     isNull(personalTasks.deletedAt),
-    eq(personalTasks.done, 0),
     or(
       and(eq(personalTasks.assignType, "self"), eq(personalTasks.createdBy, userId)),
       and(eq(personalTasks.assignType, "personal"), eq(personalTasks.assignUserId, userId)),
       eq(personalTasks.assignType, "all"),
-      ...(userTeam && ["身体", "天理", "郡山北部", "郡山南部"].includes(userTeam)
+      ...(userTeam && PERSONAL_TASK_TEAMS.includes(userTeam)
         ? [and(eq(personalTasks.assignType, "team"), eq(personalTasks.assignTeam, userTeam as any))]
         : []),
     ),
@@ -2556,11 +2592,13 @@ export async function getTodayPersonalTasks(
     ),
   ];
 
-  const rows = await db
+  // done のフィルタはscope別判定後にJS側で行う
+  const rawRows = await db
     .select()
     .from(personalTasks)
     .where(and(...conditions))
     .orderBy(personalTasks.dueDate, personalTasks.createdAt);
+  const rows = (await applyScopedDone(db, rawRows, userId)).filter(r => r.done === 0);
 
   // 繰り返しタスクのフィルタリング
   const today = new Date(todayStart.getTime() + 9 * 60 * 60 * 1000);
@@ -2589,7 +2627,7 @@ export async function createPersonalTask(data: {
   createdBy: number;
   createdByName: string;
   assignType: "self" | "personal" | "team" | "all";
-  assignTeam?: "身体" | "天理" | "郡山北部" | "郡山南部";
+  assignTeam?: "身体" | "天理" | "郡山北部" | "郡山南部" | "事務員";
   assignUserId?: number;
   assignUserName?: string;
   assignTeams?: string;
@@ -2632,7 +2670,12 @@ export async function createPersonalTask(data: {
   return { id: (result as any)[0]?.insertId ?? 0 };
 }
 
-/** 個人タスクの完了/未完了を切り替える */
+/**
+ * 個人タスクの完了/未完了を切り替える（B方式）
+ * - assignType="self": 従来通り personalTasks.done を更新
+ * - それ以外（personal / team / all）: personal_task_completions に個人別レコードを入れる
+ *   - 「依頼した」タスク（personal で受任者が自分以外）は受任者IDで記録する
+ */
 export async function togglePersonalTaskDone(
   id: number,
   done: boolean,
@@ -2641,11 +2684,48 @@ export async function togglePersonalTaskDone(
   const db = await getDb();
   if (!db) return;
 
-  await db.update(personalTasks).set({
-    done: done ? 1 : 0,
-    completedBy: done ? userId : null,
-    completedAt: done ? new Date() : null,
-  }).where(eq(personalTasks.id, id));
+  const taskRows = await db
+    .select({
+      assignType: personalTasks.assignType,
+      assignUserId: personalTasks.assignUserId,
+    })
+    .from(personalTasks)
+    .where(eq(personalTasks.id, id))
+    .limit(1);
+  const task = taskRows[0];
+  if (!task) return;
+
+  if (task.assignType === "self") {
+    await db.update(personalTasks).set({
+      done: done ? 1 : 0,
+      completedBy: done ? userId : null,
+      completedAt: done ? new Date() : null,
+    }).where(eq(personalTasks.id, id));
+    return;
+  }
+
+  // 「依頼した」タスク（personal で受任者が自分以外）は受任者の完了状態として記録
+  const completionUserId =
+    task.assignType === "personal" && task.assignUserId != null && task.assignUserId !== userId
+      ? task.assignUserId
+      : userId;
+
+  if (done) {
+    // 重複時は完了日時を更新するだけ（ユニーク制約 taskId+userId）
+    await db
+      .insert(personalTaskCompletions)
+      .values({ taskId: id, userId: completionUserId })
+      .onDuplicateKeyUpdate({ set: { completedAt: new Date() } });
+  } else {
+    await db
+      .delete(personalTaskCompletions)
+      .where(
+        and(
+          eq(personalTaskCompletions.taskId, id),
+          eq(personalTaskCompletions.userId, completionUserId)
+        )
+      );
+  }
 }
 
 /** 個人タスクを更新する */
@@ -2656,7 +2736,7 @@ export async function updatePersonalTask(
     taskKind: "at_time" | "by_deadline";
     dueDate: Date | null;
     assignType: "self" | "personal" | "team" | "all";
-    assignTeam: "身体" | "天理" | "郡山北部" | "郡山南部" | null;
+    assignTeam: "身体" | "天理" | "郡山北部" | "郡山南部" | "事務員" | null;
     assignUserId: number | null;
     assignUserName: string | null;
     assignTeams: string | null;
