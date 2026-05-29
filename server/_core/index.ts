@@ -8,7 +8,7 @@ import { registerGoogleAuthRoutes } from "./googleAuth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
-import { deleteAllTodayScreenshots, moveTomorrowToToday, rotateScheduleDays, getTodayDueTasks, getPatients, getAllUsers, getCommentsByDate, deleteCommentsByDate, cleanupExpiredDeletedTasks, getAlcoholCheckSpreadsheet, upsertAlcoholCheckSpreadsheet } from "../db";
+import { deleteAllTodayScreenshots, moveTomorrowToToday, rotateScheduleDays, getTodayDueTasks, getPatients, getAllUsers, getCommentsByDate, deleteCommentsByDate, cleanupExpiredDeletedTasks, getAlcoholCheckSpreadsheet } from "../db";
 import { notifyOwner } from "./notification";
 import multer from "multer";
 import { ENV } from "./env";
@@ -1182,108 +1182,15 @@ function scheduleNextMonthAlcoholSheet() {
 
       console.log(`[AlcoholSheetAuto] ${nextMonthLabel}のアルコールチェックスプレッドシートを自動作成します`);
 
-      // Google Sheets APIでスプレッドシートを新規作成
-      const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-      const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
-      if (!email || !privateKey) {
-        console.warn("[AlcoholSheetAuto] サービスアカウント設定がありません。スキップします。");
-        return;
-      }
-      const { GoogleAuth } = await import("google-auth-library");
-      const auth = new GoogleAuth({
-        credentials: { client_email: email, private_key: privateKey.replace(/\\n/g, "\n") },
-        scopes: ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"],
-      });
-      const client = await auth.getClient();
-      const tokenObj = await client.getAccessToken();
-      const token = tokenObj.token;
-      if (!token) {
-        console.warn("[AlcoholSheetAuto] 認証トークン取得失敗。スキップします。");
-        return;
-      }
-
-      // スプレッドシートを新規作成
-      const createRes = await fetch("https://sheets.googleapis.com/v4/spreadsheets", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          properties: { title: `アルコールチェック記録_${nextMonthLabel}` },
-        }),
-      });
-      if (!createRes.ok) {
-        const text = await createRes.text();
-        console.error(`[AlcoholSheetAuto] スプレッドシート作成失敗: ${text}`);
-        return;
-      }
-      const created = await createRes.json() as { spreadsheetId?: string };
-      const newSpreadsheetId = created.spreadsheetId;
+      // 出退勤側（autoCreateTimesheetSpreadsheet）と同様に、フォルダ対応の共通関数へ委譲する。
+      // これにより、前倒し作成でも共有フォルダ（ALCOHOL_FOLDER_ID）内への作成・共有設定・概要シート整備・DB登録が
+      // まとめて正しく行われる。旧仕様の生fetch生成はサービスアカウントのマイドライブ直下に作成され共有もされなかったため廃止。
+      const { autoCreateAlcoholCheckSpreadsheet } = await import("../routers");
+      const newSpreadsheetId = await autoCreateAlcoholCheckSpreadsheet(nextYear, nextMonth);
       if (!newSpreadsheetId) {
-        console.error("[AlcoholSheetAuto] spreadsheetIdが取得できませんでした");
+        console.error(`[AlcoholSheetAuto] ${nextMonthLabel}分のスプレッドシート作成に失敗しました`);
         return;
       }
-
-      // ヘッダー行を挿入
-      const ALCOHOL_HEADER = [
-        "実施日時", "区分", "氏名", "ナンバープレート",
-        "出勤打刻", "退勤打刻", "確認方法", "検知器使用",
-        "酒気帯有無", "確認者", "残業時間", "残業理由",
-        "連絡先", "人数", "備考", "登録日時"
-      ];
-      const headerUrl = `https://sheets.googleapis.com/v4/spreadsheets/${newSpreadsheetId}/values/${encodeURIComponent("Sheet1!A1")}?valueInputOption=USER_ENTERED`;
-      const headerRes = await fetch(headerUrl, {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ values: [ALCOHOL_HEADER] }),
-      });
-      if (!headerRes.ok) {
-        const text = await headerRes.text();
-        console.warn(`[AlcoholSheetAuto] ヘッダー行挿入失敗（続行）: ${text}`);
-      } else {
-        console.log(`[AlcoholSheetAuto] ヘッダー行を挿入しました`);
-      }
-
-      // ヘッダー行を太字・背景色で書式設定
-      const formatRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${newSpreadsheetId}:batchUpdate`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          requests: [
-            {
-              repeatCell: {
-                range: { sheetId: 0, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: ALCOHOL_HEADER.length },
-                cell: {
-                  userEnteredFormat: {
-                    backgroundColor: { red: 0.267, green: 0.533, blue: 0.667 },
-                    textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } },
-                    horizontalAlignment: "CENTER",
-                  },
-                },
-                fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
-              },
-            },
-            {
-              updateSheetProperties: {
-                properties: { sheetId: 0, gridProperties: { frozenRowCount: 1 } },
-                fields: "gridProperties.frozenRowCount",
-              },
-            },
-          ],
-        }),
-      });
-      if (!formatRes.ok) {
-        const text = await formatRes.text();
-        console.warn(`[AlcoholSheetAuto] ヘッダー書式設定失敗（続行）: ${text}`);
-      } else {
-        console.log(`[AlcoholSheetAuto] ヘッダー行の書式設定完了`);
-      }
-
-      // DBに登録
-      await upsertAlcoholCheckSpreadsheet({
-        year: nextYear,
-        month: nextMonth,
-        spreadsheetId: newSpreadsheetId,
-        label: nextMonthLabel,
-      });
 
       console.log(`[AlcoholSheetAuto] ${nextMonthLabel}のスプレッドシートを作成・登録しました（ID: ${newSpreadsheetId}）`);
       lastCreatedMonth = monthKey; // 成功したらフラグセット

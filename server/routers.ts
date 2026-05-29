@@ -550,7 +550,7 @@ async function appendAlcoholCheckToSheet(record: {
  * 指定年月のアルコールチェック用スプレッドシートをGoogle Driveに自動作成し、DBに登録する。
  * 既に登録済みの場合は何もしない。
  */
-async function autoCreateAlcoholCheckSpreadsheet(year: number, month: number): Promise<string | null> {
+export async function autoCreateAlcoholCheckSpreadsheet(year: number, month: number): Promise<string | null> {
   try {
     // 既に登録済みならスキップ
     const existing = await getAlcoholCheckSpreadsheet(year, month);
