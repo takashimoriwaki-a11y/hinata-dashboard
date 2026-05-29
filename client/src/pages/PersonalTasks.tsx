@@ -24,7 +24,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import {
   ClipboardList, Plus, Check, Trash2, ChevronDown, ChevronUp,
-  Clock, Repeat, Users, User, RefreshCw, X, Bell, AlertTriangle, Mic, MicOff, Pencil,
+  Clock, Repeat, Users, User, RefreshCw, X, Bell, AlertTriangle, Mic, MicOff, Pencil, Calendar,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -482,12 +482,14 @@ export function CreateTaskForm({ onClose, onCreated, userTeam, defaultDueDate }:
                 type="date"
                 value={dueDate}
                 onChange={e => setDueDate(e.target.value)}
-                className={`w-full bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm border border-border ${dueDate ? 'opacity-0' : ''}`}
+                className={`w-full bg-muted text-foreground rounded-xl pl-9 pr-3 py-2.5 text-sm border border-border ${dueDate ? 'opacity-0' : ''}`}
                 style={{ colorScheme: "light dark", minWidth: 0 }}
               />
+              {/* カレンダーアイコン（常時表示・クリックは下のinputに透過） */}
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               {/* 日付の日本語表示オーバーレイ（iOSでのロケール依存表示を回避） */}
               {dueDate && (
-                <span className="absolute inset-0 flex items-center px-3 text-sm text-foreground pointer-events-none bg-muted rounded-xl border border-border overflow-hidden">
+                <span className="absolute inset-0 flex items-center pl-9 pr-3 text-sm text-foreground pointer-events-none bg-muted rounded-xl border border-border overflow-hidden">
                   {(() => {
                     const [y, m, d] = dueDate.split("-");
                     return `${parseInt(m)}月${parseInt(d)}日`;
@@ -898,10 +900,11 @@ export function EditTaskForm({ task, onClose, onUpdated, userTeam }: EditFormPro
           <div className="flex gap-2">
             <div className="relative flex-1 min-w-0">
               <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
-                className={`w-full bg-muted text-foreground rounded-xl px-3 py-2.5 text-sm border border-border ${dueDate ? 'opacity-0' : ''}`}
+                className={`w-full bg-muted text-foreground rounded-xl pl-9 pr-3 py-2.5 text-sm border border-border ${dueDate ? 'opacity-0' : ''}`}
                 style={{ colorScheme: "light dark", minWidth: 0 }} />
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               {dueDate && (
-                <span className="absolute inset-0 flex items-center px-3 text-sm text-foreground pointer-events-none bg-muted rounded-xl border border-border overflow-hidden">
+                <span className="absolute inset-0 flex items-center pl-9 pr-3 text-sm text-foreground pointer-events-none bg-muted rounded-xl border border-border overflow-hidden">
                   {(() => { const [y, m, d] = dueDate.split("-"); return `${parseInt(m)}月${parseInt(d)}日`; })()}
                 </span>
               )}
