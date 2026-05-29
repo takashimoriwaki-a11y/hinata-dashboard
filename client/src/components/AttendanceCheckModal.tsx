@@ -698,9 +698,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     }
   };
 
-  // iOS standalone PWAでは window.open はアプリ内ブラウザで開くため、
-  // <a target="_blank"> をプログラム的にクリックして端末標準ブラウザ（Safari本体）で開く。
-  // これによりブラウザ側の認証済みセッションが使われ、ibowの2段階認証を省略できる。
+  // iOS standalone PWAでは window.open / <a target="_blank"> はアプリ内ブラウザで開く。
+  // フォールバック用：従来どおりアプリ内で開く（現状維持）。
   const openInExternalBrowser = (url: string) => {
     const a = document.createElement("a");
     a.href = url;
@@ -711,11 +710,56 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     a.remove();
   };
 
+  // ibow専用：x-safari-https:// スキームでSafari本体での起動を試みる（案A・最小版）。
+  // スキームが無効な端末では反応がないため、一定時間内にページが裏に回らなければ
+  // 従来の開き方にフォールバックする。二重起動防止のため handled フラグで一度だけ実行。
+  const openIbowViaSafariScheme = (url: string) => {
+    // https:// を x-safari-https:// に置換
+    const safariSchemeUrl = url.replace(/^https:\/\//i, "x-safari-https://");
+
+    let handled = false;
+    let timer = 0;
+
+    const cleanup = () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("pagehide", onBlur);
+      if (timer) window.clearTimeout(timer);
+    };
+
+    // スキームが効いてSafariへ遷移＝ページが裏に回る → フォールバックを抑止
+    const markHandled = () => {
+      if (handled) return;
+      handled = true;
+      cleanup();
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") markHandled();
+    };
+    const onBlur = () => markHandled();
+
+    // 反応がなければ（スキーム無効）従来動作にフォールバック
+    const fallback = () => {
+      if (handled) return;
+      handled = true;
+      cleanup();
+      openInExternalBrowser(url);
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("pagehide", onBlur);
+    timer = window.setTimeout(fallback, 600);
+
+    // Safari本体での起動を試みる
+    window.location.href = safariSchemeUrl;
+  };
+
   const openLink = (step: ClockInStep) => {
     if (!step.link) return;
-    // ibowのみ端末標準ブラウザで開く（みまもドライブ等は従来通りwindow.open）
+    // ibowのみ：まず x-safari-https:// でSafari本体を試行（失敗時は従来の開き方）
     if (step.id === "ibow_in") {
-      openInExternalBrowser(step.link.url);
+      openIbowViaSafariScheme(step.link.url);
     } else {
       window.open(step.link.url, "_blank", "noopener,noreferrer");
     }
