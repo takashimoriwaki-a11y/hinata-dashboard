@@ -904,6 +904,18 @@ async function appendTimesheetToSheet(record: {
           },
         });
       }
+      // 今月の残業合計（J1=見出し / K1=数式）。データ列A〜Iには触れない
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${tabName}!J1:K1`,
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: [[
+            "今月の残業合計",
+            '=IF(SUM(F2:F)=0,"0分",INT(SUM(F2:F)/60)&"時間"&MOD(SUM(F2:F),60)&"分")',
+          ]],
+        },
+      });
     }
 
     if (record.type === "clock_in") {
