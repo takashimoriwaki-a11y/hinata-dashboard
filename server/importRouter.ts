@@ -171,6 +171,12 @@ const NAME_ALIASES: Record<string, string> = {
   "竹林虎太郎": "竹林虎太朗",
   "竹林琥太郎": "竹林虎太朗",
   "松吉友子": "松末友子",
+  // Chatタスク移行で判明した異体字（誤表記 → patientsマスタの正表記）
+  "浅野昭三": "淺野昭三",
+  "渡邊真佐志": "渡邉真佐志",
+  "中森ヒロエ": "中森ヒロヱ",
+  "宮崎昌子": "宮﨑昌子",
+  "濵元美津代": "濱元美津代",
 };
 
 function applyAlias(name: string): string {
@@ -260,6 +266,23 @@ function extractUserName(
     if (text.includes(name)) return userMap.get(name) || null;
   }
   return null;
+}
+
+/**
+ * description 内の「担当:○○」マーカー直後の名前だけから担当者を解決する。
+ * マーカーが無ければ null（→ team 扱い）。患者名や本文中の姓の偶然一致で
+ * 個人割当されてしまう誤検出（例：患者「中西ヒサ子」が職員「中西真帆」にヒット）を防ぐ。
+ */
+function extractAssigneeFromMarker(
+  description: string | undefined,
+  userMap: Map<string, { id: number; name: string }>,
+): { id: number; name: string } | null {
+  if (!description) return null;
+  // 「担当:」「担当：」「担当 :」等に続く名前トークンを取り出す
+  const m = description.match(/担当[\s　]*[:：][\s　]*([^\s　、。\n]{2,8})/);
+  if (!m) return null;
+  // 取り出した名前だけを既存ロジックで照合（フルネーム優先は extractUserName が担保）
+  return extractUserName(m[1], userMap);
 }
 
 // ============================================================================
@@ -735,7 +758,9 @@ export const importRouter = router({
         const combinedText = (item.title || "") + " " + (item.description || "");
         const resolved = resolvePatient(combinedText, patientMap);
         const patientName = resolved?.name || null;
-        const userInfo = extractUserName(combinedText, userMap);
+        // 担当者は description の「担当:」マーカー直後の名前からのみ解決する
+        // （combinedText 全体を走査すると患者名等の姓と偶然一致して誤って個人割当される）
+        const userInfo = extractAssigneeFromMarker(item.description, userMap);
 
         let resolvedTeam: string | null = null;
         if (item.spaceName.includes("身体")) resolvedTeam = "身体";
