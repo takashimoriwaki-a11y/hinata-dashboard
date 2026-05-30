@@ -781,8 +781,18 @@ export const importRouter = router({
           continue;
         }
 
+        // タスク内容(text)のマッピング:
+        // 元データは title=利用者名 / description=作業内容 という構造のため、
+        // 利用者が解決できたタスクは作業内容(description)を内容にする。
+        // 利用者の無い一般タスク(誕生日プレゼント等)は title が作業内容なので title を使う。
+        // description が空のときも空textを作らないよう title にフォールバック。
+        const taskText =
+          patientName && item.description && item.description.trim()
+            ? item.description
+            : item.title;
+
         const row = {
-          text: item.title,
+          text: taskText,
           done: 0,
           dueDate: item.dueDate ? new Date(item.dueDate) : null,
           taskKind: "by_deadline" as const,
