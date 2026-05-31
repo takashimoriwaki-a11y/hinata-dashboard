@@ -1361,6 +1361,7 @@ function scheduleScheduleChangeCleanup() {
           "schedule_discharge",
           "schedule_new_contract",
           "schedule_visit_doctor",
+          "schedule_other",
         ] as const;
 
         // 終了日基準の種別（ショートステイ・特別指示書）

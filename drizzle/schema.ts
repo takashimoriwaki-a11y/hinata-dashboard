@@ -452,6 +452,7 @@ export const scheduleChanges = mysqlTable("schedule_changes", {
     "schedule_discharge",
     "schedule_new_contract",
     "schedule_visit_doctor",
+    "schedule_other",                // その他のスケジュール
   ]).notNull(),
   /** 対象チーム（会議の場合はnull可） */
   team: mysqlEnum("team", ["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]),

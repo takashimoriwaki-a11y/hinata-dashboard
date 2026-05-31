@@ -60,6 +60,7 @@ const CHANGE_TYPES = [
   { value: "schedule_discharge", label: "退院", icon: "🚶", color: "bg-emerald-100 text-emerald-800 border-emerald-200", group: "schedule" },
   { value: "schedule_new_contract", label: "新規契約・面談", icon: "🤝", color: "bg-indigo-100 text-indigo-800 border-indigo-200", group: "schedule" },
   { value: "schedule_visit_doctor", label: "訪問診療同席", icon: "👨‍⚕️", color: "bg-violet-100 text-violet-800 border-violet-200", group: "schedule" },
+  { value: "schedule_other", label: "その他のスケジュール", icon: "📝", color: "bg-slate-100 text-slate-800 border-slate-200", group: "schedule" },
 ] as const;
 
 type ChangeType = (typeof CHANGE_TYPES)[number]["value"];

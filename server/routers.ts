@@ -4660,6 +4660,7 @@ ${todayStr}
           schedule_discharge: "退院",
           schedule_new_contract: "新規契約・面談",
           schedule_visit_doctor: "訪問診療同席",
+          schedule_other: "その他のスケジュール",
         };
         // 日時フォーマット
         const fmtDt = (dt: string | null | undefined) => {
@@ -4983,7 +4984,7 @@ ${todayStr}
     /** 作成と同時にスプレッドシートへ転記する（ワンステップ） */
     createAndExport: protectedProcedure
       .input(z.object({
-        changeType: z.enum(["visit_change", "visit_cancel", "visit_add", "meeting_add", "meeting_change", "schedule_visit", "schedule_short_stay", "schedule_special_instruction", "schedule_hospitalization", "schedule_discharge", "schedule_new_contract", "schedule_visit_doctor"]),
+        changeType: z.enum(["visit_change", "visit_cancel", "visit_add", "meeting_add", "meeting_change", "schedule_visit", "schedule_short_stay", "schedule_special_instruction", "schedule_hospitalization", "schedule_discharge", "schedule_new_contract", "schedule_visit_doctor", "schedule_other"]),
         team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]).optional(),
         patientName: z.string().optional(),
         patientId: z.number().optional(),
@@ -5070,6 +5071,7 @@ ${todayStr}
             schedule_discharge: "退院",
             schedule_new_contract: "新規契約・面談",
             schedule_visit_doctor: "訪問診療同席",
+            schedule_other: "その他のスケジュール",
           };
           // 日時フォーマット（JST: UTC+9 に変換して書き込む））
           const fmtDt = (dt: string | Date | null | undefined) => {
