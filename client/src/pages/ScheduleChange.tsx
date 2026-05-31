@@ -133,12 +133,14 @@ function PatientAutocomplete({
   onChange,
   onTeamSelect,
   id,
+  required = true,
 }: {
   patientList: PatientItem[];
   value: string;
   onChange: (name: string) => void;
   onTeamSelect?: (team: string) => void;
   id?: string;
+  required?: boolean;
 }) {
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
@@ -287,7 +289,7 @@ function PatientAutocomplete({
     <Card>
       <CardHeader className="pb-2 pt-4">
         <CardTitle className="text-sm font-semibold">
-          利用者名 <span className="text-destructive">*</span>
+          利用者名 {required && <span className="text-destructive">*</span>}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -1484,12 +1486,16 @@ export default function ScheduleChange() {
       toast.error("対象者名を入力してください");
       return;
     }
-    if (isScheduleType && changeType !== "schedule_new_contract" && !patientName) {
+    if (isScheduleType && changeType !== "schedule_new_contract" && changeType !== "schedule_other" && !patientName) {
       toast.error("利用者名を入力してください");
       return;
     }
     if (isScheduleType && !scheduleStartDate) {
       toast.error(`${scheduleStartDateLabel}を入力してください`);
+      return;
+    }
+    if (changeType === "schedule_other" && !reason) {
+      toast.error("内容（備考）を入力してください");
       return;
     }
 
@@ -2403,6 +2409,10 @@ export default function ScheduleChange() {
                 main: "◯チームの〇〇さん、◯月◯日◯時に〇〇クリニックの訪問診療に同席。",
                 sub: "医療機関名も一緒に伝えると備考欄に自動転記されます。",
               },
+              schedule_other: {
+                main: "◯月◯日、◯◯グループホームで施設検温。",
+                sub: "予定日と内容（備考）を伝えると自動転記されます。施設名・職員名などは備考欄に入ります。",
+              },
             };
             const example = exampleMap[changeType] ?? exampleMap[""];
             return (
@@ -2932,6 +2942,7 @@ export default function ScheduleChange() {
               onChange={(name) => setPatientName(name)}
               onTeamSelect={(t) => setTeam(t as Team)}
               id="sc-patient-name"
+              required={changeType !== "schedule_other"}
             />
           )}
           {/* 開始日（DateTimePickerで日付のみ選択） */}
