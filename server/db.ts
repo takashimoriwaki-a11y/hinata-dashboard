@@ -2542,6 +2542,9 @@ export async function getMyPersonalTasks(
       and(eq(personalTasks.assignType, "personal"), eq(personalTasks.assignUserId, userId)),
       // 自分が他者に依頼したタスク（「依頼した」タブ表示用）
       and(eq(personalTasks.assignType, "personal"), eq(personalTasks.createdBy, userId)),
+      // 自分が作成したタスクは assignType / assignTeam に関係なく必ず返す
+      // （別チーム宛ての team タスク等が「依頼した」「すべて」から漏れるのを防ぐ）
+      eq(personalTasks.createdBy, userId),
       eq(personalTasks.assignType, "all"),
       ...(userTeam && PERSONAL_TASK_TEAMS.includes(userTeam)
         ? [and(eq(personalTasks.assignType, "team"), eq(personalTasks.assignTeam, userTeam as any))]
@@ -2579,6 +2582,9 @@ export async function getTodayPersonalTasks(
     or(
       and(eq(personalTasks.assignType, "self"), eq(personalTasks.createdBy, userId)),
       and(eq(personalTasks.assignType, "personal"), eq(personalTasks.assignUserId, userId)),
+      // 自分が作成したタスクは assignType / assignTeam に関係なく必ず返す
+      // （別チーム宛て等の漏れを埋める。getMyPersonalTasks と同じ考え方）
+      eq(personalTasks.createdBy, userId),
       eq(personalTasks.assignType, "all"),
       ...(userTeam && PERSONAL_TASK_TEAMS.includes(userTeam)
         ? [and(eq(personalTasks.assignType, "team"), eq(personalTasks.assignTeam, userTeam as any))]

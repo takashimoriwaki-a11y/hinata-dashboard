@@ -3869,6 +3869,8 @@ function TasksCard() {
         if (t.done) return false;
         // 自分が作成した他職員への依頼タスクを除外
         if (t.assignType === "personal" && t.assignUserId !== user?.id && t.createdBy === user?.id) return false;
+        // 自分が作成した「他チーム宛て」の team タスクも除外（自チーム宛ては表示）
+        if (t.assignType === "team" && t.assignTeam !== user?.team && t.createdBy === user?.id) return false;
 
         // taskKindによる表示ルール
         if (t.taskKind === "at_time") {
