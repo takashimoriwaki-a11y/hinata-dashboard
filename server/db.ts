@@ -1836,9 +1836,10 @@ export async function rotateScheduleDays(): Promise<{ deleted: number; shifted: 
     .where(eq(scheduleScreenshots.day, "今日" as any));
   const deleted = (deleteResult as any)[0]?.affectedRows ?? 0;
 
-  // 2) 残りの日付を1つ前にシフト（後ろから順に更新して衝突を防ぐ）
+  // 2) 残りの日付を1つ前にシフト（前から順に更新してカスケードを防ぐ）
+  // 各ステップで移動先スロットは直前に空になり、移動元はまだ未処理なので衝突しない
   let shifted = 0;
-  for (let i = dayOrder.length - 1; i >= 1; i--) {
+  for (let i = 1; i < dayOrder.length; i++) {
     const from = dayOrder[i];
     const to = dayOrder[i - 1];
     const result = await db
