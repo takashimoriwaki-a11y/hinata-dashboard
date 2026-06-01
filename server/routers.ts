@@ -2027,19 +2027,24 @@ export const appRouter = router({
       const now = new Date();
       const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
       const current = await getSpreadsheetLinks(yearMonth);
-      if (current.length > 0) return current;
-      // 当月分が未登録の場合、全登録から各linkKeyの最新分を返す
       const all = await getAllSpreadsheetLinks();
       if (all.length === 0) return [];
-      // linkKeyごとに最新の登録を抽出
-      const latestByKey = new Map<string, typeof all[0]>();
+      // 当月分を最優先で採用（先頭に並べるのでバッジ判定も従来どおり）
+      const byKey = new Map<string, typeof all[0]>();
+      for (const link of current) {
+        byKey.set(link.linkKey, link);
+      }
+      // 当月分が存在しない linkKey は、その linkKey の最新登録分で補完する
+      // （月替わりで自動更新される月次データ以外に追加したツールが非表示にならないようにする）
+      const fallbackByKey = new Map<string, typeof all[0]>();
       for (const link of all) {
-        const existing = latestByKey.get(link.linkKey);
+        if (byKey.has(link.linkKey)) continue; // 当月分があるものはそちらを使う
+        const existing = fallbackByKey.get(link.linkKey);
         if (!existing || link.yearMonth > existing.yearMonth) {
-          latestByKey.set(link.linkKey, link);
+          fallbackByKey.set(link.linkKey, link);
         }
       }
-      return Array.from(latestByKey.values());
+      return [...current, ...fallbackByKey.values()];
     }),
     // 全年月のリンク一覧を取得（管理者用）
     getAll: protectedProcedure.query(async () => {
