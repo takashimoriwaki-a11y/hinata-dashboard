@@ -2936,6 +2936,11 @@ function SheetSubTabs({ quickLinks, isAdmin = false }: { quickLinks: { id: numbe
     const linkKey = `custom_${Date.now()}`;
     upsertLink.mutate({ linkKey, label: newSourceLabel.trim(), yearMonth, url: newSourceUrl.trim(), displayTarget: "common" });
   };
+  // 「日々使用」の追加ツール（custom_）削除用。月次データ（固定キー）には使わない
+  const deleteMonthlyLink = trpc.spreadsheetLinks.delete.useMutation({
+    onSuccess: () => { utils.spreadsheetLinks.getCurrent.invalidate(); toast.success("削除しました"); },
+    onError: (e) => toast.error(e.message),
+  });
   // 当月年月（マウント時に一度計算）
   const currentYearMonth = useMemo(() => {
     const now = new Date();
@@ -3003,13 +3008,24 @@ function SheetSubTabs({ quickLinks, isAdmin = false }: { quickLinks: { id: numbe
               {monthlyLinks
                 .filter((link) => (link.displayTarget ?? "common") === "common")
                 .map((link) => (
-                  <LinkRow
-                    key={link.id}
-                    href={link.url}
-                    label={link.label}
-                    emoji="📊"
-
-                  />
+                  <div key={link.id} className="flex items-center gap-1 group">
+                    <LinkRow
+                      href={link.url}
+                      label={link.label}
+                      emoji="📊"
+                    />
+                    {isAdmin && link.linkKey.startsWith("custom_") && (
+                      <button
+                        onClick={() => deleteMonthlyLink.mutate({ id: link.id })}
+                        onPointerDown={() => {}}
+                        style={{ touchAction: 'pan-y' }}
+                        className="text-muted-foreground hover:text-destructive p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95"
+                        title="削除"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                 ))}
             </>
           )}
