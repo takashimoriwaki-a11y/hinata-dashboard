@@ -1,0 +1,31 @@
+---
+description: hinata-dashboard のアプリ前提と開発で常に守る作業ルール
+alwaysApply: true
+---
+
+# hinata-dashboard
+
+## このアプリの前提
+
+- 訪問看護チーム向けの業務ポータル。スケジュール管理・訪問記録・勤怠/残業・アルコールチェック・タスク・議事録・AI音声入力などを1つのアプリに集約したフルスタックWebアプリ。
+- 技術構成：React 19 + TypeScript + Vite + tRPC + Drizzle ORM + MySQL。デプロイは Railway。
+- 通信：Browser(React) → tRPC(/api/trpc) → Express → Drizzle ORM → MySQL。外部連携に Google Sheets / Gemini / S3 など。
+- 認証：CookieベースのセッションJWT。Google OAuth またはローカルID/パスワードに対応。
+- 権限：user ⊂ admin ⊂ super_admin の包含関係。全機能にこの権限体系が適用される。
+- チーム：身体 / 天理 / 郡山北部 / 郡山南部。利用者・スタッフはチームに紐づく。
+- 主要テーブル：users（スタッフ）, patients（利用者）, visit_records, tasks, schedule_changes, schedule_screenshots, attendance_logs, alcohol_checks, overtime_approvals, messages, team_goals など。スキーマ定義は drizzle/schema.ts。
+- このアプリを使う運用者は森脇崇（super_admin, userId=1）、こころの訪問看護ステーションひなた所長。
+
+## 開発・デプロイの前提
+
+- 本番ブランチは migration-week1。このブランチに push すると Railway が自動デプロイする。main へのマージはしない。
+- 開発環境は Cursor を使用する。
+
+## 作業の進め方ルール（毎回必ず守る）
+
+- コードの変更は1ファイルずつ。必ず変更前後の差分（diff）を見せて、ユーザーが「OK」と言ってから次に進む。一度に複数ファイルを変更しない。
+- 関係ない箇所は触らない。条件の追加・修正は最小限にする。既存の動作を壊さない。
+- 修正後は npm run check で型チェックし、新規エラーの有無を報告する。このプロジェクトには元から約52件の既存エラーがあるので、それと新規エラーを区別して報告する。
+- git commit / push はユーザーが判断して行う。AIは勝手にコミット・プッシュしない。頼まれたときだけ対象ファイルを明示して add → commit する。git add . や force push は使わない。
+- 修正に入る前に、まず「どこを、どう直すか（ファイル名・行・該当コード・直し方）」を文章で説明し、ユーザーの確認を待ってから実際の変更に入る。
+- 個人情報（利用者名・社名など）は外部の生成AIサービスに入力しない前提で作業する。
