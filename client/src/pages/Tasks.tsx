@@ -232,6 +232,7 @@ export default function Tasks() {
   const [editText, setEditText] = useState("");
   const [editDueDate, setEditDueDate] = useState("");
   const [editDueTime, setEditDueTime] = useState("");
+  const [editTaskKind, setEditTaskKind] = useState<"at_time" | "by_deadline" | "next_visit">("at_time");
   const [editAssignType, setEditAssignType] = useState<AssignType>("all");
   const [editAssignTeam, setEditAssignTeam] = useState<Team>("身体");
   const [editAssignUserId, setEditAssignUserId] = useState<number | null>(null);
@@ -324,6 +325,7 @@ export default function Tasks() {
     setEditText(task.text);
     setEditDueDate(toDateInputValue(task.dueDate));
     setEditDueTime(toTimeInputValue(task.dueDate));
+    setEditTaskKind(((task as any).taskKind as "at_time" | "by_deadline" | "next_visit") ?? "at_time");
     setEditAssignType(task.assignType as AssignType);
     setEditAssignTeam((task.assignTeam as Team) ?? "身体");
     setEditAssignUserId(task.assignUserId ?? null);
@@ -342,7 +344,9 @@ export default function Tasks() {
     }
 
     let dueDate: Date | null | undefined;
-    if (editDueDate) {
+    if (editTaskKind === "next_visit") {
+      dueDate = null; // 次回訪問時は期日を持たない
+    } else if (editDueDate) {
       const dateTimeStr = editDueTime ? `${editDueDate}T${editDueTime}` : `${editDueDate}T00:00`;
       dueDate = new Date(dateTimeStr);
     } else {
@@ -353,6 +357,7 @@ export default function Tasks() {
       id: editingId,
       text: editText.trim(),
       dueDate,
+      taskKind: editTaskKind,
       assignType: editAssignType,
       assignTeam: editAssignType === "team" ? editAssignTeam : null,
       assignUserId: editAssignType === "personal" && editAssignUserId ? editAssignUserId : null,
@@ -886,31 +891,59 @@ export default function Tasks() {
                       />
                     </div>
 
-                    {/* 期日・時刻 */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                          <Calendar className="w-3 h-3 inline mr-0.5" />期日（任意）
-                        </label>
-                        <input
-                          type="date"
-                          value={editDueDate}
-                          onChange={(e) => setEditDueDate(e.target.value)}
-                          className="w-full text-sm border border-border rounded-lg px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-muted-foreground mb-1 block">時刻（任意）</label>
-                        <input
-                          type="time"
-                          step="600"
-                          value={editDueTime}
-                          onChange={(e) => setEditDueTime(e.target.value)}
-                          disabled={!editDueDate}
-                          className="w-full text-sm border border-border rounded-lg px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40"
-                        />
+                    {/* 種別 */}
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground mb-1 block">種別</label>
+                      <div className="flex gap-2">
+                        {([
+                          { value: "at_time", label: "📅 この日時に" },
+                          { value: "by_deadline", label: "⏳ この日時まで" },
+                          { value: "next_visit", label: "🏥 次回訪問時" },
+                        ] as const).map(({ value, label }) => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => setEditTaskKind(value)}
+                            className={cn(
+                              "flex-1 text-xs px-2 py-1.5 rounded-lg border transition-colors",
+                              editTaskKind === value
+                                ? "bg-primary text-white border-primary"
+                                : "border-border text-muted-foreground hover:border-primary hover:text-primary"
+                            )}
+                          >
+                            {label}
+                          </button>
+                        ))}
                       </div>
                     </div>
+
+                    {/* 期日・時刻（次回訪問時は不要なので非表示） */}
+                    {editTaskKind !== "next_visit" && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                            <Calendar className="w-3 h-3 inline mr-0.5" />期日（任意）
+                          </label>
+                          <input
+                            type="date"
+                            value={editDueDate}
+                            onChange={(e) => setEditDueDate(e.target.value)}
+                            className="w-full text-sm border border-border rounded-lg px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground mb-1 block">時刻（任意）</label>
+                          <input
+                            type="time"
+                            step="600"
+                            value={editDueTime}
+                            onChange={(e) => setEditDueTime(e.target.value)}
+                            disabled={!editDueDate}
+                            className="w-full text-sm border border-border rounded-lg px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40"
+                          />
+                        </div>
+                      </div>
+                    )}
 
                     {/* 指定先 */}
                     <div>
