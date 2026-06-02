@@ -15,6 +15,7 @@ import {
   Loader2,
   UserRound,
   CheckCircle2,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -70,6 +71,10 @@ export default function TaskCreateForm({ onClose, onSuccess, defaultDueDate, req
   const [patientName, setPatientName] = useState(defaultPatientName ?? "");
   const [patientQuery, setPatientQuery] = useState("");
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
+  // チーム指定時の利用者名検索（チーム内の利用者を文字で絞り込む）
+  const [teamPatientQuery, setTeamPatientQuery] = useState("");
+  const [showTeamPatientDropdown, setShowTeamPatientDropdown] = useState(false);
+  const teamPatientInputRef = useRef<HTMLInputElement>(null);
   // 複数候補ダイアログ
   const [patientCandidates, setPatientCandidates] = useState<Array<{ id: number; name: string; nameKana?: string | null; team?: string | null }>>([]);
   const [showCandidateDialog, setShowCandidateDialog] = useState(false);
@@ -309,6 +314,15 @@ export default function TaskCreateForm({ onClose, onSuccess, defaultDueDate, req
     { enabled: newAssignType === "team" }
   );
 
+  // チーム指定時の検索絞り込み（名前・よみがなで部分一致。空欄なら全件）
+  const filteredTeamPatients = teamPatientQuery.trim()
+    ? teamPatients.filter(
+        (p) =>
+          p.name.includes(teamPatientQuery.trim()) ||
+          (p.nameKana ?? "").includes(teamPatientQuery.trim())
+      )
+    : teamPatients;
+
   // 音声転記待機検索（pendingPatientSearchがセットされたときに検索）
   const { data: pendingSearchResults = [], isFetched: pendingSearchFetched } = trpc.patients.search.useQuery(
     { query: pendingPatientSearch ?? "" },
@@ -410,6 +424,8 @@ export default function TaskCreateForm({ onClose, onSuccess, defaultDueDate, req
     setNewAssignUserName("");
     setPatientName("");
     setPatientQuery("");
+    setTeamPatientQuery("");
+    setShowTeamPatientDropdown(false);
     setRepeatType("none");
     setRepeatDayOfWeek(1);
     setRepeatDayOfMonth(1);
@@ -818,26 +834,46 @@ export default function TaskCreateForm({ onClose, onSuccess, defaultDueDate, req
             <UserRound className="w-3.5 h-3.5" />利用者名（任意）
           </label>
           {newAssignType === "team" ? (
-            /* チーム指定時：チームの利用者一覧から選択 */
+            /* チーム指定時：チームの利用者を一覧（プルダウン）からも検索からも選択できる */
             <div className="flex items-center gap-1.5 min-w-0">
-              <select
-                value={patientName}
-                onChange={(e) => setPatientName(e.target.value)}
-                className="flex-1 min-w-0 w-0 text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="">{newAssignTeam}チームの利用者を選択...</option>
-                {/* AI転記でセットされた利用者名がteamPatientsにまだ含まれていない場合でも表示できるようオプションを追加 */}
-                {patientName && !teamPatients.some((p) => p.name === patientName) && (
-                  <option value={patientName}>{patientName}</option>
-                )}
-                {teamPatients.map((p) => (
-                  <option key={p.id} value={p.name}>{p.name}{p.nameKana ? ` (${p.nameKana})` : ""}</option>
-                ))}
-              </select>
+              <div className="relative flex-1 min-w-0">
+                <input
+                  ref={teamPatientInputRef}
+                  type="text"
+                  placeholder={`${newAssignTeam}チームの利用者を選択 / 検索...`}
+                  value={showTeamPatientDropdown ? teamPatientQuery : patientName}
+                  onChange={(e) => {
+                    setTeamPatientQuery(e.target.value);
+                    setShowTeamPatientDropdown(true);
+                  }}
+                  onFocus={() => { setTeamPatientQuery(""); setShowTeamPatientDropdown(true); }}
+                  onBlur={() => setTimeout(() => setShowTeamPatientDropdown(false), 150)}
+                  className="w-full text-sm border border-border rounded-lg pl-3 pr-8 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                {/* 一覧（プルダウン）を開く▼ボタン */}
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    if (showTeamPatientDropdown) {
+                      setShowTeamPatientDropdown(false);
+                    } else {
+                      setTeamPatientQuery("");
+                      setShowTeamPatientDropdown(true);
+                      teamPatientInputRef.current?.focus();
+                    }
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  title="一覧を表示"
+                >
+                  <ChevronDown className={cn("w-4 h-4 transition-transform", showTeamPatientDropdown && "rotate-180")} />
+                </button>
+              </div>
               {patientName && (
                 <button
                   type="button"
-                  onClick={() => setPatientName("")}
+                  onClick={() => { setPatientName(""); setTeamPatientQuery(""); }}
                   className="w-7 h-7 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -869,6 +905,27 @@ export default function TaskCreateForm({ onClose, onSuccess, defaultDueDate, req
                   <X className="w-3.5 h-3.5" />
                 </button>
               )}
+            </div>
+          )}
+          {/* チーム指定時の検索結果ドロップダウン */}
+          {showTeamPatientDropdown && newAssignType === "team" && filteredTeamPatients.length > 0 && (
+            <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+              {filteredTeamPatients.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    setPatientName(p.name);
+                    setTeamPatientQuery("");
+                    setShowTeamPatientDropdown(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors flex items-center justify-between"
+                >
+                  <span>{p.name}</span>
+                  {p.nameKana && <span className="text-xs text-muted-foreground">{p.nameKana}</span>}
+                </button>
+              ))}
             </div>
           )}
           {/* フリーテキスト検索結果ドロップダウン */}
