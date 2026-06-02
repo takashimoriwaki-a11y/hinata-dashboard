@@ -829,7 +829,7 @@ export default function TaskCreateForm({ onClose, onSuccess, defaultDueDate, req
         </div>
 
         {/* 利用者名（任意） */}
-        <div id="task-patient-name" className="relative min-w-0 overflow-hidden">
+        <div id="task-patient-name" className="relative min-w-0">
           <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
             <UserRound className="w-3.5 h-3.5" />利用者名（任意）
           </label>
