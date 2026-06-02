@@ -51,12 +51,11 @@ import {
 
 const AI_TOOLS = ["Gemini", "Gem", "NotebookLM", "その他"] as const;
 
-const AI_TOOL_COLORS: Record<string, string> = {
-  Gemini: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
-  Gem: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
-  NotebookLM: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-  その他: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
-};
+// プロンプトの分類ラベル（フィルタ・フォームで使用）
+const PROMPT_CATEGORIES = ["委員会", "看護記録関係", "会議", "その他"] as const;
+
+// （身体科）/（精神科）プロンプト選択パネルを表示するカテゴリ
+const NURSING_RECORD_CATEGORY = "看護記録関係";
 
 interface Props {
   open: boolean;
@@ -227,7 +226,7 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
   const [formUsageNotes, setFormUsageNotes] = useState("");
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [filterTool, setFilterTool] = useState<string>("すべて");
+  const [filterCategory, setFilterCategory] = useState<string>("すべて");
 
   function resetForm() {
     setFormTitle("");
@@ -316,10 +315,15 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
     setIsSortMode(false);
   }
 
-  // 通常モード時のフィルタリング
-  const filteredPrompts = filterTool === "すべて"
+  // 通常モード時のフィルタリング（カテゴリ別）
+  const filteredPrompts = filterCategory === "すべて"
     ? localOrder
-    : localOrder.filter((p) => p.aiTool === filterTool);
+    : localOrder.filter((p) => (p.category ?? "") === filterCategory);
+
+  // （身体科）/（精神科）の選択肢に並べる「看護記録関係」プロンプト
+  const nursingRecordPrompts = localOrder.filter(
+    (p) => (p.category ?? "") === NURSING_RECORD_CATEGORY
+  );
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -340,18 +344,18 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
           {!isSortMode ? (
             <>
               <div className="flex gap-1.5 flex-wrap flex-1">
-                {["すべて", ...AI_TOOLS].map((tool) => (
+                {["すべて", ...PROMPT_CATEGORIES].map((cat) => (
                   <button
-                    key={tool}
-                    onClick={() => setFilterTool(tool)}
+                    key={cat}
+                    onClick={() => setFilterCategory(cat)}
                     className={cn(
                       "px-2.5 py-1 rounded-full text-xs font-medium transition-all",
-                      filterTool === tool
+                      filterCategory === cat
                         ? "bg-primary text-white shadow-sm"
                         : "bg-background border border-border text-muted-foreground hover:bg-accent"
                     )}
                   >
-                    {tool}
+                    {cat}
                   </button>
                 ))}
               </div>
@@ -483,14 +487,6 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
                 {/* プロンプト情報 */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                    <span
-                      className={cn(
-                        "text-xs px-2 py-0.5 rounded-full font-medium",
-                        AI_TOOL_COLORS[p.aiTool] ?? AI_TOOL_COLORS["その他"]
-                      )}
-                    >
-                      {p.aiTool}
-                    </span>
                     {p.category && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                         {p.category}
@@ -535,14 +531,6 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
                   <div className="flex items-start gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span
-                          className={cn(
-                            "text-xs px-2 py-0.5 rounded-full font-medium",
-                            AI_TOOL_COLORS[p.aiTool] ?? AI_TOOL_COLORS["その他"]
-                          )}
-                        >
-                          {p.aiTool}
-                        </span>
                         {p.category && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                             {p.category}
@@ -628,8 +616,8 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
             </div>
           ))}
 
-          {/* 管理者向け：スクショ用プロンプト選択（一番下） */}
-          {isAdmin && !isSortMode && (
+          {/* 管理者向け：スクショ用プロンプト選択（「看護記録関係」選択時のみ表示） */}
+          {isAdmin && !isSortMode && filterCategory === NURSING_RECORD_CATEGORY && (
             <div className="mt-3 space-y-3">
               {/* 身体科用プロンプト選択 */}
               <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3">
@@ -653,7 +641,7 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
                   >
                     選択なし
                   </button>
-                  {localOrder.map((p) => (
+                  {nursingRecordPrompts.map((p) => (
                     <button
                       key={p.id}
                       type="button"
@@ -666,14 +654,11 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
                       onClick={() => setSelectedPromptIdMutation.mutate({ promptId: p.id })}
                     >
                       <span className="font-medium">{p.title}</span>
-                      {p.aiTool && (
-                        <span className="ml-2 text-[10px] opacity-70">[{p.aiTool}]</span>
-                      )}
                     </button>
                   ))}
-                  {localOrder.length === 0 && (
+                  {nursingRecordPrompts.length === 0 && (
                     <p className="text-xs text-muted-foreground py-2 text-center">
-                      AI共有プロンプトが登録されていません
+                      「看護記録関係」のプロンプトが登録されていません
                     </p>
                   )}
                 </div>
@@ -701,7 +686,7 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
                   >
                     選択なし
                   </button>
-                  {localOrder.map((p) => (
+                  {nursingRecordPrompts.map((p) => (
                     <button
                       key={p.id}
                       type="button"
@@ -714,14 +699,11 @@ export default function AISharedPromptsModal({ open, onClose }: Props) {
                       onClick={() => setSelectedPsychiatricPromptIdMutation.mutate({ promptId: p.id })}
                     >
                       <span className="font-medium">{p.title}</span>
-                      {p.aiTool && (
-                        <span className="ml-2 text-[10px] opacity-70">[{p.aiTool}]</span>
-                      )}
                     </button>
                   ))}
-                  {localOrder.length === 0 && (
+                  {nursingRecordPrompts.length === 0 && (
                     <p className="text-xs text-muted-foreground py-2 text-center">
-                      AI共有プロンプトが登録されていません
+                      「看護記録関係」のプロンプトが登録されていません
                     </p>
                   )}
                 </div>
@@ -791,13 +773,17 @@ function PromptForm({
         </div>
       </div>
       <div>
-        <label className="text-xs font-medium text-foreground mb-1 block">カテゴリ（任意）</label>
-        <Input
-          value={category}
-          onChange={(e) => onCategoryChange(e.target.value)}
-          placeholder="例：記録作成、申請書類、利用者対応"
-          className="text-sm"
-        />
+        <label className="text-xs font-medium text-foreground mb-1 block">カテゴリ</label>
+        <Select value={category || undefined} onValueChange={onCategoryChange}>
+          <SelectTrigger className="text-sm">
+            <SelectValue placeholder="カテゴリを選択" />
+          </SelectTrigger>
+          <SelectContent>
+            {PROMPT_CATEGORIES.map((c) => (
+              <SelectItem key={c} value={c}>{c}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <div>
         <label className="text-xs font-medium text-foreground mb-1 block">
