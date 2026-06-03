@@ -4675,15 +4675,6 @@ ${todayStr}
           schedule_visit_doctor: "訪問診療同席",
           schedule_other: "その他のスケジュール",
         };
-        // 日時フォーマット
-        const fmtDt = (dt: string | null | undefined) => {
-          if (!dt) return "";
-          try {
-            const d = new Date(dt);
-            const pad = (n: number) => String(n).padStart(2, "0");
-            return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-          } catch { return dt; }
-        };
         // 日付のみ（YYYY-MM-DD → YYYY/MM/DD）に変換する関数
         const fmtDate = (d: string | null | undefined): string => {
           if (!d) return "";
@@ -4691,6 +4682,18 @@ ${todayStr}
           const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
           if (m) return `${m[1]}/${m[2]}/${m[3]}`;
           return d;
+        };
+        // 日時フォーマット（時間未定は日付のみ、new Date(YYYY-MM-DD)のUTCずれを避ける）
+        const fmtDt = (dt: string | null | undefined) => {
+          if (!dt) return "";
+          const s = String(dt).trim();
+          if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return fmtDate(s);
+          if (/^\d{4}-\d{2}-\d{2}T00:00(?::00)?/.test(s)) return fmtDate(s.substring(0, 10));
+          try {
+            const d = new Date(dt);
+            const pad = (n: number) => String(n).padStart(2, "0");
+            return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+          } catch { return dt; }
         };
 
         // 入力日時
@@ -5086,22 +5089,25 @@ ${todayStr}
             schedule_visit_doctor: "訪問診療同席",
             schedule_other: "その他のスケジュール",
           };
-          // 日時フォーマット（JST: UTC+9 に変換して書き込む））
-          const fmtDt = (dt: string | Date | null | undefined) => {
-            if (!dt) return "";
-            try {
-              const d = dt instanceof Date ? dt : new Date(dt);
-              // UTC+9（JST）に変換
-              const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
-              return `${jst.getUTCFullYear()}/${String(jst.getUTCMonth()+1).padStart(2,"0")}/${String(jst.getUTCDate()).padStart(2,"0")} ${String(jst.getUTCHours()).padStart(2,"0")}:${String(jst.getUTCMinutes()).padStart(2,"0")}`;
-            } catch { return String(dt ?? ""); }
-          };
           // 日付のみ（YYYY-MM-DD → YYYY/MM/DD）に変換する関数
           const fmtDate = (d: string | null | undefined): string => {
             if (!d) return "";
             const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
             if (m) return `${m[1]}/${m[2]}/${m[3]}`;
             return d;
+          };
+          // 日時フォーマット（JST: UTC+9 に変換して書き込む。時間未定は日付のみ）
+          const fmtDt = (dt: string | Date | null | undefined) => {
+            if (!dt) return "";
+            const s = String(dt instanceof Date ? dt.toISOString() : dt).trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return fmtDate(s);
+            if (/^\d{4}-\d{2}-\d{2}T00:00(?::00)?/.test(s)) return fmtDate(s.substring(0, 10));
+            try {
+              const d = dt instanceof Date ? dt : new Date(dt);
+              // UTC+9（JST）に変換
+              const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+              return `${jst.getUTCFullYear()}/${String(jst.getUTCMonth()+1).padStart(2,"0")}/${String(jst.getUTCDate()).padStart(2,"0")} ${String(jst.getUTCHours()).padStart(2,"0")}:${String(jst.getUTCMinutes()).padStart(2,"0")}`;
+            } catch { return String(dt ?? ""); }
           };
 
           const createdAt = record.createdAt ? fmtDt(record.createdAt) : "";

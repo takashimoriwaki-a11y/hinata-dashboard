@@ -119,6 +119,31 @@ function formatDateOnly(value: string): string {
   return `${y}/${m}/${d}`;
 }
 
+/** 時間未定（YYYY-MM-DD のみ、または T00:00）かどうか */
+function isTimeUnspecifiedValue(value: string): boolean {
+  if (!value) return false;
+  if (!value.includes('T')) return true;
+  const timePart = value.split('T')[1] || '';
+  return timePart.startsWith('00:00:00') || timePart.startsWith('00:00');
+}
+
+/** 確認画面・一覧用の日時表示（時間未定は日付のみ） */
+function formatDatetimeForDisplay(value: string): string {
+  if (!value) return "";
+  if (isTimeUnspecifiedValue(value)) return formatDateOnly(value);
+  return formatDatetime(value.includes('T') && !value.endsWith('Z') && !value.includes('+')
+    ? new Date(value).toISOString()
+    : value);
+}
+
+/** API保存用（時間未定は YYYY-MM-DD のまま、時刻ありのみ ISO 化） */
+function toStoredDatetime(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  if (isTimeUnspecifiedValue(value)) return value.split('T')[0];
+  if (!value.includes('T')) return value;
+  return new Date(value).toISOString();
+}
+
 // ========== 利用者オートコンプリートコンポーネント ==========
 type PatientItem = {
   id: number;
@@ -835,14 +860,19 @@ function DateTimePicker({
   // 日付を±1日する
   const adjustDay = (delta: number) => {
     if (!value) return;
-    const d = new Date(value);
-    d.setDate(d.getDate() + delta);
     const pad2 = (n: number) => String(n).padStart(2, '0');
-    if (dateOnly) {
-      const iso = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    if (dateOnly || isTimeUnspecified) {
+      const datePart = value.split('T')[0];
+      const [y, mo, d] = datePart.split('-').map(Number);
+      if (!y || !mo || !d) return;
+      const dt = new Date(y, mo - 1, d);
+      dt.setDate(dt.getDate() + delta);
+      const iso = `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
       onChange(iso);
-      setSelectedDate(d);
+      setSelectedDate(dt);
     } else {
+      const d = new Date(value);
+      d.setDate(d.getDate() + delta);
       const iso = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
       onChange(iso);
       setSelectedDate(d);
@@ -1518,8 +1548,8 @@ export default function ScheduleChange() {
       changeType,
       team: team || undefined,
       patientName: isVisitType ? patientName : (isScheduleType && changeType !== "schedule_new_contract") ? patientName : (changeType === "schedule_new_contract" ? scheduleNewContractTargetName : isMeetingType ? (patientName || undefined) : undefined),
-      fromDatetime: fromDatetime ? (fromDatetime.includes('T') ? new Date(fromDatetime).toISOString() : fromDatetime) : undefined,
-      toDatetime: toDatetime ? new Date(toDatetime).toISOString() : undefined,
+      fromDatetime: toStoredDatetime(fromDatetime),
+      toDatetime: toStoredDatetime(toDatetime),
       staffBefore: staffBefore || undefined,
       staffAfter: staffAfter || undefined,
       meetingName: isMeetingType ? meetingName : undefined,
@@ -1538,8 +1568,8 @@ export default function ScheduleChange() {
       changeType,
       team: team || undefined,
       patientName: isVisitType ? patientName : undefined,
-      fromfromDatetime: fromDatetime ? (fromDatetime.includes('T') ? new Date(fromDatetime).toISOString() : fromDatetime) : undefined,
-      toDatetime: toDatetime ? new Date(toDatetime).toISOString() : undefined,
+      fromfromDatetime: toStoredDatetime(fromDatetime),
+      toDatetime: toStoredDatetime(toDatetime),
       staffBefore: staffBefore || undefined,
       staffAfter: staffAfter || undefined,
       meetingName: isMeetingType ? meetingName : undefined,
@@ -3138,18 +3168,18 @@ export default function ScheduleChange() {
                 {changeType === "visit_add" && toDatetime ? (
                   <div className="bg-green-500/10 border border-green-400/30 rounded-lg px-3 py-2">
                     <p className="text-xs text-green-400 font-semibold mb-0.5">追加する日時</p>
-                    <p className="font-semibold text-foreground text-sm">{formatDatetime(new Date(toDatetime).toISOString())}</p>
+                    <p className="font-semibold text-foreground text-sm">{formatDatetimeForDisplay(toDatetime)}</p>
                   </div>
                 ) : fromDatetime && toDatetime ? (
                   <div className="flex items-center gap-2 flex-wrap">
                     <div className="flex-1 min-w-0 bg-red-500/10 border border-red-400/30 rounded-lg px-3 py-2">
                       <p className="text-xs text-red-400 font-semibold mb-0.5">変更前</p>
-                      <p className="font-semibold text-foreground text-sm">{formatDatetime(new Date(fromDatetime).toISOString())}</p>
+                      <p className="font-semibold text-foreground text-sm">{formatDatetimeForDisplay(fromDatetime)}</p>
                     </div>
                     <ArrowRight className="w-5 h-5 text-primary flex-shrink-0" />
                     <div className="flex-1 min-w-0 bg-green-500/10 border border-green-400/30 rounded-lg px-3 py-2">
                       <p className="text-xs text-green-400 font-semibold mb-0.5">変更後</p>
-                      <p className="font-semibold text-foreground text-sm">{formatDatetime(new Date(toDatetime).toISOString())}</p>
+                      <p className="font-semibold text-foreground text-sm">{formatDatetimeForDisplay(toDatetime)}</p>
                     </div>
                   </div>
                 ) : fromDatetime ? (
@@ -3160,7 +3190,7 @@ export default function ScheduleChange() {
                 ) : (
                   <div className="bg-green-500/10 border border-green-400/30 rounded-lg px-3 py-2">
                     <p className="text-xs text-green-400 font-semibold mb-0.5">日時</p>
-                    <p className="font-semibold text-foreground text-sm">{formatDatetime(new Date(toDatetime!).toISOString())}</p>
+                    <p className="font-semibold text-foreground text-sm">{formatDatetimeForDisplay(toDatetime!)}</p>
                   </div>
                 )}
               </div>
