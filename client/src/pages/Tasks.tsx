@@ -193,6 +193,10 @@ export default function Tasks() {
   };
 
 
+  // 利用者名フィルター
+  const [patientNameFilter, setPatientNameFilter] = useState("");
+  const [showPatientFilterDropdown, setShowPatientFilterDropdown] = useState(false);
+
   // 並び替え（localStorageで永続化）
   const [sortKey, setSortKeyRaw] = useState<SortKey>(() => {
     try {
@@ -385,6 +389,29 @@ export default function Tasks() {
     return true;
   };
 
+  // 利用者名フィルターのロジック（部分一致）
+  const matchesPatientNameFilter = (task: Task): boolean => {
+    const q = patientNameFilter.trim();
+    if (!q) return true;
+    if (!task.patientName) return false;
+    return task.patientName.includes(q);
+  };
+
+  // 一覧に含まれる利用者名（絞り込み候補）
+  const uniquePatientNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const t of tasks) {
+      if (t.patientName) names.add(t.patientName);
+    }
+    return Array.from(names).sort((a, b) => a.localeCompare(b, "ja"));
+  }, [tasks]);
+
+  const patientNameSuggestions = useMemo(() => {
+    const q = patientNameFilter.trim();
+    if (!q) return uniquePatientNames;
+    return uniquePatientNames.filter((n) => n.includes(q));
+  }, [patientNameFilter, uniquePatientNames]);
+
   // チームフィルターのロジック（複数選択対応）
   const matchesTeamFilter = (task: Task): boolean => {
     if (teamFilter.size === 0) return true; // フィルターなし = 全件表示
@@ -403,6 +430,7 @@ export default function Tasks() {
       if (filter === "done" && t.done !== 1) return false;
       if (!matchesDateFilter(t)) return false;
       if (!matchesTeamFilter(t)) return false;
+      if (!matchesPatientNameFilter(t)) return false;
       return true;
     });
 
@@ -430,7 +458,7 @@ export default function Tasks() {
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [tasks, filter, dateFilter, teamFilter, sortKey, sortDir]);
+  }, [tasks, filter, dateFilter, teamFilter, patientNameFilter, sortKey, sortDir]);
 
   const activeCount = tasks.filter((t) => t.done === 0).length;
   const doneCount = tasks.filter((t) => t.done === 1).length;
@@ -498,6 +526,7 @@ export default function Tasks() {
   const activeFilterCount = [
     dateFilter !== "all",
     teamFilter.size > 0,
+    patientNameFilter.trim() !== "",
   ].filter(Boolean).length;
 
   return (
@@ -695,12 +724,63 @@ export default function Tasks() {
               </div>
             </div>
 
+            {/* 利用者名フィルター */}
+            <div className="relative">
+              <div className="flex items-center gap-1 mb-1.5">
+                <UserRound className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground">利用者名で絞り込み</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  placeholder="利用者名を入力..."
+                  value={patientNameFilter}
+                  onChange={(e) => {
+                    setPatientNameFilter(e.target.value);
+                    setShowPatientFilterDropdown(true);
+                  }}
+                  onFocus={() => setShowPatientFilterDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowPatientFilterDropdown(false), 150)}
+                  className="flex-1 text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                {patientNameFilter && (
+                  <button
+                    type="button"
+                    onClick={() => setPatientNameFilter("")}
+                    className="p-1 text-muted-foreground hover:text-destructive"
+                    title="クリア"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              {showPatientFilterDropdown && patientNameSuggestions.length > 0 && (
+                <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                  {patientNameSuggestions.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setPatientNameFilter(name);
+                        setShowPatientFilterDropdown(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* フィルターリセット */}
             {activeFilterCount > 0 && (
               <button
                 onClick={() => {
                   setDateFilter("all");
                   clearTeamFilter();
+                  setPatientNameFilter("");
                 }}
                 className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-0.5 transition-colors"
               >
@@ -737,6 +817,15 @@ export default function Tasks() {
               </button>
             </span>
           ))}
+          {patientNameFilter.trim() && (
+            <span className="flex items-center gap-0.5 text-xs px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-500/20">
+              <UserRound className="w-2.5 h-2.5" />
+              {patientNameFilter}
+              <button onClick={() => setPatientNameFilter("")} className="ml-0.5 hover:text-destructive">
+                <X className="w-2.5 h-2.5" />
+              </button>
+            </span>
+          )}
 
         </div>
       )}

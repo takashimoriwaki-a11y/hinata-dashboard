@@ -6,6 +6,7 @@
  */
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import TaskCreateForm from "@/components/TaskCreateForm";
+import { TaskTextInlineEdit } from "@/components/TaskTextInlineEdit";
 import { VoiceMicButton } from "@/components/VoiceMicButton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -729,12 +730,19 @@ const handleClearPatient = () => {
                           className="mt-0.5 w-4 h-4 accent-primary flex-shrink-0"
                         />
                         <div className="flex-1 min-w-0">
-                          <span className={cn(
-                            "text-sm leading-snug",
-                            task.done ? "line-through text-muted-foreground opacity-60" : "text-foreground"
-                          )}>
-                            {task.text}
-                          </span>
+                          <TaskTextInlineEdit
+                            taskId={task.id}
+                            text={task.text}
+                            taskType="patient"
+                            onSuccess={() => {
+                              refetchPatientTasks();
+                              utils.tasks.getMine.invalidate();
+                            }}
+                            textClassName={cn(
+                              "leading-snug",
+                              task.done ? "line-through text-muted-foreground opacity-60" : "text-foreground"
+                            )}
+                          />
                           {task.dueDate && (
                             <p className="text-xs text-muted-foreground mt-0.5">
                               期日: {new Date(task.dueDate).toLocaleDateString("ja-JP")}

@@ -106,6 +106,7 @@ import type { TeamName } from "@shared/teamColors";
 import { Link, useLocation } from "wouter";
 import { useTheme } from "@/contexts/ThemeContext";
 import TaskCreateForm from "@/components/TaskCreateForm";
+import { TaskTextInlineEdit } from "@/components/TaskTextInlineEdit";
 import { CreateTaskForm } from "@/pages/PersonalTasks";
 import { VoiceMicButton } from "@/components/VoiceMicButton";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
@@ -4005,9 +4006,15 @@ function TasksCard() {
                   )}
                 </button>
                 <div className="flex-1 min-w-0">
-                  <span className={cn("text-sm block transition-colors duration-300", task.done ? "animate-strike text-muted-foreground" : "text-foreground")}>
-                    {task.text}
-                  </span>
+                  <TaskTextInlineEdit
+                    taskId={task.id}
+                    text={task.text}
+                    taskType="personal"
+                    textClassName={cn(
+                      "transition-colors duration-300",
+                      task.done ? "animate-strike text-muted-foreground" : "text-foreground"
+                    )}
+                  />
                   <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                     {/* 作成者バッジ（他者から依頼されたタスク） */}
                     {task.createdBy !== user?.id && task.createdByName && (
@@ -4104,6 +4111,7 @@ function PatientTasksCard() {
   const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<string>("全チーム");
+  const [patientNameFilter, setPatientNameFilter] = useState("");
 
   const { data: tasks = [] } = trpc.tasks.getMine.useQuery(undefined, {
     refetchInterval: 60 * 1000,
@@ -4145,11 +4153,28 @@ function PatientTasksCard() {
       });
   }, [tasks, user?.id, (user as any)?.team]);
 
-  // チームフィルター後のタスク
+  // チーム・利用者名フィルター後のタスク
   const filteredPatientTasks = useMemo(() => {
-    if (selectedTeam === "全チーム") return todayPatientTasks;
-    return todayPatientTasks.filter((t) => t.assignTeam === selectedTeam);
-  }, [todayPatientTasks, selectedTeam]);
+    let list = selectedTeam === "全チーム"
+      ? todayPatientTasks
+      : todayPatientTasks.filter((t) => t.assignTeam === selectedTeam);
+    const q = patientNameFilter.trim();
+    if (q) {
+      list = list.filter((t) => (t as any).patientName?.includes(q));
+    }
+    return list;
+  }, [todayPatientTasks, selectedTeam, patientNameFilter]);
+
+  const patientNameSuggestions = useMemo(() => {
+    const names = new Set<string>();
+    for (const t of todayPatientTasks) {
+      if ((t as any).patientName) names.add((t as any).patientName);
+    }
+    const all = Array.from(names).sort((a, b) => a.localeCompare(b, "ja"));
+    const q = patientNameFilter.trim();
+    if (!q) return all;
+    return all.filter((n) => n.includes(q));
+  }, [todayPatientTasks, patientNameFilter]);
 
   const toggleTask = trpc.tasks.toggle.useMutation({
     onMutate: async ({ id, done }) => {
@@ -4248,12 +4273,49 @@ function PatientTasksCard() {
             );
           })}
         </div>
+        {/* 利用者名で絞り込み */}
+        <div className="relative mt-2">
+          <input
+            type="text"
+            placeholder="利用者名で絞り込み..."
+            value={patientNameFilter}
+            onChange={(e) => setPatientNameFilter(e.target.value)}
+            className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-violet-500"
+          />
+          {patientNameFilter && (
+            <button
+              type="button"
+              onClick={() => setPatientNameFilter("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-destructive"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {patientNameFilter && patientNameSuggestions.length > 0 && (
+            <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-32 overflow-y-auto">
+              {patientNameSuggestions.map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => setPatientNameFilter(name)}
+                  className="w-full text-left px-2.5 py-1.5 text-xs hover:bg-accent transition-colors"
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-2 overflow-x-hidden">
         <div className="space-y-2">
           {filteredPatientTasks.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-3">
-              {selectedTeam === "全チーム" ? "今日の利用者タスクはありません ✓" : `${selectedTeam}チームの今日の利用者タスクはありません ✓`}
+              {patientNameFilter.trim()
+                ? `「${patientNameFilter}」に一致するタスクはありません`
+                : selectedTeam === "全チーム"
+                ? "今日の利用者タスクはありません ✓"
+                : `${selectedTeam}チームの今日の利用者タスクはありません ✓`}
             </p>
           ) : (
             filteredPatientTasks.map((task) => {
@@ -4290,9 +4352,20 @@ function PatientTasksCard() {
                         </span>
                       )}
                     </div>
-                    <span className={cn("text-sm block transition-colors duration-300", task.done ? "animate-strike text-muted-foreground" : "text-foreground")}>
-                      {task.text}
-                    </span>
+                    <TaskTextInlineEdit
+                      taskId={task.id}
+                      text={task.text}
+                      taskType="patient"
+                      onSuccess={() => {
+                        utils.tasks.getMine.invalidate();
+                        const pn = (task as any).patientName;
+                        if (pn) utils.tasks.getByPatientName.invalidate({ patientName: pn });
+                      }}
+                      textClassName={cn(
+                        "transition-colors duration-300",
+                        task.done ? "animate-strike text-muted-foreground" : "text-foreground"
+                      )}
+                    />
                     {task.dueDate && (
                       <span className={cn(
                         "flex items-center gap-0.5 text-xs mt-0.5",

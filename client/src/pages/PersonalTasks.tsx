@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { TaskTextInlineEdit } from "@/components/TaskTextInlineEdit";
 
 // ---- 音声入力でよみがな検索ユーティリティ ----
 function normalizeKana(s: string): string {
@@ -1079,9 +1080,12 @@ function TaskCard({
 
         {/* コンテンツ */}
         <div className="flex-1 min-w-0">
-          <p className={`text-sm font-medium leading-snug ${isDone ? "line-through text-muted-foreground" : "text-foreground"}`}>
-            {task.text}
-          </p>
+          <TaskTextInlineEdit
+            taskId={task.id}
+            text={task.text}
+            taskType="personal"
+            textClassName={`font-medium ${isDone ? "line-through text-muted-foreground" : "text-foreground"}`}
+          />
           <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
             {/* 種別 */}
             {taskKind === "at_time" ? (
