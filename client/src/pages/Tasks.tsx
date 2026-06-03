@@ -539,16 +539,20 @@ export default function Tasks() {
       </div>
 
       {/* 現在のフィルター状態を常時表示 */}
-      {teamFilter.size > 0 && (
+      {(teamFilter.size > 0 || patientNameFilter.trim()) && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
           <Users className="w-4 h-4 text-primary flex-shrink-0" />
           <span className="text-sm font-medium text-primary flex-1 min-w-0">
-            表示中：{Array.from(teamFilter).map((f) =>
-              f === "all_team" ? "全員向け" : f === "personal" ? "個人指定" : `${f}チーム`
-            ).join("・")}
+            表示中：
+            {[
+              ...Array.from(teamFilter).map((f) =>
+                f === "all_team" ? "全員向け" : f === "personal" ? "個人指定" : `${f}チーム`
+              ),
+              ...(patientNameFilter.trim() ? [`利用者「${patientNameFilter.trim()}」`] : []),
+            ].join("・")}
           </span>
           <button
-            onClick={clearTeamFilter}
+            onClick={() => { clearTeamFilter(); setPatientNameFilter(""); }}
             className="ml-auto flex items-center gap-1 text-xs text-primary/70 hover:text-destructive transition-colors flex-shrink-0"
           >
             <X className="w-3.5 h-3.5" />
@@ -607,6 +611,58 @@ export default function Tasks() {
             </span>
           )}
         </button>
+      </div>
+
+      {/* 利用者名で絞り込み（常時表示） */}
+      <div className="relative">
+        <div className="flex items-center gap-2">
+          <UserRound className="w-4 h-4 text-violet-500 flex-shrink-0" />
+          <input
+            type="text"
+            placeholder="利用者名で絞り込み..."
+            value={patientNameFilter}
+            onChange={(e) => {
+              setPatientNameFilter(e.target.value);
+              setShowPatientFilterDropdown(true);
+            }}
+            onFocus={() => setShowPatientFilterDropdown(true)}
+            onBlur={() => setTimeout(() => setShowPatientFilterDropdown(false), 150)}
+            className="flex-1 text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-violet-500"
+          />
+          {patientNameFilter && (
+            <button
+              type="button"
+              onClick={() => setPatientNameFilter("")}
+              className="p-1.5 text-muted-foreground hover:text-destructive rounded-lg hover:bg-muted/50"
+              title="クリア"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+        {showPatientFilterDropdown && patientNameSuggestions.length > 0 && (
+          <div className="absolute z-50 left-6 right-0 top-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+            {patientNameSuggestions.map((name) => (
+              <button
+                key={name}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  setPatientNameFilter(name);
+                  setShowPatientFilterDropdown(false);
+                }}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        )}
+        {patientNameFilter.trim() && (
+          <p className="text-xs text-muted-foreground mt-1">
+            {filtered.length}件表示（利用者名に「{patientNameFilter.trim()}」を含むタスク）
+          </p>
+        )}
       </div>
 
       {/* フィルターパネル */}
@@ -722,56 +778,6 @@ export default function Tasks() {
                   );
                 })}
               </div>
-            </div>
-
-            {/* 利用者名フィルター */}
-            <div className="relative">
-              <div className="flex items-center gap-1 mb-1.5">
-                <UserRound className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground">利用者名で絞り込み</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="text"
-                  placeholder="利用者名を入力..."
-                  value={patientNameFilter}
-                  onChange={(e) => {
-                    setPatientNameFilter(e.target.value);
-                    setShowPatientFilterDropdown(true);
-                  }}
-                  onFocus={() => setShowPatientFilterDropdown(true)}
-                  onBlur={() => setTimeout(() => setShowPatientFilterDropdown(false), 150)}
-                  className="flex-1 text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-                {patientNameFilter && (
-                  <button
-                    type="button"
-                    onClick={() => setPatientNameFilter("")}
-                    className="p-1 text-muted-foreground hover:text-destructive"
-                    title="クリア"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-              {showPatientFilterDropdown && patientNameSuggestions.length > 0 && (
-                <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                  {patientNameSuggestions.map((name) => (
-                    <button
-                      key={name}
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        setPatientNameFilter(name);
-                        setShowPatientFilterDropdown(false);
-                      }}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
-                    >
-                      {name}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* フィルターリセット */}
