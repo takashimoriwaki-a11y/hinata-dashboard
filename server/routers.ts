@@ -3730,9 +3730,17 @@ ${todayStr}
           });
         }
 
-        const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A:J")}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-        const res = await fetch(appendUrl, {
-          method: "POST",
+        // 既存データの最終行を数え、その次の行のA列に明示的に書き込む。
+        // （Google Sheets の append はテーブル自動検出により書き込み開始列がずれることがあるため使用しない）
+        const countUrl = `https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A:I")}?valueRenderOption=UNFORMATTED_VALUE`;
+        const countRes = await fetch(countUrl, {
+          headers: { Authorization: `Bearer ${token.token}` },
+        });
+        const countData = countRes.ok ? await countRes.json() as { values?: string[][] } : { values: [] };
+        const nextRow = (countData.values?.length ?? 1) + 1; // 末尾データ行の次（1始まり）
+        const writeUrl = `https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}/values/${encodeURIComponent(`${SHEET_NAME}!A${nextRow}`)}?valueInputOption=USER_ENTERED`;
+        const res = await fetch(writeUrl, {
+          method: "PUT",
           headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
           body: JSON.stringify({ values: [row] }),
         });
