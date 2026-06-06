@@ -12,6 +12,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and } from "drizzle-orm";
+import { google } from "googleapis";
 import { router, publicProcedure } from "./_core/trpc";
 
 // ============================================================================
@@ -294,6 +295,66 @@ function buildDateTime(date: string, time: string | null | undefined): string {
     return `${date}T${time}:00`;
   }
   return `${date}T00:00:00`;
+}
+
+// ============================================================================
+// 直帰申請スプレッドシートバックフィル（importData.backfillDirectReturnSheet 用）
+// ============================================================================
+
+const DIRECT_RETURN_BACKFILL_HEADERS = [
+  "申請日", "申請時刻", "申請者", "理由", "詳細",
+  "ステータス", "承認者", "承認日時", "承認者コメント",
+];
+
+function directReturnStatusLabel(status: string) {
+  if (status === "approved") return "承認済み";
+  if (status === "rejected") return "却下";
+  return "申請中";
+}
+
+function formatDirectReturnAppliedTime(appliedAt: number | null | undefined) {
+  if (!appliedAt) return "";
+  return new Date(appliedAt).toLocaleTimeString("ja-JP", {
+    timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit",
+  });
+}
+
+function formatDirectReturnApprovedAt(approvedAt: number | null | undefined) {
+  if (!approvedAt) return "";
+  return new Date(approvedAt).toLocaleString("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+  });
+}
+
+function parseDirectReturnAppendRowNumber(updatedRange: string): number | null {
+  const rowMatch = updatedRange.match(/!A(\d+):/);
+  return rowMatch ? parseInt(rowMatch[1]!, 10) : null;
+}
+
+async function ensureDirectReturnBackfillMonthTab(
+  spreadsheetId: string,
+  yearMonth: string,
+  sheets: ReturnType<typeof google.sheets>,
+) {
+  const ssInfo = await sheets.spreadsheets.get({ spreadsheetId });
+  const existingTabs = (ssInfo.data.sheets ?? [])
+    .map(s => s.properties?.title ?? "")
+    .filter(Boolean);
+  if (existingTabs.includes(yearMonth)) return;
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [{ addSheet: { properties: { title: yearMonth } } }],
+    },
+  });
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `${yearMonth}!A1:I1`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: { values: [DIRECT_RETURN_BACKFILL_HEADERS] },
+  });
 }
 
 // ============================================================================
@@ -828,6 +889,128 @@ export const importRouter = router({
         toInsertCount: toInsert.length,
         successCount: results.filter((r) => r.status === "success").length,
         skippedCount: results.filter((r) => r.status === "skipped").length,
+        results,
+      };
+    }),
+
+  /** 直帰申請：スプレッドシート未転記分のバックフィル（一度きり運用） */
+  backfillDirectReturnSheet: publicProcedure
+    .input(z.object({
+      secret: z.string(),
+      dryRun: z.boolean().default(true),
+      yearMonth: z.string().regex(/^\d{4}-\d{2}$/),
+    }))
+    .mutation(async ({ input }) => {
+      requireImportSecret(input);
+      const { getDb } = await import("./db");
+      const db = await getDb();
+      if (!db) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続エラー" });
+      }
+
+      const { directReturnApprovals, directReturnSpreadsheets } = await import("../drizzle/schema");
+      const { eq, and, like, isNull, asc } = await import("drizzle-orm");
+
+      const rows = await db.select().from(directReturnApprovals)
+        .where(and(
+          like(directReturnApprovals.applicationDate, `${input.yearMonth}%`),
+          isNull(directReturnApprovals.sheetRowNumber),
+        ))
+        .orderBy(asc(directReturnApprovals.appliedAt));
+
+      const year = parseInt(input.yearMonth.split("-")[0]!, 10);
+      const ssRows = await db.select().from(directReturnSpreadsheets)
+        .where(eq(directReturnSpreadsheets.year, year))
+        .limit(1);
+      if (ssRows.length === 0) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: `${year}年度の直帰申請スプレッドシートが未登録です`,
+        });
+      }
+      const spreadsheetId = ssRows[0].spreadsheetId;
+
+      const targets = rows.map((r) => ({
+        id: r.id,
+        applicationDate: r.applicationDate,
+        applicantName: r.applicantName,
+        status: r.status,
+        reasonCategory: r.reasonCategory,
+      }));
+
+      if (input.dryRun || rows.length === 0) {
+        return {
+          dryRun: input.dryRun,
+          yearMonth: input.yearMonth,
+          spreadsheetId,
+          targetCount: rows.length,
+          targets,
+          successCount: 0,
+          failCount: 0,
+          results: [] as Array<{ id: number; status: string; sheetRowNumber?: number; error?: string }>,
+        };
+      }
+
+      const auth = new google.auth.GoogleAuth({
+        credentials: {
+          client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+          private_key: (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ?? "").replace(/\\n/g, "\n"),
+        },
+        scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+      });
+      const sheets = google.sheets({ version: "v4", auth });
+      await ensureDirectReturnBackfillMonthTab(spreadsheetId, input.yearMonth, sheets);
+
+      const results: Array<{ id: number; status: string; sheetRowNumber?: number; error?: string }> = [];
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const record of rows) {
+        try {
+          const newRow = [
+            record.applicationDate,
+            formatDirectReturnAppliedTime(record.appliedAt),
+            record.applicantName ?? "不明",
+            record.reasonCategory ?? "",
+            record.reasonDetail ?? "",
+            directReturnStatusLabel(record.status),
+            record.approverName ?? "",
+            formatDirectReturnApprovedAt(record.approvedAt ?? undefined),
+            record.approverComment ?? "",
+          ];
+          const appendRes = await sheets.spreadsheets.values.append({
+            spreadsheetId,
+            range: `${input.yearMonth}!A:I`,
+            valueInputOption: "USER_ENTERED",
+            includeValuesInResponse: false,
+            requestBody: { values: [newRow] },
+          });
+          const sheetRowNumber = parseDirectReturnAppendRowNumber(appendRes.data.updates?.updatedRange ?? "");
+          if (!sheetRowNumber) {
+            throw new Error("行番号を取得できませんでした");
+          }
+
+          await db.update(directReturnApprovals)
+            .set({ sheetRowNumber, sheetTabName: input.yearMonth })
+            .where(eq(directReturnApprovals.id, record.id));
+
+          results.push({ id: record.id, status: "success", sheetRowNumber });
+          successCount++;
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          results.push({ id: record.id, status: "failed", error: message });
+          failCount++;
+        }
+      }
+
+      return {
+        dryRun: false,
+        yearMonth: input.yearMonth,
+        spreadsheetId,
+        targetCount: rows.length,
+        targets,
+        successCount,
+        failCount,
         results,
       };
     }),
