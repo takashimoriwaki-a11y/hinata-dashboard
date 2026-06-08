@@ -590,6 +590,13 @@ const handleClearPatient = () => {
     }
   };
 
+  const handleNextVisitDateChange = (value: string) => {
+    setNextVisitDate(value);
+    setExported(false);
+    setSavedRecordId(null);
+    onNextVisitChange?.(value, nextVisitTime);
+  };
+
   // このカードだけリセット（全状態 + localStorage削除）
   const handleResetCard = () => {
     if (!window.confirm(`${slotData.patientName ? slotData.patientName + "さんの" : ""}カード${slotIndex + 1}の入力内容を全てリセットしますか？`)) return;
@@ -1056,12 +1063,8 @@ const handleClearPatient = () => {
                   type="date"
                   className="h-9 w-full max-w-[calc(100vw-5rem)] sm:max-w-full min-w-0 box-border rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                   value={nextVisitDate}
-                  onChange={(e) => {
-                    setNextVisitDate(e.target.value);
-                    setExported(false);
-                    setSavedRecordId(null);
-                    onNextVisitChange?.(e.target.value, nextVisitTime);
-                  }}
+                  onChange={(e) => handleNextVisitDateChange(e.target.value)}
+                  onInput={(e) => handleNextVisitDateChange(e.currentTarget.value)}
                   style={{ colorScheme: "light dark" }}
                 />
               </div>
