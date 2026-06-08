@@ -833,10 +833,11 @@ function DailyByTeamCard() {
               <tbody>
                 {sheetRows.map((row) => {
                   const colors = teamColors[row.team] ?? { bg: "bg-muted", text: "text-foreground", bgNight: "bg-muted", textNight: "text-foreground" };
+                  const rowLabel = `${row.category}${row.team}`;
                   const isPlannedTotal = row.category === "予定合計件数";
                   const isTargetTotal = row.category === "目標合計件数";
                   const isTotal = isPlannedTotal || isTargetTotal;
-                  const isDiff = row.category.includes("目標") && row.category.includes("予定");
+                  const isDiff = rowLabel.includes("目標") && rowLabel.includes("予定");
                   const isTarget = row.category === "目標";
                   const isPlanned = row.category === "予定";
                   return (
