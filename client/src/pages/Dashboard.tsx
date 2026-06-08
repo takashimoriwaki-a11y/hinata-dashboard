@@ -816,7 +816,9 @@ function DailyByTeamCard() {
               <tbody>
                 {sheetRows.map((row) => {
                   const colors = teamColors[row.team] ?? { bg: "bg-muted", text: "text-foreground", bgNight: "bg-muted", textNight: "text-foreground" };
-                  const isTotal = row.category.includes("合計");
+                  const isPlannedTotal = row.category === "予定合計件数";
+                  const isTargetTotal = row.category === "目標合計件数";
+                  const isTotal = isPlannedTotal || isTargetTotal;
                   const isDiff = row.category.includes("目標") && row.category.includes("予定");
                   const isTarget = row.category === "目標";
                   const isPlanned = row.category === "予定";
@@ -825,8 +827,11 @@ function DailyByTeamCard() {
                       key={`${row.sourceRowNumber}-${row.category}-${row.team}`}
                       className={cn(
                         "border-t border-border/40",
-                        isTotal && "bg-primary/10 dark:bg-primary/20",
-                        isDiff && "bg-muted/20"
+                        isPlanned && (isNight ? "bg-orange-950/20" : "bg-orange-50/60"),
+                        isTarget && (isNight ? "bg-slate-900/30" : "bg-slate-50/80"),
+                        isPlannedTotal && (isNight ? "bg-orange-900/35" : "bg-orange-100/80"),
+                        isTargetTotal && (isNight ? "bg-sky-900/30" : "bg-sky-100/70"),
+                        isDiff && (isNight ? "bg-muted/30" : "bg-muted/40")
                       )}
                     >
                       <td className="py-1.5 pr-2">
@@ -834,8 +839,8 @@ function DailyByTeamCard() {
                           "inline-flex items-center justify-center min-w-[2.5rem] px-1.5 py-0.5 rounded text-[11px] font-semibold",
                           isPlanned
                             ? isNight
-                              ? "bg-orange-900/30 text-orange-200"
-                              : "bg-orange-100 text-orange-700"
+                              ? "bg-orange-800/70 text-orange-100"
+                              : "bg-orange-200 text-orange-800"
                             : isTarget
                               ? isNight
                                 ? "bg-muted/40 text-muted-foreground"
@@ -844,9 +849,17 @@ function DailyByTeamCard() {
                                 ? isNight
                                   ? "bg-rose-900/30 text-rose-200"
                                   : "bg-rose-100 text-rose-700"
-                                : isNight
-                                  ? "bg-primary/20 text-primary"
-                                  : "bg-primary/10 text-primary"
+                                : isPlannedTotal
+                                  ? isNight
+                                    ? "bg-orange-700/70 text-orange-50"
+                                    : "bg-orange-500 text-white"
+                                  : isTargetTotal
+                                    ? isNight
+                                      ? "bg-sky-800/70 text-sky-100"
+                                      : "bg-sky-500 text-white"
+                                    : isNight
+                                      ? "bg-primary/20 text-primary"
+                                      : "bg-primary/10 text-primary"
                         )}>
                           {row.category}
                         </span>
@@ -865,15 +878,39 @@ function DailyByTeamCard() {
                       {days.map((d, i) => (
                         <td
                           key={d.key}
-                          className={`text-center py-1.5 px-1 tabular-nums font-medium ${
-                            isDiff && negDayIndices.has(i)
-                              ? isNight
-                                ? "bg-red-900/20"
-                                : "bg-red-50"
-                              : ""
-                          } text-foreground`}
+                          className={cn(
+                            "text-center py-1.5 px-1 tabular-nums",
+                            isTotal ? "font-extrabold text-sm" : "font-semibold",
+                            isDiff && negDayIndices.has(i) && (isNight ? "bg-red-900/20" : "bg-red-50")
+                          )}
                         >
-                          {formatCount(row[d.key])}
+                          {isDiff ? (
+                            <span className={cn(
+                              "inline-flex items-center justify-center min-w-[2.25rem] px-1.5 py-0.5 rounded-full text-xs font-bold",
+                              row[d.key] > 0
+                                ? isNight
+                                  ? "bg-emerald-900/45 text-emerald-200"
+                                  : "bg-emerald-100 text-emerald-700"
+                                : row[d.key] < 0
+                                  ? isNight
+                                    ? "bg-red-900/45 text-red-200"
+                                    : "bg-red-100 text-red-700"
+                                  : isNight
+                                    ? "bg-muted/50 text-muted-foreground"
+                                    : "bg-muted text-muted-foreground"
+                            )}>
+                              {row[d.key] > 0 ? `+${formatCount(row[d.key])}` : formatCount(row[d.key])}
+                            </span>
+                          ) : (
+                            <span className={cn(
+                              isPlanned && (isNight ? "text-orange-100" : "text-orange-800"),
+                              isTarget && "text-muted-foreground",
+                              isPlannedTotal && (isNight ? "text-orange-100" : "text-orange-800"),
+                              isTargetTotal && (isNight ? "text-sky-100" : "text-sky-800")
+                            )}>
+                              {formatCount(row[d.key])}
+                            </span>
+                          )}
                         </td>
                       ))}
                     </tr>
