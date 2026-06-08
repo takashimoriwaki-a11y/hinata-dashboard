@@ -1052,9 +1052,9 @@ const handleClearPatient = () => {
             {!slotData.skipNextVisit && (
             <div className="flex flex-col gap-2">
               <div className="relative flex-1 min-w-0">
-                <Input
+                <input
                   type="date"
-                  className="text-sm w-full"
+                  className="h-9 w-full max-w-full min-w-0 box-border rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                   value={nextVisitDate}
                   onChange={(e) => {
                     setNextVisitDate(e.target.value);
