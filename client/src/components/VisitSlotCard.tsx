@@ -1054,7 +1054,7 @@ const handleClearPatient = () => {
               <div className="relative flex-1 min-w-0">
                 <input
                   type="date"
-                  className="h-9 w-full max-w-full min-w-0 box-border rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                  className="h-9 w-full max-w-[calc(100vw-5rem)] sm:max-w-full min-w-0 box-border rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                   value={nextVisitDate}
                   onChange={(e) => {
                     setNextVisitDate(e.target.value);
