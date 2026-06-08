@@ -1273,10 +1273,10 @@ const handleClearPatient = () => {
                     <><Copy className="w-4 h-4" />（精神科）プロンプトをコピー</>
                   )}
                 </button>
-                <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  <CheckSquare className="w-3.5 h-3.5" />
-                  {visitTaskProgressLabel}
-                </div>
+              </div>
+              <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <CheckSquare className="w-3.5 h-3.5" />
+                {visitTaskProgressLabel}
               </div>
             </div>
           </div>
