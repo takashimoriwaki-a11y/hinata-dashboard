@@ -188,6 +188,11 @@ export function VisitSlotCard({ slotIndex, slotData, dbCardStateRaw, onSlotChang
 
   // ZESTチェック
   const [zestChecked, setZestChecked] = useState(savedState?.zestChecked ?? false);
+  const checkedVisitTaskCount = useMemo(
+    () => tasksBefore.filter(task => task.checked).length,
+    [tasksBefore]
+  );
+  const visitTaskProgressLabel = `${checkedVisitTaskCount}/${VISIT_TASKS_BEFORE_DEFAULT.length} 完了`;
   // メモ入力中の保護フラグ（IME変換中・フォーカス中はDB同期で上書きしない）
   const isComposingRef = useRef(false);
   const isNoteFocusedRef = useRef(false);
@@ -674,9 +679,9 @@ const handleClearPatient = () => {
                   title={completed ? "完了を取り消す" : "訪問完了にする"}
                 >
                   {completed ? (
-                    <><CheckCircle2 className="w-3.5 h-3.5" />完了</>
+                    <><CheckCircle2 className="w-3.5 h-3.5" />{visitTaskProgressLabel}</>
                   ) : (
-                    <><Circle className="w-3.5 h-3.5" />完了</>
+                    <><Circle className="w-3.5 h-3.5" />{visitTaskProgressLabel}</>
                   )}
                 </button>
                 <button
@@ -1268,6 +1273,10 @@ const handleClearPatient = () => {
                     <><Copy className="w-4 h-4" />（精神科）プロンプトをコピー</>
                   )}
                 </button>
+                <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <CheckSquare className="w-3.5 h-3.5" />
+                  {visitTaskProgressLabel}
+                </div>
               </div>
             </div>
           </div>
