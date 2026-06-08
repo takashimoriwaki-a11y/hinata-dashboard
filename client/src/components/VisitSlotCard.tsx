@@ -11,10 +11,13 @@ import { VoiceMicButton } from "@/components/VoiceMicButton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Calendar as UiCalendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Loader2, Calendar, ChevronDown, CheckSquare, X, Copy, Check,
   CheckCircle2, Circle, Mic, MicOff, ExternalLink
 } from "lucide-react";
+import { ja } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -178,6 +181,7 @@ export function VisitSlotCard({ slotIndex, slotData, dbCardStateRaw, onSlotChang
   // 次回訪問日時
   const [nextVisitDate, setNextVisitDate] = useState(savedState?.nextVisitDate ?? "");
   const [nextVisitTime, setNextVisitTime] = useState(savedState?.nextVisitTime ?? "");
+  const [nextVisitCalendarOpen, setNextVisitCalendarOpen] = useState(false);
   const [notifiedTo, setNotifiedTo] = useState<string>(savedState?.notifiedTo ?? "");
   const [notifiedToOther, setNotifiedToOther] = useState(savedState?.notifiedToOther ?? "");
   const [notifyMethod, setNotifyMethod] = useState<string>(savedState?.notifyMethod ?? "");
@@ -595,6 +599,20 @@ const handleClearPatient = () => {
     setExported(false);
     setSavedRecordId(null);
     onNextVisitChange?.(value, nextVisitTime);
+  };
+  const selectedNextVisitDate = useMemo(() => {
+    if (!nextVisitDate) return undefined;
+    const [year, month, day] = nextVisitDate.split("-").map(Number);
+    if (!year || !month || !day) return undefined;
+    return new Date(year, month - 1, day);
+  }, [nextVisitDate]);
+  const formatDateForInput = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  const handleResetNextVisitDateTime = () => {
+    if (!window.confirm("次回訪問日時をリセットしますか？")) return;
+    setNextVisitDate("");
+    setNextVisitTime("");
+    onNextVisitChange?.("", "");
   };
 
   // このカードだけリセット（全状態 + localStorage削除）
@@ -1059,14 +1077,33 @@ const handleClearPatient = () => {
             {!slotData.skipNextVisit && (
             <div className="flex flex-col gap-2">
               <div className="relative flex-1 min-w-0">
-                <input
-                  type="date"
-                  className="h-9 w-full max-w-[calc(100vw-5rem)] sm:max-w-full min-w-0 box-border rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                  value={nextVisitDate}
-                  onChange={(e) => handleNextVisitDateChange(e.target.value)}
-                  onInput={(e) => handleNextVisitDateChange(e.currentTarget.value)}
-                  style={{ colorScheme: "light dark" }}
-                />
+                <Popover open={nextVisitCalendarOpen} onOpenChange={setNextVisitCalendarOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className={cn(
+                        "h-9 w-full max-w-[calc(100vw-5rem)] sm:max-w-full min-w-0 box-border rounded-md border border-input bg-transparent px-3 py-1 text-left text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+                        !nextVisitDate && "text-muted-foreground"
+                      )}
+                    >
+                      {nextVisitDate ? nextVisitDate.replace(/-/g, "/") : "日付を選択"}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start" sideOffset={4}>
+                    <UiCalendar
+                      mode="single"
+                      selected={selectedNextVisitDate}
+                      onSelect={(date) => {
+                        if (!date) return;
+                        handleNextVisitDateChange(formatDateForInput(date));
+                        setNextVisitCalendarOpen(false);
+                      }}
+                      locale={ja}
+                      weekStartsOn={0}
+                      className="rounded-md border-0"
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="relative w-28">
                 <button
@@ -1116,20 +1153,11 @@ const handleClearPatient = () => {
                 <button
                   type="button"
                   title="次回訪問日時をリセット"
-                  className="flex-shrink-0 p-2 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                  onClick={() => {
-                    if (!window.confirm("次回訪問日時をリセットしますか？")) return;
-                    setNextVisitDate("");
-                    setNextVisitTime("");
-                    setNotifiedTo("");
-                    setNotifiedToOther("");
-                    setNotifyMethod("");
-                    setNotifyMethodOther("");
-                    setExported(false);
-                    setSavedRecordId(null);
-                  }}
+                  className="w-fit flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 hover:border-destructive/40 transition-colors"
+                  onClick={handleResetNextVisitDateTime}
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3.5 h-3.5" />
+                  次回訪問日時リセット
                 </button>
               )}
             </div>
