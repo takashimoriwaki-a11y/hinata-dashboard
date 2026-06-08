@@ -772,9 +772,9 @@ function DailyByTeamCard() {
   const getComparisonTextClass = (row: typeof sheetRows[number], key: typeof days[number]["key"]) => {
     const target = getTargetValueForRow(row, key);
     if (target === null) return "";
-    if (row[key] > target) return isNight ? "text-sky-200" : "text-blue-700";
-    if (row[key] < target) return isNight ? "text-red-200" : "text-red-700";
-    return "";
+    if (row[key] > target) return isNight ? "text-blue-300" : "text-blue-700";
+    if (row[key] < target) return isNight ? "text-red-300" : "text-red-700";
+    return isNight ? "text-emerald-300" : "text-emerald-700";
   };
 
   return (
@@ -906,15 +906,15 @@ function DailyByTeamCard() {
                               "inline-flex items-center justify-center min-w-[2.25rem] px-1.5 py-0.5 rounded-full text-xs font-bold",
                               row[d.key] > 0
                                 ? isNight
-                                  ? "bg-sky-900/45 text-sky-200"
+                                  ? "bg-blue-900/50 text-blue-300"
                                   : "bg-blue-100 text-blue-700"
                                 : row[d.key] < 0
                                   ? isNight
-                                    ? "bg-red-900/45 text-red-200"
+                                    ? "bg-red-900/50 text-red-300"
                                     : "bg-red-100 text-red-700"
                                   : isNight
-                                    ? "bg-muted/50 text-muted-foreground"
-                                    : "bg-muted text-muted-foreground"
+                                    ? "bg-emerald-900/45 text-emerald-300"
+                                    : "bg-emerald-100 text-emerald-700"
                             )}>
                               {row[d.key] > 0 ? `+${formatCount(row[d.key])}` : formatCount(row[d.key])}
                             </span>
