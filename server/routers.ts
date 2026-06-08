@@ -1904,8 +1904,10 @@ export const appRouter = router({
         const client = await auth.getClient();
         const token = await client.getAccessToken();
         if (!token.token) throw new Error("アクセストークンの取得に失敗しました");
-        // B46:G53 = チーム列と月火水木金の曜日別件数テーブル（52行目=目標、53行目=合計ー目標）
-        const range = encodeURIComponent(`${SHEET_TAB}!B46:G53`);
+        // A44:G55 = 「見込み件数」シートの曜日別件数表全体
+        // 44行目: ヘッダー / 45〜52行目: 各チームの予定・目標 / 53〜55行目: 合計・差分
+        const sourceRange = `${SHEET_TAB}!A44:G55`;
+        const range = encodeURIComponent(sourceRange);
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${MIKOMIKEN_SHEET_ID}/values/${range}`;
         const response = await fetch(url, {
           headers: { Authorization: `Bearer ${token.token}` },
@@ -1916,52 +1918,46 @@ export const appRouter = router({
         }
         const data = await response.json() as { values?: string[][] };
         const rows = data.values ?? [];
-        // rows[0] = ヘッダー行（チーム、月、火、水、木、金）
-        // rows[1..4] = 各チーム行（郡山北部、郡山南部、身体、天理）
-        // rows[5] = 合計行
+        const toWeekdayValues = (row: string[] | undefined) => ({
+          mon: parseNum(row?.[2]),
+          tue: parseNum(row?.[3]),
+          wed: parseNum(row?.[4]),
+          thu: parseNum(row?.[5]),
+          fri: parseNum(row?.[6]),
+        });
+        const detailRows = rows.slice(1).map((row, index) => ({
+          sourceRowNumber: 45 + index,
+          category: row[0] ?? "",
+          team: row[1] ?? "",
+          ...toWeekdayValues(row),
+        })).filter(row => row.category || row.team);
+
+        // 互換用: 既存フロントが参照している形式も返す
         const teams: { name: string; mon: number; tue: number; wed: number; thu: number; fri: number }[] = [];
-        for (let i = 1; i <= 4; i++) {
+        for (let i = 1; i <= 8; i += 2) {
           const row = rows[i];
-          if (!row) continue;
+          if (!row || row[0] !== "予定") continue;
           teams.push({
-            name: row[0] ?? "",
-            mon: parseNum(row[1]),
-            tue: parseNum(row[2]),
-            wed: parseNum(row[3]),
-            thu: parseNum(row[4]),
-            fri: parseNum(row[5]),
+            name: row[1] ?? "",
+            ...toWeekdayValues(row),
           });
         }
-        const totalRow = rows[5];
+        const totalRow = rows.find(row => row[0] === "予定合計件数");
         const total = totalRow ? {
-          name: "合計",
-          mon: parseNum(totalRow[1]),
-          tue: parseNum(totalRow[2]),
-          wed: parseNum(totalRow[3]),
-          thu: parseNum(totalRow[4]),
-          fri: parseNum(totalRow[5]),
+          name: "予定合計件数",
+          ...toWeekdayValues(totalRow),
         } : null;
-        // rows[6] = 目標行（52行目）
-        const targetRow = rows[6];
+        const targetRow = rows.find(row => row[0] === "目標合計件数");
         const target = targetRow ? {
-          name: "目標",
-          mon: parseNum(targetRow[1]),
-          tue: parseNum(targetRow[2]),
-          wed: parseNum(targetRow[3]),
-          thu: parseNum(targetRow[4]),
-          fri: parseNum(targetRow[5]),
+          name: "目標合計件数",
+          ...toWeekdayValues(targetRow),
         } : null;
-        // rows[7] = 合計ー目標行（53行目）
-        const diffRow = rows[7];
+        const diffRow = rows.find(row => row[0] === "予定−目標" || row[0] === "予定-目標");
         const diff = diffRow ? {
-          name: "合計−目標",
-          mon: parseNum(diffRow[1]),
-          tue: parseNum(diffRow[2]),
-          wed: parseNum(diffRow[3]),
-          thu: parseNum(diffRow[4]),
-          fri: parseNum(diffRow[5]),
+          name: "予定−目標",
+          ...toWeekdayValues(diffRow),
         } : null;
-        return { teams, total, target, diff };
+        return { sourceRange, rows: detailRows, teams, total, target, diff };
       } catch (error) {
         console.error("[Visits] Failed to fetch daily by team:", error);
         return null;

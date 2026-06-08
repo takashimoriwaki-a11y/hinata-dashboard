@@ -748,6 +748,17 @@ function DailyByTeamCard() {
           .map(({ i }) => i)
       : []
   );
+  const sheetRows = data?.rows && data.rows.length > 0
+    ? data.rows
+    : [
+        ...(data?.teams ?? []).flatMap(team => ([
+          { sourceRowNumber: `legacy-${team.name}-planned`, category: "予定", team: team.name, mon: team.mon, tue: team.tue, wed: team.wed, thu: team.thu, fri: team.fri },
+        ])),
+        ...(data?.total ? [{ sourceRowNumber: "legacy-total", category: data.total.name, team: "", mon: data.total.mon, tue: data.total.tue, wed: data.total.wed, thu: data.total.thu, fri: data.total.fri }] : []),
+        ...(data?.target ? [{ sourceRowNumber: "legacy-target", category: data.target.name, team: "", mon: data.target.mon, tue: data.target.tue, wed: data.target.wed, thu: data.target.thu, fri: data.target.fri }] : []),
+        ...(data?.diff ? [{ sourceRowNumber: "legacy-diff", category: data.diff.name, team: "", mon: data.diff.mon, tue: data.diff.tue, wed: data.diff.wed, thu: data.diff.thu, fri: data.diff.fri }] : []),
+      ];
+  const formatCount = (value: number) => Number.isInteger(value) ? String(value) : String(value);
 
   return (
     <Card id="section-daily-by-team" className="fade-in-up shadow-sm">
@@ -777,9 +788,10 @@ function DailyByTeamCard() {
           <p className="text-sm text-muted-foreground py-2">データを取得できませんでした</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
+            <table className="w-full min-w-[430px] text-sm border-collapse">
               <thead>
                 <tr>
+                  <th className="text-left py-1.5 pr-2 font-medium text-muted-foreground text-xs w-14">区分</th>
                   <th className="text-left py-1.5 pr-2 font-medium text-muted-foreground text-xs w-20">チーム</th>
                   {days.map((d, i) => (
                     <th
@@ -802,152 +814,76 @@ function DailyByTeamCard() {
                 </tr>
               </thead>
               <tbody>
-                {data.teams.map((team) => {
-                  const colors = teamColors[team.name] ?? { bg: "bg-muted", text: "text-foreground", bgNight: "bg-muted", textNight: "text-foreground" };
+                {sheetRows.map((row) => {
+                  const colors = teamColors[row.team] ?? { bg: "bg-muted", text: "text-foreground", bgNight: "bg-muted", textNight: "text-foreground" };
+                  const isTotal = row.category.includes("合計");
+                  const isDiff = row.category.includes("目標") && row.category.includes("予定");
+                  const isTarget = row.category === "目標";
+                  const isPlanned = row.category === "予定";
                   return (
-                    <tr key={team.name} className="border-t border-border/40">
+                    <tr
+                      key={`${row.sourceRowNumber}-${row.category}-${row.team}`}
+                      className={cn(
+                        "border-t border-border/40",
+                        isTotal && "bg-primary/10 dark:bg-primary/20",
+                        isDiff && "bg-muted/20"
+                      )}
+                    >
                       <td className="py-1.5 pr-2">
-                        <span className={`inline-block text-xs font-medium px-1.5 py-0.5 rounded ${
-                          isNight ? colors.bgNight : colors.bg
-                        } ${isNight ? colors.textNight : colors.text}`}>
-                          {team.name}
+                        <span className={cn(
+                          "inline-flex items-center justify-center min-w-[2.5rem] px-1.5 py-0.5 rounded text-[11px] font-semibold",
+                          isPlanned
+                            ? isNight
+                              ? "bg-orange-900/30 text-orange-200"
+                              : "bg-orange-100 text-orange-700"
+                            : isTarget
+                              ? isNight
+                                ? "bg-muted/40 text-muted-foreground"
+                                : "bg-muted text-muted-foreground"
+                              : isDiff
+                                ? isNight
+                                  ? "bg-rose-900/30 text-rose-200"
+                                  : "bg-rose-100 text-rose-700"
+                                : isNight
+                                  ? "bg-primary/20 text-primary"
+                                  : "bg-primary/10 text-primary"
+                        )}>
+                          {row.category}
                         </span>
+                      </td>
+                      <td className="py-1.5 pr-2">
+                        {row.team ? (
+                          <span className={`inline-block text-xs font-medium px-1.5 py-0.5 rounded ${
+                            isNight ? colors.bgNight : colors.bg
+                          } ${isNight ? colors.textNight : colors.text}`}>
+                            {row.team}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </td>
                       {days.map((d, i) => (
                         <td
                           key={d.key}
                           className={`text-center py-1.5 px-1 tabular-nums font-medium ${
-                            negDayIndices.has(i)
+                            isDiff && negDayIndices.has(i)
                               ? isNight
                                 ? "bg-red-900/20"
                                 : "bg-red-50"
                               : ""
                           } text-foreground`}
                         >
-                          {team[d.key]}
+                          {formatCount(row[d.key])}
                         </td>
                       ))}
                     </tr>
                   );
                 })}
-                {data.total && (
-                  <tr className="border-t-2 border-primary/40 bg-primary/10 dark:bg-primary/20">
-                    <td className="py-2 pr-2 pl-1 rounded-l-md">
-                      <span className="text-sm font-extrabold text-primary">合計</span>
-                    </td>
-                    {days.map((d, i) => (
-                      <td
-                        key={d.key}
-                        className={`text-center py-2 px-1 tabular-nums font-extrabold text-sm ${
-                          negDayIndices.has(i)
-                            ? isNight
-                              ? "bg-red-900/20"
-                              : "bg-red-50"
-                            : ""
-                        } text-foreground`}
-                      >
-                        {data.total![d.key]}
-                      </td>
-                    ))}
-                  </tr>
-                )}
-                {data.target && (
-                  <tr className="border-t border-border/40 bg-muted/30">
-                    <td className="py-1.5 pr-2 pl-1">
-                      <span className="text-xs font-semibold text-muted-foreground">目標</span>
-                    </td>
-                    {days.map((d, i) => (
-                      <td
-                        key={d.key}
-                        className={`text-center py-1.5 px-1 tabular-nums text-xs font-medium ${
-                          negDayIndices.has(i)
-                            ? isNight
-                              ? "bg-red-900/20"
-                              : "bg-red-50"
-                            : ""
-                        } text-muted-foreground`}
-                      >
-                        {data.target![d.key]}
-                      </td>
-                    ))}
-                  </tr>
-                )}
-                {data.diff && (
-                  <tr className="border-t border-border/40">
-                    <td className="py-1.5 pr-2 pl-1">
-                      <span className="text-xs font-semibold text-muted-foreground">差引</span>
-                    </td>
-                    {days.map((d, i) => {
-                      const val = data.diff![d.key];
-                      const isPositive = val > 0;
-                      const isNegative = val < 0;
-                      return (
-                        <td
-                          key={d.key}
-                          className="text-center py-1 px-1"
-                        >
-                          <span className={`inline-flex items-center justify-center min-w-[2rem] px-1.5 py-0.5 rounded-full text-xs font-bold tabular-nums ${
-                            isPositive
-                              ? isNight
-                                ? "bg-emerald-900/40 text-emerald-300"
-                                : "bg-emerald-100 text-emerald-700"
-                              : isNegative
-                              ? isNight
-                                ? "bg-red-900/40 text-red-300"
-                                : "bg-red-100 text-red-600"
-                              : isNight
-                              ? "bg-muted/40 text-muted-foreground"
-                              : "bg-muted/60 text-muted-foreground"
-                          }`}>
-                            {isPositive ? `+${val}` : val}
-                          </span>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                )}
-                {data.target && data.total && (
-                  <tr className="border-t border-border/40 bg-muted/20">
-                    <td className="py-1.5 pr-2 pl-1">
-                      <span className="text-xs font-semibold text-muted-foreground">達成率</span>
-                    </td>
-                    {days.map((d, i) => {
-                      const total = data.total![d.key];
-                      const target = data.target![d.key];
-                      const rate = target > 0 ? Math.round((total / target) * 100) : null;
-                      const isOver = rate !== null && rate >= 100;
-                      return (
-                        <td
-                          key={d.key}
-                          className={`text-center py-1 px-1 ${
-                            negDayIndices.has(i)
-                              ? isNight
-                                ? "bg-red-900/20"
-                                : "bg-red-50"
-                              : ""
-                          }`}
-                        >
-                          {rate !== null ? (
-                            <span className={`inline-flex items-center justify-center min-w-[2.5rem] px-1.5 py-0.5 rounded-full text-xs font-bold tabular-nums ${
-                              isOver
-                                ? isNight
-                                  ? "bg-emerald-900/40 text-emerald-300"
-                                  : "bg-emerald-100 text-emerald-700"
-                                : isNight
-                                  ? "bg-red-900/40 text-red-300"
-                                  : "bg-red-100 text-red-600"
-                            }`}>
-                              {rate}%
-                            </span>
-                          ) : "-"}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                )}
               </tbody>
             </table>
-            <p className="text-xs text-muted-foreground mt-2">見込み件数タブより取得</p>
+            <p className="text-xs text-muted-foreground mt-2">
+              ひなた利用者情報「見込み件数」シート 44〜55行目より取得
+            </p>
           </div>
         )}
       </CardContent>
