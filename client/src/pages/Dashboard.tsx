@@ -759,6 +759,23 @@ function DailyByTeamCard() {
         ...(data?.diff ? [{ sourceRowNumber: "legacy-diff", category: data.diff.name, team: "", mon: data.diff.mon, tue: data.diff.tue, wed: data.diff.wed, thu: data.diff.thu, fri: data.diff.fri }] : []),
       ];
   const formatCount = (value: number) => Number.isInteger(value) ? String(value) : String(value);
+  const targetTotalRow = sheetRows.find(row => row.category === "目標合計件数");
+  const getTargetValueForRow = (row: typeof sheetRows[number], key: typeof days[number]["key"]) => {
+    if (row.category === "予定") {
+      return sheetRows.find(candidate => candidate.category === "目標" && candidate.team === row.team)?.[key] ?? null;
+    }
+    if (row.category === "予定合計件数") {
+      return targetTotalRow?.[key] ?? null;
+    }
+    return null;
+  };
+  const getComparisonTextClass = (row: typeof sheetRows[number], key: typeof days[number]["key"]) => {
+    const target = getTargetValueForRow(row, key);
+    if (target === null) return "";
+    if (row[key] > target) return isNight ? "text-sky-200" : "text-blue-700";
+    if (row[key] < target) return isNight ? "text-red-200" : "text-red-700";
+    return "";
+  };
 
   return (
     <Card id="section-daily-by-team" className="fade-in-up shadow-sm">
@@ -889,8 +906,8 @@ function DailyByTeamCard() {
                               "inline-flex items-center justify-center min-w-[2.25rem] px-1.5 py-0.5 rounded-full text-xs font-bold",
                               row[d.key] > 0
                                 ? isNight
-                                  ? "bg-emerald-900/45 text-emerald-200"
-                                  : "bg-emerald-100 text-emerald-700"
+                                  ? "bg-sky-900/45 text-sky-200"
+                                  : "bg-blue-100 text-blue-700"
                                 : row[d.key] < 0
                                   ? isNight
                                     ? "bg-red-900/45 text-red-200"
@@ -906,7 +923,8 @@ function DailyByTeamCard() {
                               isPlanned && (isNight ? "text-orange-100" : "text-orange-800"),
                               isTarget && "text-muted-foreground",
                               isPlannedTotal && (isNight ? "text-orange-100" : "text-orange-800"),
-                              isTargetTotal && (isNight ? "text-sky-100" : "text-sky-800")
+                              isTargetTotal && (isNight ? "text-sky-100" : "text-sky-800"),
+                              getComparisonTextClass(row, d.key)
                             )}>
                               {formatCount(row[d.key])}
                             </span>
