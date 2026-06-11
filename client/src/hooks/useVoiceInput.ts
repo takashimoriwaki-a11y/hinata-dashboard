@@ -71,6 +71,11 @@ interface UseVoiceInputOptions {
    * デフォルト: 'general'
    */
   context?: string;
+  /**
+   * trueの場合、ブラウザのWeb Speech APIを使わずMediaRecorder + Gemini Audio APIで全文文字起こしする。
+   * 長文やiOS Safariで途中切れしやすい入力に使用する。
+   */
+  forceMediaRecorder?: boolean;
 }
 
 interface UseVoiceInputReturn {
@@ -173,6 +178,7 @@ export function useVoiceInput({
   longTextMode = false,
   maxRecordingMs = MAX_RECORDING_MS,
   context = "general",
+  forceMediaRecorder = false,
 }: UseVoiceInputOptions): UseVoiceInputReturn {
   // 長文モードの場合は無音タイムアウトを長文用に延長
   const effectiveSilenceTimeoutMs = silenceTimeoutMs ?? (longTextMode ? SILENCE_TIMEOUT_LONG_MS : SILENCE_TIMEOUT_MS);
@@ -780,6 +786,11 @@ export function useVoiceInput({
 
   // ---- 公開 API ----
   const startVoice = useCallback(() => {
+    if (forceMediaRecorder) {
+      startMediaRecorder();
+      return;
+    }
+
     // iOS Safari 対応: async/await を使わずに同期的に開始する
     // Web Speech API を試みる（同期）
     const usedSpeechAPI = startSpeechRecognition();
@@ -788,7 +799,7 @@ export function useVoiceInput({
       // iOSでもユーザーのタップ直後（同期コンテキスト）であればgetUserMediaが動作する
       startMediaRecorder();
     }
-  }, [startSpeechRecognition, startMediaRecorder]);
+  }, [forceMediaRecorder, startSpeechRecognition, startMediaRecorder]);
 
   const stopVoice = useCallback(() => {
     if (recognitionRef.current) {

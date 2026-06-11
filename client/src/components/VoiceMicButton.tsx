@@ -69,6 +69,10 @@ interface VoiceMicButtonProps {
    */
   silenceTimeoutMs?: number;
   /**
+   * trueの場合、ブラウザ音声認識を使わず録音音声をサーバー解析に回す。
+   */
+  forceMediaRecorder?: boolean;
+  /**
    * 外部フック状態（useVoiceInput の戻り値）。
    * 指定すると内部で useVoiceInput を呼ばず、この状態を使用する。
    * notesVoice など既存フックのボタンをこのコンポーネントに統一する際に使用。
@@ -128,6 +132,7 @@ export function VoiceMicButton({
   elapsedPosition = "below",
   longTextMode = false,
   silenceTimeoutMs,
+  forceMediaRecorder = false,
 }: VoiceMicButtonProps) {
   // externalState が指定されていない場合のみ内部フックを使用
   const internalHook = useVoiceInput({
@@ -136,6 +141,7 @@ export function VoiceMicButton({
     context,
     longTextMode,
     silenceTimeoutMs,
+    forceMediaRecorder,
   });
 
   // 使用する状態を決定（外部 > 内部）

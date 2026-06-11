@@ -1385,6 +1385,7 @@ const handleClearPatient = () => {
                     previewMode="none"
                     context="handoff_memo"
                     silenceTimeoutMs={15000}
+                    forceMediaRecorder
                     disabled={formatHandoffMemo.isPending}
                     onResult={handleHandoffVoiceResult}
                   />
