@@ -4434,6 +4434,17 @@ ${todayStr}
         return { success: true, ...result };
       }),
 
+    // 申し送り内容スプレッドシートのURLを取得する
+    getHandoffMemoSheetUrl: protectedProcedure
+      .query(async () => {
+        const spreadsheetId = await getSetting(HANDOFF_MEMO_SPREADSHEET_SETTING_KEY, "");
+        return {
+          spreadsheetUrl: spreadsheetId
+            ? `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`
+            : null,
+        };
+      }),
+
     // 転送済みフラグをリセット（未転送に戻す）
     unmarkExported: protectedProcedure
       .input(z.object({ id: z.number() }))

@@ -346,9 +346,13 @@ export function VisitSlotCard({ slotIndex, slotData, dbCardStateRaw, onSlotChang
   });
 
   const formatHandoffMemo = trpc.visitRecords.formatHandoffMemo.useMutation();
+  const handoffMemoSheetUrl = trpc.visitRecords.getHandoffMemoSheetUrl.useQuery(undefined, {
+    refetchOnWindowFocus: false,
+  });
   const exportHandoffMemoToSheet = trpc.visitRecords.exportHandoffMemoToSheet.useMutation({
     onSuccess: (data) => {
       setHandoffMemoExported(true);
+      handoffMemoSheetUrl.refetch();
       toast.success("申し送り内容をスプレッドシートへ転記しました");
       if (data.spreadsheetUrl) {
         console.log("[HandoffMemo] Spreadsheet URL:", data.spreadsheetUrl);
@@ -1421,6 +1425,27 @@ const handleClearPatient = () => {
                       <><ExternalLink className="w-4 h-4" />スプレッドシートへ転記</>
                     )}
                   </button>
+                  {handoffMemoSheetUrl.data?.spreadsheetUrl ? (
+                    <a
+                      href={handoffMemoSheetUrl.data.spreadsheetUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 text-xs font-semibold text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      申し送りシートを開く
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-muted text-xs font-medium text-muted-foreground cursor-not-allowed opacity-70"
+                      title="初回転記後に開けます"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      初回転記後に開けます
+                    </button>
+                  )}
                   {handoffMemo && (
                     <button
                       type="button"
