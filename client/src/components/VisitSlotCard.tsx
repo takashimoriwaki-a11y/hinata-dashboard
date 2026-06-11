@@ -1384,7 +1384,7 @@ const handleClearPatient = () => {
                     size="sm"
                     previewMode="inline"
                     context="clinical_notes"
-                    silenceTimeoutMs={3000}
+                    silenceTimeoutMs={15000}
                     disabled={formatHandoffMemo.isPending}
                     onResult={handleHandoffVoiceResult}
                   />
