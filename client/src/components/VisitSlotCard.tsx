@@ -670,17 +670,20 @@ const handleClearPatient = () => {
   const handleHandoffVoiceResult = useCallback(async (text: string) => {
     const rawText = text.trim();
     if (!rawText) return;
+    const previousText = handoffMemo;
+    const draftText = previousText ? `${previousText}\n${rawText}` : rawText;
+
+    setHandoffMemo(draftText);
+    setHandoffMemoExported(false);
 
     try {
       const result = await formatHandoffMemo.mutateAsync({ text: rawText });
-      setHandoffMemo((prev) => prev ? `${prev}\n${result.text}` : result.text);
+      setHandoffMemo(previousText ? `${previousText}\n${result.text}` : result.text);
       setHandoffMemoExported(false);
     } catch (err) {
-      setHandoffMemo((prev) => prev ? `${prev}\n${rawText}` : rawText);
-      setHandoffMemoExported(false);
       toast.error(err instanceof Error ? `文章化エラー: ${err.message}` : "文章化に失敗しました");
     }
-  }, [formatHandoffMemo]);
+  }, [formatHandoffMemo, handoffMemo]);
 
   const handleExportHandoffMemo = () => {
     if (!slotData.team) {
@@ -1381,7 +1384,7 @@ const handleClearPatient = () => {
                     size="sm"
                     previewMode="inline"
                     context="clinical_notes"
-                    longTextMode
+                    silenceTimeoutMs={3000}
                     disabled={formatHandoffMemo.isPending}
                     onResult={handleHandoffVoiceResult}
                   />
