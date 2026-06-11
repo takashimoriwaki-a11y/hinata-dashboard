@@ -1382,7 +1382,7 @@ const handleClearPatient = () => {
                   </div>
                   <VoiceMicButton
                     size="sm"
-                    previewMode="inline"
+                    previewMode="none"
                     context="clinical_notes"
                     silenceTimeoutMs={15000}
                     disabled={formatHandoffMemo.isPending}
