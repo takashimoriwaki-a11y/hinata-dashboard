@@ -1561,6 +1561,277 @@ function parseNum(val: string | undefined): number {
   return isNaN(n) ? 0 : n;
 }
 
+const HANDOFF_MEMO_SPREADSHEET_SETTING_KEY = "handoff_memo_spreadsheet_id";
+const HANDOFF_MEMO_SPREADSHEET_TITLE = "ひなた 申し送り内容";
+const HANDOFF_MEMO_FOLDER_ID = "1M1po6_l4AAqqygD9xoQU8jQPF9XXX7_4";
+const HANDOFF_MEMO_TEAMS = ["身体", "天理", "郡山北部", "郡山南部"] as const;
+const HANDOFF_MEMO_HEADERS = ["転記日", "転記時刻", "チーム", "利用者名", "スタッフ名", "申し送り内容"];
+
+type HandoffMemoTeam = typeof HANDOFF_MEMO_TEAMS[number];
+
+function normalizeHandoffMemoText(text: string): string {
+  const fillerPattern = /(えーっと|えっと|えーと|えー|あのー|あの|そのー|その|まあ|なんか|ちょっと|はい、?|はい|ええと|えっとー)/g;
+  const normalized = text
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map(line => line.replace(fillerPattern, "").replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join("\n")
+    .replace(/。+/g, "。")
+    .replace(/、+/g, "、")
+    .trim();
+
+  if (!normalized) return "";
+
+  return normalized
+    .split("\n")
+    .map(line => /[。！？!?]$/.test(line) ? line : `${line}。`)
+    .join("\n");
+}
+
+function getJstDateTimeParts(date = new Date()): { date: string; time: string } {
+  const jst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+  const yyyy = jst.getUTCFullYear();
+  const mm = String(jst.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(jst.getUTCDate()).padStart(2, "0");
+  const hh = String(jst.getUTCHours()).padStart(2, "0");
+  const min = String(jst.getUTCMinutes()).padStart(2, "0");
+  return { date: `${yyyy}/${mm}/${dd}`, time: `${hh}:${min}` };
+}
+
+function getHandoffMemoGoogleClients() {
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+  if (!email || !privateKey) {
+    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "サービスアカウント設定がありません" });
+  }
+
+  const auth = new google.auth.GoogleAuth({
+    credentials: {
+      client_email: email,
+      private_key: privateKey.replace(/\\n/g, "\n"),
+    },
+    scopes: [
+      "https://www.googleapis.com/auth/spreadsheets",
+      "https://www.googleapis.com/auth/drive",
+    ],
+  });
+
+  return {
+    sheets: google.sheets({ version: "v4", auth }),
+    drive: google.drive({ version: "v3", auth }),
+  };
+}
+
+async function shareHandoffMemoSpreadsheet(spreadsheetId: string, drive: ReturnType<typeof google.drive>): Promise<void> {
+  try {
+    const shareEmailsValue = await getSetting("sheet_share_emails", "");
+    const shareEmails = shareEmailsValue ? shareEmailsValue.split(",").map((e: string) => e.trim()).filter(Boolean) : [];
+    const { getAdminAndSuperAdminUsers } = await import("./db");
+    const admins = await getAdminAndSuperAdminUsers();
+    const adminEmails = admins.map((u) => u.email).filter((e): e is string => !!e);
+    const allShareEmails = [...new Set([...shareEmails, ...adminEmails])];
+
+    for (const email of allShareEmails) {
+      await drive.permissions.create({
+        fileId: spreadsheetId,
+        requestBody: { type: "user", role: "writer", emailAddress: email },
+        sendNotificationEmail: false,
+      }).catch((e: unknown) => console.warn(`[HandoffMemo] Share to ${email} failed:`, e));
+    }
+  } catch (e) {
+    console.warn("[HandoffMemo] Share step failed:", e);
+  }
+}
+
+async function applyHandoffMemoSheetFormat(
+  spreadsheetId: string,
+  sheetName: string,
+  sheets: ReturnType<typeof google.sheets>,
+): Promise<void> {
+  const meta = await sheets.spreadsheets.get({ spreadsheetId });
+  const sheet = meta.data.sheets?.find(s => s.properties?.title === sheetName);
+  const sheetId = sheet?.properties?.sheetId;
+  if (sheetId === undefined) return;
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 6 },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 0.165, green: 0.329, blue: 0.573 },
+                textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 }, fontSize: 11, fontFamily: "Noto Sans JP" },
+                horizontalAlignment: "CENTER",
+                verticalAlignment: "MIDDLE",
+                wrapStrategy: "WRAP",
+              },
+            },
+            fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)",
+          },
+        },
+        { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 110 }, fields: "pixelSize" } },
+        { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 1, endIndex: 2 }, properties: { pixelSize: 90 }, fields: "pixelSize" } },
+        { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 2, endIndex: 3 }, properties: { pixelSize: 110 }, fields: "pixelSize" } },
+        { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 3, endIndex: 4 }, properties: { pixelSize: 150 }, fields: "pixelSize" } },
+        { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 4, endIndex: 5 }, properties: { pixelSize: 130 }, fields: "pixelSize" } },
+        { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 5, endIndex: 6 }, properties: { pixelSize: 520 }, fields: "pixelSize" } },
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: 1, startColumnIndex: 0, endColumnIndex: 6 },
+            cell: {
+              userEnteredFormat: {
+                textFormat: { fontSize: 10, fontFamily: "Noto Sans JP" },
+                verticalAlignment: "TOP",
+                wrapStrategy: "WRAP",
+              },
+            },
+            fields: "userEnteredFormat(textFormat,verticalAlignment,wrapStrategy)",
+          },
+        },
+        {
+          updateSheetProperties: {
+            properties: { sheetId, gridProperties: { frozenRowCount: 1 } },
+            fields: "gridProperties.frozenRowCount",
+          },
+        },
+      ],
+    },
+  });
+}
+
+async function ensureHandoffMemoSheet(
+  spreadsheetId: string,
+  sheetName: string,
+  sheets: ReturnType<typeof google.sheets>,
+): Promise<void> {
+  const meta = await sheets.spreadsheets.get({ spreadsheetId });
+  const existingTabs = (meta.data.sheets ?? []).map(s => s.properties?.title ?? "").filter(Boolean);
+
+  if (!existingTabs.includes(sheetName)) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: { requests: [{ addSheet: { properties: { title: sheetName } } }] },
+    });
+  }
+
+  const values = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${sheetName}!A1:F1`,
+  });
+  const firstRow = values.data.values?.[0] ?? [];
+  if (firstRow[0] !== HANDOFF_MEMO_HEADERS[0]) {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${sheetName}!A1:F1`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values: [HANDOFF_MEMO_HEADERS] },
+    });
+    await applyHandoffMemoSheetFormat(spreadsheetId, sheetName, sheets);
+  }
+}
+
+async function getOrCreateHandoffMemoSpreadsheetId(
+  sheets: ReturnType<typeof google.sheets>,
+  drive: ReturnType<typeof google.drive>,
+): Promise<string> {
+  const existingId = await getSetting(HANDOFF_MEMO_SPREADSHEET_SETTING_KEY, "");
+  if (existingId) return existingId;
+
+  const createRes = await drive.files.create({
+    requestBody: {
+      name: HANDOFF_MEMO_SPREADSHEET_TITLE,
+      mimeType: "application/vnd.google-apps.spreadsheet",
+      parents: [HANDOFF_MEMO_FOLDER_ID],
+    },
+    fields: "id",
+    supportsAllDrives: true,
+  });
+  const spreadsheetId = createRes.data.id;
+  if (!spreadsheetId) {
+    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "申し送り用スプレッドシートの作成に失敗しました" });
+  }
+
+  const meta = await sheets.spreadsheets.get({ spreadsheetId });
+  const defaultSheetId = meta.data.sheets?.[0]?.properties?.sheetId;
+  if (defaultSheetId !== undefined) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [{
+          updateSheetProperties: {
+            properties: { sheetId: defaultSheetId, title: HANDOFF_MEMO_TEAMS[0] },
+            fields: "title",
+          },
+        }],
+      },
+    });
+  }
+
+  for (const team of HANDOFF_MEMO_TEAMS) {
+    await ensureHandoffMemoSheet(spreadsheetId, team, sheets);
+    await ensureHandoffMemoSheet(spreadsheetId, `${team}_アーカイブ`, sheets);
+  }
+
+  await shareHandoffMemoSpreadsheet(spreadsheetId, drive);
+  await setSetting(HANDOFF_MEMO_SPREADSHEET_SETTING_KEY, spreadsheetId);
+  return spreadsheetId;
+}
+
+async function appendHandoffMemoToSheet(input: {
+  team: HandoffMemoTeam;
+  patientName: string;
+  staffName: string;
+  content: string;
+}): Promise<{ spreadsheetId: string; spreadsheetUrl: string }> {
+  const { sheets, drive } = getHandoffMemoGoogleClients();
+  const spreadsheetId = await getOrCreateHandoffMemoSpreadsheetId(sheets, drive);
+  await ensureHandoffMemoSheet(spreadsheetId, input.team, sheets);
+
+  const { date, time } = getJstDateTimeParts();
+  const valuesRes = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${input.team}!A:F`,
+  });
+  const rows = valuesRes.data.values ?? [];
+  const lastRow = rows[rows.length - 1] ?? [];
+  const lastNonEmptyDate = [...rows].reverse().find(row => row.some(cell => String(cell ?? "").trim()))?.[0] ?? "";
+  const needsDateHeading = lastNonEmptyDate !== date;
+  const newRows: string[][] = [];
+
+  if (needsDateHeading) {
+    if (rows.length > 1 && lastRow.some(cell => String(cell ?? "").trim())) {
+      newRows.push(["", "", "", "", "", ""]);
+    }
+    newRows.push([date, "", "", "", "", ""]);
+  }
+
+  newRows.push([
+    date,
+    time,
+    input.team,
+    input.patientName,
+    input.staffName,
+    input.content,
+  ]);
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range: `${input.team}!A:F`,
+    valueInputOption: "USER_ENTERED",
+    insertDataOption: "INSERT_ROWS",
+    requestBody: { values: newRows },
+  });
+
+  return {
+    spreadsheetId,
+    spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
+  };
+}
+
 interface DailyPoint {
   day: number;          // 日（1〜31）
   label: string;        // 表示ラベル（例: "3/1"）
@@ -4075,6 +4346,34 @@ ${todayStr}
         // 転送済みフラグを立てる
         await markVisitRecordExported(input.id);
         return { success: true };
+      }),
+
+    // 申し送り内容の音声入力テキストを文章として整える（外部AIには送信しない）
+    formatHandoffMemo: protectedProcedure
+      .input(z.object({ text: z.string().min(1).max(5000) }))
+      .mutation(async ({ input }) => {
+        const formattedText = normalizeHandoffMemoText(input.text);
+        if (!formattedText) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "文章化できる内容がありません" });
+        }
+        return { success: true, text: formattedText };
+      }),
+
+    // 申し送り内容をチーム別スプレッドシートへ転記する
+    exportHandoffMemoToSheet: protectedProcedure
+      .input(z.object({
+        team: z.enum(HANDOFF_MEMO_TEAMS),
+        patientName: z.string().min(1).max(100),
+        content: z.string().min(1).max(5000),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const result = await appendHandoffMemoToSheet({
+          team: input.team,
+          patientName: input.patientName,
+          staffName: ctx.user.name ?? "不明",
+          content: input.content.trim(),
+        });
+        return { success: true, ...result };
       }),
 
     // 転送済みフラグをリセット（未転送に戻す）

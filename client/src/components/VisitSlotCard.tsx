@@ -81,6 +81,8 @@ type CardSavedState = {
   notifyMethodOther: string;
   completed: boolean;
   exported: boolean;
+  handoffMemo?: string;
+  handoffMemoExported?: boolean;
   vitals?: { temp: string; pulse: string; spo2: string; sbp: string; dbp: string };
   zestChecked?: boolean;
 };
@@ -233,6 +235,8 @@ export function VisitSlotCard({ slotIndex, slotData, dbCardStateRaw, onSlotChang
   // 転送済み状態
   const [savedRecordId, setSavedRecordId] = useState<number | null>(null);
   const [exported, setExported] = useState(savedState?.exported ?? false);
+  const [handoffMemo, setHandoffMemo] = useState(savedState?.handoffMemo ?? "");
+  const [handoffMemoExported, setHandoffMemoExported] = useState(savedState?.handoffMemoExported ?? false);
 
   // 時刻ドロップダウン
   const [timeDropdownOpen, setTimeDropdownOpen] = useState(false);
@@ -341,6 +345,18 @@ export function VisitSlotCard({ slotIndex, slotData, dbCardStateRaw, onSlotChang
     onError: (err) => toast.error(`保存エラー: ${err.message}`),
   });
 
+  const formatHandoffMemo = trpc.visitRecords.formatHandoffMemo.useMutation();
+  const exportHandoffMemoToSheet = trpc.visitRecords.exportHandoffMemoToSheet.useMutation({
+    onSuccess: (data) => {
+      setHandoffMemoExported(true);
+      toast.success("申し送り内容をスプレッドシートへ転記しました");
+      if (data.spreadsheetUrl) {
+        console.log("[HandoffMemo] Spreadsheet URL:", data.spreadsheetUrl);
+      }
+    },
+    onError: (err) => toast.error(`申し送り転記エラー: ${err.message}`),
+  });
+
   // 看護計画開示：本日の転記済みフラグを取得
   const carePlanCheck = trpc.carePlanDisclosures.checkToday.useQuery(
     { patientId: slotData.patientId ?? 0 },
@@ -411,6 +427,8 @@ const parsed = (typeof dbCardStateRaw === "string" ? JSON.parse(dbCardStateRaw) 
       // boolean
       if (typeof parsed.completed === "boolean") setCompleted(parsed.completed);
       if (typeof parsed.exported === "boolean") setExported(parsed.exported);
+      if (typeof parsed.handoffMemo === "string") setHandoffMemo(parsed.handoffMemo);
+      if (typeof parsed.handoffMemoExported === "boolean") setHandoffMemoExported(parsed.handoffMemoExported);
       if (typeof parsed.zestChecked === "boolean") setZestChecked(parsed.zestChecked);
       // バイタル
       if (parsed.vitals && typeof parsed.vitals === "object") setVitals(parsed.vitals);
@@ -454,6 +472,8 @@ const parsed = (typeof dbCardStateRaw === "string" ? JSON.parse(dbCardStateRaw) 
         notifyMethodOther,
         completed,
         exported,
+        handoffMemo,
+        handoffMemoExported,
         vitals,
         zestChecked,
       };
@@ -469,7 +489,7 @@ const parsed = (typeof dbCardStateRaw === "string" ? JSON.parse(dbCardStateRaw) 
         }, 1000);
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slotIndex, todayStr, tasksBefore, specialNote, nextVisitDate, nextVisitTime, notifiedTo, notifiedToOther, notifyMethod, notifyMethodOther, completed, exported, vitals, zestChecked,slotData. skipNextVisit]);
+  }, [slotIndex, todayStr, tasksBefore, specialNote, nextVisitDate, nextVisitTime, notifiedTo, notifiedToOther, notifyMethod, notifyMethodOther, completed, exported, handoffMemo, handoffMemoExported, vitals, zestChecked,slotData. skipNextVisit]);
 
   // 状態変更時に自動保存
   useEffect(() => {
@@ -536,6 +556,8 @@ const handleClearPatient = () => {
       setNotifyMethodOther("");
       setCompleted(false);
       setExported(false);
+      setHandoffMemo("");
+      setHandoffMemoExported(false);
       setSavedRecordId(null);
       setVitals({ temp: "", pulse: "", spo2: "", sbp: "", dbp: "" });
       setZestChecked(false);
@@ -628,6 +650,8 @@ const handleClearPatient = () => {
     setNotifyMethodOther("");
     setCompleted(false);
     setExported(false);
+    setHandoffMemo("");
+    setHandoffMemoExported(false);
     setSavedRecordId(null);
     setVitals({ temp: "", pulse: "", spo2: "", sbp: "", dbp: "" });
     setZestChecked(false);
@@ -641,6 +665,42 @@ const handleClearPatient = () => {
       });
     } catch {}
     toast.success(`カード${slotIndex + 1}をリセットしました`);
+  };
+
+  const handleHandoffVoiceResult = useCallback(async (text: string) => {
+    const rawText = text.trim();
+    if (!rawText) return;
+
+    try {
+      const result = await formatHandoffMemo.mutateAsync({ text: rawText });
+      setHandoffMemo((prev) => prev ? `${prev}\n${result.text}` : result.text);
+      setHandoffMemoExported(false);
+    } catch (err) {
+      setHandoffMemo((prev) => prev ? `${prev}\n${rawText}` : rawText);
+      setHandoffMemoExported(false);
+      toast.error(err instanceof Error ? `文章化エラー: ${err.message}` : "文章化に失敗しました");
+    }
+  }, [formatHandoffMemo]);
+
+  const handleExportHandoffMemo = () => {
+    if (!slotData.team) {
+      toast.error("チームを選択してください");
+      return;
+    }
+    if (!slotData.patientName) {
+      toast.error("利用者を選択してください");
+      return;
+    }
+    if (!handoffMemo.trim()) {
+      toast.error("申し送り内容を入力してください");
+      return;
+    }
+
+    exportHandoffMemoToSheet.mutate({
+      team: slotData.team as Team,
+      patientName: slotData.patientName,
+      content: handoffMemo.trim(),
+    });
   };
 
   const isPatientSelected = !!slotData.patientName;
@@ -1308,6 +1368,69 @@ const handleClearPatient = () => {
               <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground">
                 <CheckSquare className="w-3.5 h-3.5" />
                 {visitTaskProgressLabel}
+              </div>
+              <div className="flex flex-col gap-2 p-3 rounded-lg border border-border bg-background">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">申し送り内容</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      音声入力後に文章化されます。必要に応じて手作業で修正してください。
+                    </p>
+                  </div>
+                  <VoiceMicButton
+                    size="sm"
+                    previewMode="inline"
+                    context="clinical_notes"
+                    longTextMode
+                    disabled={formatHandoffMemo.isPending}
+                    onResult={handleHandoffVoiceResult}
+                  />
+                </div>
+                <textarea
+                  className="w-full min-h-[96px] text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground resize-y focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-colors placeholder:text-muted-foreground/50"
+                  placeholder="例：次回訪問時に確認すること、家族・関係機関への共有事項など"
+                  value={handoffMemo}
+                  onChange={(e) => {
+                    setHandoffMemo(e.target.value);
+                    setHandoffMemoExported(false);
+                  }}
+                />
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <button
+                    type="button"
+                    className={cn(
+                      "w-full sm:flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200",
+                      (!isPatientSelected || !slotData.team || !handoffMemo.trim() || exportHandoffMemoToSheet.isPending)
+                        ? "bg-muted border border-border text-muted-foreground cursor-not-allowed opacity-60"
+                        : handoffMemoExported
+                          ? "bg-emerald-500 dark:bg-emerald-600 text-white shadow-sm"
+                          : "bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg active:scale-95"
+                    )}
+                    onClick={handleExportHandoffMemo}
+                    disabled={!isPatientSelected || !slotData.team || !handoffMemo.trim() || exportHandoffMemoToSheet.isPending}
+                  >
+                    {exportHandoffMemoToSheet.isPending ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" />転記中...</>
+                    ) : handoffMemoExported ? (
+                      <><Check className="w-4 h-4" />転記済み</>
+                    ) : (
+                      <><ExternalLink className="w-4 h-4" />スプレッドシートへ転記</>
+                    )}
+                  </button>
+                  {handoffMemo && (
+                    <button
+                      type="button"
+                      className="w-full sm:w-auto px-3 py-2 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 hover:border-destructive/40 transition-colors"
+                      onClick={() => {
+                        if (!window.confirm("申し送り内容をクリアしますか？")) return;
+                        setHandoffMemo("");
+                        setHandoffMemoExported(false);
+                      }}
+                    >
+                      申し送り内容をクリア
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

@@ -1114,6 +1114,266 @@ async function deleteExpiredSheetRows() {
 
 scheduleSheetCleanup();
 
+// ========== 毎日0:02（JST）に3日経過した申し送り内容をアーカイブタブへ移動 ==========
+const HANDOFF_MEMO_SPREADSHEET_SETTING_KEY = "handoff_memo_spreadsheet_id";
+const HANDOFF_MEMO_TEAMS = ["身体", "天理", "郡山北部", "郡山南部"] as const;
+const HANDOFF_MEMO_HEADERS = ["転記日", "転記時刻", "チーム", "利用者名", "スタッフ名", "申し送り内容"];
+
+function scheduleHandoffMemoArchiveCleanup() {
+  const checkInterval = 60 * 1000; // 1分ごとにチェック
+  let lastArchivedDate = "";
+
+  setInterval(async () => {
+    const now = new Date();
+    const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    const h = jstNow.getUTCHours();
+    const m = jstNow.getUTCMinutes();
+    const dateStr = jstNow.toISOString().slice(0, 10);
+
+    if (h === 0 && m === 2 && lastArchivedDate !== dateStr) {
+      lastArchivedDate = dateStr;
+      try {
+        console.log(`[HandoffMemoArchive] ${dateStr} 00:02 - 3日経過した申し送り内容をアーカイブします`);
+        await archiveExpiredHandoffMemos(jstNow);
+        console.log("[HandoffMemoArchive] 完了");
+      } catch (e) {
+        console.error("[HandoffMemoArchive] エラー:", e);
+      }
+    }
+  }, checkInterval);
+
+  console.log("[HandoffMemoArchive] 毎日0:02の申し送りアーカイブスケジューラーを開始しました");
+}
+
+function parseHandoffMemoDateKey(value: string | undefined): number | null {
+  if (!value) return null;
+  const match = value.trim().match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (!year || !month || !day) return null;
+  return year * 10000 + month * 100 + day;
+}
+
+function formatHandoffMemoJstDateKey(date: Date): number {
+  return date.getUTCFullYear() * 10000 + (date.getUTCMonth() + 1) * 100 + date.getUTCDate();
+}
+
+function buildHandoffMemoGroupedRows(dataRows: string[][]): string[][] {
+  const grouped: string[][] = [HANDOFF_MEMO_HEADERS];
+  let currentDate = "";
+
+  for (const row of dataRows) {
+    const date = row[0] ?? "";
+    if (date !== currentDate) {
+      if (grouped.length > 1) grouped.push(["", "", "", "", "", ""]);
+      grouped.push([date, "", "", "", "", ""]);
+      currentDate = date;
+    }
+    grouped.push([
+      row[0] ?? "",
+      row[1] ?? "",
+      row[2] ?? "",
+      row[3] ?? "",
+      row[4] ?? "",
+      row[5] ?? "",
+    ]);
+  }
+
+  return grouped;
+}
+
+async function getHandoffMemoAccessToken(): Promise<string | null> {
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+  if (!email || !privateKey) {
+    console.warn("[HandoffMemoArchive] サービスアカウント設定がありません。スキップします。");
+    return null;
+  }
+
+  const { GoogleAuth } = await import("google-auth-library");
+  const auth = new GoogleAuth({
+    credentials: { client_email: email, private_key: privateKey.replace(/\\n/g, "\n") },
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  });
+  const client = await auth.getClient();
+  const tokenObj = await client.getAccessToken();
+  return tokenObj.token ?? null;
+}
+
+async function ensureHandoffMemoArchiveTab(spreadsheetId: string, archiveSheetName: string, token: string): Promise<void> {
+  const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!metaRes.ok) {
+    const text = await metaRes.text();
+    throw new Error(`申し送りシート情報取得失敗: ${text}`);
+  }
+
+  const meta = await metaRes.json() as { sheets?: { properties?: { title?: string } }[] };
+  const exists = (meta.sheets ?? []).some(sheet => sheet.properties?.title === archiveSheetName);
+  if (!exists) {
+    const addRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ requests: [{ addSheet: { properties: { title: archiveSheetName } } }] }),
+    });
+    if (!addRes.ok) {
+      const text = await addRes.text();
+      throw new Error(`申し送りアーカイブタブ作成失敗: ${text}`);
+    }
+  }
+
+  const headerRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(`${archiveSheetName}!A1:F1`)}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const headerData = headerRes.ok ? await headerRes.json() as { values?: string[][] } : { values: [] };
+  if (headerData.values?.[0]?.[0] !== HANDOFF_MEMO_HEADERS[0]) {
+    const updateRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(`${archiveSheetName}!A1:F1`)}?valueInputOption=USER_ENTERED`,
+      {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ values: [HANDOFF_MEMO_HEADERS] }),
+      }
+    );
+    if (!updateRes.ok) {
+      const text = await updateRes.text();
+      throw new Error(`申し送りアーカイブヘッダー更新失敗: ${text}`);
+    }
+  }
+}
+
+async function appendHandoffMemoArchiveRows(
+  spreadsheetId: string,
+  archiveSheetName: string,
+  archiveRows: string[][],
+  token: string,
+): Promise<void> {
+  if (archiveRows.length === 0) return;
+
+  const existingRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(`${archiveSheetName}!A:F`)}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const existingData = existingRes.ok ? await existingRes.json() as { values?: string[][] } : { values: [] };
+  const existingRows = existingData.values ?? [];
+  const lastNonEmptyDate = [...existingRows].reverse().find(row => row.some(cell => String(cell ?? "").trim()))?.[0] ?? "";
+  const rowsToAppend: string[][] = [];
+  let currentDate = lastNonEmptyDate;
+
+  for (const row of archiveRows) {
+    const rowDate = row[0] ?? "";
+    if (rowDate !== currentDate) {
+      if (existingRows.length > 1 || rowsToAppend.length > 0) rowsToAppend.push(["", "", "", "", "", ""]);
+      rowsToAppend.push([rowDate, "", "", "", "", ""]);
+      currentDate = rowDate;
+    }
+    rowsToAppend.push(row);
+  }
+
+  const appendRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(`${archiveSheetName}!A:F`)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ values: rowsToAppend }),
+    }
+  );
+  if (!appendRes.ok) {
+    const text = await appendRes.text();
+    throw new Error(`申し送りアーカイブ追記失敗: ${text}`);
+  }
+}
+
+async function archiveExpiredHandoffMemos(jstNow: Date) {
+  const { getSetting } = await import("../db");
+  const spreadsheetId = await getSetting(HANDOFF_MEMO_SPREADSHEET_SETTING_KEY, "");
+  if (!spreadsheetId) {
+    console.log("[HandoffMemoArchive] 申し送り用スプレッドシート未作成のためスキップします");
+    return;
+  }
+
+  const token = await getHandoffMemoAccessToken();
+  if (!token) return;
+
+  const cutoffDate = new Date(jstNow.getTime() - 3 * 24 * 60 * 60 * 1000);
+  const cutoffKey = formatHandoffMemoJstDateKey(cutoffDate);
+
+  for (const team of HANDOFF_MEMO_TEAMS) {
+    const currentSheetName = team;
+    const archiveSheetName = `${team}_アーカイブ`;
+    await ensureHandoffMemoArchiveTab(spreadsheetId, archiveSheetName, token);
+
+    const valuesRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(`${currentSheetName}!A:F`)}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!valuesRes.ok) {
+      const text = await valuesRes.text();
+      console.warn(`[HandoffMemoArchive] ${currentSheetName} の取得に失敗しました: ${text}`);
+      continue;
+    }
+
+    const valuesData = await valuesRes.json() as { values?: string[][] };
+    const rows = valuesData.values ?? [];
+    if (rows.length <= 1) continue;
+
+    const dataRows = rows.slice(1).filter(row => {
+      const hasDate = !!String(row[0] ?? "").trim();
+      const hasTime = !!String(row[1] ?? "").trim();
+      return hasDate && hasTime;
+    });
+    const archiveRows: string[][] = [];
+    const remainingRows: string[][] = [];
+
+    for (const row of dataRows) {
+      const dateKey = parseHandoffMemoDateKey(row[0]);
+      if (dateKey !== null && dateKey <= cutoffKey) {
+        archiveRows.push(row);
+      } else {
+        remainingRows.push(row);
+      }
+    }
+
+    if (archiveRows.length === 0) continue;
+
+    await appendHandoffMemoArchiveRows(spreadsheetId, archiveSheetName, archiveRows, token);
+
+    const rebuiltRows = buildHandoffMemoGroupedRows(remainingRows);
+    const clearRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(`${currentSheetName}!A:F`)}:clear`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      }
+    );
+    if (!clearRes.ok) {
+      const text = await clearRes.text();
+      throw new Error(`申し送り現行タブクリア失敗: ${currentSheetName}: ${text}`);
+    }
+
+    const updateRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(`${currentSheetName}!A1:F${rebuiltRows.length}`)}?valueInputOption=USER_ENTERED`,
+      {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ values: rebuiltRows }),
+      }
+    );
+    if (!updateRes.ok) {
+      const text = await updateRes.text();
+      throw new Error(`申し送り現行タブ更新失敗: ${currentSheetName}: ${text}`);
+    }
+
+    console.log(`[HandoffMemoArchive] ${team}: ${archiveRows.length}件をアーカイブしました`);
+  }
+}
+
+scheduleHandoffMemoArchiveCleanup();
+
 // ========== 毎朝5:05（JST）にゴミ箱の30日超過タスクを自動完全削除 ==========
 function scheduleTrashCleanup() {
   const checkInterval = 60 * 1000; // 1分ごとにチェック
