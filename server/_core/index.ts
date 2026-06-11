@@ -327,7 +327,6 @@ ${medicalPrompt}${feedbackSection}`;
       config: {
         systemInstruction,
         temperature: 0,
-        thinkingConfig: { thinkingBudget: 0 }, // 文字起こしは思考不要・高速化
       },
     });
 
