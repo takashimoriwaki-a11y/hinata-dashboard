@@ -4352,7 +4352,65 @@ ${todayStr}
     formatHandoffMemo: protectedProcedure
       .input(z.object({ text: z.string().min(1).max(5000) }))
       .mutation(async ({ input }) => {
-        const formattedText = normalizeHandoffMemoText(input.text);
+        const fallbackText = normalizeHandoffMemoText(input.text);
+        const { invokeLLM } = await import("./_core/llm");
+        const systemPrompt = `あなたは訪問看護ステーションの申し送り内容を整える専門アシスタントです。
+音声入力の文字起こしを、スタッフ間の申し送りとして読みやすい文章に整えてJSONで返してください。
+
+絶対ルール:
+1. 事実・意味・ニュアンスを変えない。
+2. 利用者名、スタッフ名、薬剤名、疾患名、施設名、日時、曜日、数値、回数、単位は勝手に変更しない。
+3. 聞き取れている固有名詞を別名に置き換えない。推測で補完しない。
+4. 「えー」「あの」「その」「なんか」「ちょっと」「はい」などの不要な口癖や間投詞は削除する。
+5. 言い直し・訂正がある場合は最後に言い直された内容を採用する。
+6. 文章として読みにくい語順だけ自然に整える。
+7. 箇条書きにしない。1〜3文程度の自然な申し送り文にする。
+8. 医療・訪問看護の専門用語は可能な限り正式表記に整える。
+9. 不明瞭な内容は断定せず、元の表現を残す。
+10. 返答は必ず {"text":"..."} のJSONのみ。説明文は不要。
+
+よくある音声入力の補正方針:
+- 「バイタル」「BP」「SpO2」「服薬」「頓服」「訪問看護」「申し送り」「受給者証」「自立支援」「ケアマネ」「相談支援専門員」などは医療・介護文脈で自然に整える。
+- 「ちゃう」「違う」「じゃなくて」「ではなく」「やっぱり」などの後ろに続く内容を優先する。
+- 敬称は必要に応じて「さん」程度に整えるが、名前自体は変えない。`;
+        const res = await invokeLLM({
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: input.text },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "handoff_memo_format",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  text: { type: "string" },
+                },
+                required: ["text"],
+                additionalProperties: false,
+              },
+            },
+          },
+        }).catch((e) => {
+          console.warn("[HandoffMemo] AI formatting failed:", e);
+          return null;
+        });
+
+        const rawContent = res?.choices?.[0]?.message?.content;
+        let formattedText = fallbackText;
+        if (typeof rawContent === "string" && rawContent.trim()) {
+          try {
+            const parsed = JSON.parse(rawContent) as { text?: unknown };
+            if (typeof parsed.text === "string" && parsed.text.trim()) {
+              formattedText = parsed.text.trim();
+            }
+          } catch (e) {
+            console.warn("[HandoffMemo] AI formatting parse failed:", e);
+          }
+        }
+
         if (!formattedText) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "文章化できる内容がありません" });
         }

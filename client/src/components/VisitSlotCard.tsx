@@ -1383,7 +1383,7 @@ const handleClearPatient = () => {
                   <VoiceMicButton
                     size="sm"
                     previewMode="none"
-                    context="clinical_notes"
+                    context="handoff_memo"
                     silenceTimeoutMs={15000}
                     disabled={formatHandoffMemo.isPending}
                     onResult={handleHandoffVoiceResult}
@@ -1391,7 +1391,7 @@ const handleClearPatient = () => {
                 </div>
                 <textarea
                   className="w-full min-h-[96px] text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground resize-y focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-colors placeholder:text-muted-foreground/50"
-                  placeholder="例：次回訪問時に確認すること、家族・関係機関への共有事項など"
+                  placeholder="例：今日の訪問中に確認したこと、他のスタッフに伝達しておくべき事項など"
                   value={handoffMemo}
                   onChange={(e) => {
                     setHandoffMemo(e.target.value);
