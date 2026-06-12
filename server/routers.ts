@@ -4495,7 +4495,7 @@ ${todayStr}
         for (const tabName of targetTabs) {
           const range = encodeURIComponent(`${tabName}!A:P`);
           const response = await fetch(
-            `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}/values/${range}?valueRenderOption=UNFORMATTED_VALUE`,
+            `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}/values/${range}?valueRenderOption=FORMATTED_VALUE`,
             { headers: { Authorization: `Bearer ${token.token}` } }
           );
           if (!response.ok) continue;
@@ -4506,7 +4506,7 @@ ${todayStr}
             if (type !== "受診" && type !== "訪問診療同席") continue;
             if (normalizeName(String(row[4] ?? "")) !== targetPatientName) continue;
 
-            const dateTime = String(row[6] ?? "").trim();
+            const dateTime = String(row[6] || row[5] || "").trim();
             const dateKey = toDateKey(dateTime);
             if (dateKey === null || dateKey < todayKey) continue;
 
