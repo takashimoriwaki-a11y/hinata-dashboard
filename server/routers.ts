@@ -4456,6 +4456,16 @@ ${todayStr}
         const targetTabs = [input.team, "スケジュール変更連絡"];
         const normalizeName = (name: string) => name.replace(/\s+/g, "").trim();
         const targetPatientName = normalizeName(input.patientName);
+        const matchesPatientName = (sheetPatientName: string) => {
+          const normalized = normalizeName(sheetPatientName);
+          if (!normalized) return false;
+          if (normalized === targetPatientName) return true;
+          return (
+            normalized.length >= 2 &&
+            targetPatientName.length >= 2 &&
+            (targetPatientName.startsWith(normalized) || normalized.startsWith(targetPatientName))
+          );
+        };
         const toDateKey = (value: string | undefined): number | null => {
           if (!value) return null;
           const match = value.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
@@ -4504,7 +4514,7 @@ ${todayStr}
           for (const row of data.values ?? []) {
             const type = String(row[2] ?? "").trim();
             if (type !== "受診" && type !== "訪問診療同席") continue;
-            if (normalizeName(String(row[4] ?? "")) !== targetPatientName) continue;
+            if (!matchesPatientName(String(row[4] ?? ""))) continue;
 
             const dateTime = String(row[6] || row[5] || "").trim();
             const dateKey = toDateKey(dateTime);
@@ -5307,6 +5317,9 @@ ${todayStr}
         // 入力日時
         const createdAt = record.createdAt ? fmtDt(record.createdAt.toISOString()) : "";
 
+        const isScheduleType = String(record.changeType).startsWith("schedule_");
+        const scheduleStartDateForSheet = fmtDt(record.scheduleStartDate);
+
         // スプレッドシートに追記する行データ
         const row = [
           createdAt,                                    // A: 入力日時
@@ -5314,8 +5327,8 @@ ${todayStr}
           typeLabel[record.changeType] ?? record.changeType, // C: 変更種別
           record.team ?? "",                            // D: チーム
           record.patientName ?? "",                     // E: 利用者名
-          fmtDt(record.fromDatetime),                   // F: 変更前日時
-          fmtDt(record.toDatetime),                     // G: 変更後日時
+          isScheduleType ? "" : fmtDt(record.fromDatetime), // F: 変更前日時
+          isScheduleType ? scheduleStartDateForSheet : fmtDt(record.toDatetime), // G: 変更後日時
           record.staffBefore ?? "",                     // H: 変更前担当スタッフ
           record.staffAfter ?? "",                      // I: 変更後担当スタッフ
           record.meetingName ?? "",                     // J: 会議名
@@ -5720,14 +5733,17 @@ ${todayStr}
 
           const createdAt = record.createdAt ? fmtDt(record.createdAt) : "";
 
+          const isScheduleType = String(record.changeType).startsWith("schedule_");
+          const scheduleStartDateForSheet = fmtDt(record.scheduleStartDate);
+
           const row = [
             createdAt,
             record.createdByName,
             typeLabel[record.changeType] ?? record.changeType,
             record.team ?? "",
             record.patientName ?? "",
-            record.changeType === "visit_cancel" ? fmtDate(record.fromDatetime) : fmtDt(record.fromDatetime),
-            fmtDt(record.toDatetime),
+            isScheduleType ? "" : record.changeType === "visit_cancel" ? fmtDate(record.fromDatetime) : fmtDt(record.fromDatetime),
+            isScheduleType ? scheduleStartDateForSheet : fmtDt(record.toDatetime),
             record.staffBefore ?? "",
             record.staffAfter ?? "",
             record.meetingName ?? "",
