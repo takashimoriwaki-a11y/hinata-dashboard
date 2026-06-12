@@ -369,6 +369,17 @@ export function VisitSlotCard({ slotIndex, slotData, dbCardStateRaw, onSlotChang
   const carePlanSyncedToday = !!carePlanCheck.data?.synced;
   const carePlanSyncedAt = carePlanCheck.data?.disclosedAt ?? null;
 
+  const upcomingMedicalSchedules = trpc.visitRecords.getUpcomingMedicalSchedules.useQuery(
+    {
+      patientName: slotData.patientName,
+      team: slotData.team as Team,
+    },
+    {
+      enabled: !!slotData.patientName && !!slotData.team,
+      refetchOnWindowFocus: false,
+    }
+  );
+
   // 看護計画開示：転記mutation
   const carePlanSync = trpc.carePlanDisclosures.sync.useMutation({
     onSuccess: () => {
@@ -785,6 +796,30 @@ const handleClearPatient = () => {
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
+              {(upcomingMedicalSchedules.data?.nextVisit || upcomingMedicalSchedules.data?.nextDoctorVisit) && (
+                <div className="space-y-0.5 text-[11px] leading-snug text-muted-foreground">
+                  {upcomingMedicalSchedules.data.nextVisit && (
+                    <div className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                      <span className="font-medium text-blue-700 dark:text-blue-300">次回受診:</span>
+                      <span className="truncate">
+                        {upcomingMedicalSchedules.data.nextVisit.displayDateTime}
+                        {upcomingMedicalSchedules.data.nextVisit.facility ? ` ${upcomingMedicalSchedules.data.nextVisit.facility}` : ""}
+                      </span>
+                    </div>
+                  )}
+                  {upcomingMedicalSchedules.data.nextDoctorVisit && (
+                    <div className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                      <span className="font-medium text-purple-700 dark:text-purple-300">訪問診療同席:</span>
+                      <span className="truncate">
+                        {upcomingMedicalSchedules.data.nextDoctorVisit.displayDateTime}
+                        {upcomingMedicalSchedules.data.nextDoctorVisit.facility ? ` ${upcomingMedicalSchedules.data.nextDoctorVisit.facility}` : ""}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <span className="text-sm text-muted-foreground">未設定</span>

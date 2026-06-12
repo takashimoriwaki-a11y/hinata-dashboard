@@ -4445,6 +4445,103 @@ ${todayStr}
         };
       }),
 
+    // スケジュール変更連絡シートから次回受診・訪問診療同席を取得する
+    getUpcomingMedicalSchedules: protectedProcedure
+      .input(z.object({
+        patientName: z.string().min(1),
+        team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]),
+      }))
+      .query(async ({ input }) => {
+        const CHANGE_SHEET_ID = "1ki462aQRaNTj5FrI_1MJ1OyATFGqODz6HCtmuriIDEU";
+        const targetTabs = [input.team, "スケジュール変更連絡"];
+        const normalizeName = (name: string) => name.replace(/\s+/g, "").trim();
+        const targetPatientName = normalizeName(input.patientName);
+        const toDateKey = (value: string | undefined): number | null => {
+          if (!value) return null;
+          const match = value.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
+          if (!match) return null;
+          const year = Number(match[1]);
+          const month = Number(match[2]);
+          const day = Number(match[3]);
+          if (!year || !month || !day) return null;
+          return year * 10000 + month * 100 + day;
+        };
+        const formatDisplayDate = (value: string): string => {
+          const match = value.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?/);
+          if (!match) return value;
+          const month = Number(match[2]);
+          const day = Number(match[3]);
+          const hour = match[4];
+          const minute = match[5];
+          return hour && minute ? `${month}/${day} ${hour}:${minute}` : `${month}/${day}`;
+        };
+        const now = new Date();
+        const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+        const todayKey = jstNow.getUTCFullYear() * 10000 + (jstNow.getUTCMonth() + 1) * 100 + jstNow.getUTCDate();
+        const auth = getAuth();
+        const client = await auth.getClient();
+        const token = await client.getAccessToken();
+        if (!token.token) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "認証トークン取得失敗" });
+
+        type MedicalSchedule = {
+          type: "受診" | "訪問診療同席";
+          dateTime: string;
+          displayDateTime: string;
+          facility: string;
+          dateKey: number;
+        };
+        const candidates: MedicalSchedule[] = [];
+
+        for (const tabName of targetTabs) {
+          const range = encodeURIComponent(`${tabName}!A:P`);
+          const response = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${CHANGE_SHEET_ID}/values/${range}?valueRenderOption=UNFORMATTED_VALUE`,
+            { headers: { Authorization: `Bearer ${token.token}` } }
+          );
+          if (!response.ok) continue;
+
+          const data = await response.json() as { values?: string[][] };
+          for (const row of data.values ?? []) {
+            const type = String(row[2] ?? "").trim();
+            if (type !== "受診" && type !== "訪問診療同席") continue;
+            if (normalizeName(String(row[4] ?? "")) !== targetPatientName) continue;
+
+            const dateTime = String(row[6] ?? "").trim();
+            const dateKey = toDateKey(dateTime);
+            if (dateKey === null || dateKey < todayKey) continue;
+
+            candidates.push({
+              type,
+              dateTime,
+              displayDateTime: formatDisplayDate(dateTime),
+              facility: String(row[12] ?? "").trim(),
+              dateKey,
+            });
+          }
+        }
+
+        const byType = (type: MedicalSchedule["type"]) =>
+          candidates
+            .filter(candidate => candidate.type === type)
+            .sort((a, b) => a.dateKey - b.dateKey || a.dateTime.localeCompare(b.dateTime))[0] ?? null;
+
+        const nextVisit = byType("受診");
+        const nextDoctorVisit = byType("訪問診療同席");
+
+        return {
+          nextVisit: nextVisit ? {
+            dateTime: nextVisit.dateTime,
+            displayDateTime: nextVisit.displayDateTime,
+            facility: nextVisit.facility,
+          } : null,
+          nextDoctorVisit: nextDoctorVisit ? {
+            dateTime: nextDoctorVisit.dateTime,
+            displayDateTime: nextDoctorVisit.displayDateTime,
+            facility: nextDoctorVisit.facility,
+          } : null,
+        };
+      }),
+
     // 転送済みフラグをリセット（未転送に戻す）
     unmarkExported: protectedProcedure
       .input(z.object({ id: z.number() }))
