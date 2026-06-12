@@ -797,10 +797,10 @@ const handleClearPatient = () => {
                 </button>
               </div>
               {(upcomingMedicalSchedules.data?.nextVisit || upcomingMedicalSchedules.data?.nextDoctorVisit) && (
-                <div className="space-y-0.5 text-[11px] leading-snug text-muted-foreground">
+                <div className="space-y-1 text-sm leading-snug text-muted-foreground">
                   {upcomingMedicalSchedules.data.nextVisit && (
-                    <div className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                    <div className="flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
                       <span className="font-medium text-blue-700 dark:text-blue-300">次回受診:</span>
                       <span className="truncate">
                         {upcomingMedicalSchedules.data.nextVisit.displayDateTime}
@@ -809,8 +809,8 @@ const handleClearPatient = () => {
                     </div>
                   )}
                   {upcomingMedicalSchedules.data.nextDoctorVisit && (
-                    <div className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                    <div className="flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
                       <span className="font-medium text-purple-700 dark:text-purple-300">訪問診療同席:</span>
                       <span className="truncate">
                         {upcomingMedicalSchedules.data.nextDoctorVisit.displayDateTime}
