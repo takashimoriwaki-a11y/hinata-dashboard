@@ -4485,6 +4485,16 @@ ${todayStr}
           const minute = match[5];
           return hour && minute ? `${month}/${day} ${hour}:${minute}` : `${month}/${day}`;
         };
+        const extractMedicalDateFromNote = (note: string): string => {
+          const labeled = note.match(/(?:受診日|診察日|訪問診療日|予定日)\s*[:：]\s*(\d{4}[/-]\d{1,2}[/-]\d{1,2}(?:\s+\d{1,2}:\d{2})?)/);
+          if (labeled) return labeled[1];
+          const anyDate = note.match(/(\d{4}[/-]\d{1,2}[/-]\d{1,2}(?:\s+\d{1,2}:\d{2})?)/);
+          return anyDate?.[1] ?? "";
+        };
+        const extractMedicalFacilityFromNote = (note: string): string => {
+          const match = note.match(/(?:施設名|医療機関名|病院名)\s*[:：]\s*([^/\n\r]+)/);
+          return match?.[1]?.trim() ?? "";
+        };
         const now = new Date();
         const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
         const todayKey = jstNow.getUTCFullYear() * 10000 + (jstNow.getUTCMonth() + 1) * 100 + jstNow.getUTCDate();
@@ -4516,7 +4526,8 @@ ${todayStr}
             if (type !== "受診" && type !== "訪問診療同席") continue;
             if (!matchesPatientName(String(row[4] ?? ""))) continue;
 
-            const dateTime = String(row[6] || row[5] || "").trim();
+            const note = String(row[11] ?? "").trim();
+            const dateTime = String(row[6] || row[5] || extractMedicalDateFromNote(note) || "").trim();
             const dateKey = toDateKey(dateTime);
             if (dateKey === null || dateKey < todayKey) continue;
 
@@ -4524,7 +4535,43 @@ ${todayStr}
               type,
               dateTime,
               displayDateTime: formatDisplayDate(dateTime),
-              facility: String(row[12] ?? "").trim(),
+              facility: String(row[12] ?? "").trim() || extractMedicalFacilityFromNote(note),
+              dateKey,
+            });
+          }
+        }
+
+        const db = await getDb();
+        if (db) {
+          const { scheduleChanges } = await import("../drizzle/schema");
+          const { and, eq: eqDr, inArray } = await import("drizzle-orm");
+          const dbRows = await db
+            .select({
+              changeType: scheduleChanges.changeType,
+              team: scheduleChanges.team,
+              patientName: scheduleChanges.patientName,
+              scheduleStartDate: scheduleChanges.scheduleStartDate,
+              scheduleFacility: scheduleChanges.scheduleFacility,
+            })
+            .from(scheduleChanges)
+            .where(
+              and(
+                eqDr(scheduleChanges.team, input.team),
+                inArray(scheduleChanges.changeType, ["schedule_visit", "schedule_visit_doctor"])
+              )
+            );
+
+          for (const row of dbRows) {
+            if (!matchesPatientName(row.patientName ?? "")) continue;
+            const dateTime = String(row.scheduleStartDate ?? "").trim();
+            const dateKey = toDateKey(dateTime);
+            if (dateKey === null || dateKey < todayKey) continue;
+
+            candidates.push({
+              type: row.changeType === "schedule_visit_doctor" ? "訪問診療同席" : "受診",
+              dateTime,
+              displayDateTime: formatDisplayDate(dateTime),
+              facility: row.scheduleFacility ?? "",
               dateKey,
             });
           }
