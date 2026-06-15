@@ -5770,6 +5770,10 @@ ${todayStr}
             const s = String(dt instanceof Date ? dt.toISOString() : dt).trim();
             if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return fmtDate(s);
             if (/^\d{4}-\d{2}-\d{2}T00:00(?::00)?/.test(s)) return fmtDate(s.substring(0, 10));
+            const localInput = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+            if (!(dt instanceof Date) && localInput) {
+              return `${localInput[1]}/${localInput[2]}/${localInput[3]} ${localInput[4]}:${localInput[5]}`;
+            }
             try {
               const d = dt instanceof Date ? dt : new Date(dt);
               // UTC+9（JST）に変換
