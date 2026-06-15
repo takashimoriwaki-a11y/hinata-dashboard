@@ -1533,8 +1533,8 @@ export default function ScheduleChange() {
     let scheduleNotes = "";
     if (isScheduleType) {
       const parts: string[] = [];
-      if (scheduleStartDate) parts.push(`${scheduleStartDateLabel}: ${scheduleStartDate}`);
-      if (scheduleFieldConfig?.endDate && scheduleEndDate) parts.push(`終了日: ${scheduleEndDate}`);
+      if (scheduleStartDate) parts.push(`${scheduleStartDateLabel}: ${formatDatetimeForDisplay(scheduleStartDate)}`);
+      if (scheduleFieldConfig?.endDate && scheduleEndDate) parts.push(`終了日: ${formatDatetimeForDisplay(scheduleEndDate)}`);
       if (scheduleFieldConfig?.startTime && scheduleStartTime) parts.push(`開始時刻: ${scheduleStartTime}`);
       if (scheduleFieldConfig?.endTime && scheduleEndTime) parts.push(`終了時刻: ${scheduleEndTime}`);
       if (scheduleFieldConfig?.facilityName && scheduleFacilityName) parts.push(`施設名: ${scheduleFacilityName}`);
