@@ -26,6 +26,7 @@ import OvertimeRequest from "./pages/OvertimeRequest";
 import OvertimeAdmin from "./pages/OvertimeAdmin";
 import DirectReturnRequest from "./pages/DirectReturnRequest";
 import DirectReturnApproval from "./pages/DirectReturnApproval";
+import PhoneNextVisit from "./pages/PhoneNextVisit";
 import VoiceDiagnostics from "./pages/VoiceDiagnostics";
 import Login from "./pages/Login";
 import Setup from "./pages/Setup";
@@ -123,6 +124,7 @@ function Router() {
                 </SuperAdminGuard>
               </Route>
               <Route path={"/direct-return"} component={DirectReturnRequest} />
+              <Route path={"/phone-next-visit"} component={PhoneNextVisit} />
               <Route path={"/direct-return-approval"}>
                 <AdminGuard>
                   <DirectReturnApproval />

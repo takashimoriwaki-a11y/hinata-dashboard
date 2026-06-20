@@ -69,6 +69,7 @@ import {
   ClipboardList,
   ClipboardEdit,
   Upload,
+  Phone,
   Calendar,
   CalendarClock,
   X,
@@ -5863,15 +5864,15 @@ export default function Dashboard() {
               <span className="text-sm leading-none">✨</span>
               Gemini
             </button>
-            {/* 4. ZEST */}
-            <button
-              onClick={() => openLink("https://homecare.zest.jp/login")}
+            {/* 4. 次回訪問日時（電話等） */}
+            <Link
+              href="/phone-next-visit"
               onPointerDown={() => {}}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#0ea5a0', touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#0c9490')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#0ea5a0')}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#0ea5a0', touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#0c9490')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#0ea5a0')}
             >
-              <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              ZEST
-            </button>
+              <Phone className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              次回訪問日時
+            </Link>
             {/* 5. 日程管理 */}
             <Link
               href="/schedule-management"
