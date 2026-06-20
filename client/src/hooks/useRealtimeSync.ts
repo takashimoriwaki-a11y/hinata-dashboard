@@ -46,7 +46,7 @@ const EVENT_QUERY_MAP: Record<string, string[][]> = {
   // 設定
   settings: [["settings", "getSheetCleanupDays"]],
   // 通知
-  notifications: [["notifications", "list"]],
+  notifications: [["notifications", "getAll"], ["notifications", "getUnread"]],
   // ユーザー情報
   users: [["user", "getMyTeam"]],
   // チームツール

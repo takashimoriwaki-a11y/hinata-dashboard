@@ -9460,8 +9460,10 @@ ${todayStr}
           await sendPushToUser(request.applicantName ?? "", {
             title,
             body,
-            url: "/",
+            url: "/direct-return",
           }).catch((e) => console.error(`[DirectReturn] Push to applicant failed:`, e));
+
+          broadcastEvent("notifications");
         } catch (e) {
           console.error("[DirectReturn] Applicant notify failed:", e);
         }
