@@ -7,6 +7,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import TaskCreateForm from "@/components/TaskCreateForm";
 import { TaskTextInlineEdit } from "@/components/TaskTextInlineEdit";
+import { TaskDueDateInlineEdit } from "@/components/TaskDueDateInlineEdit";
 import { VoiceMicButton } from "@/components/VoiceMicButton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -875,16 +876,15 @@ const handleClearPatient = () => {
                               task.done ? "line-through text-muted-foreground opacity-60" : "text-foreground"
                             )}
                           />
-                          {task.dueDate && (
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              期日: {new Date(task.dueDate).toLocaleDateString("ja-JP")}
-                            </p>
-                          )}
-                          {(task as any).taskKind === "next_visit" && !task.dueDate && (
-                            <span className="inline-block mt-0.5 text-[10px] font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-1.5 py-0.5 rounded-full">
-                              🏥 次回訪問時
-                            </span>
-                          )}
+                          <TaskDueDateInlineEdit
+                            taskId={task.id}
+                            dueDate={task.dueDate}
+                            taskKind={(task as { taskKind?: string }).taskKind}
+                            onSuccess={() => {
+                              refetchPatientTasks();
+                              utils.tasks.getMine.invalidate();
+                            }}
+                          />
                         </div>
                       </label>
                     ))}
