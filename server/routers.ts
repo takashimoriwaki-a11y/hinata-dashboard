@@ -1441,6 +1441,8 @@ import {
   getScheduleChanges,
   getScheduleChangeById,
   markScheduleChangeExported,
+  supersedeScheduleChange,
+  getActivePatientMedicalSchedules,
   getActiveTeamGoals,
   getAllTeamGoals,
   createTeamGoal,
@@ -1877,6 +1879,151 @@ async function appendHandoffMemoToSheet(input: {
     spreadsheetId,
     spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
   };
+}
+
+const SCHEDULE_CHANGE_SHEET_ID = "1ki462aQRaNTj5FrI_1MJ1OyATFGqODz6HCtmuriIDEU";
+
+const SCHEDULE_CHANGE_TYPE_LABEL: Record<string, string> = {
+  visit_change: "訪問日時変更",
+  visit_cancel: "訪問キャンセル",
+  visit_add: "訪問追加",
+  meeting_add: "会議追加",
+  meeting_change: "会議変更",
+  schedule_visit: "受診",
+  schedule_short_stay: "ショートステイ",
+  schedule_special_instruction: "特別指示書",
+  schedule_hospitalization: "入院",
+  schedule_discharge: "退院",
+  schedule_new_contract: "新規契約・面談",
+  schedule_visit_doctor: "訪問診療同席",
+  schedule_other: "その他のスケジュール",
+};
+
+function getScheduleChangeTeamSheetName(team: string | null | undefined): string {
+  const validTeams = ["身体", "天理", "郡山北部", "郡山南部"];
+  if (team && validTeams.includes(team)) return team;
+  return "スケジュール変更連絡";
+}
+
+function formatScheduleChangeSheetDate(d: string | null | undefined): string {
+  if (!d) return "";
+  const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}/${m[2]}/${m[3]}`;
+  return d;
+}
+
+function formatScheduleChangeSheetDatetime(dt: string | Date | null | undefined): string {
+  if (!dt) return "";
+  const s = String(dt instanceof Date ? dt.toISOString() : dt).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return formatScheduleChangeSheetDate(s);
+  if (/^\d{4}-\d{2}-\d{2}T00:00(?::00)?/.test(s)) return formatScheduleChangeSheetDate(s.substring(0, 10));
+  const localInput = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (!(dt instanceof Date) && localInput) {
+    return `${localInput[1]}/${localInput[2]}/${localInput[3]} ${localInput[4]}:${localInput[5]}`;
+  }
+  try {
+    const d = dt instanceof Date ? dt : new Date(dt);
+    const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+    return `${jst.getUTCFullYear()}/${String(jst.getUTCMonth() + 1).padStart(2, "0")}/${String(jst.getUTCDate()).padStart(2, "0")} ${String(jst.getUTCHours()).padStart(2, "0")}:${String(jst.getUTCMinutes()).padStart(2, "0")}`;
+  } catch {
+    return String(dt ?? "");
+  }
+}
+
+function buildScheduleChangeSheetRow(
+  record: Awaited<ReturnType<typeof getScheduleChangeById>>,
+  overrides?: { typeLabel?: string; reason?: string },
+): string[] {
+  if (!record) return [];
+  const isScheduleType = String(record.changeType).startsWith("schedule_");
+  const createdAt = record.createdAt ? formatScheduleChangeSheetDatetime(record.createdAt) : "";
+  const typeLabel = overrides?.typeLabel ?? SCHEDULE_CHANGE_TYPE_LABEL[record.changeType] ?? record.changeType;
+  const reason = overrides?.reason ?? record.reason ?? "";
+  return [
+    createdAt,
+    record.createdByName,
+    typeLabel,
+    record.team ?? "",
+    record.patientName ?? "",
+    isScheduleType ? "" : formatScheduleChangeSheetDatetime(record.fromDatetime),
+    isScheduleType ? formatScheduleChangeSheetDatetime(record.scheduleStartDate) : formatScheduleChangeSheetDatetime(record.toDatetime),
+    record.staffBefore ?? "",
+    record.staffAfter ?? "",
+    record.meetingName ?? "",
+    record.meetingStaff ? (() => { try { return JSON.parse(record.meetingStaff!).join("、"); } catch { return record.meetingStaff ?? ""; } })() : "",
+    reason,
+    record.scheduleFacility ?? "",
+    formatScheduleChangeSheetDate(record.schedulePostDischargeEndDate),
+    record.scheduleTargetName ?? "",
+    record.scheduleStaff ? (() => { try { return JSON.parse(record.scheduleStaff!).join("、"); } catch { return record.scheduleStaff ?? ""; } })() : "",
+  ];
+}
+
+async function appendScheduleChangeRowToSheet(
+  record: NonNullable<Awaited<ReturnType<typeof getScheduleChangeById>>>,
+  overrides?: { typeLabel?: string; reason?: string },
+): Promise<void> {
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+  if (!email || !privateKey) return;
+
+  const { GoogleAuth: GA } = await import("google-auth-library");
+  const auth = new GA({
+    credentials: { client_email: email, private_key: privateKey.replace(/\\n/g, "\n") },
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  });
+  const client = await auth.getClient();
+  const token = await client.getAccessToken();
+  if (!token.token) return;
+
+  const sheetName = getScheduleChangeTeamSheetName(record.team);
+  const row = buildScheduleChangeSheetRow(record, overrides);
+  const appendRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${SCHEDULE_CHANGE_SHEET_ID}/values/${encodeURIComponent(sheetName + "!A:P")}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ values: [row] }),
+    }
+  );
+  if (!appendRes.ok) {
+    const text = await appendRes.text();
+    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `スプレッドシートへの書き込みに失敗: ${text}` });
+  }
+}
+
+function matchesPatientNameForMedical(targetPatientName: string, candidateName: string): boolean {
+  const normalizeName = (name: string) => name.replace(/\s+/g, "").trim();
+  const normalized = normalizeName(candidateName);
+  const target = normalizeName(targetPatientName);
+  if (!normalized) return false;
+  if (normalized === target) return true;
+  return (
+    normalized.length >= 2 &&
+    target.length >= 2 &&
+    (target.startsWith(normalized) || normalized.startsWith(target))
+  );
+}
+
+function medicalScheduleDateKey(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const match = value.trim().match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (!year || !month || !day) return null;
+  return year * 10000 + month * 100 + day;
+}
+
+function formatMedicalScheduleDisplayDate(value: string): string {
+  const match = value.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?/);
+  if (!match) return value;
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hour = match[4];
+  const minute = match[5];
+  return hour && minute ? `${month}/${day} ${hour}:${minute}` : `${month}/${day}`;
 }
 
 interface DailyPoint {
@@ -4557,7 +4704,7 @@ ${todayStr}
           facility: string;
           dateKey: number;
         };
-        const candidates: MedicalSchedule[] = [];
+        const sheetCandidates: MedicalSchedule[] = [];
 
         for (const tabName of targetTabs) {
           const range = encodeURIComponent(`${tabName}!A:P`);
@@ -4578,7 +4725,7 @@ ${todayStr}
             const dateKey = toDateKey(dateTime);
             if (dateKey === null || dateKey < todayKey) continue;
 
-            candidates.push({
+            sheetCandidates.push({
               type,
               dateTime,
               displayDateTime: formatDisplayDate(dateTime),
@@ -4587,6 +4734,8 @@ ${todayStr}
             });
           }
         }
+
+        let candidates: MedicalSchedule[];
 
         const db = await getDb();
         if (db) {
@@ -4599,6 +4748,7 @@ ${todayStr}
               patientName: scheduleChanges.patientName,
               scheduleStartDate: scheduleChanges.scheduleStartDate,
               scheduleFacility: scheduleChanges.scheduleFacility,
+              supersededAt: scheduleChanges.supersededAt,
             })
             .from(scheduleChanges)
             .where(
@@ -4608,20 +4758,41 @@ ${todayStr}
               )
             );
 
+          const supersededKeys = new Set<string>();
+          const activeDbKeys = new Set<string>();
+          const dbCandidates: MedicalSchedule[] = [];
+
           for (const row of dbRows) {
             if (!matchesPatientName(row.patientName ?? "")) continue;
+            const type = row.changeType === "schedule_visit_doctor" ? "訪問診療同席" : "受診";
             const dateTime = String(row.scheduleStartDate ?? "").trim();
             const dateKey = toDateKey(dateTime);
+            const facility = row.scheduleFacility ?? "";
+            const key = `${type}|${normalizeName(row.patientName ?? "")}|${dateKey ?? ""}|${facility.trim()}`;
+
+            if (row.supersededAt) {
+              if (dateKey !== null) supersededKeys.add(key);
+              continue;
+            }
             if (dateKey === null || dateKey < todayKey) continue;
 
-            candidates.push({
-              type: row.changeType === "schedule_visit_doctor" ? "訪問診療同席" : "受診",
+            activeDbKeys.add(key);
+            dbCandidates.push({
+              type,
               dateTime,
               displayDateTime: formatDisplayDate(dateTime),
-              facility: row.scheduleFacility ?? "",
+              facility,
               dateKey,
             });
           }
+
+          const filteredSheet = sheetCandidates.filter((c) => {
+            const key = `${c.type}|${normalizeName(input.patientName)}|${c.dateKey}|${c.facility.trim()}`;
+            return !supersededKeys.has(key) && !activeDbKeys.has(key);
+          });
+          candidates = [...filteredSheet, ...dbCandidates];
+        } else {
+          candidates = [...sheetCandidates];
         }
 
         const byType = (type: MedicalSchedule["type"]) =>
@@ -5336,6 +5507,129 @@ ${todayStr}
       .input(z.object({ limit: z.number().int().min(1).max(500).default(100) }).optional())
       .query(async ({ input }) => {
         return getScheduleChanges(input?.limit ?? 100);
+      }),
+
+    /** 利用者の有効な受診・訪問診療同席予定一覧（修正・取消用） */
+    listPatientMedicalSchedules: protectedProcedure
+      .input(z.object({
+        team: z.enum(["身体", "天理", "郡山北部", "郡山南部"]),
+        patientName: z.string().min(1),
+        changeType: z.enum(["schedule_visit", "schedule_visit_doctor"]),
+      }))
+      .query(async ({ input }) => {
+        const rows = await getActivePatientMedicalSchedules(input.team);
+        const now = new Date();
+        const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+        const todayKey = jstNow.getUTCFullYear() * 10000 + (jstNow.getUTCMonth() + 1) * 100 + jstNow.getUTCDate();
+
+        return rows
+          .filter((row) => row.changeType === input.changeType)
+          .filter((row) => matchesPatientNameForMedical(input.patientName, row.patientName ?? ""))
+          .map((row) => {
+            const dateTime = String(row.scheduleStartDate ?? "").trim();
+            const dateKey = medicalScheduleDateKey(dateTime);
+            return {
+              id: row.id,
+              changeType: row.changeType,
+              patientName: row.patientName ?? "",
+              scheduleStartDate: dateTime,
+              displayDateTime: formatMedicalScheduleDisplayDate(dateTime),
+              scheduleFacility: row.scheduleFacility ?? "",
+              reason: row.reason ?? "",
+              createdAt: row.createdAt,
+              isPast: dateKey !== null && dateKey < todayKey,
+            };
+          })
+          .filter((row) => !row.isPast)
+          .sort((a, b) => (medicalScheduleDateKey(a.scheduleStartDate) ?? 0) - (medicalScheduleDateKey(b.scheduleStartDate) ?? 0));
+      }),
+
+    /** 受診・訪問診療同席予定を取消する */
+    cancelMedicalSchedule: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        reason: z.string().max(500).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const record = await getScheduleChangeById(input.id);
+        if (!record) throw new TRPCError({ code: "NOT_FOUND", message: "記録が見つかりません" });
+        if (record.changeType !== "schedule_visit" && record.changeType !== "schedule_visit_doctor") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "受診・訪問診療同席のみ取消できます" });
+        }
+        if (record.supersededAt) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "この記録は既に取消済みです" });
+        }
+
+        await supersedeScheduleChange(input.id);
+
+        const cancelLabel = record.changeType === "schedule_visit_doctor" ? "訪問診療同席（取消）" : "受診（取消）";
+        const cancelReason = [
+          "【取消】",
+          input.reason?.trim() || "アプリから取消",
+          `（取消者: ${ctx.user.name ?? "不明"}）`,
+        ].join(" ");
+
+        try {
+          await appendScheduleChangeRowToSheet(record, {
+            typeLabel: cancelLabel,
+            reason: cancelReason,
+          });
+        } catch (err) {
+          console.error("[cancelMedicalSchedule] Sheet append failed:", err);
+        }
+
+        broadcastEvent("scheduleChanges");
+        return { success: true };
+      }),
+
+    /** 受診・訪問診療同席予定を修正する（旧記録を無効化し新規登録） */
+    updateMedicalSchedule: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        scheduleStartDate: z.string().min(1),
+        scheduleFacility: z.string().max(200).optional(),
+        reason: z.string().max(5000).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const record = await getScheduleChangeById(input.id);
+        if (!record) throw new TRPCError({ code: "NOT_FOUND", message: "記録が見つかりません" });
+        if (record.changeType !== "schedule_visit" && record.changeType !== "schedule_visit_doctor") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "受診・訪問診療同席のみ修正できます" });
+        }
+        if (record.supersededAt) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "この記録は既に無効化されています" });
+        }
+
+        const oldDateDisplay = formatMedicalScheduleDisplayDate(String(record.scheduleStartDate ?? ""));
+        const newDateDisplay = formatMedicalScheduleDisplayDate(input.scheduleStartDate);
+        const correctionNote = `【修正】${oldDateDisplay} → ${newDateDisplay}`;
+
+        await supersedeScheduleChange(input.id);
+
+        const newId = await createScheduleChange({
+          changeType: record.changeType,
+          team: record.team,
+          patientName: record.patientName,
+          patientId: record.patientId ?? undefined,
+          reason: [correctionNote, input.reason?.trim()].filter(Boolean).join(" / ") || correctionNote,
+          scheduleFacility: input.scheduleFacility ?? record.scheduleFacility ?? undefined,
+          scheduleStartDate: input.scheduleStartDate,
+          createdBy: Number(ctx.user.id),
+          createdByName: ctx.user.name ?? "不明",
+        });
+
+        const newRecord = await getScheduleChangeById(newId);
+        if (newRecord) {
+          try {
+            await appendScheduleChangeRowToSheet(newRecord);
+            await markScheduleChangeExported(newId);
+          } catch (err) {
+            console.error("[updateMedicalSchedule] Sheet append failed:", err);
+          }
+        }
+
+        broadcastEvent("scheduleChanges");
+        return { success: true, id: newId };
       }),
 
     /** スプレッドシートに転記する */

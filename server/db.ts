@@ -1,4 +1,4 @@
-import { and, eq, or, isNull, isNotNull, desc, lte, gte, gt, lt, sql, like } from "drizzle-orm";
+import { and, eq, or, isNull, isNotNull, desc, lte, gte, gt, lt, sql, like, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2";
 import {
@@ -1471,6 +1471,35 @@ export async function markScheduleChangeExported(id: number) {
     .update(scheduleChanges)
     .set({ exported: 1 })
     .where(eq(scheduleChanges.id, id));
+}
+
+/** スケジュール変更連絡を無効化する（取消・修正の旧記録用） */
+export async function supersedeScheduleChange(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(scheduleChanges)
+    .set({ supersededAt: new Date() })
+    .where(eq(scheduleChanges.id, id));
+}
+
+/** 利用者の有効な受診・訪問診療同席予定を取得する */
+export async function getActivePatientMedicalSchedules(
+  team: "身体" | "天理" | "郡山北部" | "郡山南部",
+) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(scheduleChanges)
+    .where(
+      and(
+        eq(scheduleChanges.team, team),
+        inArray(scheduleChanges.changeType, ["schedule_visit", "schedule_visit_doctor"]),
+        isNull(scheduleChanges.supersededAt),
+      )
+    )
+    .orderBy(desc(scheduleChanges.createdAt));
 }
 
 // ========== クイックアクセスリンク ==========

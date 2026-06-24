@@ -506,6 +506,102 @@ function PatientAutocomplete({
   );
 }
 
+// ========== 登録済み受診・訪問診療同席予定パネル ==========
+type PatientMedicalScheduleItem = {
+  id: number;
+  displayDateTime: string;
+  scheduleFacility: string;
+  scheduleStartDate: string;
+  reason: string;
+};
+
+function PatientMedicalSchedulesPanel({
+  team,
+  patientName,
+  changeType,
+  editingId,
+  onEdit,
+  onCancelEdit,
+}: {
+  team: "身体" | "天理" | "郡山北部" | "郡山南部";
+  patientName: string;
+  changeType: "schedule_visit" | "schedule_visit_doctor";
+  editingId: number | null;
+  onEdit: (item: PatientMedicalScheduleItem) => void;
+  onCancelEdit: () => void;
+}) {
+  const utils = trpc.useUtils();
+  const { data: schedules = [], isLoading } = trpc.scheduleChanges.listPatientMedicalSchedules.useQuery(
+    { team, patientName, changeType },
+    { enabled: !!team && !!patientName }
+  );
+
+  const cancelMutation = trpc.scheduleChanges.cancelMedicalSchedule.useMutation({
+    onSuccess: () => {
+      toast.success("予定を取り消しました");
+      void utils.scheduleChanges.listPatientMedicalSchedules.invalidate();
+      void utils.visitRecords.getUpcomingMedicalSchedules.invalidate();
+    },
+    onError: (err) => toast.error(`取消エラー: ${err.message}`),
+  });
+
+  if (!patientName || !team || isLoading || schedules.length === 0) return null;
+
+  const label = changeType === "schedule_visit_doctor" ? "訪問診療同席" : "受診";
+
+  return (
+    <Card className="border-primary/30 bg-primary/5">
+      <CardHeader className="pb-2 pt-4">
+        <CardTitle className="text-sm font-semibold">登録済みの{label}予定</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <p className="text-xs text-muted-foreground">
+          修正・取消する予定を選んでください。新しい予定の追加は下のフォームから行えます。
+        </p>
+        {schedules.map((item) => (
+          <div
+            key={item.id}
+            className={cn(
+              "flex flex-col gap-2 p-3 rounded-lg border bg-background",
+              editingId === item.id && "border-primary ring-1 ring-primary/30"
+            )}
+          >
+            <div>
+              <p className="text-sm font-medium">{item.displayDateTime}</p>
+              {item.scheduleFacility && (
+                <p className="text-xs text-muted-foreground">{item.scheduleFacility}</p>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={editingId === item.id ? "default" : "outline"}
+                onClick={() => (editingId === item.id ? onCancelEdit() : onEdit(item))}
+              >
+                {editingId === item.id ? "修正をやめる" : "修正"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="text-destructive hover:text-destructive"
+                disabled={cancelMutation.isPending}
+                onClick={() => {
+                  if (!window.confirm(`${item.displayDateTime} の${label}予定を取り消しますか？`)) return;
+                  cancelMutation.mutate({ id: item.id });
+                }}
+              >
+                取消
+              </Button>
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ========== スタッフオートコンプリートコンポーネント ==========
 type StaffItem = {
   id: number;
@@ -1284,6 +1380,13 @@ export default function ScheduleChange() {
   const [schedulePostDischargeEndDate, setSchedulePostDischargeEndDate] = useState("");
   const [scheduleNewContractTargetName, setScheduleNewContractTargetName] = useState(""); // 新規契約・面談の対象者名（直接入力）
   const [scheduleNewContractStaff, setScheduleNewContractStaff] = useState<string[]>([]); // 新規契約・面談の対応スタッフ（複数選択）
+  const [editingMedicalScheduleId, setEditingMedicalScheduleId] = useState<number | null>(null);
+
+  useEffect(() => {
+    setEditingMedicalScheduleId(null);
+  }, [changeType, patientName, team]);
+
+  const isMedicalScheduleType = changeType === "schedule_visit" || changeType === "schedule_visit_doctor";
 
   // 退院日が変更されたら退院後3か月終了日を自動計算
   const handleScheduleStartDateChange = (value: string) => {
@@ -1489,6 +1592,32 @@ export default function ScheduleChange() {
     },
   });
 
+  const utils = trpc.useUtils();
+  const updateMedicalSchedule = trpc.scheduleChanges.updateMedicalSchedule.useMutation({
+    onSuccess: () => {
+      toast.success("受診予定を修正しました");
+      setEditingMedicalScheduleId(null);
+      void utils.scheduleChanges.listPatientMedicalSchedules.invalidate();
+      void utils.visitRecords.getUpcomingMedicalSchedules.invalidate();
+      setScheduleStartDate("");
+      setScheduleFacilityName("");
+      setReason("");
+    },
+    onError: (err) => toast.error(`修正エラー: ${err.message}`),
+  });
+
+  const handleEditMedicalSchedule = (item: PatientMedicalScheduleItem) => {
+    setEditingMedicalScheduleId(item.id);
+    setScheduleStartDate(item.scheduleStartDate);
+    setScheduleFacilityName(item.scheduleFacility);
+  };
+
+  const handleCancelMedicalEdit = () => {
+    setEditingMedicalScheduleId(null);
+    setScheduleStartDate("");
+    setScheduleFacilityName("");
+  };
+
   const isVisitType = changeType === "visit_change" || changeType === "visit_cancel" || changeType === "visit_add";
   const isMeetingType = changeType === "meeting_add" || changeType === "meeting_change";
   const isScheduleType = changeType.startsWith("schedule_");
@@ -1526,6 +1655,20 @@ export default function ScheduleChange() {
     }
     if (changeType === "schedule_other" && !reason) {
       toast.error("内容（備考）を入力してください");
+      return;
+    }
+
+    if (editingMedicalScheduleId && isMedicalScheduleType) {
+      if (!team || team === "事務員" || team === "全チーム") {
+        toast.error("チームを選択してください");
+        return;
+      }
+      updateMedicalSchedule.mutate({
+        id: editingMedicalScheduleId,
+        scheduleStartDate,
+        scheduleFacility: scheduleFacilityName || undefined,
+        reason: reason || undefined,
+      });
       return;
     }
 
@@ -2975,6 +3118,24 @@ export default function ScheduleChange() {
               required={changeType !== "schedule_other"}
             />
           )}
+
+          {isMedicalScheduleType && team && patientName && team !== "事務員" && team !== "全チーム" && (
+            <PatientMedicalSchedulesPanel
+              team={team}
+              patientName={patientName}
+              changeType={changeType}
+              editingId={editingMedicalScheduleId}
+              onEdit={handleEditMedicalSchedule}
+              onCancelEdit={handleCancelMedicalEdit}
+            />
+          )}
+
+          {editingMedicalScheduleId && isMedicalScheduleType && (
+            <div className="rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-sm text-primary">
+              登録済み予定を修正中です。日付・通院先を変更して送信してください。
+            </div>
+          )}
+
           {/* 開始日（DateTimePickerで日付のみ選択） */}
           <Card>
             <CardHeader className="pb-2 pt-4">
@@ -3261,19 +3422,19 @@ export default function ScheduleChange() {
       {changeType && (
         <Button
           onClick={handleSubmit}
-          disabled={createAndExport.isPending}
+          disabled={createAndExport.isPending || updateMedicalSchedule.isPending}
           className="w-full"
           size="lg"
         >
-          {createAndExport.isPending ? (
+          {createAndExport.isPending || updateMedicalSchedule.isPending ? (
             <>
               <svg className="w-4 h-4 mr-2 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-              送信中...
+              {editingMedicalScheduleId ? "保存中..." : "送信中..."}
             </>
           ) : (
             <>
               <Send className="w-4 h-4 mr-2" />
-              送信してスプレッドシートに転記
+              {editingMedicalScheduleId ? "修正を保存" : "送信してスプレッドシートに転記"}
             </>
           )}
         </Button>

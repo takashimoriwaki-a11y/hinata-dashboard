@@ -492,6 +492,8 @@ export const scheduleChanges = mysqlTable("schedule_changes", {
   createdByName: text("createdByName").notNull(),
   /** スプレッドシート転記済みフラグ */
   exported: int("exported").default(0).notNull(),
+  /** 取消・修正により無効化された日時（null=有効） */
+  supersededAt: timestamp("supersededAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
