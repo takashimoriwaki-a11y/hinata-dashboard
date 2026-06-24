@@ -1590,13 +1590,29 @@ function normalizeHandoffMemoText(text: string): string {
 }
 
 function getJstDateTimeParts(date = new Date()): { date: string; time: string } {
-  const jst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
-  const yyyy = jst.getUTCFullYear();
-  const mm = String(jst.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(jst.getUTCDate()).padStart(2, "0");
-  const hh = String(jst.getUTCHours()).padStart(2, "0");
-  const min = String(jst.getUTCMinutes()).padStart(2, "0");
+  const jstStr = date.toLocaleString("en-US", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const match = jstStr.match(/(\d{2})\/(\d{2})\/(\d{4}),?\s+(\d{2}):(\d{2})/);
+  if (!match) return { date: "", time: "" };
+  const [, mm, dd, yyyy, hh, min] = match;
   return { date: `${yyyy}/${mm}/${dd}`, time: `${hh}:${min}` };
+}
+
+function normalizeHandoffMemoDateLabel(value: string): string {
+  const trimmed = String(value ?? "").trim();
+  if (!trimmed) return "";
+  const slash = trimmed.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
+  if (slash) {
+    return `${slash[1]}/${String(slash[2]).padStart(2, "0")}/${String(slash[3]).padStart(2, "0")}`;
+  }
+  return trimmed;
 }
 
 function getHandoffMemoGoogleClients() {
@@ -1681,7 +1697,33 @@ async function applyHandoffMemoSheetFormat(
         { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 5, endIndex: 6 }, properties: { pixelSize: 520 }, fields: "pixelSize" } },
         {
           repeatCell: {
-            range: { sheetId, startRowIndex: 1, startColumnIndex: 0, endColumnIndex: 6 },
+            range: { sheetId, startRowIndex: 1, startColumnIndex: 0, endColumnIndex: 1 },
+            cell: {
+              userEnteredFormat: {
+                numberFormat: { type: "DATE", pattern: "yyyy/mm/dd" },
+                textFormat: { fontSize: 10, fontFamily: "Noto Sans JP" },
+                verticalAlignment: "TOP",
+              },
+            },
+            fields: "userEnteredFormat(numberFormat,textFormat,verticalAlignment)",
+          },
+        },
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: 1, startColumnIndex: 1, endColumnIndex: 2 },
+            cell: {
+              userEnteredFormat: {
+                numberFormat: { type: "TIME", pattern: "hh:mm" },
+                textFormat: { fontSize: 10, fontFamily: "Noto Sans JP" },
+                verticalAlignment: "TOP",
+              },
+            },
+            fields: "userEnteredFormat(numberFormat,textFormat,verticalAlignment)",
+          },
+        },
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: 1, startColumnIndex: 2, endColumnIndex: 6 },
             cell: {
               userEnteredFormat: {
                 textFormat: { fontSize: 10, fontFamily: "Noto Sans JP" },
@@ -1795,11 +1837,13 @@ async function appendHandoffMemoToSheet(input: {
   const valuesRes = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range: `${input.team}!A:F`,
+    valueRenderOption: "FORMATTED_VALUE",
+    dateTimeRenderOption: "FORMATTED_STRING",
   });
   const rows = valuesRes.data.values ?? [];
   const lastRow = rows[rows.length - 1] ?? [];
   const lastNonEmptyDate = [...rows].reverse().find(row => row.some(cell => String(cell ?? "").trim()))?.[0] ?? "";
-  const needsDateHeading = lastNonEmptyDate !== date;
+  const needsDateHeading = normalizeHandoffMemoDateLabel(lastNonEmptyDate) !== date;
   const newRows: string[][] = [];
 
   if (needsDateHeading) {
@@ -1825,6 +1869,9 @@ async function appendHandoffMemoToSheet(input: {
     insertDataOption: "INSERT_ROWS",
     requestBody: { values: newRows },
   });
+
+  // 既存シートにも日付・時刻の表示形式を適用する
+  await applyHandoffMemoSheetFormat(spreadsheetId, input.team, sheets);
 
   return {
     spreadsheetId,
