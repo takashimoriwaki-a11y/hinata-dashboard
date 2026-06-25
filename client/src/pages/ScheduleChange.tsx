@@ -136,11 +136,13 @@ function formatDatetimeForDisplay(value: string): string {
     : value);
 }
 
-/** API保存用（時間未定は YYYY-MM-DD のまま、時刻ありのみ ISO 化） */
+/** API保存用（時間未定は YYYY-MM-DD のまま、時刻ありは JST の YYYY-MM-DDTHH:mm をそのまま保存） */
 function toStoredDatetime(value: string | undefined): string | undefined {
   if (!value) return undefined;
-  if (isTimeUnspecifiedValue(value)) return value.split('T')[0];
-  if (!value.includes('T')) return value;
+  if (isTimeUnspecifiedValue(value)) return value.split("T")[0];
+  if (!value.includes("T")) return value;
+  const localMatch = value.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/);
+  if (localMatch) return localMatch[1];
   return new Date(value).toISOString();
 }
 

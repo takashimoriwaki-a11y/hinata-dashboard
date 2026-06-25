@@ -1917,6 +1917,15 @@ function formatScheduleChangeSheetDatetime(dt: string | Date | null | undefined)
   const s = String(dt instanceof Date ? dt.toISOString() : dt).trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return formatScheduleChangeSheetDate(s);
   if (/^\d{4}-\d{2}-\d{2}T00:00(?::00)?/.test(s)) return formatScheduleChangeSheetDate(s.substring(0, 10));
+  if (/Z$/i.test(s)) {
+    try {
+      const d = dt instanceof Date ? dt : new Date(s);
+      const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+      return `${jst.getUTCFullYear()}/${String(jst.getUTCMonth() + 1).padStart(2, "0")}/${String(jst.getUTCDate()).padStart(2, "0")} ${String(jst.getUTCHours()).padStart(2, "0")}:${String(jst.getUTCMinutes()).padStart(2, "0")}`;
+    } catch {
+      return s;
+    }
+  }
   const localInput = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
   if (!(dt instanceof Date) && localInput) {
     return `${localInput[1]}/${localInput[2]}/${localInput[3]} ${localInput[4]}:${localInput[5]}`;
@@ -5689,12 +5698,23 @@ ${todayStr}
           if (m) return `${m[1]}/${m[2]}/${m[3]}`;
           return d;
         };
-        // 日時フォーマット（時間未定は日付のみ、new Date(YYYY-MM-DD)のUTCずれを避ける）
+        // 日時フォーマット（時間未定は日付のみ、JST入力はそのまま、UTC ISOは+9して表示）
         const fmtDt = (dt: string | null | undefined) => {
           if (!dt) return "";
           const s = String(dt).trim();
           if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return fmtDate(s);
           if (/^\d{4}-\d{2}-\d{2}T00:00(?::00)?/.test(s)) return fmtDate(s.substring(0, 10));
+          if (/Z$/i.test(s)) {
+            try {
+              const d = new Date(s);
+              const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+              return `${jst.getUTCFullYear()}/${String(jst.getUTCMonth() + 1).padStart(2, "0")}/${String(jst.getUTCDate()).padStart(2, "0")} ${String(jst.getUTCHours()).padStart(2, "0")}:${String(jst.getUTCMinutes()).padStart(2, "0")}`;
+            } catch { return s; }
+          }
+          const localInput = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+          if (localInput) {
+            return `${localInput[1]}/${localInput[2]}/${localInput[3]} ${localInput[4]}:${localInput[5]}`;
+          }
           try {
             const d = new Date(dt);
             const pad = (n: number) => String(n).padStart(2, "0");
@@ -6111,6 +6131,13 @@ ${todayStr}
             const s = String(dt instanceof Date ? dt.toISOString() : dt).trim();
             if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return fmtDate(s);
             if (/^\d{4}-\d{2}-\d{2}T00:00(?::00)?/.test(s)) return fmtDate(s.substring(0, 10));
+            if (/Z$/i.test(s)) {
+              try {
+                const d = dt instanceof Date ? dt : new Date(s);
+                const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+                return `${jst.getUTCFullYear()}/${String(jst.getUTCMonth()+1).padStart(2,"0")}/${String(jst.getUTCDate()).padStart(2,"0")} ${String(jst.getUTCHours()).padStart(2,"0")}:${String(jst.getUTCMinutes()).padStart(2,"0")}`;
+              } catch { return String(dt ?? ""); }
+            }
             const localInput = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
             if (!(dt instanceof Date) && localInput) {
               return `${localInput[1]}/${localInput[2]}/${localInput[3]} ${localInput[4]}:${localInput[5]}`;
