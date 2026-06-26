@@ -346,15 +346,18 @@ export function VisitSlotCard({ slotIndex, slotData, dbCardStateRaw, onSlotChang
     onError: (err) => toast.error(`保存エラー: ${err.message}`),
   });
 
+  const handoffMemoTeam: Team | undefined = slotData.team || undefined;
   const formatHandoffMemo = trpc.visitRecords.formatHandoffMemo.useMutation();
-  const handoffMemoSheetUrl = trpc.visitRecords.getHandoffMemoSheetUrl.useQuery(undefined, {
-    refetchOnWindowFocus: false,
-  });
+  const handoffMemoSheetUrl = trpc.visitRecords.getHandoffMemoSheetUrl.useQuery(
+    { team: handoffMemoTeam },
+    { enabled: !!handoffMemoTeam, refetchOnWindowFocus: false },
+  );
   const exportHandoffMemoToSheet = trpc.visitRecords.exportHandoffMemoToSheet.useMutation({
     onSuccess: (data) => {
       setHandoffMemoExported(true);
       handoffMemoSheetUrl.refetch();
-      toast.success("申し送り内容をスプレッドシートへ転記しました");
+      const teamLabel = slotData.team || "チーム";
+      toast.success(`申し送り内容を「${teamLabel}」タブへ転記しました`);
       if (data.spreadsheetUrl) {
         console.log("[HandoffMemo] Spreadsheet URL:", data.spreadsheetUrl);
       }
@@ -1439,27 +1442,36 @@ const handleClearPatient = () => {
                   }}
                 />
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <button
-                    type="button"
-                    className={cn(
-                      "w-full sm:flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200",
-                      (!isPatientSelected || !slotData.team || !handoffMemo.trim() || exportHandoffMemoToSheet.isPending)
-                        ? "bg-muted border border-border text-muted-foreground cursor-not-allowed opacity-60"
-                        : handoffMemoExported
-                          ? "bg-emerald-500 dark:bg-emerald-600 text-white shadow-sm"
+                  {handoffMemoExported ? (
+                    <div className="w-full sm:flex-1 flex items-center gap-2 px-3 py-2 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 rounded-lg">
+                      <span className="text-emerald-600 dark:text-emerald-400 text-sm">✓ 転記済み</span>
+                      <button
+                        type="button"
+                        className="ml-auto text-xs text-muted-foreground hover:underline"
+                        onClick={() => setHandoffMemoExported(false)}
+                      >
+                        再転記
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className={cn(
+                        "w-full sm:flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200",
+                        (!isPatientSelected || !slotData.team || !handoffMemo.trim() || exportHandoffMemoToSheet.isPending)
+                          ? "bg-muted border border-border text-muted-foreground cursor-not-allowed opacity-60"
                           : "bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg active:scale-95"
-                    )}
-                    onClick={handleExportHandoffMemo}
-                    disabled={!isPatientSelected || !slotData.team || !handoffMemo.trim() || exportHandoffMemoToSheet.isPending}
-                  >
-                    {exportHandoffMemoToSheet.isPending ? (
-                      <><Loader2 className="w-4 h-4 animate-spin" />転記中...</>
-                    ) : handoffMemoExported ? (
-                      <><Check className="w-4 h-4" />転記済み</>
-                    ) : (
-                      <><ExternalLink className="w-4 h-4" />スプレッドシートへ転記</>
-                    )}
-                  </button>
+                      )}
+                      onClick={handleExportHandoffMemo}
+                      disabled={!isPatientSelected || !slotData.team || !handoffMemo.trim() || exportHandoffMemoToSheet.isPending}
+                    >
+                      {exportHandoffMemoToSheet.isPending ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" />転記中...</>
+                      ) : (
+                        <><ExternalLink className="w-4 h-4" />スプレッドシートへ転記</>
+                      )}
+                    </button>
+                  )}
                   {handoffMemoSheetUrl.data?.spreadsheetUrl ? (
                     <a
                       href={handoffMemoSheetUrl.data.spreadsheetUrl}
@@ -1468,7 +1480,7 @@ const handleClearPatient = () => {
                       className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 text-xs font-semibold text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
-                      申し送りシートを開く
+                      {slotData.team ? `${slotData.team}タブを開く` : "申し送りシートを開く"}
                     </a>
                   ) : (
                     <button

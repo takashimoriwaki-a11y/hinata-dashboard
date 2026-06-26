@@ -1641,6 +1641,28 @@ function getHandoffMemoGoogleClients() {
   };
 }
 
+async function buildHandoffMemoSpreadsheetUrl(
+  spreadsheetId: string,
+  team?: HandoffMemoTeam,
+  sheets?: ReturnType<typeof google.sheets>,
+): Promise<string> {
+  let url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
+  if (!team) return url;
+
+  const client = sheets ?? getHandoffMemoGoogleClients().sheets;
+  try {
+    const meta = await client.spreadsheets.get({ spreadsheetId });
+    const sheet = meta.data.sheets?.find(s => s.properties?.title === team);
+    const gid = sheet?.properties?.sheetId;
+    if (gid !== undefined && gid !== null) {
+      url += `#gid=${gid}`;
+    }
+  } catch (e) {
+    console.warn(`[HandoffMemo] Failed to resolve tab gid for ${team}:`, e);
+  }
+  return url;
+}
+
 async function shareHandoffMemoSpreadsheet(spreadsheetId: string, drive: ReturnType<typeof google.drive>): Promise<void> {
   try {
     const shareEmailsValue = await getSetting("sheet_share_emails", "");
@@ -1872,12 +1894,13 @@ async function appendHandoffMemoToSheet(input: {
     requestBody: { values: newRows },
   });
 
-  // 既存シートにも日付・時刻の表示形式を適用する
-  await applyHandoffMemoSheetFormat(spreadsheetId, input.team, sheets);
+  console.log(
+    `[HandoffMemo] Appended ${newRows.length} row(s) to ${input.team} (patient=${input.patientName})`,
+  );
 
   return {
     spreadsheetId,
-    spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
+    spreadsheetUrl: await buildHandoffMemoSpreadsheetUrl(spreadsheetId, input.team, sheets),
   };
 }
 
@@ -4637,15 +4660,17 @@ ${todayStr}
         return { success: true, ...result };
       }),
 
-    // 申し送り内容スプレッドシートのURLを取得する
+    // 申し送り内容スプレッドシートのURLを取得する（team指定時は該当タブを開く）
     getHandoffMemoSheetUrl: protectedProcedure
-      .query(async () => {
+      .input(z.object({ team: z.enum(HANDOFF_MEMO_TEAMS).optional() }).optional())
+      .query(async ({ input }) => {
         const spreadsheetId = await getSetting(HANDOFF_MEMO_SPREADSHEET_SETTING_KEY, "");
-        return {
-          spreadsheetUrl: spreadsheetId
-            ? `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`
-            : null,
-        };
+        if (!spreadsheetId) return { spreadsheetUrl: null };
+        const team = input?.team;
+        const spreadsheetUrl = team
+          ? await buildHandoffMemoSpreadsheetUrl(spreadsheetId, team)
+          : `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
+        return { spreadsheetUrl };
       }),
 
     // スケジュール変更連絡シートから次回受診・訪問診療同席を取得する
