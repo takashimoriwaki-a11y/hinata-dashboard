@@ -4025,6 +4025,46 @@ function TasksCard() {
                         ⏳この日時まで
                       </span>
                     )}
+                    {/* 割り当て先バッジ（チーム・個人・全職員） */}
+                    {task.assignType === "all" && (
+                      <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0 rounded-full bg-muted text-muted-foreground font-medium">
+                        <Users className="w-3 h-3" />
+                        全職員
+                      </span>
+                    )}
+                    {task.assignType === "team" && (() => {
+                      const teams = task.assignTeams
+                        ? task.assignTeams.split(",").map((s) => s.trim()).filter(Boolean)
+                        : task.assignTeam
+                          ? [task.assignTeam]
+                          : [];
+                      return teams.map((team) => (
+                        <span
+                          key={team}
+                          className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0 rounded-full font-medium text-white"
+                          style={getTeamButtonStyle(team, true)}
+                        >
+                          <Users className="w-3 h-3" />
+                          {team}
+                        </span>
+                      ));
+                    })()}
+                    {task.assignType === "personal" && (() => {
+                      const names = task.assignUserNames
+                        ? task.assignUserNames.split(",").map((s) => s.trim()).filter(Boolean)
+                        : task.assignUserName
+                          ? [task.assignUserName]
+                          : [];
+                      return names.map((name) => (
+                        <span
+                          key={name}
+                          className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0 rounded-full font-medium bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300"
+                        >
+                          <UserRound className="w-3 h-3" />
+                          {name}
+                        </span>
+                      ));
+                    })()}
                     {task.dueDate && (
                       <span className={cn(
                         "flex items-center gap-0.5 text-xs",
