@@ -5895,15 +5895,6 @@ export default function Dashboard() {
                 リセット
               </button>
             )}
-            {/* 3. Gemini */}
-            <button
-              onClick={() => openLink("https://gemini.google.com/app")}
-              onPointerDown={() => {}}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#7c6fcd', touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={e => (e.currentTarget.style.backgroundColor='#6a5eb8')} onMouseLeave={e => (e.currentTarget.style.backgroundColor='#7c6fcd')}
-            >
-              <span className="text-sm leading-none">✨</span>
-              Gemini
-            </button>
             {/* 4. 次回訪問日時（電話等） */}
             <Link
               href="/phone-next-visit"
@@ -5939,15 +5930,6 @@ export default function Dashboard() {
             >
               <span className="text-sm leading-none">🏠</span>
               直帰申請
-            </Link>
-            {/* 8. 個人タスク */}
-            <Link
-              href="/personal-tasks"
-              onPointerDown={() => {}}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#1a6b9e', touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#155a87')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#1a6b9e')}
-            >
-              <ListTodo className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              個人タスク
             </Link>
           </div>
 
