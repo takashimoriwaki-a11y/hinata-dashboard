@@ -8479,7 +8479,7 @@ ${todayStr}
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
-        const { approveOvertimeApproval, getOvertimeApprovalById, getTimesheetSpreadsheets, createOvertimeNotification } = await import("./db");
+        const { approveOvertimeApproval, getOvertimeApprovalById, getTimesheetSpreadsheets, createOvertimeNotification, markOvertimeSynced } = await import("./db");
         const approvedAt = Date.now();
         await approveOvertimeApproval({
           id: input.id,
@@ -8490,50 +8490,52 @@ ${todayStr}
           adjustedEndAt: input.adjustedEndAt,
           approverComment: input.approverComment,
         });
-        // 承認後にスプレッドシートへ転記（非同期・失敗しても承認は成功扱い）
-        getOvertimeApprovalById(input.id).then(async (record) => {
-          if (!record) return;
+        // 承認後にスプレッドシートへ転記（失敗しても承認は成功扱い）
+        try {
+          const record = await getOvertimeApprovalById(input.id);
+          if (!record) throw new Error("approved record not found");
           const appDate = record.applicationDate;
           const [year, month] = appDate.split("-").map(Number);
           const sheets = await getTimesheetSpreadsheets(year, month);
           if (!sheets || sheets.length === 0) {
             console.warn(`[Overtime] No spreadsheet registered for ${year}/${month}`);
-            return;
-          }
-          for (const sheet of sheets) {
-            // 残業申請専用タブ（月別）を更新
-            await appendOvertimeToSheet({
-              applicationDate: appDate,
-              applicantName: record.applicantName,
-              requestedStartAt: record.requestedStartAt,
-              requestedEndAt: record.requestedEndAt,
-              requestedReason: record.requestedReason,
-              status: input.status,
-              approverName: ctx.user.name ?? "不明",
-              approvedAt,
-              adjustedStartAt: input.adjustedStartAt ?? null,
-              adjustedEndAt: input.adjustedEndAt ?? null,
-              approverComment: input.approverComment ?? null,
-              updateExisting: true, // 承認・却下時は既存行を上書き更新
-            }, sheet.spreadsheetId).catch((err) => {
-              console.error("[Overtime] Sheet sync failed:", err);
-            });
-            // 出退勤記録タブ（職員名タブ）のI列（残業申請承認状況）も更新
-            await updateTimesheetOvertimeApproval({
-              applicationDate: appDate,
-              applicantName: record.applicantName,
-              status: input.status,
-              approverName: ctx.user.name ?? "不明",
-              approverComment: input.approverComment ?? null,
-              adjustedStartAt: input.adjustedStartAt ?? null,
-              adjustedEndAt: input.adjustedEndAt ?? null,
-              requestedStartAt: record.requestedStartAt,
-              requestedEndAt: record.requestedEndAt,
-              requestedReason: record.requestedReason ?? null,
-              requestedDetail: null, // 残業詳細（連絡先・件数）は別途設定なし
-            }, sheet.spreadsheetId).catch((err) => {
-              console.error("[Timesheet] Approval status update failed:", err);
-            });
+          } else {
+            const syncJobs = sheets.flatMap((sheet) => ([
+              appendOvertimeToSheet({
+                applicationDate: appDate,
+                applicantName: record.applicantName,
+                requestedStartAt: record.requestedStartAt,
+                requestedEndAt: record.requestedEndAt,
+                requestedReason: record.requestedReason,
+                status: input.status,
+                approverName: ctx.user.name ?? "不明",
+                approvedAt,
+                adjustedStartAt: input.adjustedStartAt ?? null,
+                adjustedEndAt: input.adjustedEndAt ?? null,
+                approverComment: input.approverComment ?? null,
+                updateExisting: true,
+              }, sheet.spreadsheetId),
+              updateTimesheetOvertimeApproval({
+                applicationDate: appDate,
+                applicantName: record.applicantName,
+                status: input.status,
+                approverName: ctx.user.name ?? "不明",
+                approverComment: input.approverComment ?? null,
+                adjustedStartAt: input.adjustedStartAt ?? null,
+                adjustedEndAt: input.adjustedEndAt ?? null,
+                requestedStartAt: record.requestedStartAt,
+                requestedEndAt: record.requestedEndAt,
+                requestedReason: record.requestedReason ?? null,
+                requestedDetail: null,
+              }, sheet.spreadsheetId),
+            ]));
+            const syncResults = await Promise.allSettled(syncJobs);
+            const failed = syncResults.filter((r) => r.status === "rejected");
+            if (failed.length === 0) {
+              await markOvertimeSynced(input.id);
+            } else {
+              console.error(`[Overtime] Spreadsheet sync partially failed: id=${input.id} failed=${failed.length}/${syncResults.length}`);
+            }
           }
           // 申請者へ承認・却下の通知を送信
           if (record.applicantUserId) {
@@ -8555,9 +8557,9 @@ ${todayStr}
               url: "/overtime",
             }).catch((e) => console.error("[Overtime] Push to applicant failed:", e));
           }
-        }).catch((err) => {
-          console.error("[Overtime] getOvertimeApprovalById failed:", err);
-        });
+        } catch (err) {
+          console.error("[Overtime] approval follow-up failed:", err);
+        }
         // SSEで全クライアントに残業承認更新を通知（月次残業確認モーダルのリアルタイム更新）
         const { broadcastEvent } = await import("./_core/sse");
         broadcastEvent("overtimeApprovals", { id: input.id, status: input.status });
@@ -8578,7 +8580,7 @@ ${todayStr}
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") throw new TRPCError({ code: "FORBIDDEN" });
-        const { approveOvertimeApproval, getOvertimeApprovalById, getTimesheetSpreadsheets, createOvertimeNotification } = await import("./db");
+        const { approveOvertimeApproval, getOvertimeApprovalById, getTimesheetSpreadsheets, createOvertimeNotification, markOvertimeSynced } = await import("./db");
         const approvedAt = Date.now();
         const results: { id: number; success: boolean }[] = [];
         for (const id of input.ids) {
@@ -8589,14 +8591,19 @@ ${todayStr}
               approverName: ctx.user.name ?? "不明",
               status: "approved",
             });
-            getOvertimeApprovalById(id).then(async (record) => {
-              if (!record) return;
+            const record = await getOvertimeApprovalById(id);
+            if (!record) {
+              results.push({ id, success: false });
+              continue;
+            }
               const appDate = record.applicationDate;
               const [year, month] = appDate.split("-").map(Number);
               const sheets = await getTimesheetSpreadsheets(year, month);
-              if (!sheets || sheets.length === 0) return;
-              for (const sheet of sheets) {
-                await appendOvertimeToSheet({
+              if (!sheets || sheets.length === 0) {
+                console.warn(`[BulkApprove] No spreadsheet registered for ${year}/${month}`);
+              } else {
+                const syncJobs = sheets.flatMap((sheet) => ([
+                  appendOvertimeToSheet({
                   applicationDate: appDate,
                   applicantName: record.applicantName,
                   requestedStartAt: record.requestedStartAt,
@@ -8609,8 +8616,8 @@ ${todayStr}
                   adjustedEndAt: null,
                   approverComment: null,
                   updateExisting: true,
-                }, sheet.spreadsheetId).catch((err) => console.error("[BulkApprove] Sheet sync failed:", err));
-                await updateTimesheetOvertimeApproval({
+                  }, sheet.spreadsheetId),
+                  updateTimesheetOvertimeApproval({
                   applicationDate: appDate,
                   applicantName: record.applicantName,
                   status: "approved",
@@ -8622,7 +8629,15 @@ ${todayStr}
                   requestedEndAt: record.requestedEndAt,
                   requestedReason: record.requestedReason ?? null,
                   requestedDetail: null,
-                }, sheet.spreadsheetId).catch((err) => console.error("[BulkApprove] Timesheet update failed:", err));
+                  }, sheet.spreadsheetId),
+                ]));
+                const syncResults = await Promise.allSettled(syncJobs);
+                const failed = syncResults.filter((r) => r.status === "rejected");
+                if (failed.length === 0) {
+                  await markOvertimeSynced(id);
+                } else {
+                  console.error(`[BulkApprove] Spreadsheet sync partially failed: id=${id} failed=${failed.length}/${syncResults.length}`);
+                }
               }
               if (record.applicantUserId) {
                 const startStr = new Date(record.requestedStartAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
@@ -8642,7 +8657,6 @@ ${todayStr}
                   url: "/overtime",
                 }).catch((e) => console.error("[BulkApprove] Push to applicant failed:", e));
               }
-            }).catch((err) => console.error("[BulkApprove] getById failed:", err));
             results.push({ id, success: true });
           } catch (err) {
             console.error(`[BulkApprove] id=${id} failed:`, err);
