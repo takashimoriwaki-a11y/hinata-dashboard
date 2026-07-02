@@ -539,11 +539,16 @@ export async function restoreTask(id: number, restoredBy: number) {
 export async function getDeletedTasks(userId: number) {
   const db = await getDb();
   if (!db) return [];
-  const { isNotNull } = await import("drizzle-orm");
+  const { isNotNull, or } = await import("drizzle-orm");
   return db
     .select()
     .from(tasks)
-    .where(and(isNotNull(tasks.deletedAt), eq(tasks.createdBy, userId)))
+    .where(
+      and(
+        isNotNull(tasks.deletedAt),
+        or(eq(tasks.createdBy, userId), eq(tasks.deletedBy, userId)),
+      ),
+    )
     .orderBy(desc(tasks.deletedAt));
 }
 
