@@ -2186,8 +2186,10 @@ async function getVisitData(): Promise<VisitData> {
       const qVal = parseNum(row[16]);  // Q列: 実績累計
       const rVal = parseNum(row[17]);  // R列: 目標差
 
-      if (pVal > 0 || qVal > 0) {
+      if (pVal > 0) {
         prevTotalTarget = pVal;
+      }
+      if (qVal > 0) {
         prevTotalActual = qVal;
         prevDiff = rVal;
       }
