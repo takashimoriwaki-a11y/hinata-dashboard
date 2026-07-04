@@ -1605,12 +1605,14 @@ function StaffManagementPanel() {
   const [showNoPlateOnly, setShowNoPlateOnly] = useState(false);
 
   // スタッフ情報編集ダイアログ
-  const [editStaff, setEditStaff] = useState<{ id: number; name: string; team: TeamStaff; role: "user" | "admin"; numberPlate: string } | null>(null);
+  const [editStaff, setEditStaff] = useState<{ id: number; name: string; team: TeamStaff; role: "user" | "admin" | "super_admin"; numberPlate: string; workStartTime: string; workEndTime: string } | null>(null);
   const [editName, setEditName] = useState("");
   const [editKanaStaff, setEditKanaStaff] = useState("");
   const [editTeam, setEditTeam] = useState<TeamStaff>("身体");
-  const [editRole, setEditRole] = useState<"user" | "admin">("user");
+  const [editRole, setEditRole] = useState<"user" | "admin" | "super_admin">("user");
   const [editNumberPlate, setEditNumberPlate] = useState("");
+  const [editWorkStartTime, setEditWorkStartTime] = useState("");
+  const [editWorkEndTime, setEditWorkEndTime] = useState("");
 
   const updateInfo = trpc.staff.updateInfo.useMutation({
     onSuccess: (_, input) => {
@@ -1623,15 +1625,24 @@ function StaffManagementPanel() {
     onError: (e) => toast.error(e.message),
   });
 
-  const openEditDialog = (staff: { id: number; name: string | null; team: string | null; role: string; numberPlate?: string | null; nameKana?: string | null }) => {
-    // roleが "user" または "admin" 以外の場合は "admin" にフォールバック
-    const safeRole: "user" | "admin" = (staff.role === "user" || staff.role === "admin") ? staff.role : "admin";
-    setEditStaff({ id: staff.id, name: staff.name ?? "", team: (staff.team as TeamStaff) ?? "身体", role: safeRole, numberPlate: staff.numberPlate ?? "" });
+  const openEditDialog = (staff: { id: number; name: string | null; team: string | null; role: string; numberPlate?: string | null; nameKana?: string | null; workStartTime?: string | null; workEndTime?: string | null }) => {
+    const safeRole: "user" | "admin" | "super_admin" = (staff.role === "user" || staff.role === "admin" || staff.role === "super_admin") ? staff.role : "admin";
+    setEditStaff({
+      id: staff.id,
+      name: staff.name ?? "",
+      team: (staff.team as TeamStaff) ?? "身体",
+      role: safeRole,
+      numberPlate: staff.numberPlate ?? "",
+      workStartTime: staff.workStartTime ?? "",
+      workEndTime: staff.workEndTime ?? "",
+    });
     setEditName(staff.name ?? "");
     setEditKanaStaff((staff as any).nameKana ?? "");
     setEditTeam((staff.team as TeamStaff) ?? "身体");
     setEditRole(safeRole);
     setEditNumberPlate(staff.numberPlate ?? "");
+    setEditWorkStartTime(staff.workStartTime ?? "");
+    setEditWorkEndTime(staff.workEndTime ?? "");
   };
 
   // メールアドレス編集
@@ -1912,6 +1923,13 @@ function StaffManagementPanel() {
                         🚗 ナンバープレート: <span className="font-medium text-foreground">{(staff as any).numberPlate}</span>
                       </p>
                     )}
+                    <p className="text-xs text-muted-foreground">
+                      所定勤務時間: <span className="font-medium text-foreground">
+                        {(staff as any).workStartTime && (staff as any).workEndTime
+                          ? `${(staff as any).workStartTime}〜${(staff as any).workEndTime}`
+                          : "対象外"}
+                      </span>
+                    </p>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     {/* スタッフ情報編集 */}
@@ -2163,6 +2181,28 @@ function StaffManagementPanel() {
               className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
           </div>
+
+          {/* 所定勤務時間 */}
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">所定勤務時間</label>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="time"
+                value={editWorkStartTime}
+                onChange={(e) => setEditWorkStartTime(e.target.value)}
+                className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+              <input
+                type="time"
+                value={editWorkEndTime}
+                onChange={(e) => setEditWorkEndTime(e.target.value)}
+                className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              役員など時間外判定の対象外にする場合は、両方を空欄にしてください。
+            </p>
+          </div>
           {/* ボタン */}
           <div className="flex gap-2 pt-1">
             <Button
@@ -2176,7 +2216,22 @@ function StaffManagementPanel() {
               className="flex-1 h-9 text-sm"
               onClick={() => {
                 if (!editName.trim()) { toast.error("名前を入力してください"); return; }
-                updateInfo.mutate({ userId: editStaff.id, name: editName.trim(), nameKana: editKanaStaff.trim() || undefined, team: editTeam, role: editRole, numberPlate: editNumberPlate.trim() || undefined });
+                const workStartTime = editWorkStartTime.trim() || null;
+                const workEndTime = editWorkEndTime.trim() || null;
+                if ((workStartTime && !workEndTime) || (!workStartTime && workEndTime)) {
+                  toast.error("所定勤務時間は開始・終了を両方入力するか、両方空欄にしてください");
+                  return;
+                }
+                updateInfo.mutate({
+                  userId: editStaff.id,
+                  name: editName.trim(),
+                  nameKana: editKanaStaff.trim() || undefined,
+                  team: editTeam,
+                  role: editRole,
+                  numberPlate: editNumberPlate.trim() || undefined,
+                  workStartTime,
+                  workEndTime,
+                });
               }}
               disabled={updateInfo.isPending}
             >

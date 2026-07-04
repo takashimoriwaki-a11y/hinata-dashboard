@@ -28,6 +28,10 @@ export const users = mysqlTable("users", {
   teamSetupDone: tinyint("teamSetupDone").default(0).notNull(),
   /** 車両ナンバープレート（アルコールチェック記録に使用） */
   numberPlate: varchar("numberPlate", { length: 20 }).default(""),
+  /** 所定出勤時刻（HH:mm形式。nullの場合は時間外自動判定の対象外） */
+  workStartTime: varchar("workStartTime", { length: 5 }),
+  /** 所定退勤時刻（HH:mm形式。nullの場合は時間外自動判定の対象外） */
+  workEndTime: varchar("workEndTime", { length: 5 }),
   /** 職員のよみがな（苗字のみ、音声入力での職員自動選択に使用） */
   nameKana: varchar("nameKana", { length: 100 }),
   /** Google Calendar用アクセストークン */

@@ -5267,6 +5267,8 @@ ${todayStr}
         team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]),
         role: z.enum(["user", "admin", "super_admin"]),
         numberPlate: z.string().max(20).optional(),
+        workStartTime: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
+        workEndTime: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
@@ -5278,6 +5280,8 @@ ${todayStr}
           team: input.team,
           role: input.role,
           numberPlate: input.numberPlate,
+          workStartTime: input.workStartTime,
+          workEndTime: input.workEndTime,
         });
         broadcastEvent("staff");
         return { success: true };
@@ -7699,6 +7703,7 @@ ${todayStr}
         overtimeReason: z.string().optional(),
         overtimeContact: z.string().optional(),
         overtimeCount: z.number().optional(),
+        morningOvertimeRequested: z.boolean().optional(),
         // 位置情報（任意）
         latitude: z.number().optional(),
         longitude: z.number().optional(),
@@ -7829,39 +7834,81 @@ ${todayStr}
         }).catch((err) => {
           console.error("[AlcoholCheck] Sheet sync failed:", err);
         });
-        // 退勤時に残業ありの場合、overtimeApprovalsテーブルに自動登録して特級管理者に通知する
-        if (input.clockType === 'clock_out' && input.overtimeStartAt && input.overtimeEndAt) {
+        // 退勤時に時間外がある場合、overtimeApprovalsテーブルに自動登録して特級管理者に通知する
+        if (input.clockType === 'clock_out') {
           try {
             const { createOvertimeApproval, getSuperAdminUsers, createOvertimeNotification } = await import('./db');
             const jstNow = new Date(now + 9 * 60 * 60 * 1000);
             const applicationDate = `${jstNow.getUTCFullYear()}-${String(jstNow.getUTCMonth() + 1).padStart(2, '0')}-${String(jstNow.getUTCDate()).padStart(2, '0')}`;
-            const overtimeRecord = await createOvertimeApproval({
-              applicantUserId: Number(ctx.user.id),
-              applicantName: ctx.user.name ?? '不明',
-              applicationDate,
-              requestedStartAt: input.overtimeStartAt,
-              requestedEndAt: input.overtimeEndAt,
-              requestedReason: input.overtimeReason ?? undefined,
-            });
+            const overtimeRequests: Array<{ startAt: number; endAt: number; reason: string; applicationDate: string }> = [];
+
+            // 本人が退勤画面でチェックした場合だけ、早朝時間外（出勤時刻〜所定出勤時刻）を申請する。
+            if (input.morningOvertimeRequested) {
+              const workStartTime = (ctx.user as any).workStartTime;
+              const workStartMatch = typeof workStartTime === "string" ? workStartTime.match(/^(\d{2}):(\d{2})$/) : null;
+              const workStartHour = workStartMatch ? Number(workStartMatch[1]) : null;
+              const workStartMinute = workStartMatch ? Number(workStartMatch[2]) : null;
+              const todayLogs = await getTodayAttendance(Number(ctx.user.id));
+              const firstClockIn = todayLogs.filter((l) => l.type === "clock_in").sort((a, b) => a.clockedAt - b.clockedAt)[0] ?? null;
+              if (firstClockIn && workStartHour !== null && workStartMinute !== null) {
+                const jstOffset = 9 * 60 * 60 * 1000;
+                const clockInJst = new Date(firstClockIn.clockedAt + jstOffset);
+                const earlyApplicationDate = `${clockInJst.getUTCFullYear()}-${String(clockInJst.getUTCMonth() + 1).padStart(2, '0')}-${String(clockInJst.getUTCDate()).padStart(2, '0')}`;
+                const cutoffAt = Date.UTC(clockInJst.getUTCFullYear(), clockInJst.getUTCMonth(), clockInJst.getUTCDate(), workStartHour, workStartMinute) - jstOffset;
+                if (firstClockIn.clockedAt < cutoffAt) {
+                  const earlyEndAt = Math.min(now, cutoffAt);
+                  if (earlyEndAt > firstClockIn.clockedAt) {
+                    overtimeRequests.push({
+                      startAt: firstClockIn.clockedAt,
+                      endAt: earlyEndAt,
+                      reason: `${workStartTime}前の訪問看護`,
+                      applicationDate: earlyApplicationDate,
+                    });
+                  }
+                }
+              }
+            }
+
+            if (input.overtimeStartAt && input.overtimeEndAt && input.overtimeEndAt > input.overtimeStartAt) {
+              overtimeRequests.push({
+                startAt: input.overtimeStartAt,
+                endAt: input.overtimeEndAt,
+                reason: input.overtimeReason ?? "未記入",
+                applicationDate,
+              });
+            }
+
+            if (overtimeRequests.length === 0) return { success: true, alcoholCheckId: alcoholCheck.id };
+
             // 特級管理者にプッシュ通知＋アプリ内通知を送信
             const superAdmins = await getSuperAdminUsers();
-            const startStr = new Date(input.overtimeStartAt).toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' });
-            const endStr = new Date(input.overtimeEndAt).toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' });
-            const notifTitle = `⏰ 残業申請：${ctx.user.name ?? '不明'}`;
-            const notifBody = `${applicationDate} ${startStr}〜${endStr}　理由：${input.overtimeReason ?? '未記入'}`;
-            for (const admin of superAdmins) {
-              createOvertimeNotification({
-                targetUserId: admin.id,
-                type: 'overtime_request',
-                title: notifTitle,
-                body: notifBody,
-                resourceId: overtimeRecord?.insertId,
-              }).catch((e) => console.warn('[OvertimeAuto] Notification insert failed:', e));
-              sendPushToUser(admin.name ?? '', {
-                title: notifTitle,
-                body: notifBody,
-                url: '/overtime-admin',
-              }).catch((e) => console.warn('[OvertimeAuto] Push failed:', e));
+            for (const request of overtimeRequests) {
+              const overtimeRecord = await createOvertimeApproval({
+                applicantUserId: Number(ctx.user.id),
+                applicantName: ctx.user.name ?? '不明',
+                applicationDate: request.applicationDate,
+                requestedStartAt: request.startAt,
+                requestedEndAt: request.endAt,
+                requestedReason: request.reason,
+              });
+              const startStr = new Date(request.startAt).toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' });
+              const endStr = new Date(request.endAt).toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' });
+              const notifTitle = `⏰ 残業申請：${ctx.user.name ?? '不明'}`;
+              const notifBody = `${request.applicationDate} ${startStr}〜${endStr}　理由：${request.reason}`;
+              for (const admin of superAdmins) {
+                createOvertimeNotification({
+                  targetUserId: admin.id,
+                  type: 'overtime_request',
+                  title: notifTitle,
+                  body: notifBody,
+                  resourceId: overtimeRecord?.insertId,
+                }).catch((e) => console.warn('[OvertimeAuto] Notification insert failed:', e));
+                sendPushToUser(admin.name ?? '', {
+                  title: notifTitle,
+                  body: notifBody,
+                  url: '/overtime-admin',
+                }).catch((e) => console.warn('[OvertimeAuto] Push failed:', e));
+              }
             }
           } catch (e) {
             console.warn('[OvertimeAuto] Failed to create overtime approval from alcohol check:', e);

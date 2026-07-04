@@ -1112,6 +1112,8 @@ export async function getAllStaff() {
       role: users.role,
       team: users.team,
       numberPlate: users.numberPlate,
+      workStartTime: users.workStartTime,
+      workEndTime: users.workEndTime,
       createdAt: users.createdAt,
       lastSignedIn: users.lastSignedIn,
       teamSetupDone: users.teamSetupDone,
@@ -1128,6 +1130,8 @@ export async function createStaffAccount(data: {
   role: "user" | "admin";
   team: "身体" | "天理" | "郡山北部" | "郡山南部" | "事務員" | "全チーム";
   numberPlate?: string;
+  workStartTime?: string | null;
+  workEndTime?: string | null;
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -1145,6 +1149,8 @@ export async function createStaffAccount(data: {
     role: data.role,
     team: data.team,
     numberPlate: data.numberPlate ?? null,
+    workStartTime: data.workStartTime ?? "08:30",
+    workEndTime: data.workEndTime ?? "17:00",
     teamSetupDone: 1,
     loginMethod: "local",
     lastSignedIn: new Date(),
@@ -1177,6 +1183,8 @@ export async function batchCreateStaff(data: Array<{ name: string; nameKana?: st
       loginMethod: "local",
       lastSignedIn: new Date(),
       numberPlate: d.numberPlate ?? "",
+      workStartTime: "08:30",
+      workEndTime: "17:00",
     });
     count++;
   }
@@ -1211,6 +1219,8 @@ export async function updateStaffInfo(userId: number, data: {
   team: "身体" | "天理" | "郡山北部" | "郡山南部" | "事務員" | "全チーム";
   role: "user" | "admin" | "super_admin";
   numberPlate?: string;
+  workStartTime?: string | null;
+  workEndTime?: string | null;
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -1220,6 +1230,8 @@ export async function updateStaffInfo(userId: number, data: {
     team: data.team,
     role: data.role,
     numberPlate: data.numberPlate !== undefined ? (data.numberPlate || null) : undefined,
+    workStartTime: data.workStartTime !== undefined ? (data.workStartTime || null) : undefined,
+    workEndTime: data.workEndTime !== undefined ? (data.workEndTime || null) : undefined,
     teamSetupDone: 1,
   }).where(eq(users.id, userId));
 }

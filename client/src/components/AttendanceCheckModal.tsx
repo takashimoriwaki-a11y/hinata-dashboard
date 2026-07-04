@@ -119,6 +119,13 @@ function floorToTenMinutes(date: Date): number {
   return Math.floor(getJSTMinutes(date) / 5) * 5;
 }
 
+function parseWorkTime(value: unknown): { hour: number; minute: number } | null {
+  if (typeof value !== "string" || !/^\d{2}:\d{2}$/.test(value)) return null;
+  const [hour, minute] = value.split(":").map(Number);
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+  return { hour, minute };
+}
+
 interface AttendanceCheckModalProps {
   type: "clock_in" | "clock_out";
   onClose: () => void;
@@ -151,6 +158,7 @@ interface SavedState {
   overtimeContactTargets?: Record<string, string>;
   overtimeRecordCounts?: Record<string, number>;
   overtimeFreeText?: string;
+  morningOvertimeRequested?: boolean;
   voiceMemoDeleted?: boolean;
 }
 
@@ -164,10 +172,22 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     undefined,
     { enabled: isClockIn }
   );
+  const { data: todayAttendance = [] } = trpc.attendance.today.useQuery(undefined, {
+    enabled: !isClockIn,
+  });
 
   // 当月URLが取得できた場合は業務日報リンクを差し替える
   // 事務員はアルコールチェックが任意
   const isOfficeStaff = (user as any)?.team === "事務員";
+  const userWorkStartTime = (user as any)?.workStartTime;
+  const userWorkEndTime = (user as any)?.workEndTime;
+  const scheduledWorkStart = useMemo(() => parseWorkTime(userWorkStartTime), [userWorkStartTime]);
+  const scheduledWorkEnd = useMemo(() => parseWorkTime(userWorkEndTime), [userWorkEndTime]);
+  const overtimeStartDefault = scheduledWorkEnd ?? { hour: 17, minute: 0 };
+  const overtimeStartDefaultLabel = `${String(overtimeStartDefault.hour).padStart(2, "0")}:${String(overtimeStartDefault.minute).padStart(2, "0")}`;
+  const scheduledWorkStartLabel = scheduledWorkStart
+    ? `${String(scheduledWorkStart.hour).padStart(2, "0")}:${String(scheduledWorkStart.minute).padStart(2, "0")}`
+    : "所定出勤時刻";
 
   const steps = isClockIn
     ? CLOCK_IN_STEPS
@@ -224,6 +244,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   const [clockOutDone, setClockOutDone] = useState(savedState?.clockOutDone ?? false);
   // ボイスメモ・NotebookLM削除済みフラグ
   const [voiceMemoDeleted, setVoiceMemoDeleted] = useState(savedState?.voiceMemoDeleted ?? false);
+  const [morningOvertimeRequested, setMorningOvertimeRequested] = useState(savedState?.morningOvertimeRequested ?? false);
 
   // dragY は削除（スワイプジェスチャーを無効化）
   const dragY = 0;
@@ -315,8 +336,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   // savedStateに保存値があっても終了時刻は上書きしない（毎回現在時刻を自動取得）。
   const openedAt = useMemo(() => new Date(), []);
   const [hasOvertime, setHasOvertime] = useState(savedState?.hasOvertime ?? false);
-  const [overtimeStartHour, setOvertimeStartHour] = useState(savedState?.overtimeStartHour ?? 17);
-  const [overtimeStartMinute, setOvertimeStartMinute] = useState(savedState?.overtimeStartMinute ?? 0);
+  const [overtimeStartHour, setOvertimeStartHour] = useState(savedState?.overtimeStartHour ?? overtimeStartDefault.hour);
+  const [overtimeStartMinute, setOvertimeStartMinute] = useState(savedState?.overtimeStartMinute ?? overtimeStartDefault.minute);
   // 終了時刻は常に現在時刻から取得（savedStateの値は使わない）
   const [overtimeEndHour, setOvertimeEndHour] = useState(() => getJSTHours(new Date()));
   const [overtimeEndMinute, setOvertimeEndMinute] = useState(() => floorToTenMinutes(new Date()));
@@ -368,6 +389,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       overtimeContactTargets,
       overtimeRecordCounts,
       overtimeFreeText,
+      morningOvertimeRequested,
       voiceMemoDeleted,
     };
     try {
@@ -375,7 +397,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     } catch {
       // ignore storage errors
     }
-  }, [type, done, alcoholRecorded, alcoholSkipped, clockInDone, clockOutDone, hasOvertime, overtimeStartHour, overtimeStartMinute, overtimeReasonTypes, overtimeContactTargets, overtimeRecordCounts, overtimeFreeText, voiceMemoDeleted]);
+  }, [type, done, alcoholRecorded, alcoholSkipped, clockInDone, clockOutDone, hasOvertime, overtimeStartHour, overtimeStartMinute, overtimeReasonTypes, overtimeContactTargets, overtimeRecordCounts, overtimeFreeText, morningOvertimeRequested, voiceMemoDeleted]);
 
   // モーダルが開いている間、bodyとmainのスクロールをロックする
   // ❗ position:fixedは使わない（iOSで100svhの計算が崩れてフッターが画面外になるため）
@@ -504,6 +526,40 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     return d.getTime();
   };
 
+  const firstClockInLog = useMemo(() => {
+    return todayAttendance
+      .filter((log) => log.type === "clock_in")
+      .sort((a, b) => a.clockedAt - b.clockedAt)[0] ?? null;
+  }, [todayAttendance]);
+
+  const morningOvertime = useMemo(() => {
+    if (isClockIn || !firstClockInLog || !scheduledWorkStart) return null;
+    const startAt = firstClockInLog.clockedAt;
+    const cutoff = new Date(startAt);
+    cutoff.setHours(scheduledWorkStart.hour, scheduledWorkStart.minute, 0, 0);
+    const cutoffAt = cutoff.getTime();
+    if (startAt >= cutoffAt) return null;
+
+    const endAt = Math.min(openedAt.getTime(), cutoffAt);
+    const minutes = Math.max(0, Math.round((endAt - startAt) / 60000));
+    if (minutes <= 0) return null;
+
+    const formatTime = (ms: number) =>
+      new Date(ms).toLocaleTimeString("ja-JP", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+
+    return {
+      startAt,
+      endAt,
+      minutes,
+      startLabel: formatTime(startAt),
+      endLabel: formatTime(endAt),
+    };
+  }, [firstClockInLog, isClockIn, openedAt, scheduledWorkStart]);
+
   // 複数選択対応の残業理由文字列生成
   const buildOvertimeReason = (): string => {
     if (overtimeReasonTypes.length === 0) return "";
@@ -553,6 +609,23 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
   // 閉じる前の確認ダイアログ
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
+  useEffect(() => {
+    if (isClockIn) return;
+    if (savedState?.overtimeStartHour !== undefined || savedState?.overtimeStartMinute !== undefined) return;
+    if (hasOvertime || overtimeReasonTypes.length > 0 || overtimeSubmitted) return;
+    setOvertimeStartHour(overtimeStartDefault.hour);
+    setOvertimeStartMinute(overtimeStartDefault.minute);
+  }, [
+    isClockIn,
+    savedState?.overtimeStartHour,
+    savedState?.overtimeStartMinute,
+    hasOvertime,
+    overtimeReasonTypes.length,
+    overtimeSubmitted,
+    overtimeStartDefault.hour,
+    overtimeStartDefault.minute,
+  ]);
+
   // 変更があるかどうかを判定する（アルコールチェック入力・残業入力が初期値から変わっているか）
   const hasUnsavedChanges = (() => {
     // アルコールチェック記録済み・スキップ済みの場合は変更なし
@@ -576,6 +649,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     if (physicalConditionNote.trim() !== "") return true;
     // 退勤時：残業入力が変わっているか
     if (!isClockIn && hasOvertime) return true;
+    if (!isClockIn && morningOvertimeRequested) return true;
     return false;
   })();
 
@@ -842,6 +916,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
       overtimeStartAt: (!isClockIn && hasOvertime) ? toTodayMs(overtimeStartHour, overtimeStartMinute) : undefined,
       overtimeEndAt: (!isClockIn && hasOvertime) ? toTodayMs(overtimeEndHour, overtimeEndMinute) : undefined,
       overtimeReason: (!isClockIn && hasOvertime) ? buildOvertimeReason() : undefined,
+      morningOvertimeRequested: !isClockIn && Boolean(morningOvertime && morningOvertimeRequested),
       overtimeContact: ((): string | undefined => {
         if (!(!isClockIn && hasOvertime)) return undefined;
         const parts = (["支援者連絡", "家族連絡"] as const)
@@ -1407,6 +1482,32 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         )}
       </div>
 
+      {morningOvertime && (
+        <div className="px-4 py-3 border-t border-blue-100 dark:border-blue-900 bg-amber-50 dark:bg-amber-950/30">
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={morningOvertimeRequested}
+              onChange={(e) => setMorningOvertimeRequested(e.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-amber-800 dark:text-amber-200">
+                {scheduledWorkStartLabel}前の訪問看護を時間外申請する
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
+                {morningOvertime.startLabel}〜{morningOvertime.endLabel}
+                （{Math.floor(morningOvertime.minutes / 60) > 0 ? `${Math.floor(morningOvertime.minutes / 60)}時間` : ""}
+                {morningOvertime.minutes % 60}分）
+              </p>
+              <p className="text-[11px] text-amber-700/80 dark:text-amber-300/80 mt-1">
+                対象となる早朝の訪問看護がある場合のみチェックしてください。チェックしなければ申請されません。
+              </p>
+            </div>
+          </label>
+        </div>
+      )}
+
       <div
         style={{
           display: 'grid',
@@ -1421,9 +1522,18 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
                 残業開始時刻
-                <span className="text-gray-400 font-normal ml-1">（デフォルト: 17:00）</span>
+                <span className="text-gray-400 font-normal ml-1">（デフォルト: {overtimeStartDefaultLabel}）</span>
               </label>
-              <button type="button" onClick={() => { setOvertimeStartHour(17); setOvertimeStartMinute(0); }} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">リセット</button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOvertimeStartHour(overtimeStartDefault.hour);
+                  setOvertimeStartMinute(overtimeStartDefault.minute);
+                }}
+                className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                リセット
+              </button>
             </div>
             <div className="flex gap-2 items-center">
               <div className="relative flex-1">
@@ -1773,8 +1883,8 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
           <AlertDialogCancel>キャンセル</AlertDialogCancel>
           <AlertDialogAction
             onClick={() => {
-              setOvertimeStartHour(17);
-              setOvertimeStartMinute(0);
+              setOvertimeStartHour(overtimeStartDefault.hour);
+              setOvertimeStartMinute(overtimeStartDefault.minute);
               setOvertimeEndHour(getJSTHours(openedAt));
               setOvertimeEndMinute(floorToTenMinutes(openedAt));
               setOvertimeReasonType("");
