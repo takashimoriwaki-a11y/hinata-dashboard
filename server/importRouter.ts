@@ -14,6 +14,11 @@ import { TRPCError } from "@trpc/server";
 import { eq, and } from "drizzle-orm";
 import { google } from "googleapis";
 import { router, publicProcedure } from "./_core/trpc";
+import {
+  getUnexportedVisitRecordsForSheetExport,
+  markVisitRecordExported,
+} from "./db";
+import { exportVisitRecordToSheet } from "./visitRecordSheetExport";
 
 // ============================================================================
 // 認証チェック（共通）
@@ -1011,6 +1016,81 @@ export const importRouter = router({
         targets,
         successCount,
         failCount,
+        results,
+      };
+    }),
+
+  /** 未転送の次回訪問日時をスプレッドシートへ一括再転記（IMPORT_API_SECRET 認証） */
+  reExportVisitRecords: publicProcedure
+    .input(z.object({
+      secret: z.string(),
+      since: z.string().optional(),
+      dryRun: z.boolean().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      requireImportSecret(input);
+
+      const since = input.since
+        ? new Date(`${input.since}T00:00:00+09:00`)
+        : new Date("2026-07-03T15:00:00.000Z");
+      const dryRun = input.dryRun ?? false;
+      const records = await getUnexportedVisitRecordsForSheetExport(since);
+
+      if (dryRun) {
+        return {
+          dryRun: true,
+          since: since.toISOString(),
+          total: records.length,
+          records: records.map(r => ({
+            id: r.id,
+            team: r.team,
+            patientName: r.patientName,
+            createdAt: r.createdAt,
+            nextVisitAt: r.nextVisitAt,
+            createdByName: r.createdByName,
+          })),
+          successCount: 0,
+          failCount: 0,
+          results: [],
+        };
+      }
+
+      const results: Array<{
+        id: number;
+        status: "success" | "failed";
+        team: string;
+        patientName: string;
+        error?: string;
+      }> = [];
+
+      for (const record of records) {
+        try {
+          await exportVisitRecordToSheet(record);
+          await markVisitRecordExported(record.id);
+          results.push({
+            id: record.id,
+            status: "success",
+            team: record.team,
+            patientName: record.patientName,
+          });
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } catch (e) {
+          results.push({
+            id: record.id,
+            status: "failed",
+            team: record.team,
+            patientName: record.patientName,
+            error: e instanceof Error ? e.message : String(e),
+          });
+        }
+      }
+
+      return {
+        dryRun: false,
+        since: since.toISOString(),
+        total: records.length,
+        successCount: results.filter(r => r.status === "success").length,
+        failCount: results.filter(r => r.status === "failed").length,
         results,
       };
     }),

@@ -1,4 +1,5 @@
 import { importRouter } from "./importRouter";
+import { exportVisitRecordToSheet } from "./visitRecordSheetExport";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { google } from "googleapis";
 
@@ -1406,6 +1407,7 @@ import {
   getVisitRecordById,
   markVisitRecordExported,
   unmarkVisitRecordExported,
+  getUnexportedVisitRecordsForSheetExport,
   createNotification,
   getUnreadNotifications,
   getAllNotifications,
@@ -4269,311 +4271,92 @@ ${todayStr}
         const record = await getVisitRecordById(input.id);
         if (!record) throw new TRPCError({ code: "NOT_FOUND", message: "記録が見つかりません" });
 
-        const VISIT_RECORD_SHEET_ID = "1WOZQ5rI0Fu57nWaiGwComPS_DdEwPgNR6zeOmyrqKpo"; // ひなた_次回訪問日時
-        // チームに基づいてシート名を決定（チーム別タブ）
-        const getVisitTeamSheetName = (team: string | null | undefined): string => {
-          const validTeams = ["身体", "天理", "郡山北部", "郡山南部"];
-          if (team && validTeams.includes(team)) return team;
-          return "その他";
-        };
-        const SHEET_NAME = getVisitTeamSheetName(record.team);
-
-        // サービスアカウント認証
-        const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-        const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
-        if (!email || !privateKey) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "サービスアカウント設定がありません" });
-
-        const { GoogleAuth } = await import("google-auth-library");
-        const auth = new GoogleAuth({
-          credentials: { client_email: email, private_key: privateKey.replace(/\\n/g, "\n") },
-          scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-        });
-        const client = await auth.getClient();
-        const token = await client.getAccessToken();
-        if (!token.token) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "認証トークン取得失敗" });
-
-        // 日時フォーマット（JST: UTC+9 に変換して書き込む）
-        const formatDate = (val: Date | number | null | undefined) => {
-          if (!val) return "";
-          const d = val instanceof Date ? val : new Date(val);
-          // UTC+9（JST）に変換
-          const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
-          return `${jst.getUTCFullYear()}/${String(jst.getUTCMonth()+1).padStart(2,"0")}/${String(jst.getUTCDate()).padStart(2,"0")} ${String(jst.getUTCHours()).padStart(2,"0")}:${String(jst.getUTCMinutes()).padStart(2,"0")}`;
-        };
-
-        // 次回訪問日時専用フォーマット：時刻が00:00（時間未定）の場合は日付のみ表示
-        const formatNextVisitDate = (val: Date | number | null | undefined) => {
-          if (!val) return "";
-          const d = val instanceof Date ? val : new Date(val);
-          const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
-          const h = jst.getUTCHours();
-          const m = jst.getUTCMinutes();
-          const datePart = `${jst.getUTCFullYear()}/${String(jst.getUTCMonth()+1).padStart(2,"0")}/${String(jst.getUTCDate()).padStart(2,"0")}`;
-          // 時刻が00:00 = 時間未定として日付のみ表示
-          if (h === 0 && m === 0) return `${datePart}（時間未定）`;
-          return `${datePart} ${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
-        };
-
-        // ヘッダー行の定義（ダッシュボード入力項目と整合）
-        const HEADER_ROW = [
-          "転送日時",
-          "担当者",
-          "チーム",
-          "利用者名",
-          "次回訪問日時",
-          "伝達先",
-          "伝達先（その他）",
-          "伝達方法",
-          "伝達方法（その他）",
-        ];
-        const row = [
-          formatDate(record.createdAt),
-          record.createdByName ?? "",
-          record.team ?? "",
-          record.patientName ?? "",
-          formatNextVisitDate(record.nextVisitAt),
-          record.notifiedTo ?? "",
-          record.notifiedToOther ?? "",
-          record.notifyMethod ?? "",
-          record.notifyMethodOther ?? "",
-        ];
-
-        // シートの存在確認（チーム別タブの自動作成対応）
-        const metaCheckRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}?fields=sheets.properties`, {
-          headers: { Authorization: `Bearer ${token.token}` },
-        });
-        if (metaCheckRes.ok) {
-          const metaCheck = await metaCheckRes.json() as { sheets?: { properties: { title: string } }[] };
-          const sheetAlreadyExists = metaCheck.sheets?.some(s => s.properties.title === SHEET_NAME);
-          if (!sheetAlreadyExists) {
-            // シートがなければ新規作成
-            await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}:batchUpdate`, {
-              method: "POST",
-              headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
-              body: JSON.stringify({ requests: [{ addSheet: { properties: { title: SHEET_NAME } } }] }),
-            });
-          }
-        }
-
-        // 現在のシートの内容を確認してヘッダー行がなければ先に書き込む
-        const checkUrl = `https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A1")}?valueRenderOption=UNFORMATTED_VALUE`;
-        const checkRes = await fetch(checkUrl, {
-          headers: { Authorization: `Bearer ${token.token}` },
-        });
-        const checkData = checkRes.ok ? await checkRes.json() as { values?: string[][] } : { values: [] };
-        const firstCell = checkData.values?.[0]?.[0] ?? "";
-        if (firstCell !== "転送日時") {
-          // ヘッダー行を1行目に書き込む
-          const headerUrl = `https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A1")}?valueInputOption=USER_ENTERED`;
-          await fetch(headerUrl, {
-            method: "PUT",
-            headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ values: [HEADER_ROW] }),
-          });
-        }
-
-        // 既存データの最終行を数え、その次の行のA列に明示的に書き込む。
-        // （Google Sheets の append はテーブル自動検出により書き込み開始列がずれることがあるため使用しない）
-        const countUrl = `https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A:I")}?valueRenderOption=UNFORMATTED_VALUE`;
-        const countRes = await fetch(countUrl, {
-          headers: { Authorization: `Bearer ${token.token}` },
-        });
-        const countData = countRes.ok ? await countRes.json() as { values?: string[][] } : { values: [] };
-        const nextRow = (countData.values?.length ?? 1) + 1; // 末尾データ行の次（1始まり）
-        const writeUrl = `https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}/values/${encodeURIComponent(`${SHEET_NAME}!A${nextRow}`)}?valueInputOption=USER_ENTERED`;
-        const res = await fetch(writeUrl, {
-          method: "PUT",
-          headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ values: [row] }),
-        });
-        if (!res.ok) {
-          const text = await res.text();
-          let userMessage = "スプレッドシートへの転送に失敗しました";
-          let errorCode: "INTERNAL_SERVER_ERROR" | "FORBIDDEN" | "UNAUTHORIZED" = "INTERNAL_SERVER_ERROR";
-          try {
-            const errJson = JSON.parse(text);
-            const status = res.status;
-            const errMsg = errJson?.error?.message ?? "";
-            if (status === 401 || status === 403) {
-              errorCode = "FORBIDDEN";
-              userMessage = "スプレッドシートへのアクセス権限がありません。管理者にお問い合わせください。";
-            } else if (status === 404) {
-              userMessage = "スプレッドシートが見つかりません。URLや共有設定を確認してください。";
-            } else if (status === 429) {
-              userMessage = "APIの利用制限に達しました。しばらく待ってから再試行してください。";
-            } else if (errMsg.includes("RESOURCE_EXHAUSTED")) {
-              userMessage = "APIの利用制限に達しました。しばらく待ってから再試行してください。";
-            } else if (errMsg.includes("SERVICE_UNAVAILABLE") || status >= 500) {
-              userMessage = "Googleのサービスが一時的に利用できません。しばらく待ってから再試行してください。";
-            } else if (errMsg) {
-              userMessage = `転送エラー: ${errMsg}`;
-            }
-          } catch {
-            // JSONパース失敗時はデフォルトメッセージを使用
-          }
-          throw new TRPCError({ code: errorCode, message: userMessage });
-        }
-
-        // シートIDを取得してヘッダー書式・列幅・オートフィルターを設定（初回転送時のみ実行）
         try {
-          const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}?fields=sheets.properties`, {
-            headers: { Authorization: `Bearer ${token.token}` },
-          });
-          if (metaRes.ok) {
-            const meta = await metaRes.json() as { sheets?: { properties: { title: string; sheetId: number } }[] };
-            // シート名で該当タブのsheetIdを取得（チーム別タブ対応）
-            const sheetInfo = meta.sheets?.find(s => s.properties.title === SHEET_NAME);
-            const sheetId = sheetInfo?.properties?.sheetId ?? 0;
-
-            // 転送済み行数を取得して書式を適用
-            const valuesRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A:A")}`, {
-              headers: { Authorization: `Bearer ${token.token}` },
-            });
-            const valuesData = valuesRes.ok ? await valuesRes.json() as { values?: string[][] } : { values: [] };
-            const totalRows = (valuesData.values?.length ?? 1);
-            const dataEndRow = Math.max(totalRows, 2); // データ行の終わり（最低2行）
-
-            // batchUpdateで全書式を一括設定
-            const batchBody = {
-              requests: [
-                // 1. ヘッダー行（1行目）：深青背景・白太字・中央揃え・フォントサイズ11
-                {
-                  repeatCell: {
-                    range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 9 },
-                    cell: {
-                      userEnteredFormat: {
-                        backgroundColor: { red: 0.165, green: 0.329, blue: 0.573 }, // #2A5492 深青
-                        textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 }, fontSize: 11, fontFamily: "Noto Sans JP" },
-                        horizontalAlignment: "CENTER",
-                        verticalAlignment: "MIDDLE",
-                        wrapStrategy: "WRAP",
-                        padding: { top: 6, bottom: 6, left: 6, right: 6 },
-                      },
-                    },
-                    fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy,padding)",
-                  },
-                },
-                // 2. データ行全体：フォント・垂直中央・パディング
-                {
-                  repeatCell: {
-                    range: { sheetId, startRowIndex: 1, endRowIndex: dataEndRow, startColumnIndex: 0, endColumnIndex: 9 },
-                    cell: {
-                      userEnteredFormat: {
-                        textFormat: { fontSize: 10, fontFamily: "Noto Sans JP" },
-                        verticalAlignment: "MIDDLE",
-                        padding: { top: 4, bottom: 4, left: 6, right: 6 },
-                      },
-                    },
-                    fields: "userEnteredFormat(textFormat,verticalAlignment,padding)",
-                  },
-                },
-                // 3. 伝達方法（その他）列（I列）のみテキスト折り返し
-                {
-                  repeatCell: {
-                    range: { sheetId, startRowIndex: 1, endRowIndex: dataEndRow, startColumnIndex: 8, endColumnIndex: 9 },
-                    cell: {
-                      userEnteredFormat: {
-                        wrapStrategy: "WRAP",
-                      },
-                    },
-                    fields: "userEnteredFormat.wrapStrategy",
-                  },
-                },
-                // 4. 奇数行（データ行）：白背景
-                ...Array.from({ length: Math.ceil((dataEndRow - 1) / 2) }, (_, i) => ({
-                  repeatCell: {
-                    range: { sheetId, startRowIndex: 1 + i * 2, endRowIndex: Math.min(2 + i * 2, dataEndRow), startColumnIndex: 0, endColumnIndex: 9 },
-                    cell: { userEnteredFormat: { backgroundColor: { red: 1, green: 1, blue: 1 } } },
-                    fields: "userEnteredFormat.backgroundColor",
-                  },
-                })),
-                // 5. 偶数行（データ行）：極淡青背景 #EBF3FB
-                ...Array.from({ length: Math.floor((dataEndRow - 1) / 2) }, (_, i) => ({
-                  repeatCell: {
-                    range: { sheetId, startRowIndex: 2 + i * 2, endRowIndex: Math.min(3 + i * 2, dataEndRow), startColumnIndex: 0, endColumnIndex: 9 },
-                    cell: { userEnteredFormat: { backgroundColor: { red: 0.922, green: 0.953, blue: 0.984 } } },
-                    fields: "userEnteredFormat.backgroundColor",
-                  },
-                })),
-                // 6. 全セルに枠線を追加
-                {
-                  updateBorders: {
-                    range: { sheetId, startRowIndex: 0, endRowIndex: dataEndRow, startColumnIndex: 0, endColumnIndex: 9 },
-                    top:    { style: "SOLID", width: 1, color: { red: 0.8, green: 0.8, blue: 0.8 } },
-                    bottom: { style: "SOLID", width: 1, color: { red: 0.8, green: 0.8, blue: 0.8 } },
-                    left:   { style: "SOLID", width: 1, color: { red: 0.8, green: 0.8, blue: 0.8 } },
-                    right:  { style: "SOLID", width: 1, color: { red: 0.8, green: 0.8, blue: 0.8 } },
-                    innerHorizontal: { style: "SOLID", width: 1, color: { red: 0.8, green: 0.8, blue: 0.8 } },
-                    innerVertical:   { style: "SOLID", width: 1, color: { red: 0.8, green: 0.8, blue: 0.8 } },
-                  },
-                },
-                // 7. 列幅を内容に合わせて設定
-                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 150 }, fields: "pixelSize" } }, // 転送日時
-                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 1, endIndex: 2 }, properties: { pixelSize: 100 }, fields: "pixelSize" } }, // 担当者
-                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 2, endIndex: 3 }, properties: { pixelSize: 100 }, fields: "pixelSize" } }, // チーム
-                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 3, endIndex: 4 }, properties: { pixelSize: 130 }, fields: "pixelSize" } }, // 利用者名
-                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 4, endIndex: 5 }, properties: { pixelSize: 150 }, fields: "pixelSize" } }, // 次回訪問日時
-                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 5, endIndex: 6 }, properties: { pixelSize: 100 }, fields: "pixelSize" } }, // 伝達先
-                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 6, endIndex: 7 }, properties: { pixelSize: 130 }, fields: "pixelSize" } }, // 伝達先(その他)
-                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 7, endIndex: 8 }, properties: { pixelSize: 110 }, fields: "pixelSize" } }, // 伝達方法
-                { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 8, endIndex: 9 }, properties: { pixelSize: 130 }, fields: "pixelSize" } }, // 伝達方法(その他)
-
-                // 8. 行の高さ：ヘッダー行を少し高めに
-                { updateDimensionProperties: { range: { sheetId, dimension: "ROWS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 36 }, fields: "pixelSize" } },
-                // 9. オートフィルターを設定（全列）
-                {
-                  setBasicFilter: {
-                    filter: {
-                      range: { sheetId, startRowIndex: 0, startColumnIndex: 0, endColumnIndex: 9 },
-                    },
-                  },
-                },
-                // 10. ヘッダー行を固定（フリーズ）
-                {
-                  updateSheetProperties: {
-                    properties: { sheetId, gridProperties: { frozenRowCount: 1 } },
-                    fields: "gridProperties.frozenRowCount",
-                  },
-                },
-                // 11. 転送日時（A列）に日時書式を設定
-                {
-                  repeatCell: {
-                    range: { sheetId, startRowIndex: 1, endRowIndex: dataEndRow, startColumnIndex: 0, endColumnIndex: 1 },
-                    cell: {
-                      userEnteredFormat: {
-                        numberFormat: { type: "DATE_TIME", pattern: "yyyy/mm/dd hh:mm" },
-                      },
-                    },
-                    fields: "userEnteredFormat.numberFormat",
-                  },
-                },
-                // 12. 次回訪問日時（E列）に日時書式を設定
-                {
-                  repeatCell: {
-                    range: { sheetId, startRowIndex: 1, endRowIndex: dataEndRow, startColumnIndex: 4, endColumnIndex: 5 },
-                    cell: {
-                      userEnteredFormat: {
-                        numberFormat: { type: "DATE_TIME", pattern: "yyyy/mm/dd hh:mm" },
-                      },
-                    },
-                    fields: "userEnteredFormat.numberFormat",
-                  },
-                },
-              ],
-            };
-            await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}:batchUpdate`, {
-              method: "POST",
-              headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
-              body: JSON.stringify(batchBody),
-            });
-          }
-        } catch {
-          // 書式設定の失敗は転送自体に影響しない
+          await exportVisitRecordToSheet(record);
+        } catch (e) {
+          const message = e instanceof Error ? e.message : "スプレッドシートへの転送に失敗しました";
+          const code = message.includes("アクセス権限") ? "FORBIDDEN" : "INTERNAL_SERVER_ERROR";
+          throw new TRPCError({ code, message });
         }
 
-        // 転送済みフラグを立てる
         await markVisitRecordExported(input.id);
         return { success: true };
+      }),
+
+    // 未転送の次回訪問日時を一括でスプレッドシートへ再転記する（管理者用）
+    reExportUnexportedToSheet: protectedProcedure
+      .input(z.object({
+        /** ISO8601。省略時は 2026-07-04 00:00 JST 以降 */
+        since: z.string().optional(),
+        dryRun: z.boolean().optional(),
+      }).optional())
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin" && ctx.user.role !== "super_admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ実行できます" });
+        }
+
+        const since = input?.since
+          ? new Date(input.since)
+          : new Date("2026-07-03T15:00:00.000Z");
+        const dryRun = input?.dryRun ?? false;
+        const records = await getUnexportedVisitRecordsForSheetExport(since);
+
+        if (dryRun) {
+          return {
+            dryRun: true,
+            since: since.toISOString(),
+            total: records.length,
+            records: records.map(r => ({
+              id: r.id,
+              team: r.team,
+              patientName: r.patientName,
+              createdAt: r.createdAt,
+              nextVisitAt: r.nextVisitAt,
+              createdByName: r.createdByName,
+            })),
+            results: [],
+          };
+        }
+
+        const results: Array<{
+          id: number;
+          success: boolean;
+          team: string;
+          patientName: string;
+          error?: string;
+        }> = [];
+
+        for (const record of records) {
+          try {
+            await exportVisitRecordToSheet(record);
+            await markVisitRecordExported(record.id);
+            results.push({
+              id: record.id,
+              success: true,
+              team: record.team,
+              patientName: record.patientName,
+            });
+            await new Promise(resolve => setTimeout(resolve, 300));
+          } catch (e) {
+            results.push({
+              id: record.id,
+              success: false,
+              team: record.team,
+              patientName: record.patientName,
+              error: e instanceof Error ? e.message : String(e),
+            });
+          }
+        }
+
+        broadcastEvent("visitRecords");
+        return {
+          dryRun: false,
+          since: since.toISOString(),
+          total: records.length,
+          successCount: results.filter(r => r.success).length,
+          failureCount: results.filter(r => !r.success).length,
+          results,
+        };
       }),
 
     // 申し送り内容の音声入力テキストを文章として整える（外部AIには送信しない）

@@ -1007,6 +1007,24 @@ export async function unmarkVisitRecordExported(id: number) {
   await db.update(visitRecords).set({ exportedAt: null }).where(eq(visitRecords.id, id));
 }
 
+/** 次回訪問日時あり・未転送の訪問記録を取得する（古い順） */
+export async function getUnexportedVisitRecordsForSheetExport(since?: Date) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [
+    isNull(visitRecords.exportedAt),
+    isNotNull(visitRecords.nextVisitAt),
+  ];
+  if (since) {
+    conditions.push(gte(visitRecords.createdAt, since));
+  }
+  return db
+    .select()
+    .from(visitRecords)
+    .where(and(...conditions))
+    .orderBy(visitRecords.createdAt);
+}
+
 // ========== アプリ内通知 ==========
 
 /** 通知を作成する */
