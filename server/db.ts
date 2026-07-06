@@ -1025,6 +1025,61 @@ export async function getUnexportedVisitRecordsForSheetExport(since?: Date) {
     .orderBy(visitRecords.createdAt);
 }
 
+/** 次回訪問日時シート転記の診断用集計 */
+export async function getVisitRecordExportDiagnostics(since: Date, nextVisitCutoff: Date) {
+  const db = await getDb();
+  if (!db) {
+    return {
+      totalWithNextVisit: 0,
+      exportedCount: 0,
+      unexportedCount: 0,
+      nextVisitOnOrAfterCutoff: 0,
+      exportedButNextVisitOnOrAfterCutoff: 0,
+      byTeam: {} as Record<string, { total: number; unexported: number }>,
+      recentRecords: [] as Array<{
+        id: number;
+        team: string;
+        patientName: string;
+        createdAt: Date;
+        nextVisitAt: Date | null;
+        exportedAt: Date | null;
+        createdByName: string;
+      }>,
+    };
+  }
+
+  const rows = await db
+    .select()
+    .from(visitRecords)
+    .where(and(gte(visitRecords.createdAt, since), isNotNull(visitRecords.nextVisitAt)))
+    .orderBy(desc(visitRecords.createdAt));
+
+  const byTeam: Record<string, { total: number; unexported: number }> = {};
+  for (const r of rows) {
+    if (!byTeam[r.team]) byTeam[r.team] = { total: 0, unexported: 0 };
+    byTeam[r.team].total += 1;
+    if (!r.exportedAt) byTeam[r.team].unexported += 1;
+  }
+
+  return {
+    totalWithNextVisit: rows.length,
+    exportedCount: rows.filter(r => r.exportedAt).length,
+    unexportedCount: rows.filter(r => !r.exportedAt).length,
+    nextVisitOnOrAfterCutoff: rows.filter(r => r.nextVisitAt && r.nextVisitAt >= nextVisitCutoff).length,
+    exportedButNextVisitOnOrAfterCutoff: rows.filter(r => r.exportedAt && r.nextVisitAt && r.nextVisitAt >= nextVisitCutoff).length,
+    byTeam,
+    recentRecords: rows.slice(0, 15).map(r => ({
+      id: r.id,
+      team: r.team,
+      patientName: r.patientName,
+      createdAt: r.createdAt,
+      nextVisitAt: r.nextVisitAt,
+      exportedAt: r.exportedAt,
+      createdByName: r.createdByName,
+    })),
+  };
+}
+
 // ========== アプリ内通知 ==========
 
 /** 通知を作成する */

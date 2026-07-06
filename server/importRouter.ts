@@ -16,9 +16,10 @@ import { google } from "googleapis";
 import { router, publicProcedure } from "./_core/trpc";
 import {
   getUnexportedVisitRecordsForSheetExport,
+  getVisitRecordExportDiagnostics,
   markVisitRecordExported,
 } from "./db";
-import { exportVisitRecordToSheet } from "./visitRecordSheetExport";
+import { diagnoseVisitRecordSheets, exportVisitRecordToSheet } from "./visitRecordSheetExport";
 
 // ============================================================================
 // 認証チェック（共通）
@@ -1092,6 +1093,42 @@ export const importRouter = router({
         successCount: results.filter(r => r.status === "success").length,
         failCount: results.filter(r => r.status === "failed").length,
         results,
+      };
+    }),
+
+  /** DBとスプレッドシートの次回訪問日時の状態を診断（IMPORT_API_SECRET 認証） */
+  diagnoseNextVisitSheet: publicProcedure
+    .input(z.object({
+      secret: z.string(),
+      since: z.string().optional(),
+      nextVisitCutoff: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      requireImportSecret(input);
+
+      const since = input.since
+        ? new Date(`${input.since}T00:00:00+09:00`)
+        : new Date("2026-07-03T15:00:00.000Z");
+      const nextVisitCutoffStr = input.nextVisitCutoff ?? "2026-07-06";
+      const nextVisitCutoff = new Date(`${nextVisitCutoffStr}T00:00:00+09:00`);
+
+      const [dbStats, sheetStats] = await Promise.all([
+        getVisitRecordExportDiagnostics(since, nextVisitCutoff),
+        diagnoseVisitRecordSheets(nextVisitCutoffStr),
+      ]);
+
+      return {
+        since: since.toISOString(),
+        nextVisitCutoff: nextVisitCutoffStr,
+        db: dbStats,
+        sheet: sheetStats,
+        analysis: {
+          unexportedInDb: dbStats.unexportedCount,
+          exportedInDbButMissingFromSheetHypothesis:
+            dbStats.exportedButNextVisitOnOrAfterCutoff > 0 &&
+            sheetStats.tabs.every(t => t.tabName !== "郡山南部" || t.nextVisitOnOrAfterCutoff === 0),
+          note: "自動削除は「シート1」タブのみ対象。チーム別タブ（郡山南部等）は削除されない。",
+        },
       };
     }),
 });

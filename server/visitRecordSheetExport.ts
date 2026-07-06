@@ -141,3 +141,81 @@ export async function exportVisitRecordToSheet(record: VisitRecord): Promise<voi
     throw new Error(buildSheetExportErrorMessage(res.status, errMsg));
   }
 }
+
+const DIAGNOSE_TABS = ["身体", "天理", "郡山北部", "郡山南部", "その他", "シート1"] as const;
+
+function parseSheetDateTime(str: string | undefined): Date | null {
+  if (!str) return null;
+  const s = String(str).replace(/（時間未定）/g, "").trim();
+  const m = s.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?/);
+  if (!m) return null;
+  const iso = `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}T${(m[4] ?? "00").padStart(2, "0")}:${m[5] ?? "00"}:00+09:00`;
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/** 各タブの行数・最新転送日時・7/6以降の次回訪問件数を返す */
+export async function diagnoseVisitRecordSheets(nextVisitCutoffJst: string = "2026-07-06") {
+  const token = await getGoogleSheetsAccessToken();
+  const cutoff = new Date(`${nextVisitCutoffJst}T00:00:00+09:00`);
+
+  const metaRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}?fields=sheets.properties.title`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!metaRes.ok) throw new Error(`シートメタ取得失敗: ${await metaRes.text()}`);
+  const meta = await metaRes.json() as { sheets?: { properties: { title: string } }[] };
+  const existingTabs = new Set(meta.sheets?.map(s => s.properties.title) ?? []);
+
+  const tabs: Array<{
+    tabName: string;
+    exists: boolean;
+    dataRowCount: number;
+    lastTransferAt: string | null;
+    nextVisitOnOrAfterCutoff: number;
+    tailRows: string[][];
+    misalignedRowCount: number;
+  }> = [];
+
+  for (const tabName of DIAGNOSE_TABS) {
+    if (!existingTabs.has(tabName)) {
+      tabs.push({
+        tabName, exists: false, dataRowCount: 0, lastTransferAt: null,
+        nextVisitOnOrAfterCutoff: 0, tailRows: [], misalignedRowCount: 0,
+      });
+      continue;
+    }
+
+    const res = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}/values/${encodeURIComponent(`${tabName}!A:I`)}?valueRenderOption=FORMATTED_VALUE`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    const data = res.ok ? await res.json() as { values?: string[][] } : { values: [] };
+    const rows = data.values ?? [];
+    const dataRows = rows.slice(1).filter(r => r.some(c => String(c ?? "").trim()));
+
+    const transferDates = dataRows.map(r => parseSheetDateTime(r[0])).filter((d): d is Date => !!d);
+    const lastTransfer = transferDates.length
+      ? new Date(Math.max(...transferDates.map(d => d.getTime())))
+      : null;
+
+    const nextVisitOnOrAfterCutoff = dataRows.filter(r => {
+      const d = parseSheetDateTime(r[4]);
+      return d && d >= cutoff;
+    }).length;
+
+    const misalignedRowCount = dataRows.filter(r => r[0] && !String(r[0]).match(/\d{4}[/-]\d{1,2}[/-]\d{1,2}/)).length;
+
+    tabs.push({
+      tabName,
+      exists: true,
+      dataRowCount: dataRows.length,
+      lastTransferAt: lastTransfer ? formatDate(lastTransfer) : null,
+      nextVisitOnOrAfterCutoff,
+      tailRows: dataRows.slice(-3).map(r => [r[0] ?? "", r[1] ?? "", r[3] ?? "", r[4] ?? ""]),
+      misalignedRowCount,
+    });
+  }
+
+  return { spreadsheetId: VISIT_RECORD_SHEET_ID, nextVisitCutoffJst, tabs };
+}
