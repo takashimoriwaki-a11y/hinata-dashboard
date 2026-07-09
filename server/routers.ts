@@ -6369,7 +6369,7 @@ ${todayStr}
       }),
     /** スケジュール変更連絡自動削除の保持期間（日数）を取得 */
     getScheduleChangeDeleteDays: protectedProcedure.query(async () => {
-      const value = await getSetting("schedule_change_delete_days", "3");
+      const value = await getSetting("schedule_change_delete_days", "7");
       return { days: parseInt(value, 10) };
     }),
     /** スケジュール変更連絡自動削除の保持期間（日数）を更新（adminのみ） */

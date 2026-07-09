@@ -1142,6 +1142,153 @@ async function deleteExpiredSheetRows() {
 
 scheduleSheetCleanup();
 
+function parseScheduleChangeSheetDate(str: string | undefined): Date | null {
+  if (!str) return null;
+  const cleaned = String(str).replace(/（時間未定）/g, "").trim();
+  const m = cleaned.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?/);
+  if (!m) return null;
+  const iso = `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}T${(m[4] ?? "00").padStart(2, "0")}:${m[5] ?? "00"}:00+09:00`;
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/** F列・G列のうち遅い（未来側）日付を削除判定の基準とする。F・Gが空のときはL列から受診日・予定日を抽出 */
+function extractDateFromScheduleNote(note: string | undefined): Date | null {
+  if (!note) return null;
+  const labeled = note.match(/(?:受診日|診察日|訪問診療日|予定日)\s*[:：]\s*(\d{4}[/-]\d{1,2}[/-]\d{1,2}(?:\s+\d{1,2}:\d{2})?)/);
+  const dateStr = labeled?.[1] ?? note.match(/(\d{4}[/-]\d{1,2}[/-]\d{1,2}(?:\s+\d{1,2}:\d{2})?)/)?.[1];
+  if (!dateStr) return null;
+  return parseScheduleChangeSheetDate(dateStr);
+}
+
+function getScheduleChangeRowBasisDate(row: string[]): Date | null {
+  const fromDate = parseScheduleChangeSheetDate(row[5]); // F: 変更前日時
+  const toDate = parseScheduleChangeSheetDate(row[6]);   // G: 変更後日時
+  if (fromDate || toDate) {
+    if (fromDate && toDate) {
+      return fromDate.getTime() >= toDate.getTime() ? fromDate : toDate;
+    }
+    return fromDate ?? toDate;
+  }
+  // F・Gが空のときはL列（変更理由・備考）の受診日・予定日を基準にする
+  return extractDateFromScheduleNote(row[11]);
+}
+
+async function deleteExpiredScheduleChangeSheetRows(retentionDays: number) {
+  const SCHEDULE_CHANGE_SHEET_ID = "1ki462aQRaNTj5FrI_1MJ1OyATFGqODz6HCtmuriIDEU";
+  const CLEANUP_SHEET_NAMES = ["身体", "天理", "郡山北部", "郡山南部", "スケジュール変更連絡"];
+
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+  if (!email || !privateKey) {
+    console.warn("[ScheduleChangeSheetCleanup] サービスアカウント設定がありません。スキップします。");
+    return;
+  }
+
+  const { GoogleAuth } = await import("google-auth-library");
+  const auth = new GoogleAuth({
+    credentials: { client_email: email, private_key: privateKey.replace(/\\n/g, "\n") },
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  });
+  const client = await auth.getClient();
+  const tokenObj = await client.getAccessToken();
+  const token = tokenObj.token;
+  if (!token) {
+    console.warn("[ScheduleChangeSheetCleanup] 認証トークン取得失敗。スキップします。");
+    return;
+  }
+
+  const metaRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${SCHEDULE_CHANGE_SHEET_ID}?fields=sheets.properties`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!metaRes.ok) {
+    console.error("[ScheduleChangeSheetCleanup] シートID取得失敗");
+    return;
+  }
+  const meta = await metaRes.json() as {
+    sheets?: Array<{ properties?: { sheetId?: number; title?: string } }>;
+  };
+  const sheetIdByTitle = new Map<string, number>();
+  for (const s of meta.sheets ?? []) {
+    const title = s.properties?.title;
+    const sheetId = s.properties?.sheetId;
+    if (title && sheetId !== undefined) sheetIdByTitle.set(title, sheetId);
+  }
+
+  const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+  let totalDeleted = 0;
+
+  for (const sheetName of CLEANUP_SHEET_NAMES) {
+    const sheetId = sheetIdByTitle.get(sheetName);
+    if (sheetId === undefined) {
+      console.log(`[ScheduleChangeSheetCleanup] タブ「${sheetName}」なし。スキップ。`);
+      continue;
+    }
+
+    const getUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SCHEDULE_CHANGE_SHEET_ID}/values/${encodeURIComponent(sheetName + "!A:P")}`;
+    const getRes = await fetch(getUrl, { headers: { Authorization: `Bearer ${token}` } });
+    if (!getRes.ok) {
+      console.error(`[ScheduleChangeSheetCleanup] 「${sheetName}」データ取得失敗: ${await getRes.text()}`);
+      continue;
+    }
+
+    const data = await getRes.json() as { values?: string[][] };
+    const rows: string[][] = data.values ?? [];
+    if (rows.length <= 1) {
+      console.log(`[ScheduleChangeSheetCleanup] 「${sheetName}」データ行なし。`);
+      continue;
+    }
+
+    const deleteRowIndexes: number[] = [];
+    for (let i = 1; i < rows.length; i++) {
+      const basisDate = getScheduleChangeRowBasisDate(rows[i]);
+      if (!basisDate) continue;
+      if (basisDate < cutoff) {
+        deleteRowIndexes.push(i);
+      }
+    }
+
+    if (deleteRowIndexes.length === 0) {
+      console.log(`[ScheduleChangeSheetCleanup] 「${sheetName}」削除対象なし。`);
+      continue;
+    }
+
+    console.log(`[ScheduleChangeSheetCleanup] 「${sheetName}」${deleteRowIndexes.length}行を削除`);
+
+    const sortedDesc = [...deleteRowIndexes].sort((a, b) => b - a);
+    const deleteRequests = sortedDesc.map((rowIndex) => ({
+      deleteDimension: {
+        range: {
+          sheetId,
+          dimension: "ROWS" as const,
+          startIndex: rowIndex,
+          endIndex: rowIndex + 1,
+        },
+      },
+    }));
+
+    const batchRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SCHEDULE_CHANGE_SHEET_ID}:batchUpdate`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ requests: deleteRequests }),
+      },
+    );
+
+    if (!batchRes.ok) {
+      console.error(`[ScheduleChangeSheetCleanup] 「${sheetName}」削除失敗: ${await batchRes.text()}`);
+      continue;
+    }
+
+    totalDeleted += deleteRowIndexes.length;
+    console.log(`[ScheduleChangeSheetCleanup] 「${sheetName}」${deleteRowIndexes.length}行の削除完了`);
+  }
+
+  console.log(`[ScheduleChangeSheetCleanup] 合計 ${totalDeleted} 行を削除しました`);
+}
+
 // ========== 毎日0:02（JST）に3日経過した申し送り内容をアーカイブタブへ移動 ==========
 const HANDOFF_MEMO_SPREADSHEET_SETTING_KEY = "handoff_memo_spreadsheet_id";
 const HANDOFF_MEMO_TEAMS = ["身体", "天理", "郡山北部", "郡山南部"] as const;
@@ -1623,7 +1770,7 @@ function scheduleScheduleChangeCleanup() {
       try {
         const dbModule = await import("../db");
         // DB設定値から削除日数を取得（デフォルト: 3日）
-        const deleteDaysStr = await dbModule.getSetting("schedule_change_delete_days", "3");
+        const deleteDaysStr = await dbModule.getSetting("schedule_change_delete_days", "7");
         const deleteDays = parseInt(deleteDaysStr, 10) || 3;
         console.log(`[ScheduleChangeCleanup] ${dateStr} 00:05 - toDatetimeから${deleteDays}日経過したスケジュール変更連絡を削除します`);
         const { scheduleChanges } = await import("../../drizzle/schema");
@@ -1699,6 +1846,9 @@ function scheduleScheduleChangeCleanup() {
         console.log(`[ScheduleChangeCleanup] ${totalDeleted}件削除（通常:${deletedCount1}件, 終了日基準:${deletedCount2}件, 開始日基準:${deletedCount3}件）（${deleteDays}日以前）`);
 
         await connection.end();
+
+        // スプレッドシートの古い行も削除（F列・G列の遅い方を基準）
+        await deleteExpiredScheduleChangeSheetRows(deleteDays);
       } catch (e) {
         console.error(`[ScheduleChangeCleanup] エラー:`, e);
       }
