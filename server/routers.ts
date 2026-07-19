@@ -1798,8 +1798,10 @@ async function ensureHandoffMemoSheet(
       valueInputOption: "USER_ENTERED",
       requestBody: { values: [HANDOFF_MEMO_HEADERS] },
     });
-    await applyHandoffMemoSheetFormat(spreadsheetId, sheetName, sheets);
   }
+  // 既存タブでも A列=日付・B列=時刻の表示書式を再適用する
+  // （USER_ENTERED で入ったシリアル値が書式なしだと 46216 / 0.39… と見えるため）
+  await applyHandoffMemoSheetFormat(spreadsheetId, sheetName, sheets);
 }
 
 async function getOrCreateHandoffMemoSpreadsheetId(
@@ -1888,10 +1890,11 @@ async function appendHandoffMemoToSheet(input: {
     input.content,
   ]);
 
+  // RAW: 日付・時刻を文字列のまま書き込み、Sheetsのシリアル値化を防ぐ
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     range: `${input.team}!A:F`,
-    valueInputOption: "USER_ENTERED",
+    valueInputOption: "RAW",
     insertDataOption: "INSERT_ROWS",
     requestBody: { values: newRows },
   });
