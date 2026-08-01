@@ -70,9 +70,11 @@ const CHANGE_TYPE_LABELS: Record<ChangeType, { label: string; icon: string; colo
 const TEAMS = ["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"] as const;
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"] as const;
 const MAX_CHIPS_PER_DAY = 2;
+const MAX_CHIPS_PER_DAY_WEEK = 6;
 
 type TeamFilter = (typeof TEAMS)[number] | "all";
 type ChangeTypeFilter = ChangeType | "all";
+type ViewMode = "month" | "week";
 
 type CalendarItem = {
   id: number;
@@ -138,6 +140,56 @@ function shiftYearMonth(yearMonth: string, delta: number): string {
 function formatYearMonthLabel(yearMonth: string): string {
   const [y, m] = yearMonth.split("-").map(Number);
   return `${y}年${m}月`;
+}
+
+function parseDateKey(dateKey: string): Date {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+function formatDateKey(d: Date): string {
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+}
+
+/** 指定日を含む週の日曜（YYYY-MM-DD） */
+function getSundayOfWeek(dateKey: string): string {
+  const d = parseDateKey(dateKey);
+  d.setUTCDate(d.getUTCDate() - d.getUTCDay());
+  return formatDateKey(d);
+}
+
+function shiftWeek(weekStart: string, deltaWeeks: number): string {
+  const d = parseDateKey(weekStart);
+  d.setUTCDate(d.getUTCDate() + deltaWeeks * 7);
+  return formatDateKey(d);
+}
+
+function addDaysToDateKey(dateKey: string, days: number): string {
+  const d = parseDateKey(dateKey);
+  d.setUTCDate(d.getUTCDate() + days);
+  return formatDateKey(d);
+}
+
+function buildWeekCells(weekStart: string): Array<{ dateKey: string; day: number; month: number }> {
+  return Array.from({ length: 7 }, (_, i) => {
+    const dateKey = addDaysToDateKey(weekStart, i);
+    const d = parseDateKey(dateKey);
+    return {
+      dateKey,
+      day: d.getUTCDate(),
+      month: d.getUTCMonth() + 1,
+    };
+  });
+}
+
+function formatWeekLabel(weekStart: string): string {
+  const end = addDaysToDateKey(weekStart, 6);
+  const [sy, sm, sd] = weekStart.split("-").map(Number);
+  const [ey, em, ed] = end.split("-").map(Number);
+  if (sy === ey) {
+    return `${sy}年 ${sm}/${sd}〜${em}/${ed}`;
+  }
+  return `${sy}/${sm}/${sd}〜${ey}/${em}/${ed}`;
 }
 
 function buildMonthCells(yearMonth: string): Array<{ dateKey: string | null; day: number | null }> {
@@ -216,7 +268,9 @@ function defaultTeamFilter(userTeam: string | null | undefined): TeamFilter {
 export default function ScheduleCalendar() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
+  const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [yearMonth, setYearMonth] = useState(getJstYearMonth);
+  const [weekStart, setWeekStart] = useState(() => getSundayOfWeek(getJstTodayKey()));
   const [teamFilter, setTeamFilter] = useState<TeamFilter>("all");
   const [changeTypeFilter, setChangeTypeFilter] = useState<ChangeTypeFilter>("all");
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
@@ -230,21 +284,68 @@ export default function ScheduleCalendar() {
     setTeamInitialized(true);
   }, [user?.team, teamInitialized]);
 
-  const queryInput = useMemo(() => {
+  const weekEnd = useMemo(() => addDaysToDateKey(weekStart, 6), [weekStart]);
+  const fetchMonths = useMemo(() => {
+    if (viewMode === "month") return [yearMonth];
+    const m1 = weekStart.slice(0, 7);
+    const m2 = weekEnd.slice(0, 7);
+    return m1 === m2 ? [m1] : [m1, m2];
+  }, [viewMode, yearMonth, weekStart, weekEnd]);
+
+  const primaryInput = useMemo(() => {
     const input: {
       yearMonth: string;
       team?: (typeof TEAMS)[number];
       changeType?: ChangeType;
-    } = { yearMonth };
+    } = { yearMonth: fetchMonths[0] };
     if (teamFilter !== "all") input.team = teamFilter;
     if (changeTypeFilter !== "all") input.changeType = changeTypeFilter;
     return input;
-  }, [yearMonth, teamFilter, changeTypeFilter]);
+  }, [fetchMonths, teamFilter, changeTypeFilter]);
 
-  const { data: items = [], isLoading, refetch, isFetching } =
-    trpc.scheduleChanges.listActiveForCalendar.useQuery(queryInput, {
+  const secondaryInput = useMemo(() => {
+    const ym = fetchMonths[1] ?? fetchMonths[0];
+    const input: {
+      yearMonth: string;
+      team?: (typeof TEAMS)[number];
+      changeType?: ChangeType;
+    } = { yearMonth: ym };
+    if (teamFilter !== "all") input.team = teamFilter;
+    if (changeTypeFilter !== "all") input.changeType = changeTypeFilter;
+    return input;
+  }, [fetchMonths, teamFilter, changeTypeFilter]);
+
+  const primaryQuery = trpc.scheduleChanges.listActiveForCalendar.useQuery(
+    primaryInput,
+    { refetchInterval: 60000 }
+  );
+  const secondaryQuery = trpc.scheduleChanges.listActiveForCalendar.useQuery(
+    secondaryInput,
+    {
+      enabled: fetchMonths.length > 1,
       refetchInterval: 60000,
-    });
+    }
+  );
+
+  const items = useMemo(() => {
+    const map = new Map<number, CalendarItem>();
+    for (const item of (primaryQuery.data ?? []) as CalendarItem[]) {
+      map.set(item.id, item);
+    }
+    if (fetchMonths.length > 1) {
+      for (const item of (secondaryQuery.data ?? []) as CalendarItem[]) {
+        map.set(item.id, item);
+      }
+    }
+    return Array.from(map.values());
+  }, [primaryQuery.data, secondaryQuery.data, fetchMonths.length]);
+
+  const isLoading = primaryQuery.isLoading || (fetchMonths.length > 1 && secondaryQuery.isLoading);
+  const isFetching = primaryQuery.isFetching || (fetchMonths.length > 1 && secondaryQuery.isFetching);
+  const refetch = () => {
+    void primaryQuery.refetch();
+    if (fetchMonths.length > 1) void secondaryQuery.refetch();
+  };
 
   const closeSheet = () => {
     setSelectedDateKey(null);
@@ -263,20 +364,30 @@ export default function ScheduleCalendar() {
   });
 
   const todayKey = getJstTodayKey();
-  const cells = useMemo(() => buildMonthCells(yearMonth), [yearMonth]);
+  const monthCells = useMemo(() => buildMonthCells(yearMonth), [yearMonth]);
+  const weekCells = useMemo(() => buildWeekCells(weekStart), [weekStart]);
+
+  const visibleDateKeys = useMemo(() => {
+    if (viewMode === "week") {
+      return new Set(weekCells.map((c) => c.dateKey));
+    }
+    return null;
+  }, [viewMode, weekCells]);
 
   const itemsByDate = useMemo(() => {
     const map = new Map<string, CalendarItem[]>();
-    for (const item of items as CalendarItem[]) {
+    for (const item of items) {
       const start = item.calendarDate;
       const end = item.calendarEndDate && item.calendarEndDate >= start
         ? item.calendarEndDate
         : start;
       for (const dateKey of eachDateKeyInRange(start, end)) {
-        // 表示中の月以外はスキップ（前後月の空白セル用）
-        if (!dateKey.startsWith(yearMonth)) continue;
+        if (viewMode === "month") {
+          if (!dateKey.startsWith(yearMonth)) continue;
+        } else if (visibleDateKeys && !visibleDateKeys.has(dateKey)) {
+          continue;
+        }
         const list = map.get(dateKey) ?? [];
-        // 同一IDの重複防止
         if (!list.some((x) => x.id === item.id)) {
           list.push(item);
           map.set(dateKey, list);
@@ -284,9 +395,10 @@ export default function ScheduleCalendar() {
       }
     }
     return map;
-  }, [items, yearMonth]);
+  }, [items, viewMode, yearMonth, visibleDateKeys]);
 
   const selectedDayItems = selectedDateKey ? (itemsByDate.get(selectedDateKey) ?? []) : [];
+  const maxChips = viewMode === "week" ? MAX_CHIPS_PER_DAY_WEEK : MAX_CHIPS_PER_DAY;
 
   const openDay = (dateKey: string) => {
     setSelectedDateKey(dateKey);
@@ -304,6 +416,102 @@ export default function ScheduleCalendar() {
       return;
     }
     cancelMutation.mutate({ id: item.id });
+  };
+
+  const switchToMonth = () => {
+    setYearMonth(weekStart.slice(0, 7));
+    setViewMode("month");
+  };
+
+  const switchToWeek = () => {
+    // 表示中の月の今日、または月の1日を含む週へ
+    const today = getJstTodayKey();
+    const anchor = today.startsWith(yearMonth) ? today : `${yearMonth}-01`;
+    setWeekStart(getSundayOfWeek(anchor));
+    setViewMode("week");
+  };
+
+  const renderDayCell = (
+    dateKey: string,
+    dayLabel: string | number,
+    weekday: number,
+    opts?: { minHeightClass?: string; showMonth?: number },
+  ) => {
+    const dayItems = itemsByDate.get(dateKey) ?? [];
+    const rangeItems = dayItems.filter(isMultiDayItem);
+    const singleItems = dayItems.filter((item) => !isMultiDayItem(item));
+    const visibleRanges = rangeItems.slice(0, maxChips);
+    const remainingSlots = Math.max(0, maxChips - visibleRanges.length);
+    const visibleSingles = singleItems.slice(0, remainingSlots);
+    const overflow = dayItems.length - visibleRanges.length - visibleSingles.length;
+    const isToday = dateKey === todayKey;
+
+    return (
+      <button
+        key={dateKey}
+        type="button"
+        onClick={() => openDay(dateKey)}
+        className={cn(
+          "border-b border-r border-border/60 p-1 text-left align-top transition-colors hover:bg-muted/40 overflow-hidden",
+          opts?.minHeightClass ?? "min-h-[72px]",
+          isToday && "bg-primary/5",
+        )}
+      >
+        <div
+          className={cn(
+            "mb-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-semibold",
+            isToday && "bg-primary text-primary-foreground",
+            !isToday && weekday === 0 && "text-red-500",
+            !isToday && weekday === 6 && "text-blue-500",
+            !isToday && weekday !== 0 && weekday !== 6 && "text-foreground",
+          )}
+        >
+          {opts?.showMonth != null ? `${opts.showMonth}/${dayLabel}` : dayLabel}
+        </div>
+        <div className="space-y-0.5">
+          {visibleRanges.map((item) => {
+            const info = getTypeInfo(item.changeType);
+            const meta = getRangeBarMeta(item, dateKey, weekday);
+            return (
+              <div
+                key={`bar-${item.id}`}
+                className={cn(
+                  "h-3.5 text-[9px] leading-3.5 truncate",
+                  info?.chip ?? "bg-muted text-foreground",
+                  meta.roundLeft ? "rounded-l-sm pl-0.5" : "-ml-1 pl-1",
+                  meta.roundRight ? "rounded-r-sm pr-0.5" : "-mr-1 pr-1",
+                )}
+                title={`${info?.label ?? item.changeType} ${shortName(item)}（${item.displayDateTime}）`}
+              >
+                {meta.showLabel ? (
+                  <>{info?.icon} {shortName(item)}</>
+                ) : (
+                  <span className="opacity-0">.</span>
+                )}
+              </div>
+            );
+          })}
+          {visibleSingles.map((item) => {
+            const info = getTypeInfo(item.changeType);
+            return (
+              <div
+                key={item.id}
+                className={cn(
+                  "truncate rounded px-0.5 py-px text-[9px] leading-tight",
+                  info?.chip ?? "bg-muted text-foreground",
+                )}
+                title={`${info?.label ?? item.changeType} ${shortName(item)}`}
+              >
+                {info?.icon} {shortName(item)}
+              </div>
+            );
+          })}
+          {overflow > 0 && (
+            <div className="text-[9px] text-muted-foreground px-0.5">+{overflow}</div>
+          )}
+        </div>
+      </button>
+    );
   };
 
   return (
@@ -371,33 +579,70 @@ export default function ScheduleCalendar() {
         </Select>
       </div>
 
+      <div className="flex rounded-lg border border-border p-0.5 bg-muted/30">
+        <button
+          type="button"
+          onClick={switchToMonth}
+          className={cn(
+            "flex-1 h-8 text-xs rounded-md transition-colors",
+            viewMode === "month" ? "bg-background text-foreground shadow-sm font-medium" : "text-muted-foreground",
+          )}
+        >
+          月
+        </button>
+        <button
+          type="button"
+          onClick={switchToWeek}
+          className={cn(
+            "flex-1 h-8 text-xs rounded-md transition-colors",
+            viewMode === "week" ? "bg-background text-foreground shadow-sm font-medium" : "text-muted-foreground",
+          )}
+        >
+          週（日曜始まり）
+        </button>
+      </div>
+
       <div className="flex items-center justify-between rounded-xl border border-border bg-card px-2 py-2">
         <Button
           type="button"
           variant="ghost"
           size="sm"
           className="h-8 w-8 p-0"
-          onClick={() => setYearMonth((ym) => shiftYearMonth(ym, -1))}
+          onClick={() => {
+            if (viewMode === "month") setYearMonth((ym) => shiftYearMonth(ym, -1));
+            else setWeekStart((ws) => shiftWeek(ws, -1));
+          }}
         >
           <ChevronLeft className="w-4 h-4" />
         </Button>
-        <div className="text-sm font-semibold text-foreground">{formatYearMonthLabel(yearMonth)}</div>
+        <div className="text-sm font-semibold text-foreground text-center px-1">
+          {viewMode === "month" ? formatYearMonthLabel(yearMonth) : formatWeekLabel(weekStart)}
+        </div>
         <div className="flex items-center gap-1">
           <Button
             type="button"
             variant="ghost"
             size="sm"
             className="h-8 px-2 text-xs"
-            onClick={() => setYearMonth(getJstYearMonth())}
+            onClick={() => {
+              if (viewMode === "month") {
+                setYearMonth(getJstYearMonth());
+              } else {
+                setWeekStart(getSundayOfWeek(getJstTodayKey()));
+              }
+            }}
           >
-            今月
+            {viewMode === "month" ? "今月" : "今週"}
           </Button>
           <Button
             type="button"
             variant="ghost"
             size="sm"
             className="h-8 w-8 p-0"
-            onClick={() => setYearMonth((ym) => shiftYearMonth(ym, 1))}
+            onClick={() => {
+              if (viewMode === "month") setYearMonth((ym) => shiftYearMonth(ym, 1));
+              else setWeekStart((ws) => shiftWeek(ws, 1));
+            }}
           >
             <ChevronRight className="w-4 h-4" />
           </Button>
@@ -424,89 +669,23 @@ export default function ScheduleCalendar() {
           <div className="flex items-center justify-center py-16">
             <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : (
+        ) : viewMode === "month" ? (
           <div className="grid grid-cols-7">
-            {cells.map((cell, idx) => {
+            {monthCells.map((cell, idx) => {
               if (!cell.dateKey || cell.day == null) {
                 return <div key={`empty-${idx}`} className="min-h-[72px] border-b border-r border-border/60 bg-muted/10" />;
               }
-              const dayItems = itemsByDate.get(cell.dateKey) ?? [];
-              const rangeItems = dayItems.filter(isMultiDayItem);
-              const singleItems = dayItems.filter((item) => !isMultiDayItem(item));
-              const visibleRanges = rangeItems.slice(0, MAX_CHIPS_PER_DAY);
-              const remainingSlots = Math.max(0, MAX_CHIPS_PER_DAY - visibleRanges.length);
-              const visibleSingles = singleItems.slice(0, remainingSlots);
-              const overflow =
-                dayItems.length - visibleRanges.length - visibleSingles.length;
-              const isToday = cell.dateKey === todayKey;
-              const weekday = idx % 7;
-
-              return (
-                <button
-                  key={cell.dateKey}
-                  type="button"
-                  onClick={() => openDay(cell.dateKey!)}
-                  className={cn(
-                    "min-h-[72px] border-b border-r border-border/60 p-1 text-left align-top transition-colors hover:bg-muted/40 overflow-hidden",
-                    isToday && "bg-primary/5",
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "mb-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-semibold",
-                      isToday && "bg-primary text-primary-foreground",
-                      !isToday && weekday === 0 && "text-red-500",
-                      !isToday && weekday === 6 && "text-blue-500",
-                      !isToday && weekday !== 0 && weekday !== 6 && "text-foreground",
-                    )}
-                  >
-                    {cell.day}
-                  </div>
-                  <div className="space-y-0.5">
-                    {visibleRanges.map((item) => {
-                      const info = getTypeInfo(item.changeType);
-                      const meta = getRangeBarMeta(item, cell.dateKey!, weekday);
-                      return (
-                        <div
-                          key={`bar-${item.id}`}
-                          className={cn(
-                            "h-3.5 text-[9px] leading-3.5 truncate",
-                            info?.chip ?? "bg-muted text-foreground",
-                            meta.roundLeft ? "rounded-l-sm pl-0.5" : "-ml-1 pl-1",
-                            meta.roundRight ? "rounded-r-sm pr-0.5" : "-mr-1 pr-1",
-                          )}
-                          title={`${info?.label ?? item.changeType} ${shortName(item)}（${item.displayDateTime}）`}
-                        >
-                          {meta.showLabel ? (
-                            <>{info?.icon} {shortName(item)}</>
-                          ) : (
-                            <span className="opacity-0">.</span>
-                          )}
-                        </div>
-                      );
-                    })}
-                    {visibleSingles.map((item) => {
-                      const info = getTypeInfo(item.changeType);
-                      return (
-                        <div
-                          key={item.id}
-                          className={cn(
-                            "truncate rounded px-0.5 py-px text-[9px] leading-tight",
-                            info?.chip ?? "bg-muted text-foreground",
-                          )}
-                          title={`${info?.label ?? item.changeType} ${shortName(item)}`}
-                        >
-                          {info?.icon} {shortName(item)}
-                        </div>
-                      );
-                    })}
-                    {overflow > 0 && (
-                      <div className="text-[9px] text-muted-foreground px-0.5">+{overflow}</div>
-                    )}
-                  </div>
-                </button>
-              );
+              return renderDayCell(cell.dateKey, cell.day, idx % 7, { minHeightClass: "min-h-[72px]" });
             })}
+          </div>
+        ) : (
+          <div className="grid grid-cols-7">
+            {weekCells.map((cell, idx) =>
+              renderDayCell(cell.dateKey, cell.day, idx, {
+                minHeightClass: "min-h-[140px]",
+                showMonth: cell.month,
+              }),
+            )}
           </div>
         )}
       </div>
