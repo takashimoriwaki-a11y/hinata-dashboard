@@ -1607,10 +1607,55 @@ export function scheduleChangeCalendarDateKey(record: {
   return m ? m[1] : null;
 }
 
+/** 期間表示する種別（開始日〜終了日） */
+const CALENDAR_RANGE_TYPES = new Set([
+  "schedule_short_stay",
+  "schedule_special_instruction",
+]);
+
+function extractDateKey(raw: string | null | undefined): string | null {
+  const m = String(raw ?? "").trim().match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : null;
+}
+
+/**
+ * カレンダー表示用の期間（開始日・終了日 YYYY-MM-DD）を返す。
+ * 期間種別以外は start === end。日付が取れなければ null。
+ */
+export function scheduleChangeCalendarRange(record: {
+  changeType: string;
+  fromDatetime?: string | null;
+  toDatetime?: string | null;
+  scheduleStartDate?: string | null;
+  scheduleEndDate?: string | null;
+}): { start: string; end: string } | null {
+  const start = scheduleChangeCalendarDateKey(record);
+  if (!start) return null;
+
+  let end = start;
+  if (CALENDAR_RANGE_TYPES.has(String(record.changeType))) {
+    const endKey = extractDateKey(record.scheduleEndDate);
+    if (endKey && endKey >= start) {
+      end = endKey;
+    }
+  }
+  return { start, end };
+}
+
+/** yearMonth（YYYY-MM）と日付範囲が重なるか */
+function yearMonthOverlapsRange(yearMonth: string, start: string, end: string): boolean {
+  const monthStart = `${yearMonth}-01`;
+  const [y, m] = yearMonth.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const monthEnd = `${yearMonth}-${String(lastDay).padStart(2, "0")}`;
+  return start <= monthEnd && end >= monthStart;
+}
+
 /**
  * カレンダー用: 無効化されていないスケジュール変更を取得する
  * - yearMonth: "YYYY-MM"（省略時は全期間）
  * - team: 省略時は全チーム
+ * 期間種別（ショート・特別指示）は開始〜終了が月と重なれば含める
  */
 export async function getActiveScheduleChangesForCalendar(opts?: {
   yearMonth?: string;
@@ -1632,12 +1677,13 @@ export async function getActiveScheduleChangesForCalendar(opts?: {
 
   const yearMonth = opts?.yearMonth?.trim();
   if (!yearMonth || !/^\d{4}-\d{2}$/.test(yearMonth)) {
-    return rows.filter((row) => scheduleChangeCalendarDateKey(row) !== null);
+    return rows.filter((row) => scheduleChangeCalendarRange(row) !== null);
   }
 
   return rows.filter((row) => {
-    const dateKey = scheduleChangeCalendarDateKey(row);
-    return dateKey !== null && dateKey.startsWith(yearMonth);
+    const range = scheduleChangeCalendarRange(row);
+    if (!range) return false;
+    return yearMonthOverlapsRange(yearMonth, range.start, range.end);
   });
 }
 

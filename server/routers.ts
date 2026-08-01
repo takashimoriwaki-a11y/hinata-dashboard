@@ -1446,7 +1446,7 @@ import {
   supersedeScheduleChange,
   getActivePatientMedicalSchedules,
   getActiveScheduleChangesForCalendar,
-  scheduleChangeCalendarDateKey,
+  scheduleChangeCalendarRange,
   getActiveTeamGoals,
   getAllTeamGoals,
   createTeamGoal,
@@ -5367,11 +5367,16 @@ ${todayStr}
         return rows
           .filter((row) => !input.changeType || row.changeType === input.changeType)
           .map((row) => {
-            const calendarDate = scheduleChangeCalendarDateKey(row)!;
+            const range = scheduleChangeCalendarRange(row)!;
             const isScheduleType = String(row.changeType).startsWith("schedule_");
             const datetimeRaw = isScheduleType
               ? (row.scheduleStartDate ?? "")
               : (row.toDatetime || row.fromDatetime || "");
+            const endDisplay =
+              range.end !== range.start
+                ? formatScheduleChangeSheetDatetime(row.scheduleEndDate)
+                : "";
+            const startDisplay = formatScheduleChangeSheetDatetime(datetimeRaw);
             return {
               id: row.id,
               changeType: row.changeType,
@@ -5391,8 +5396,12 @@ ${todayStr}
               reason: row.reason ?? null,
               createdByName: row.createdByName,
               createdAt: row.createdAt,
-              calendarDate,
-              displayDateTime: formatScheduleChangeSheetDatetime(datetimeRaw),
+              calendarDate: range.start,
+              calendarEndDate: range.end,
+              displayDateTime:
+                range.end !== range.start && endDisplay
+                  ? `${startDisplay} 〜 ${endDisplay}`
+                  : startDisplay,
             };
           })
           .sort((a, b) => a.calendarDate.localeCompare(b.calendarDate) || a.id - b.id);

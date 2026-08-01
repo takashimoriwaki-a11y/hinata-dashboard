@@ -94,6 +94,7 @@ type CalendarItem = {
   createdByName: string;
   createdAt: Date | string;
   calendarDate: string;
+  calendarEndDate?: string;
   displayDateTime: string;
 };
 
@@ -135,6 +136,27 @@ function buildMonthCells(yearMonth: string): Array<{ dateKey: string | null; day
     cells.push({ dateKey: null, day: null });
   }
   return cells;
+}
+
+/** 開始日〜終了日の各日（YYYY-MM-DD）を返す。異常に長い期間は打ち切る */
+function eachDateKeyInRange(start: string, end: string, maxDays = 92): string[] {
+  const startMatch = start.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const endMatch = end.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!startMatch) return [];
+  if (!endMatch || end < start) return [start];
+
+  const keys: string[] = [];
+  const cur = new Date(Date.UTC(Number(startMatch[1]), Number(startMatch[2]) - 1, Number(startMatch[3])));
+  const last = new Date(Date.UTC(Number(endMatch[1]), Number(endMatch[2]) - 1, Number(endMatch[3])));
+  let count = 0;
+  while (cur <= last && count < maxDays) {
+    keys.push(
+      `${cur.getUTCFullYear()}-${String(cur.getUTCMonth() + 1).padStart(2, "0")}-${String(cur.getUTCDate()).padStart(2, "0")}`
+    );
+    cur.setUTCDate(cur.getUTCDate() + 1);
+    count += 1;
+  }
+  return keys;
 }
 
 function getTypeInfo(changeType: string) {
@@ -225,12 +247,23 @@ export default function ScheduleCalendar() {
   const itemsByDate = useMemo(() => {
     const map = new Map<string, CalendarItem[]>();
     for (const item of items as CalendarItem[]) {
-      const list = map.get(item.calendarDate) ?? [];
-      list.push(item);
-      map.set(item.calendarDate, list);
+      const start = item.calendarDate;
+      const end = item.calendarEndDate && item.calendarEndDate >= start
+        ? item.calendarEndDate
+        : start;
+      for (const dateKey of eachDateKeyInRange(start, end)) {
+        // 表示中の月以外はスキップ（前後月の空白セル用）
+        if (!dateKey.startsWith(yearMonth)) continue;
+        const list = map.get(dateKey) ?? [];
+        // 同一IDの重複防止
+        if (!list.some((x) => x.id === item.id)) {
+          list.push(item);
+          map.set(dateKey, list);
+        }
+      }
     }
     return map;
-  }, [items]);
+  }, [items, yearMonth]);
 
   const selectedDayItems = selectedDateKey ? (itemsByDate.get(selectedDateKey) ?? []) : [];
 
