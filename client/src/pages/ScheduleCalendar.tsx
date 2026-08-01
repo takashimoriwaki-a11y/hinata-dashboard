@@ -98,6 +98,27 @@ type CalendarItem = {
   displayDateTime: string;
 };
 
+function isMultiDayItem(item: CalendarItem): boolean {
+  return !!item.calendarEndDate && item.calendarEndDate > item.calendarDate;
+}
+
+/** 帯の見た目（開始／途中／終了／週またぎ再開） */
+function getRangeBarMeta(item: CalendarItem, dateKey: string, weekday: number) {
+  const start = item.calendarDate;
+  const end = item.calendarEndDate && item.calendarEndDate >= start
+    ? item.calendarEndDate
+    : start;
+  const isStart = dateKey === start;
+  const isEnd = dateKey === end;
+  const isWeekStart = weekday === 0;
+  const showLabel = isStart || (isWeekStart && dateKey > start && dateKey <= end);
+  return {
+    showLabel,
+    roundLeft: isStart || isWeekStart,
+    roundRight: isEnd || weekday === 6,
+  };
+}
+
 function getJstYearMonth(d = new Date()): string {
   const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
   return `${jst.getUTCFullYear()}-${String(jst.getUTCMonth() + 1).padStart(2, "0")}`;
@@ -410,8 +431,13 @@ export default function ScheduleCalendar() {
                 return <div key={`empty-${idx}`} className="min-h-[72px] border-b border-r border-border/60 bg-muted/10" />;
               }
               const dayItems = itemsByDate.get(cell.dateKey) ?? [];
-              const visible = dayItems.slice(0, MAX_CHIPS_PER_DAY);
-              const overflow = dayItems.length - visible.length;
+              const rangeItems = dayItems.filter(isMultiDayItem);
+              const singleItems = dayItems.filter((item) => !isMultiDayItem(item));
+              const visibleRanges = rangeItems.slice(0, MAX_CHIPS_PER_DAY);
+              const remainingSlots = Math.max(0, MAX_CHIPS_PER_DAY - visibleRanges.length);
+              const visibleSingles = singleItems.slice(0, remainingSlots);
+              const overflow =
+                dayItems.length - visibleRanges.length - visibleSingles.length;
               const isToday = cell.dateKey === todayKey;
               const weekday = idx % 7;
 
@@ -421,7 +447,7 @@ export default function ScheduleCalendar() {
                   type="button"
                   onClick={() => openDay(cell.dateKey!)}
                   className={cn(
-                    "min-h-[72px] border-b border-r border-border/60 p-1 text-left align-top transition-colors hover:bg-muted/40",
+                    "min-h-[72px] border-b border-r border-border/60 p-1 text-left align-top transition-colors hover:bg-muted/40 overflow-hidden",
                     isToday && "bg-primary/5",
                   )}
                 >
@@ -437,7 +463,29 @@ export default function ScheduleCalendar() {
                     {cell.day}
                   </div>
                   <div className="space-y-0.5">
-                    {visible.map((item) => {
+                    {visibleRanges.map((item) => {
+                      const info = getTypeInfo(item.changeType);
+                      const meta = getRangeBarMeta(item, cell.dateKey!, weekday);
+                      return (
+                        <div
+                          key={`bar-${item.id}`}
+                          className={cn(
+                            "h-3.5 text-[9px] leading-3.5 truncate",
+                            info?.chip ?? "bg-muted text-foreground",
+                            meta.roundLeft ? "rounded-l-sm pl-0.5" : "-ml-1 pl-1",
+                            meta.roundRight ? "rounded-r-sm pr-0.5" : "-mr-1 pr-1",
+                          )}
+                          title={`${info?.label ?? item.changeType} ${shortName(item)}（${item.displayDateTime}）`}
+                        >
+                          {meta.showLabel ? (
+                            <>{info?.icon} {shortName(item)}</>
+                          ) : (
+                            <span className="opacity-0">.</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {visibleSingles.map((item) => {
                       const info = getTypeInfo(item.changeType);
                       return (
                         <div
