@@ -1445,6 +1445,8 @@ import {
   markScheduleChangeExported,
   supersedeScheduleChange,
   getActivePatientMedicalSchedules,
+  getActiveScheduleChangesForCalendar,
+  scheduleChangeCalendarDateKey,
   getActiveTeamGoals,
   getAllTeamGoals,
   createTeamGoal,
@@ -5333,6 +5335,67 @@ ${todayStr}
       .input(z.object({ limit: z.number().int().min(1).max(500).default(100) }).optional())
       .query(async ({ input }) => {
         return getScheduleChanges(input?.limit ?? 100);
+      }),
+
+    /** カレンダー用: 有効な予定のみ（年月・チーム・種別で絞り込み） */
+    listActiveForCalendar: protectedProcedure
+      .input(z.object({
+        yearMonth: z.string().regex(/^\d{4}-\d{2}$/),
+        team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]).optional(),
+        changeType: z.enum([
+          "visit_change",
+          "visit_cancel",
+          "visit_add",
+          "meeting_add",
+          "meeting_change",
+          "schedule_visit",
+          "schedule_short_stay",
+          "schedule_special_instruction",
+          "schedule_hospitalization",
+          "schedule_discharge",
+          "schedule_new_contract",
+          "schedule_visit_doctor",
+          "schedule_other",
+        ]).optional(),
+      }))
+      .query(async ({ input }) => {
+        const rows = await getActiveScheduleChangesForCalendar({
+          yearMonth: input.yearMonth,
+          team: input.team,
+        });
+
+        return rows
+          .filter((row) => !input.changeType || row.changeType === input.changeType)
+          .map((row) => {
+            const calendarDate = scheduleChangeCalendarDateKey(row)!;
+            const isScheduleType = String(row.changeType).startsWith("schedule_");
+            const datetimeRaw = isScheduleType
+              ? (row.scheduleStartDate ?? "")
+              : (row.toDatetime || row.fromDatetime || "");
+            return {
+              id: row.id,
+              changeType: row.changeType,
+              team: row.team ?? null,
+              patientName: row.patientName ?? null,
+              meetingName: row.meetingName ?? null,
+              scheduleFacility: row.scheduleFacility ?? null,
+              scheduleStartDate: row.scheduleStartDate ?? null,
+              scheduleEndDate: row.scheduleEndDate ?? null,
+              scheduleTargetName: row.scheduleTargetName ?? null,
+              fromDatetime: row.fromDatetime ?? null,
+              toDatetime: row.toDatetime ?? null,
+              staffBefore: row.staffBefore ?? null,
+              staffAfter: row.staffAfter ?? null,
+              meetingStaff: row.meetingStaff ?? null,
+              scheduleStaff: row.scheduleStaff ?? null,
+              reason: row.reason ?? null,
+              createdByName: row.createdByName,
+              createdAt: row.createdAt,
+              calendarDate,
+              displayDateTime: formatScheduleChangeSheetDatetime(datetimeRaw),
+            };
+          })
+          .sort((a, b) => a.calendarDate.localeCompare(b.calendarDate) || a.id - b.id);
       }),
 
     /** 利用者の有効な受診・訪問診療同席予定一覧（修正・取消用） */

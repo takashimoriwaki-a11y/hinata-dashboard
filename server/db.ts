@@ -1592,6 +1592,55 @@ export async function getActivePatientMedicalSchedules(
     .orderBy(desc(scheduleChanges.createdAt));
 }
 
+/** カレンダー表示用の基準日（YYYY-MM-DD）を返す。取れなければ null */
+export function scheduleChangeCalendarDateKey(record: {
+  changeType: string;
+  fromDatetime?: string | null;
+  toDatetime?: string | null;
+  scheduleStartDate?: string | null;
+}): string | null {
+  const isScheduleType = String(record.changeType).startsWith("schedule_");
+  const raw = isScheduleType
+    ? (record.scheduleStartDate ?? "")
+    : (record.toDatetime || record.fromDatetime || "");
+  const m = String(raw).trim().match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : null;
+}
+
+/**
+ * カレンダー用: 無効化されていないスケジュール変更を取得する
+ * - yearMonth: "YYYY-MM"（省略時は全期間）
+ * - team: 省略時は全チーム
+ */
+export async function getActiveScheduleChangesForCalendar(opts?: {
+  yearMonth?: string;
+  team?: "身体" | "天理" | "郡山北部" | "郡山南部" | "事務員" | "全チーム";
+}) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const conditions = [isNull(scheduleChanges.supersededAt)];
+  if (opts?.team) {
+    conditions.push(eq(scheduleChanges.team, opts.team));
+  }
+
+  const rows = await db
+    .select()
+    .from(scheduleChanges)
+    .where(and(...conditions))
+    .orderBy(desc(scheduleChanges.createdAt));
+
+  const yearMonth = opts?.yearMonth?.trim();
+  if (!yearMonth || !/^\d{4}-\d{2}$/.test(yearMonth)) {
+    return rows.filter((row) => scheduleChangeCalendarDateKey(row) !== null);
+  }
+
+  return rows.filter((row) => {
+    const dateKey = scheduleChangeCalendarDateKey(row);
+    return dateKey !== null && dateKey.startsWith(yearMonth);
+  });
+}
+
 // ========== クイックアクセスリンク ==========
 
 /** 全クイックアクセスリンクをカテゴリ・順序で取得 */

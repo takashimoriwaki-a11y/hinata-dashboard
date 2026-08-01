@@ -42,6 +42,7 @@ import {
   Clock,
   Sparkles,
   ExternalLink,
+  CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getTeamButtonClass, getTeamButtonStyle } from "@shared/teamColors";
@@ -2505,8 +2506,16 @@ export default function ScheduleChange() {
         </CardContent>
       </Card>
 
-      {/* スプレッドシートリンクボタン */}
-      <div className="px-1">
+      {/* カレンダー・スプレッドシートリンク */}
+      <div className="px-1 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setLocation("/schedule-calendar")}
+          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400 hover:bg-orange-200 dark:hover:bg-orange-800/60 transition-colors"
+        >
+          <CalendarDays className="w-3.5 h-3.5" />
+          予定カレンダー
+        </button>
         <a
           href="https://docs.google.com/spreadsheets/d/1ki462aQRaNTj5FrI_1MJ1OyATFGqODz6HCtmuriIDEU/edit?gid=941601927#gid=941601927"
           target="_blank"

@@ -4,6 +4,7 @@
  */
 import { ExternalLink, CalendarDays, BarChart2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Link } from "wouter";
 
 const scheduleLinks: { label: string; href: string; description: string }[] = [
   {
@@ -36,6 +37,31 @@ export default function ScheduleManagement() {
           <p className="text-sm text-muted-foreground">スケジュール管理関連の書類・ツールへのリンク</p>
         </div>
       </div>
+
+      {/* アプリ内カレンダー */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold">アプリ内ツール</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Link
+            href="/schedule-calendar"
+            className="flex items-center gap-3 p-3 rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 dark:border-orange-800 dark:bg-orange-950/30 dark:hover:bg-orange-950/50 transition-colors group"
+          >
+            <div className="w-9 h-9 rounded-lg bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center flex-shrink-0">
+              <CalendarDays className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                予定カレンダー
+              </p>
+              <p className="text-xs text-muted-foreground truncate">
+                変更連絡・予定登録の有効な予定を月表示で確認
+              </p>
+            </div>
+          </Link>
+        </CardContent>
+      </Card>
 
       {/* 関連リンク */}
       <Card>
