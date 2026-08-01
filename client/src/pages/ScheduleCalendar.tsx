@@ -23,9 +23,12 @@ import {
   ChevronRight,
   ExternalLink,
   RefreshCw,
+  Pencil,
+  Ban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
+import { toast } from "sonner";
 
 const SPREADSHEET_URL =
   "https://docs.google.com/spreadsheets/d/1ki462aQRaNTj5FrI_1MJ1OyATFGqODz6HCtmuriIDEU";
@@ -200,6 +203,22 @@ export default function ScheduleCalendar() {
       refetchInterval: 60000,
     });
 
+  const closeSheet = () => {
+    setSelectedDateKey(null);
+    setSelectedItemId(null);
+  };
+
+  const utils = trpc.useUtils();
+  const cancelMutation = trpc.scheduleChanges.cancel.useMutation({
+    onSuccess: () => {
+      toast.success("予定を取り消しました（スプレッドシートにも追記します）");
+      void utils.scheduleChanges.listActiveForCalendar.invalidate();
+      void utils.scheduleChanges.list.invalidate();
+      closeSheet();
+    },
+    onError: (err) => toast.error(`取消エラー: ${err.message}`),
+  });
+
   const todayKey = getJstTodayKey();
   const cells = useMemo(() => buildMonthCells(yearMonth), [yearMonth]);
 
@@ -220,9 +239,17 @@ export default function ScheduleCalendar() {
     setSelectedItemId(null);
   };
 
-  const closeSheet = () => {
-    setSelectedDateKey(null);
-    setSelectedItemId(null);
+  const handleEdit = (item: CalendarItem) => {
+    navigate(`/schedule-change?editId=${item.id}&from=calendar`);
+  };
+
+  const handleCancel = (item: CalendarItem) => {
+    const label = getTypeInfo(item.changeType)?.label ?? item.changeType;
+    const target = item.patientName || item.meetingName || item.scheduleTargetName || label;
+    if (!window.confirm(`「${target}」の${label}を取り消しますか？\nスプレッドシートにも取消行が追記されます。`)) {
+      return;
+    }
+    cancelMutation.mutate({ id: item.id });
   };
 
   return (
@@ -512,18 +539,29 @@ export default function ScheduleCalendar() {
                         <span className="text-muted-foreground w-20 flex-shrink-0">入力者</span>
                         <span>{item.createdByName}</span>
                       </div>
-                      <p className="text-[10px] text-muted-foreground pt-1">
-                        修正・取消は次の段階でカレンダーから操作できるようにします。当面は履歴画面から行えます。
-                      </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-8 text-xs mt-1"
-                        onClick={() => navigate("/schedule-change-history")}
-                      >
-                        履歴で確認する
-                      </Button>
+                      <div className="flex gap-2 pt-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs gap-1"
+                          onClick={() => handleEdit(item)}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          修正
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs gap-1 text-destructive border-destructive/40 hover:bg-destructive/10"
+                          disabled={cancelMutation.isPending}
+                          onClick={() => handleCancel(item)}
+                        >
+                          <Ban className="w-3.5 h-3.5" />
+                          取消
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>

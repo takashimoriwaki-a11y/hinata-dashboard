@@ -1369,6 +1369,15 @@ export default function ScheduleChange() {
     return Number.isFinite(id) && id > 0 ? id : null;
   }, []);
 
+  const editFromCalendar = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("from") === "calendar";
+  }, []);
+
+  const returnAfterEdit = () => {
+    setLocation(editFromCalendar ? "/schedule-calendar" : "/schedule-change-history");
+  };
+
   const [editingScheduleChangeId, setEditingScheduleChangeId] = useState<number | null>(editIdFromUrl);
   const [editFormLoaded, setEditFormLoaded] = useState(false);
 
@@ -1630,6 +1639,7 @@ export default function ScheduleChange() {
       toast.success("予定を修正しました（スプレッドシートにも追記します）");
       setEditingScheduleChangeId(null);
       void utils.scheduleChanges.list.invalidate();
+      void utils.scheduleChanges.listActiveForCalendar.invalidate();
       void utils.scheduleChanges.listPatientMedicalSchedules.invalidate();
       void utils.visitRecords.getUpcomingMedicalSchedules.invalidate();
       clearDraft();
@@ -1655,12 +1665,12 @@ export default function ScheduleChange() {
       setScheduleNewContractTargetName("");
       setScheduleNewContractStaff([]);
       setEditingMedicalScheduleId(null);
-      setLocation("/schedule-change-history");
+      returnAfterEdit();
     },
     onError: (err) => toast.error(`修正エラー: ${err.message}`),
   });
 
-  // 履歴からの修正：editId の記録をフォームに読み込む（1回だけ）
+  // 履歴／カレンダーからの修正：editId の記録をフォームに読み込む（1回だけ）
   useEffect(() => {
     if (!editingScheduleChangeId) {
       setEditFormLoaded(false);
@@ -1672,14 +1682,14 @@ export default function ScheduleChange() {
       if (editRecords.length > 0) {
         toast.error("修正対象の記録が見つかりません（取消済みの可能性があります）");
         setEditingScheduleChangeId(null);
-        setLocation("/schedule-change-history");
+        returnAfterEdit();
       }
       return;
     }
     if (record.supersededAt) {
       toast.error("この記録は既に取消・修正済みです");
       setEditingScheduleChangeId(null);
-      setLocation("/schedule-change-history");
+      returnAfterEdit();
       return;
     }
 
@@ -1710,7 +1720,7 @@ export default function ScheduleChange() {
     setHasDraft(false);
     clearDraft();
     setEditFormLoaded(true);
-  }, [editingScheduleChangeId, editRecords, isLoadingEditRecord, editFormLoaded, setLocation]);
+  }, [editingScheduleChangeId, editRecords, isLoadingEditRecord, editFormLoaded, editFromCalendar, setLocation]);
 
   const updateMedicalSchedule = trpc.scheduleChanges.updateMedicalSchedule.useMutation({
     onSuccess: () => {
@@ -2402,7 +2412,7 @@ export default function ScheduleChange() {
       {editingScheduleChangeId && (
         <div className="rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-sm space-y-2">
           <p className="text-primary font-medium">
-            履歴からの修正モードです。内容を直して保存すると、旧記録は無効化されスプレッドシートに新行が追記されます。
+            {editFromCalendar ? "カレンダー" : "履歴"}からの修正モードです。内容を直して保存すると、旧記録は無効化されスプレッドシートに新行が追記されます。
           </p>
           <Button
             type="button"
@@ -2411,10 +2421,10 @@ export default function ScheduleChange() {
             className="h-8 text-xs"
             onClick={() => {
               setEditingScheduleChangeId(null);
-              setLocation("/schedule-change-history");
+              returnAfterEdit();
             }}
           >
-            修正をやめて履歴に戻る
+            修正をやめて{editFromCalendar ? "カレンダー" : "履歴"}に戻る
           </Button>
         </div>
       )}

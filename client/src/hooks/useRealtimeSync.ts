@@ -30,7 +30,7 @@ const EVENT_QUERY_MAP: Record<string, string[][]> = {
   // 訪問記録（次回訪問日時）
   visitRecords: [["visitRecords", "getMine"], ["visitRecords", "getAll"]],
   // 変更連絡
-  scheduleChanges: [["scheduleChanges", "list"], ["scheduleChanges", "listPatientMedicalSchedules"], ["visitRecords", "getUpcomingMedicalSchedules"]],
+  scheduleChanges: [["scheduleChanges", "list"], ["scheduleChanges", "listPatientMedicalSchedules"], ["scheduleChanges", "listActiveForCalendar"], ["visitRecords", "getUpcomingMedicalSchedules"]],
   // スケジュールスクリーンショット
   schedules: [["schedule", "getAll"], ["schedule", "getUploadLogs"]],
   // 利用者
