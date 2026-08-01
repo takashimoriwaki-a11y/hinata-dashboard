@@ -5458,6 +5458,136 @@ ${todayStr}
         return { success: true, id: newId };
       }),
 
+    /**
+     * スケジュール変更連絡を取消する（全種別）
+     * DB上は無効化し、スプレッドシートには取消行を追記する
+     */
+    cancel: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        reason: z.string().max(500).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const record = await getScheduleChangeById(input.id);
+        if (!record) throw new TRPCError({ code: "NOT_FOUND", message: "記録が見つかりません" });
+        if (record.supersededAt) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "この記録は既に取消済みです" });
+        }
+
+        await supersedeScheduleChange(input.id);
+
+        const baseLabel = SCHEDULE_CHANGE_TYPE_LABEL[record.changeType] ?? record.changeType;
+        const cancelReason = [
+          "【取消】",
+          input.reason?.trim() || "アプリから取消",
+          `（取消者: ${ctx.user.name ?? "不明"}）`,
+        ].join(" ");
+
+        try {
+          await appendScheduleChangeRowToSheet(record, {
+            typeLabel: `${baseLabel}（取消）`,
+            reason: cancelReason,
+          });
+        } catch (err) {
+          console.error("[scheduleChanges.cancel] Sheet append failed:", err);
+        }
+
+        broadcastEvent("scheduleChanges");
+        return { success: true };
+      }),
+
+    /**
+     * スケジュール変更連絡を修正する（全種別）
+     * 旧記録を無効化し新規作成したうえで、スプレッドシートに新行を追記する
+     */
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        changeType: z.enum([
+          "visit_change", "visit_cancel", "visit_add",
+          "meeting_add", "meeting_change",
+          "schedule_visit", "schedule_short_stay", "schedule_special_instruction",
+          "schedule_hospitalization", "schedule_discharge", "schedule_new_contract",
+          "schedule_visit_doctor", "schedule_other",
+        ]),
+        team: z.enum(["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"]).optional(),
+        patientName: z.string().optional(),
+        patientId: z.number().optional(),
+        fromDatetime: z.string().optional(),
+        toDatetime: z.string().optional(),
+        staffBefore: z.string().optional(),
+        staffAfter: z.string().optional(),
+        meetingName: z.string().optional(),
+        meetingStaff: z.string().optional(),
+        reason: z.string().optional(),
+        scheduleFacility: z.string().optional(),
+        scheduleStartDate: z.string().optional(),
+        scheduleEndDate: z.string().optional(),
+        schedulePostDischargeEndDate: z.string().optional(),
+        scheduleTargetName: z.string().optional(),
+        scheduleStaff: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const record = await getScheduleChangeById(input.id);
+        if (!record) throw new TRPCError({ code: "NOT_FOUND", message: "記録が見つかりません" });
+        if (record.supersededAt) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "この記録は既に無効化されています" });
+        }
+
+        const isScheduleType = input.changeType.startsWith("schedule_");
+        const oldDateRaw = isScheduleType
+          ? (record.scheduleStartDate ?? "")
+          : (record.toDatetime || record.fromDatetime || "");
+        const newDateRaw = isScheduleType
+          ? (input.scheduleStartDate ?? "")
+          : (input.toDatetime || input.fromDatetime || "");
+        const oldDateDisplay = oldDateRaw
+          ? formatMedicalScheduleDisplayDate(String(oldDateRaw))
+          : "（未設定）";
+        const newDateDisplay = newDateRaw
+          ? formatMedicalScheduleDisplayDate(String(newDateRaw))
+          : "（未設定）";
+        const correctionNote = `【修正】${oldDateDisplay} → ${newDateDisplay}`;
+        const mergedReason = [correctionNote, input.reason?.trim()].filter(Boolean).join(" / ") || correctionNote;
+
+        await supersedeScheduleChange(input.id);
+
+        const newId = await createScheduleChange({
+          changeType: input.changeType,
+          team: input.team ?? record.team ?? undefined,
+          patientName: input.patientName ?? record.patientName ?? undefined,
+          patientId: input.patientId ?? record.patientId ?? undefined,
+          fromDatetime: input.fromDatetime,
+          toDatetime: input.toDatetime,
+          staffBefore: input.staffBefore,
+          staffAfter: input.staffAfter,
+          meetingName: input.meetingName,
+          meetingStaff: input.meetingStaff,
+          reason: mergedReason,
+          scheduleFacility: input.scheduleFacility,
+          scheduleStartDate: input.scheduleStartDate,
+          scheduleEndDate: input.scheduleEndDate,
+          schedulePostDischargeEndDate: input.schedulePostDischargeEndDate,
+          scheduleTargetName: input.scheduleTargetName,
+          scheduleStaff: input.scheduleStaff,
+          createdBy: Number(ctx.user.id),
+          createdByName: ctx.user.name ?? "不明",
+        });
+
+        const newRecord = await getScheduleChangeById(newId);
+        if (newRecord) {
+          try {
+            await appendScheduleChangeRowToSheet(newRecord);
+            await markScheduleChangeExported(newId);
+          } catch (err) {
+            console.error("[scheduleChanges.update] Sheet append failed:", err);
+          }
+        }
+
+        broadcastEvent("scheduleChanges");
+        return { success: true, id: newId };
+      }),
+
     /** スプレッドシートに転記する */
     exportToSheet: protectedProcedure
       .input(z.object({

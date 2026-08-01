@@ -146,6 +146,18 @@ function toStoredDatetime(value: string | undefined): string | undefined {
   return new Date(value).toISOString();
 }
 
+/** DBの日時をフォーム用（YYYY-MM-DD または YYYY-MM-DDTHH:mm）に変換 */
+function toFormDatetime(value: string | null | undefined): string {
+  if (!value) return "";
+  const s = String(value).trim().replace(/\//g, "-");
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+  if (!m) return s;
+  if (m[4] && m[5] && !(m[4] === "00" && m[5] === "00")) {
+    return `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}`;
+  }
+  return `${m[1]}-${m[2]}-${m[3]}`;
+}
+
 // ========== 利用者オートコンプリートコンポーネント ==========
 type PatientItem = {
   id: number;
@@ -1350,12 +1362,23 @@ export default function ScheduleChange() {
   const { enqueueOffline } = useOfflineQueueContext();
   const [, setLocation] = useLocation();
 
-  // 初期値：下書きがあれば後で復元バナーを表示する
+  const editIdFromUrl = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = Number(params.get("editId"));
+    return Number.isFinite(id) && id > 0 ? id : null;
+  }, []);
+
+  const [editingScheduleChangeId, setEditingScheduleChangeId] = useState<number | null>(editIdFromUrl);
+  const [editFormLoaded, setEditFormLoaded] = useState(false);
+
+  // 初期値：下書きがあれば後で復元バナーを表示する（修正モード中は下書きを使わない）
   const [hasDraft, setHasDraft] = useState(() => {
+    if (editIdFromUrl) return false;
     const d = loadDraft();
     return d !== null && (d.changeType !== "" || d.patientName !== "" || d.meetingName !== "");
   });
   const [draftSavedAt, setDraftSavedAt] = useState<number | null>(() => {
+    if (editIdFromUrl) return null;
     const d = loadDraft();
     return d ? d.savedAt : null;
   });
@@ -1595,6 +1618,99 @@ export default function ScheduleChange() {
   });
 
   const utils = trpc.useUtils();
+
+  const { data: editRecords = [], isLoading: isLoadingEditRecord } = trpc.scheduleChanges.list.useQuery(
+    { limit: 200 },
+    { enabled: !!editingScheduleChangeId }
+  );
+
+  const updateScheduleChange = trpc.scheduleChanges.update.useMutation({
+    onSuccess: () => {
+      toast.success("予定を修正しました（スプレッドシートにも追記します）");
+      setEditingScheduleChangeId(null);
+      void utils.scheduleChanges.list.invalidate();
+      void utils.scheduleChanges.listPatientMedicalSchedules.invalidate();
+      void utils.visitRecords.getUpcomingMedicalSchedules.invalidate();
+      clearDraft();
+      setDraftSavedAt(null);
+      setDraftRestored(false);
+      setChangeType("");
+      const validTeamsOnReset: Team[] = ["身体", "天理", "郡山北部", "郡山南部"];
+      setTeam(user?.team && validTeamsOnReset.includes(user.team as Team) ? user.team as Team : "");
+      setPatientName("");
+      setFromDatetime("");
+      setToDatetime("");
+      setStaffBefore("");
+      setStaffAfter("");
+      setMeetingName("");
+      setMeetingStaff([]);
+      setReason("");
+      setScheduleStartDate("");
+      setScheduleEndDate("");
+      setScheduleStartTime("");
+      setScheduleEndTime("");
+      setScheduleFacilityName("");
+      setSchedulePostDischargeEndDate("");
+      setScheduleNewContractTargetName("");
+      setScheduleNewContractStaff([]);
+      setEditingMedicalScheduleId(null);
+      setLocation("/schedule-change-history");
+    },
+    onError: (err) => toast.error(`修正エラー: ${err.message}`),
+  });
+
+  // 履歴からの修正：editId の記録をフォームに読み込む（1回だけ）
+  useEffect(() => {
+    if (!editingScheduleChangeId) {
+      setEditFormLoaded(false);
+      return;
+    }
+    if (editFormLoaded || isLoadingEditRecord) return;
+    const record = editRecords.find((r) => r.id === editingScheduleChangeId);
+    if (!record) {
+      if (editRecords.length > 0) {
+        toast.error("修正対象の記録が見つかりません（取消済みの可能性があります）");
+        setEditingScheduleChangeId(null);
+        setLocation("/schedule-change-history");
+      }
+      return;
+    }
+    if (record.supersededAt) {
+      toast.error("この記録は既に取消・修正済みです");
+      setEditingScheduleChangeId(null);
+      setLocation("/schedule-change-history");
+      return;
+    }
+
+    setChangeType(record.changeType as ChangeType);
+    setTeam((record.team as Team) || "");
+    setPatientName(record.patientName ?? "");
+    setFromDatetime(toFormDatetime(record.fromDatetime));
+    setToDatetime(toFormDatetime(record.toDatetime));
+    setStaffBefore(record.staffBefore ?? "");
+    setStaffAfter(record.staffAfter ?? "");
+    setMeetingName(record.meetingName ?? "");
+    try {
+      setMeetingStaff(record.meetingStaff ? JSON.parse(record.meetingStaff) as string[] : []);
+    } catch {
+      setMeetingStaff(record.meetingStaff ? [record.meetingStaff] : []);
+    }
+    setReason(record.reason ?? "");
+    setScheduleStartDate(toFormDatetime(record.scheduleStartDate));
+    setScheduleEndDate(toFormDatetime(record.scheduleEndDate));
+    setScheduleFacilityName(record.scheduleFacility ?? "");
+    setSchedulePostDischargeEndDate(record.schedulePostDischargeEndDate ?? "");
+    setScheduleNewContractTargetName(record.scheduleTargetName ?? "");
+    try {
+      setScheduleNewContractStaff(record.scheduleStaff ? JSON.parse(record.scheduleStaff) as string[] : []);
+    } catch {
+      setScheduleNewContractStaff([]);
+    }
+    setHasDraft(false);
+    clearDraft();
+    setEditFormLoaded(true);
+  }, [editingScheduleChangeId, editRecords, isLoadingEditRecord, editFormLoaded, setLocation]);
+
   const updateMedicalSchedule = trpc.scheduleChanges.updateMedicalSchedule.useMutation({
     onSuccess: () => {
       toast.success("受診予定を修正しました");
@@ -1700,20 +1816,29 @@ export default function ScheduleChange() {
       meetingName: isMeetingType ? meetingName : undefined,
       meetingStaff: isMeetingType && meetingStaff.length > 0 ? JSON.stringify(meetingStaff) : undefined,
       reason: isScheduleType ? (scheduleNotes || undefined) : (reason || undefined),
-      // 予定管理固有フィールド
       scheduleFacility: isScheduleType && scheduleFieldConfig?.facilityName ? (scheduleFacilityName || undefined) : undefined,
-      scheduleStartDate: isScheduleType ? (scheduleStartDate || undefined) : undefined,
+      scheduleStartDate: isScheduleType ? (toStoredDatetime(scheduleStartDate) || scheduleStartDate || undefined) : undefined,
       scheduleEndDate: isScheduleType && scheduleFieldConfig?.endDate ? (scheduleEndDate || undefined) : undefined,
       schedulePostDischargeEndDate: isScheduleType && scheduleFieldConfig?.postDischargeEndDate ? (schedulePostDischargeEndDate || undefined) : undefined,
       scheduleTargetName: changeType === "schedule_new_contract" ? (scheduleNewContractTargetName || undefined) : undefined,
       scheduleStaff: isScheduleType && scheduleNewContractStaff.length > 0 ? JSON.stringify(scheduleNewContractStaff) : undefined,
     };
 
+    // 履歴からの修正モード
+    if (editingScheduleChangeId) {
+      if (isOffline) {
+        toast.error("オフライン中は修正を保存できません。接続後に再度お試しください。");
+        return;
+      }
+      updateScheduleChange.mutate({ id: editingScheduleChangeId, ...payload });
+      return;
+    }
+
     setLastRecord({
       changeType,
       team: team || undefined,
       patientName: isVisitType ? patientName : undefined,
-      fromfromDatetime: toStoredDatetime(fromDatetime),
+      fromDatetime: toStoredDatetime(fromDatetime),
       toDatetime: toStoredDatetime(toDatetime),
       staffBefore: staffBefore || undefined,
       staffAfter: staffAfter || undefined,
@@ -1785,6 +1910,8 @@ export default function ScheduleChange() {
     setVoiceInterimText("");
     setVoiceTranscribed(false);
     setVoicePatientCandidates([]);
+    setEditingScheduleChangeId(null);
+    setEditingMedicalScheduleId(null);
   };
 
   // 音声入力テキストをLLMで解析しフォームに自動転記
@@ -2271,6 +2398,25 @@ export default function ScheduleChange() {
         </div>
       </div>
 
+      {editingScheduleChangeId && (
+        <div className="rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-sm space-y-2">
+          <p className="text-primary font-medium">
+            履歴からの修正モードです。内容を直して保存すると、旧記録は無効化されスプレッドシートに新行が追記されます。
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs"
+            onClick={() => {
+              setEditingScheduleChangeId(null);
+              setLocation("/schedule-change-history");
+            }}
+          >
+            修正をやめて履歴に戻る
+          </Button>
+        </div>
+      )}
 
       {/* 変更種別選択 */}
       <Card id="sc-change-type-card">
@@ -3424,19 +3570,19 @@ export default function ScheduleChange() {
       {changeType && (
         <Button
           onClick={handleSubmit}
-          disabled={createAndExport.isPending || updateMedicalSchedule.isPending}
+          disabled={createAndExport.isPending || updateMedicalSchedule.isPending || updateScheduleChange.isPending}
           className="w-full"
           size="lg"
         >
-          {createAndExport.isPending || updateMedicalSchedule.isPending ? (
+          {createAndExport.isPending || updateMedicalSchedule.isPending || updateScheduleChange.isPending ? (
             <>
               <svg className="w-4 h-4 mr-2 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-              {editingMedicalScheduleId ? "保存中..." : "送信中..."}
+              {editingScheduleChangeId || editingMedicalScheduleId ? "保存中..." : "送信中..."}
             </>
           ) : (
             <>
               <Send className="w-4 h-4 mr-2" />
-              {editingMedicalScheduleId ? "修正を保存" : "送信してスプレッドシートに転記"}
+              {editingScheduleChangeId || editingMedicalScheduleId ? "修正を保存" : "送信してスプレッドシートに転記"}
             </>
           )}
         </Button>

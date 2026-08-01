@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,8 @@ import {
   Filter,
   ChevronDown,
   ChevronUp,
+  Pencil,
+  Ban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
@@ -35,19 +37,26 @@ const CHANGE_TYPE_LABELS: Record<string, { label: string; icon: string; color: s
   visit_add: { label: "訪問追加", icon: "➕", color: "bg-green-100 text-green-900 border-green-300 dark:bg-green-900/40 dark:text-green-200 dark:border-green-700" },
   meeting_add: { label: "会議追加", icon: "📅", color: "bg-purple-100 text-purple-900 border-purple-300 dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-700" },
   meeting_change: { label: "会議変更", icon: "📝", color: "bg-orange-100 text-orange-900 border-orange-300 dark:bg-orange-900/40 dark:text-orange-200 dark:border-orange-700" },
-  // 予定管理種別
-  schedule_outpatient: { label: "受診", icon: "🏥", color: "bg-teal-100 text-teal-900 border-teal-300 dark:bg-teal-900/40 dark:text-teal-200 dark:border-teal-700" },
+  schedule_visit: { label: "受診", icon: "🏥", color: "bg-teal-100 text-teal-900 border-teal-300 dark:bg-teal-900/40 dark:text-teal-200 dark:border-teal-700" },
   schedule_short_stay: { label: "ショートステイ", icon: "🏨", color: "bg-cyan-100 text-cyan-900 border-cyan-300 dark:bg-cyan-900/40 dark:text-cyan-200 dark:border-cyan-700" },
   schedule_special_instruction: { label: "特別指示書", icon: "📋", color: "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700" },
   schedule_hospitalization: { label: "入院", icon: "🏥", color: "bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-900/40 dark:text-rose-200 dark:border-rose-700" },
   schedule_discharge: { label: "退院", icon: "🏠", color: "bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-200 dark:border-emerald-700" },
   schedule_new_contract: { label: "新規契約・面談", icon: "🤝", color: "bg-indigo-100 text-indigo-900 border-indigo-300 dark:bg-indigo-900/40 dark:text-indigo-200 dark:border-indigo-700" },
-  schedule_home_visit_doctor: { label: "訪問診療同席", icon: "👨‍⚕️", color: "bg-violet-100 text-violet-900 border-violet-300 dark:bg-violet-900/40 dark:text-violet-200 dark:border-violet-700" },
+  schedule_visit_doctor: { label: "訪問診療同席", icon: "👨‍⚕️", color: "bg-violet-100 text-violet-900 border-violet-300 dark:bg-violet-900/40 dark:text-violet-200 dark:border-violet-700" },
   schedule_other: { label: "その他のスケジュール", icon: "📝", color: "bg-slate-100 text-slate-900 border-slate-300 dark:bg-slate-900/40 dark:text-slate-200 dark:border-slate-700" },
 };
 
-// 予定管理種別かどうかを判定するヘルパー
-const SCHEDULE_TYPE_KEYS = ["schedule_outpatient", "schedule_short_stay", "schedule_special_instruction", "schedule_hospitalization", "schedule_discharge", "schedule_new_contract", "schedule_home_visit_doctor", "schedule_other"];
+const SCHEDULE_TYPE_KEYS = [
+  "schedule_visit",
+  "schedule_short_stay",
+  "schedule_special_instruction",
+  "schedule_hospitalization",
+  "schedule_discharge",
+  "schedule_new_contract",
+  "schedule_visit_doctor",
+  "schedule_other",
+];
 
 const TEAMS = ["身体", "天理", "郡山北部", "郡山南部", "事務員", "全チーム"] as const;
 
@@ -87,6 +96,9 @@ interface HistoryRecord {
   patientName?: string | null;
   fromDatetime?: string | null;
   toDatetime?: string | null;
+  scheduleStartDate?: string | null;
+  scheduleEndDate?: string | null;
+  scheduleFacility?: string | null;
   staffBefore?: string | null;
   staffAfter?: string | null;
   meetingName?: string | null;
@@ -94,28 +106,45 @@ interface HistoryRecord {
   reason?: string | null;
   createdByName?: string | null;
   exported: number;
+  supersededAt?: Date | string | null;
   createdAt: Date | string;
 }
 
-function HistoryCard({ record }: { record: HistoryRecord }) {
+function HistoryCard({
+  record,
+  onEdit,
+  onCancel,
+  cancelPending,
+}: {
+  record: HistoryRecord;
+  onEdit: (record: HistoryRecord) => void;
+  onCancel: (record: HistoryRecord) => void;
+  cancelPending: boolean;
+}) {
   const [expanded, setExpanded] = useState(false);
   const typeInfo = CHANGE_TYPE_LABELS[record.changeType] ?? { label: record.changeType, icon: "📋", color: "bg-muted text-muted-foreground border-border" };
   const isVisit = ["visit_change", "visit_cancel", "visit_add"].includes(record.changeType);
   const isMeeting = ["meeting_add", "meeting_change"].includes(record.changeType);
   const isSchedule = SCHEDULE_TYPE_KEYS.includes(record.changeType);
+  const isSuperseded = !!record.supersededAt;
 
   const meetingStaffList = useMemo(() => {
     if (!record.meetingStaff) return [];
     try { return JSON.parse(record.meetingStaff) as string[]; } catch { return [record.meetingStaff]; }
   }, [record.meetingStaff]);
 
+  const scheduleDateLabel = record.scheduleStartDate
+    ? formatDatetime(record.scheduleStartDate)
+    : null;
+
   return (
     <Card className={cn(
       "border transition-all",
-      record.exported ? "border-border" : "border-amber-300 bg-amber-50/30"
+      isSuperseded
+        ? "border-border opacity-60"
+        : record.exported ? "border-border" : "border-amber-300 bg-amber-50/30"
     )}>
       <CardContent className="p-4">
-        {/* ヘッダー行 */}
         <div className="flex items-start gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -125,13 +154,16 @@ function HistoryCard({ record }: { record: HistoryRecord }) {
               {record.team && (
                 <Badge variant="secondary" className="text-xs shrink-0">{record.team}</Badge>
               )}
-              {!record.exported && (
+              {isSuperseded ? (
+                <Badge variant="outline" className="text-xs bg-slate-100 text-slate-700 border-slate-300 shrink-0">
+                  取消・修正済
+                </Badge>
+              ) : !record.exported ? (
                 <Badge variant="outline" className="text-xs bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700 shrink-0">
                   <Clock className="w-3 h-3 mr-1" />
                   転記待ち
                 </Badge>
-              )}
-              {record.exported === 1 && (
+              ) : (
                 <Badge variant="outline" className="text-xs bg-green-50 text-green-800 border-green-300 dark:bg-green-900/40 dark:text-green-200 dark:border-green-700 shrink-0">
                   <CheckCircle2 className="w-3 h-3 mr-1" />
                   転記済
@@ -139,7 +171,6 @@ function HistoryCard({ record }: { record: HistoryRecord }) {
               )}
             </div>
 
-            {/* メインコンテンツ */}
             <div className="mt-2 space-y-1">
               {isVisit && record.patientName && (
                 <p className="text-sm font-semibold text-foreground">{record.patientName}</p>
@@ -150,27 +181,60 @@ function HistoryCard({ record }: { record: HistoryRecord }) {
               {isSchedule && record.patientName && (
                 <p className="text-sm font-semibold text-foreground">{record.patientName}</p>
               )}
-              {record.fromDatetime && (
+              {isSchedule && scheduleDateLabel && (
                 <p className="text-xs text-muted-foreground">
-                  {isSchedule ? "開始日時" : "変更前"}: <span className="text-foreground font-medium">{formatDatetime(record.fromDatetime)}</span>
+                  予定日: <span className="text-foreground font-medium">{scheduleDateLabel}</span>
                 </p>
               )}
-              {record.toDatetime && (
+              {!isSchedule && record.fromDatetime && (
                 <p className="text-xs text-muted-foreground">
-                  {isSchedule ? "終了日時" : record.changeType === "visit_cancel" ? "キャンセル日時" : "変更後"}: <span className="text-foreground font-medium">{formatDatetime(record.toDatetime)}</span>
+                  変更前: <span className="text-foreground font-medium">{formatDatetime(record.fromDatetime)}</span>
                 </p>
+              )}
+              {!isSchedule && record.toDatetime && (
+                <p className="text-xs text-muted-foreground">
+                  {record.changeType === "visit_cancel" ? "キャンセル日時" : "変更後"}:{" "}
+                  <span className="text-foreground font-medium">{formatDatetime(record.toDatetime)}</span>
+                </p>
+              )}
+              {isSchedule && record.scheduleFacility && (
+                <p className="text-xs text-muted-foreground">{record.scheduleFacility}</p>
               )}
             </div>
           </div>
 
-          {/* 右側：日時・入力者 */}
           <div className="text-right flex-shrink-0">
             <p className="text-xs text-muted-foreground">{formatCreatedAt(record.createdAt)}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{record.createdByName ?? "不明"}</p>
           </div>
         </div>
 
-        {/* 展開ボタン */}
+        {!isSuperseded && (
+          <div className="mt-3 flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs gap-1"
+              onClick={() => onEdit(record)}
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              修正
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs gap-1 text-destructive border-destructive/40 hover:bg-destructive/10"
+              disabled={cancelPending}
+              onClick={() => onCancel(record)}
+            >
+              <Ban className="w-3.5 h-3.5" />
+              取消
+            </Button>
+          </div>
+        )}
+
         {(record.staffBefore || record.staffAfter || record.reason || meetingStaffList.length > 0 || isSchedule) && (
           <button
             onClick={() => setExpanded(!expanded)}
@@ -181,7 +245,6 @@ function HistoryCard({ record }: { record: HistoryRecord }) {
           </button>
         )}
 
-        {/* 展開詳細 */}
         {expanded && (
           <div className="mt-3 pt-3 border-t space-y-1.5 text-sm">
             {record.staffBefore && (
@@ -221,15 +284,25 @@ export default function ScheduleChangeHistory() {
   const [filterType, setFilterType] = useState<string>("all");
   const [filterTeam, setFilterTeam] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
+  const [hideSuperseded, setHideSuperseded] = useState(true);
+  const utils = trpc.useUtils();
 
   const { data: records = [], isLoading, refetch, isFetching } = trpc.scheduleChanges.list.useQuery(
     { limit: 200 },
-    { refetchInterval: 60000 } // 1分ごとに自動更新
+    { refetchInterval: 60000 }
   );
 
-  // フィルタリング
+  const cancelMutation = trpc.scheduleChanges.cancel.useMutation({
+    onSuccess: () => {
+      toast.success("予定を取り消しました（スプレッドシートにも追記します）");
+      void utils.scheduleChanges.list.invalidate();
+    },
+    onError: (err) => toast.error(`取消エラー: ${err.message}`),
+  });
+
   const filtered = useMemo(() => {
     return records.filter((r) => {
+      if (hideSuperseded && r.supersededAt) return false;
       if (filterType !== "all" && r.changeType !== filterType) return false;
       if (filterTeam !== "all" && r.team !== filterTeam) return false;
       if (searchQuery) {
@@ -241,18 +314,31 @@ export default function ScheduleChangeHistory() {
           r.staffBefore,
           r.staffAfter,
           r.reason,
+          r.scheduleFacility,
         ].filter(Boolean).join(" ").toLowerCase();
         if (!searchTarget.includes(q)) return false;
       }
       return true;
     });
-  }, [records, filterType, filterTeam, searchQuery]);
+  }, [records, filterType, filterTeam, searchQuery, hideSuperseded]);
 
-  const pendingCount = records.filter(r => !r.exported).length;
+  const pendingCount = records.filter(r => !r.exported && !r.supersededAt).length;
+
+  const handleEdit = (record: HistoryRecord) => {
+    navigate(`/schedule-change?editId=${record.id}`);
+  };
+
+  const handleCancel = (record: HistoryRecord) => {
+    const label = CHANGE_TYPE_LABELS[record.changeType]?.label ?? record.changeType;
+    const target = record.patientName || record.meetingName || label;
+    if (!window.confirm(`「${target}」の${label}を取り消しますか？\nスプレッドシートにも取消行が追記されます。`)) {
+      return;
+    }
+    cancelMutation.mutate({ id: record.id });
+  };
 
   return (
     <div className="max-w-lg mx-auto px-4 py-4 pb-24 space-y-4">
-      {/* ヘッダー */}
       <div className="flex items-center justify-between pt-2">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -288,7 +374,6 @@ export default function ScheduleChangeHistory() {
         </div>
       </div>
 
-      {/* スプレッドシートリンク */}
       <a
         href={SPREADSHEET_URL}
         target="_blank"
@@ -305,7 +390,6 @@ export default function ScheduleChangeHistory() {
         <ExternalLink className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
       </a>
 
-      {/* 検索・フィルター */}
       <div className="space-y-2">
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -321,48 +405,53 @@ export default function ScheduleChangeHistory() {
             variant="outline"
             size="sm"
             onClick={() => setShowFilters(!showFilters)}
-            className={cn("h-9 px-3 gap-1.5", (filterType !== "all" || filterTeam !== "all") && "border-primary text-primary")}
+            className={cn("h-9 px-3 gap-1.5", (filterType !== "all" || filterTeam !== "all" || !hideSuperseded) && "border-primary text-primary")}
           >
             <Filter className="w-3.5 h-3.5" />
             <span className="text-xs">絞り込み</span>
-            {(filterType !== "all" || filterTeam !== "all") && (
-              <Badge variant="secondary" className="text-xs h-4 px-1 ml-0.5">
-                {[filterType !== "all" ? 1 : 0, filterTeam !== "all" ? 1 : 0].reduce((a, b) => a + b, 0)}
-              </Badge>
-            )}
           </Button>
         </div>
 
         {showFilters && (
-          <div className="flex gap-2">
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="h-8 text-xs flex-1">
-                <SelectValue placeholder="変更種別" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">すべての種別</SelectItem>
-                {Object.entries(CHANGE_TYPE_LABELS).map(([value, info]) => (
-                  <SelectItem key={value} value={value}>
-                    {info.icon} {info.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterTeam} onValueChange={setFilterTeam}>
-              <SelectTrigger className="h-8 text-xs flex-1">
-                <SelectValue placeholder="チーム" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">すべてのチーム</SelectItem>
-                {TEAMS.map((t) => (
-                  <SelectItem key={t} value={t}>{t}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger className="h-8 text-xs flex-1">
+                  <SelectValue placeholder="変更種別" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">すべての種別</SelectItem>
+                  {Object.entries(CHANGE_TYPE_LABELS).map(([value, info]) => (
+                    <SelectItem key={value} value={value}>
+                      {info.icon} {info.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filterTeam} onValueChange={setFilterTeam}>
+                <SelectTrigger className="h-8 text-xs flex-1">
+                  <SelectValue placeholder="チーム" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">すべてのチーム</SelectItem>
+                  {TEAMS.map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <label className="flex items-center gap-2 text-xs text-muted-foreground px-1">
+              <input
+                type="checkbox"
+                checked={hideSuperseded}
+                onChange={(e) => setHideSuperseded(e.target.checked)}
+                className="rounded border-border"
+              />
+              取消・修正済みを隠す
+            </label>
           </div>
         )}
 
-        {/* アクティブフィルター表示 */}
         {(filterType !== "all" || filterTeam !== "all") && (
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">絞り込み中:</span>
@@ -388,7 +477,6 @@ export default function ScheduleChangeHistory() {
         )}
       </div>
 
-      {/* 一覧 */}
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -427,7 +515,13 @@ export default function ScheduleChangeHistory() {
             {filtered.length}件を表示{filtered.length !== records.length && `（全${records.length}件中）`}
           </p>
           {filtered.map((record) => (
-            <HistoryCard key={record.id} record={record as HistoryRecord} />
+            <HistoryCard
+              key={record.id}
+              record={record as HistoryRecord}
+              onEdit={handleEdit}
+              onCancel={handleCancel}
+              cancelPending={cancelMutation.isPending}
+            />
           ))}
         </div>
       )}
