@@ -1728,12 +1728,17 @@ async function applyHandoffMemoSheetFormat(
             range: { sheetId, startRowIndex: 1, startColumnIndex: 0, endColumnIndex: 1 },
             cell: {
               userEnteredFormat: {
+                backgroundColor: { red: 1, green: 1, blue: 1 },
                 numberFormat: { type: "DATE", pattern: "yyyy/mm/dd" },
-                textFormat: { fontSize: 10, fontFamily: "Noto Sans JP" },
+                textFormat: {
+                  fontSize: 10,
+                  fontFamily: "Noto Sans JP",
+                  foregroundColor: { red: 0.12, green: 0.12, blue: 0.12 },
+                },
                 verticalAlignment: "TOP",
               },
             },
-            fields: "userEnteredFormat(numberFormat,textFormat,verticalAlignment)",
+            fields: "userEnteredFormat(backgroundColor,numberFormat,textFormat,verticalAlignment)",
           },
         },
         {
@@ -1741,12 +1746,17 @@ async function applyHandoffMemoSheetFormat(
             range: { sheetId, startRowIndex: 1, startColumnIndex: 1, endColumnIndex: 2 },
             cell: {
               userEnteredFormat: {
+                backgroundColor: { red: 1, green: 1, blue: 1 },
                 numberFormat: { type: "TIME", pattern: "hh:mm" },
-                textFormat: { fontSize: 10, fontFamily: "Noto Sans JP" },
+                textFormat: {
+                  fontSize: 10,
+                  fontFamily: "Noto Sans JP",
+                  foregroundColor: { red: 0.12, green: 0.12, blue: 0.12 },
+                },
                 verticalAlignment: "TOP",
               },
             },
-            fields: "userEnteredFormat(numberFormat,textFormat,verticalAlignment)",
+            fields: "userEnteredFormat(backgroundColor,numberFormat,textFormat,verticalAlignment)",
           },
         },
         {
@@ -1754,12 +1764,17 @@ async function applyHandoffMemoSheetFormat(
             range: { sheetId, startRowIndex: 1, startColumnIndex: 2, endColumnIndex: 6 },
             cell: {
               userEnteredFormat: {
-                textFormat: { fontSize: 10, fontFamily: "Noto Sans JP" },
+                backgroundColor: { red: 1, green: 1, blue: 1 },
+                textFormat: {
+                  fontSize: 10,
+                  fontFamily: "Noto Sans JP",
+                  foregroundColor: { red: 0.12, green: 0.12, blue: 0.12 },
+                },
                 verticalAlignment: "TOP",
                 wrapStrategy: "WRAP",
               },
             },
-            fields: "userEnteredFormat(textFormat,verticalAlignment,wrapStrategy)",
+            fields: "userEnteredFormat(backgroundColor,textFormat,verticalAlignment,wrapStrategy)",
           },
         },
         {
