@@ -3851,6 +3851,207 @@ export function TeamToolsCard() {
   );
 }
 
+// ========== 委員会ツールカード ==========
+const COMMITTEE_TABS = [
+  { id: "業務改善委員" as const, label: "業", title: "業務改善" },
+  { id: "安全対策委員" as const, label: "安", title: "安全対策" },
+  { id: "権利擁護委員" as const, label: "権", title: "権利擁護" },
+  { id: "感染対策委員" as const, label: "感", title: "感染対策" },
+  { id: "教育委員" as const, label: "教", title: "教育" },
+] as const;
+type CommitteeTabId = (typeof COMMITTEE_TABS)[number]["id"];
+
+/** 委員会タブ用カラー（チームカラーとは独立） */
+const COMMITTEE_COLOR_VALUES: Record<CommitteeTabId, { active: string; inactive: string; text: string; nightText: string }> = {
+  "業務改善委員": { active: "#0ea5e9", inactive: "#7dd3fc", text: "#0284c7", nightText: "#38bdf8" }, // sky
+  "安全対策委員": { active: "#ef4444", inactive: "#fca5a5", text: "#dc2626", nightText: "#f87171" }, // red
+  "権利擁護委員": { active: "#8b5cf6", inactive: "#c4b5fd", text: "#7c3aed", nightText: "#a78bfa" }, // violet
+  "感染対策委員": { active: "#14b8a6", inactive: "#5eead4", text: "#0d9488", nightText: "#2dd4bf" }, // teal
+  "教育委員":     { active: "#f59e0b", inactive: "#fcd34d", text: "#d97706", nightText: "#fbbf24" }, // amber
+};
+
+function getCommitteeButtonStyle(committee: CommitteeTabId, isActive: boolean): React.CSSProperties {
+  const colors = COMMITTEE_COLOR_VALUES[committee];
+  return {
+    backgroundColor: isActive ? colors.active : colors.inactive,
+    color: "white",
+  };
+}
+
+function getCommitteeTextStyle(committee: CommitteeTabId, isNight: boolean): React.CSSProperties {
+  const colors = COMMITTEE_COLOR_VALUES[committee];
+  return { color: isNight ? colors.nightText : colors.text };
+}
+
+export function CommitteeToolsCard() {
+  const { user } = useAuth();
+  const { isNight } = useTheme();
+  const utils = trpc.useUtils();
+
+  const [activeCommittee, setActiveCommittee] = useState<CommitteeTabId>("業務改善委員");
+
+  const { data: tools = [], isLoading } = trpc.committeeTools.list.useQuery(
+    { committee: activeCommittee },
+    { retry: false }
+  );
+
+  const isAdmin = user?.role === "admin" || user?.role === "super_admin";
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newLabel, setNewLabel] = useState("");
+  const [newHref, setNewHref] = useState("");
+  const [newEmoji, setNewEmoji] = useState("🔗");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+  const [editHref, setEditHref] = useState("");
+  const [editEmoji, setEditEmoji] = useState("");
+
+  const createTool = trpc.committeeTools.create.useMutation({
+    onSuccess: () => { utils.committeeTools.list.invalidate(); toast.success("ツールを追加しました"); setShowAddForm(false); setNewLabel(""); setNewHref(""); setNewEmoji("🔗"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const updateTool = trpc.committeeTools.update.useMutation({
+    onSuccess: () => { utils.committeeTools.list.invalidate(); setEditingId(null); toast.success("ツールを更新しました"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const deleteTool = trpc.committeeTools.delete.useMutation({
+    onSuccess: () => { utils.committeeTools.list.invalidate(); toast.success("ツールを削除しました"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const addTool = () => {
+    if (!newLabel.trim() || !newHref.trim()) { toast.error("ラベルとURLを入力してください"); return; }
+    createTool.mutate({ committee: activeCommittee, label: newLabel.trim(), href: newHref.trim(), emoji: newEmoji || "🔗" });
+  };
+
+  const startEdit = (tool: { id: number; label: string; href: string; emoji: string }) => {
+    setEditingId(tool.id); setEditLabel(tool.label); setEditHref(tool.href); setEditEmoji(tool.emoji ?? "🔗");
+  };
+
+  const saveEdit = () => {
+    if (editingId === null) return;
+    if (!editLabel.trim() || !editHref.trim()) { toast.error("ラベルとURLを入力してください"); return; }
+    updateTool.mutate({ id: editingId, label: editLabel.trim(), href: editHref.trim(), emoji: editEmoji || "🔗" });
+  };
+
+  return (
+    <Card id="section-committee-tools" className="fade-in-up stagger-1 shadow-sm">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+          <ClipboardList className="w-5 h-5 text-primary" />
+          <span className="tracking-wide">委員会ツール</span>
+          {isAdmin && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="ml-auto h-7 text-xs px-2 border-primary text-primary hover:bg-primary hover:text-white"
+              onClick={() => setShowAddForm((v) => !v)}
+            >
+              {showAddForm ? "キャンセル" : "追加"}
+            </Button>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {/* 委員会タブバー */}
+        <div className="flex gap-1 bg-muted/40 rounded-lg p-1 overflow-x-auto">
+          {COMMITTEE_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveCommittee(tab.id)}
+              onPointerDown={() => {}}
+              className={cn(
+                "flex-1 min-w-0 flex flex-col items-center gap-0.5 py-1.5 rounded-md text-xs font-bold transition-colors",
+                getTeamButtonClass(tab.id, activeCommittee === tab.id)
+              )}
+              style={{ ...getCommitteeButtonStyle(tab.id, activeCommittee === tab.id), touchAction: "pan-y", WebkitTapHighlightColor: "transparent" }}
+            >
+              <span className="text-base leading-none">{tab.label}</span>
+              <span className="leading-none whitespace-nowrap text-[10px] sm:text-xs">{tab.title}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* ツールリスト */}
+        <div className="flex flex-col gap-1.5">
+          {isLoading ? (
+            <div className="space-y-2 py-1">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-10 bg-muted/60 animate-pulse rounded-lg" />
+              ))}
+            </div>
+          ) : tools.length === 0 && !showAddForm ? (
+            <p className="text-xs text-muted-foreground text-center py-4">
+              {activeCommittee}のツールはまだありません
+              {isAdmin && (
+                <span
+                  className="block mt-1 text-primary cursor-pointer"
+                  onClick={() => setShowAddForm(true)}
+                  onPointerDown={() => {}}
+                  style={{ touchAction: "pan-y", WebkitTapHighlightColor: "transparent" } as React.CSSProperties}
+                >
+                  + 追加する
+                </span>
+              )}
+            </p>
+          ) : (
+            tools.map((tool) => (
+              <div key={tool.id}>
+                {editingId === tool.id ? (
+                  <div className="flex flex-col gap-1.5 p-2 bg-muted/30 rounded-md">
+                    <div className="flex gap-1">
+                      <input value={editEmoji} onChange={(e) => setEditEmoji(e.target.value)} className="w-10 text-center border rounded px-1 py-1 text-sm bg-background" placeholder="🔗" />
+                      <input value={editLabel} onChange={(e) => setEditLabel(e.target.value)} className="flex-1 border rounded px-2 py-1 text-sm bg-background" placeholder="ラベル" />
+                    </div>
+                    <input value={editHref} onChange={(e) => setEditHref(e.target.value)} className="border rounded px-2 py-1 text-sm bg-background" placeholder="https://..." />
+                    <div className="flex gap-1 justify-end">
+                      <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setEditingId(null)}>キャンセル</Button>
+                      <Button size="sm" className="h-6 text-xs" onClick={saveEdit} disabled={updateTool.isPending}>保存</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 group">
+                    <LinkRow
+                      href={tool.href}
+                      label={tool.label}
+                      colorStyle={getCommitteeTextStyle(activeCommittee, isNight)}
+                      emoji={tool.emoji ?? undefined}
+                    />
+                    {isAdmin && (
+                      <>
+                        <button onClick={() => startEdit(tool)} onPointerDown={() => {}} style={{ touchAction: "pan-y" }} className="text-muted-foreground hover:text-primary p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95 touch-pan-y" title="編集">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                        <button onClick={() => deleteTool.mutate({ id: tool.id })} onPointerDown={() => {}} style={{ touchAction: "pan-y" }} className="text-muted-foreground hover:text-destructive p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95 touch-pan-y" title="削除">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+
+          {/* 追加フォーム */}
+          {isAdmin && showAddForm && (
+            <div className="flex flex-col gap-1.5 p-2 bg-muted/30 rounded-md">
+              <div className="flex gap-1">
+                <input value={newEmoji} onChange={(e) => setNewEmoji(e.target.value)} className="w-10 text-center border rounded px-1 py-1 text-sm bg-background" placeholder="🔗" />
+                <input value={newLabel} onChange={(e) => setNewLabel(e.target.value)} className="flex-1 border rounded px-2 py-1 text-sm bg-background" placeholder="ラベル" />
+              </div>
+              <input value={newHref} onChange={(e) => setNewHref(e.target.value)} className="border rounded px-2 py-1 text-sm bg-background" placeholder="https://..." />
+              <div className="flex gap-1 justify-end">
+                <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => { setShowAddForm(false); setNewLabel(""); setNewHref(""); setNewEmoji("🔗"); }}>キャンセル</Button>
+                <Button size="sm" className="h-6 text-xs" onClick={addTool} disabled={createTool.isPending}>追加</Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 
 function TasksCard() {
   const utils = trpc.useUtils();

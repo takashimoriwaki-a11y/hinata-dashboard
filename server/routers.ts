@@ -6782,6 +6782,110 @@ ${todayStr}
       }),
   }),
 
+  /** 委員会ツールリンク管理 */
+  committeeTools: router({
+    /** 指定委員会のツールリンクを取得 */
+    list: protectedProcedure
+      .input(z.object({
+        committee: z.enum([
+          "業務改善委員",
+          "安全対策委員",
+          "権利擁護委員",
+          "感染対策委員",
+          "教育委員",
+        ]),
+      }))
+      .query(async ({ input }) => {
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) return [];
+        const { committeeTools } = await import("../drizzle/schema");
+        const { eq, asc } = await import("drizzle-orm");
+        return db.select().from(committeeTools)
+          .where(eq(committeeTools.committee, input.committee))
+          .orderBy(asc(committeeTools.sortOrder), asc(committeeTools.createdAt));
+      }),
+    /** 委員会ツールリンクを作成（admin / super_admin） */
+    create: protectedProcedure
+      .input(z.object({
+        committee: z.enum([
+          "業務改善委員",
+          "安全対策委員",
+          "権利擁護委員",
+          "感染対策委員",
+          "教育委員",
+        ]),
+        label: z.string().min(1).max(200),
+        href: z.string().url(),
+        emoji: z.string().max(10).default("🔗"),
+        color: z.string().max(100).default("text-blue-600"),
+        sortOrder: z.number().int().default(0),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const canManage = ctx.user.role === "admin" || ctx.user.role === "super_admin";
+        if (!canManage) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
+        }
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続エラー" });
+        const { committeeTools } = await import("../drizzle/schema");
+        const result = await db.insert(committeeTools).values({
+          committee: input.committee,
+          label: input.label,
+          href: input.href,
+          emoji: input.emoji,
+          color: input.color,
+          sortOrder: input.sortOrder,
+          createdBy: Number(ctx.user.id),
+        });
+        broadcastEvent("committeeTools");
+        return { success: true, id: Number(result[0].insertId) };
+      }),
+    /** 委員会ツールリンクを更新（admin / super_admin） */
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number().int(),
+        label: z.string().min(1).max(200).optional(),
+        href: z.string().url().optional(),
+        emoji: z.string().max(10).optional(),
+        color: z.string().max(100).optional(),
+        sortOrder: z.number().int().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const canManage = ctx.user.role === "admin" || ctx.user.role === "super_admin";
+        if (!canManage) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
+        }
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続エラー" });
+        const { committeeTools } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const { id, ...data } = input;
+        await db.update(committeeTools).set({ ...data, updatedAt: new Date() }).where(eq(committeeTools.id, id));
+        broadcastEvent("committeeTools");
+        return { success: true };
+      }),
+    /** 委員会ツールリンクを削除（admin / super_admin） */
+    delete: protectedProcedure
+      .input(z.object({ id: z.number().int() }))
+      .mutation(async ({ ctx, input }) => {
+        const canManage = ctx.user.role === "admin" || ctx.user.role === "super_admin";
+        if (!canManage) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "管理者のみ変更できます" });
+        }
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB接続エラー" });
+        const { committeeTools } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        await db.delete(committeeTools).where(eq(committeeTools.id, input.id));
+        broadcastEvent("committeeTools");
+        return { success: true };
+      }),
+  }),
+
   /** 議事録管理 */
   minutes: router({
     /** 議事録一覧を取得（未確認数も含む） */

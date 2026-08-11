@@ -51,6 +51,8 @@ const EVENT_QUERY_MAP: Record<string, string[][]> = {
   users: [["user", "getMyTeam"]],
   // チームツール
   teamTools: [["teamTools", "list"]],
+  // 委員会ツール
+  committeeTools: [["committeeTools", "list"]],
   // チーム目標
   teamGoals: [["teamGoals", "getActive"], ["teamGoals", "getAll"]],
   // 議事録

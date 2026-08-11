@@ -596,6 +596,47 @@ export type TeamTool = typeof teamTools.$inferSelect;
 export type InsertTeamTool = typeof teamTools.$inferInsert;
 
 /**
+ * 委員会ツールリンクテーブル
+ * 各委員会専用のツールリンクを管理する
+ * - committee: 業務改善委員 / 安全対策委員 / 権利擁護委員 / 感染対策委員 / 教育委員
+ * - sortOrder: 表示順（小さいほど上に表示）
+ */
+export const committeeTools = mysqlTable("committee_tools", {
+  id: int("id").autoincrement().primaryKey(),
+  /** 対象委員会 */
+  committee: mysqlEnum("committee", [
+    "業務改善委員",
+    "安全対策委員",
+    "権利擁護委員",
+    "感染対策委員",
+    "教育委員",
+  ]).notNull(),
+  /** 表示名 */
+  label: varchar("label", { length: 200 }).notNull(),
+  /** リンクURL */
+  href: varchar("href", { length: 2000 }).notNull(),
+  /** 絵文字アイコン（例: 📄） */
+  emoji: varchar("emoji", { length: 10 }).default("🔗").notNull(),
+  /** テキスト色クラス（例: text-blue-600） */
+  color: varchar("color", { length: 100 }).default("text-blue-600").notNull(),
+  /** 表示順（小さいほど上） */
+  sortOrder: int("sortOrder").default(0).notNull(),
+  /** 画像データ（Base64エンコード文字列・QRコード画像等の埋込用） */
+  imageData: mediumtext("imageData"),
+  /** 画像のMIMEタイプ（例: image/jpeg） */
+  imageType: varchar("imageType", { length: 50 }),
+  /** 元画像のファイル名（任意） */
+  imageName: varchar("imageName", { length: 255 }),
+  /** 登録したユーザーID */
+  createdBy: int("createdBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type CommitteeTool = typeof committeeTools.$inferSelect;
+export type InsertCommitteeTool = typeof committeeTools.$inferInsert;
+
+/**
  * 議事録テーブル
  * 管理者が議事録ドキュメントを投稿し、スタッフが確認チェックを入れると自動削除される
  */
