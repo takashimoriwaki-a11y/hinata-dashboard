@@ -55,6 +55,68 @@ async function getGoogleSheetsAccessToken(): Promise<string> {
   return token.token;
 }
 
+type SheetProperties = {
+  sheetId: number;
+  title: string;
+  gridProperties?: { rowCount?: number; columnCount?: number };
+};
+
+async function fetchSpreadsheetSheets(token: string): Promise<SheetProperties[]> {
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}?fields=sheets.properties`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!res.ok) return [];
+  const data = await res.json() as { sheets?: { properties: SheetProperties }[] };
+  return data.sheets?.map(s => s.properties) ?? [];
+}
+
+async function ensureSheetExists(token: string, sheetName: string, sheets: SheetProperties[]): Promise<SheetProperties[]> {
+  if (sheets.some(s => s.title === sheetName)) return sheets;
+  const createRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}:batchUpdate`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ requests: [{ addSheet: { properties: { title: sheetName } } }] }),
+  });
+  if (!createRes.ok) return sheets;
+  return fetchSpreadsheetSheets(token);
+}
+
+/** 書き込み行がシートの行数上限を超える場合、不足分の行を追加する */
+async function ensureSheetRowCapacity(
+  token: string,
+  sheet: SheetProperties,
+  requiredRow: number,
+): Promise<void> {
+  const currentRows = sheet.gridProperties?.rowCount ?? 0;
+  if (requiredRow <= currentRows) return;
+  const rowsToAdd = requiredRow - currentRows;
+  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}:batchUpdate`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      requests: [{
+        appendDimension: {
+          sheetId: sheet.sheetId,
+          dimension: "ROWS",
+          length: rowsToAdd,
+        },
+      }],
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let errMsg = "";
+    try {
+      const errJson = JSON.parse(text);
+      errMsg = errJson?.error?.message ?? "";
+    } catch {
+      // ignore
+    }
+    throw new Error(buildSheetExportErrorMessage(res.status, errMsg));
+  }
+}
+
 function buildSheetExportErrorMessage(status: number, errMsg: string): string {
   if (status === 401 || status === 403) {
     return "スプレッドシートへのアクセス権限がありません。管理者にお問い合わせください。";
@@ -93,17 +155,10 @@ export async function exportVisitRecordToSheet(record: VisitRecord): Promise<voi
     `https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}?fields=sheets.properties`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
-  if (metaCheckRes.ok) {
-    const metaCheck = await metaCheckRes.json() as { sheets?: { properties: { title: string } }[] };
-    const sheetAlreadyExists = metaCheck.sheets?.some(s => s.properties.title === SHEET_NAME);
-    if (!sheetAlreadyExists) {
-      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}:batchUpdate`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ requests: [{ addSheet: { properties: { title: SHEET_NAME } } }] }),
-      });
-    }
-  }
+  let sheets = metaCheckRes.ok
+    ? ((await metaCheckRes.json() as { sheets?: { properties: SheetProperties }[] }).sheets?.map(s => s.properties) ?? [])
+    : [];
+  sheets = await ensureSheetExists(token, SHEET_NAME, sheets);
 
   const checkUrl = `https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + "!A1")}?valueRenderOption=UNFORMATTED_VALUE`;
   const checkRes = await fetch(checkUrl, { headers: { Authorization: `Bearer ${token}` } });
@@ -122,6 +177,11 @@ export async function exportVisitRecordToSheet(record: VisitRecord): Promise<voi
   const countRes = await fetch(countUrl, { headers: { Authorization: `Bearer ${token}` } });
   const countData = countRes.ok ? await countRes.json() as { values?: string[][] } : { values: [] };
   const nextRow = (countData.values?.length ?? 1) + 1;
+
+  const targetSheet = sheets.find(s => s.title === SHEET_NAME);
+  if (targetSheet) {
+    await ensureSheetRowCapacity(token, targetSheet, nextRow);
+  }
 
   const writeUrl = `https://sheets.googleapis.com/v4/spreadsheets/${VISIT_RECORD_SHEET_ID}/values/${encodeURIComponent(`${SHEET_NAME}!A${nextRow}`)}?valueInputOption=USER_ENTERED`;
   const res = await fetch(writeUrl, {
