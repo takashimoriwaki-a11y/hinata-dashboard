@@ -3,8 +3,8 @@
  * 手順チェック + アルコールチェック記録 + 打刻を一画面で完結させる
  * 打刻ボタンはいつでも押せる（手順完了を待たない）
  *
- * 出勤画面レイアウト：手順チェック → アルコールチェック → フッター（アルコールチェック記録 / 出勤打刻）
- * 退勤画面レイアウト：残業カード → 退勤打刻ボタン → アルコールチェック → アルコール記録 → みまもドライブ停止
+ * 出勤画面レイアウト：アルコールチェック → みまもドライブ → 業務日報 → ibow確認 → フッター（アルコール記録 / 出勤打刻）
+ * 退勤画面レイアウト：ボイスメモ削除 → 退勤打刻 → 残業申請 → 退勤時チェックリスト → アルコールチェック → アルコール記録 → みまもドライブ停止
  */
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
@@ -73,10 +73,6 @@ const CLOCK_IN_STEPS: ClockInStep[] = [
     id: "ibow_in",
     label: "ibow 24時間体制の記録確認",
     description: "ibowで24時間体制の記録内容を確認する",
-    link: {
-      url: "https://login.ibowservice.jp/",
-      label: "ibowを開く",
-    },
   },
 ];
 
@@ -1823,6 +1819,26 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
             </button>
           </div>
         )}
+        {!isDone && !step.link && (
+          <div className="px-4 pb-3 pt-0">
+            <button
+              type="button"
+              onClick={() => {
+                setDone((prev) => ({ ...prev, [step.id]: true }));
+                setJustCompletedStepId(step.id);
+                setTimeout(() => setJustCompletedStepId(null), 600);
+              }}
+              className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg transition-all active:scale-95 cursor-pointer ${
+                isClockIn
+                  ? "bg-red-100 text-red-700 hover:bg-red-200 active:bg-red-300 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60"
+                  : "bg-blue-100 text-blue-700 hover:bg-blue-200 active:bg-blue-300 dark:bg-blue-900/40 dark:text-blue-300 dark:hover:bg-blue-900/60"
+              }`}
+            >
+              <CheckCircle2 className="w-3 h-3" />
+              確認しました
+            </button>
+          </div>
+        )}
         {isDone && (
           <div className="px-4 pb-3 pt-0">
             <span
@@ -2157,15 +2173,46 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
         <div ref={scrollContainerRef} className="attendance-scroll-container pt-2 pb-0 overflow-y-auto min-h-0 flex-shrink overscroll-contain touch-auto" style={{WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain'}}>
 
           {isClockIn ? (
-            // ── 出勤画面レイアウト：手順チェック → アルコールチェック（事務員はアルコール非表示） ──
+            // ── 出勤画面レイアウト：アルコールチェック → みまもドライブ等の手順チェック ──
             <>
-              {steps.map(renderStepItem)}
               {!isOfficeStaff && alcoholCheckForm}
+              {!alcoholSkipped && !isOfficeStaff && (
+              <div className="mx-3 my-2">
+                <button
+                  type="button"
+                  disabled={isAlcoholPending || alcoholRecorded}
+                  onClick={handleAlcoholOnly}
+                  className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all disabled:cursor-not-allowed shadow-md active:scale-95 ${
+                    alcoholRecorded
+                      ? "bg-green-500 opacity-80"
+                      : "bg-orange-500 hover:bg-orange-600 disabled:opacity-50"
+                  }`}
+                >
+                  {isAlcoholPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      記録中...
+                    </>
+                  ) : alcoholRecorded ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      アルコールチェック記録済み
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="w-4 h-4" />
+                      アルコールチェック記録
+                    </>
+                  )}
+                </button>
+              </div>
+              )}
+              {steps.map(renderStepItem)}
               {/* アルコール記録後のスクロールターゲット（出勤打刻ボタンの直前） */}
               <div ref={afterAlcoholRef} />
             </>
           ) : (
-            // ── 退勤画面レイアウト：残業カード → 退勤打刻 → アルコールチェック → アルコール記録 → みまもドライブ停止 ──
+            // ── 退勤画面レイアウト：ボイスメモ削除 → 退勤打刻 → 残業申請 → チェックリスト → アルコール → みまもドライブ停止 ──
             // 事務員: 残業カード → 退勤打刻 のみ
             <>
               {/* 0. ボイスメモ・NotebookLM削除（事務員は非表示） */}
@@ -2204,8 +2251,6 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 </button>
               </div>
               )}
-              {/* 1. 残業申請 */}
-              {!isEmergency && overtimeCard}
               {/* 2. 退勤打刻ボタン */}
               <div className="mx-3 my-2">
                 {clockOutDone ? (
@@ -2237,7 +2282,9 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                   </button>
                 )}
               </div>
-              {/* 2.5 退勤時チェックリスト（任意・最後の退勤者用、緊急退勤時は非表示） */}
+              {/* 3. 残業申請 */}
+              {!isEmergency && overtimeCard}
+              {/* 4. 退勤時チェックリスト（任意・最後の退勤者用、緊急退勤時は非表示） */}
               {!isEmergency && (
               <div className="mx-3 my-2">
                 {checkoutChecklistUrl ? (
@@ -2260,11 +2307,11 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 )}
               </div>
               )}
-              {/* 3. アルコールチェック（フォーム）— 事務員は非表示 */}
+              {/* 5. アルコールチェック（フォーム）— 事務員は非表示 */}
               {!isOfficeStaff && alcoholCheckForm}
               {/* アルコール記録後のスクロールターゲット（アルコール記録ボタンの直前） */}
               <div ref={afterAlcoholRef} />
-              {/* 4. アルコール記録ボタン（スキップ済み・事務員の場合は非表示） */}
+              {/* 6. アルコール記録ボタン（スキップ済み・事務員の場合は非表示） */}
               {!alcoholSkipped && !isOfficeStaff && (
               <div className="mx-3 my-2">
                 <button
@@ -2296,7 +2343,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 </button>
               </div>
               )}
-              {/* 5. みまもドライブ停止 */}
+              {/* 7. みまもドライブ停止 */}
               {steps.map(renderStepItem)}
             </>
           )}
@@ -2316,42 +2363,7 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
                 </span>
               </div>
             )}
-            {/* アルコールチェック記録ボタン（事務員には非表示） */}
-            {isOfficeStaff ? null : alcoholSkipped && !alcoholRecorded ? (
-              <div className="flex items-center justify-center gap-2 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                <CheckCircle2 className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                <span className="text-sm font-medium text-gray-500 dark:text-gray-400">アルコールチェックスキップ済み</span>
-              </div>
-            ) : (
-            <button
-              type="button"
-              disabled={isAlcoholPending || alcoholRecorded}
-              onClick={handleAlcoholOnly}
-              className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all disabled:cursor-not-allowed shadow-md active:scale-95 ${
-                alcoholRecorded
-                  ? "bg-green-500 opacity-80"
-                  : "bg-orange-500 hover:bg-orange-600 disabled:opacity-50"
-              }`}
-            >
-              {isAlcoholPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  記録中...
-                </>
-              ) : alcoholRecorded ? (
-                <>
-                  <CheckCircle2 className="w-4 h-4" />
-                  アルコールチェック記録済み
-                </>
-              ) : (
-                <>
-                  <Shield className="w-4 h-4" />
-                  アルコールチェック記録
-                </>
-              )}
-            </button>
-            )}
-            {/* 出勤打刻ボタン（後） */}
+            {/* 出勤打刻ボタン */}
             <button
               type="button"
               disabled={isClockPending || clockInDone}
