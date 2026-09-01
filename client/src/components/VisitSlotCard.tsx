@@ -15,8 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Calendar as UiCalendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  Loader2, Calendar, ChevronDown, CheckSquare, X, Copy, Check,
-  CheckCircle2, Circle, Mic, MicOff, ExternalLink
+  Loader2, Calendar, ChevronDown, CheckSquare, X, Check,
+  CheckCircle2, Circle, ExternalLink
 } from "lucide-react";
 import { ja } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -62,12 +62,7 @@ type VisitSlotData = {
   patientName: string;
 };
 
-// バイタルサイン選択肢
-const TEMP_OPTIONS = Array.from({ length: 141 }, (_, i) => (35.0 + i * 0.1).toFixed(1));
-const PULSE_OPTIONS = Array.from({ length: 71 }, (_, i) => String(50 + i));
-const SPO2_OPTIONS = Array.from({ length: 10 }, (_, i) => String(99 - i));
-const SBP_OPTIONS = Array.from({ length: 121 }, (_, i) => String(90 + i));
-const DBP_OPTIONS = Array.from({ length: 71 }, (_, i) => String(40 + i));
+// バイタルサイン選択肢（保存データ互換のため型定義のみ残す）
 
 // カードの保存状態（日付付き）
 type CardSavedState = {
@@ -142,7 +137,7 @@ function loadCardState(slotIndex: number): CardSavedState | null {
   }
 }
 
-export function VisitSlotCard({ slotIndex, slotData, dbCardStateRaw, onSlotChange, selectedPromptBody, selectedPsychiatricPromptBody, onNextVisitChange, externalNextVisitDate, externalNextVisitTime }: Props) {
+export function VisitSlotCard({ slotIndex, slotData, dbCardStateRaw, onSlotChange, selectedPromptBody: _selectedPromptBody, selectedPsychiatricPromptBody: _selectedPsychiatricPromptBody, onNextVisitChange, externalNextVisitDate, externalNextVisitTime }: Props) {
   const utils = trpc.useUtils();
   const todayStr = useMemo(() => getTodayStr(), []);
 
@@ -170,13 +165,8 @@ export function VisitSlotCard({ slotIndex, slotData, dbCardStateRaw, onSlotChang
     return VISIT_TASKS_BEFORE_DEFAULT.map(t => ({ ...t }));
   });
 
-  // 特記事項
+  // 特記事項（保存データ互換のため state は残す）
   const [specialNote, setSpecialNote] = useState(savedState?.specialNote ?? "");
-
-  // コピー完了フラグ（身体科）
-  const [copied, setCopied] = useState(false);
-  // コピー完了フラグ（精神科）
-  const [psychiatricCopied, setPsychiatricCopied] = useState(false);
 
   // 訪問完了フラグ
   const [completed, setCompleted] = useState(savedState?.completed ?? false);
@@ -200,9 +190,12 @@ export function VisitSlotCard({ slotIndex, slotData, dbCardStateRaw, onSlotChang
     [tasksBefore]
   );
   const visitTaskProgressLabel = `${checkedVisitTaskCount}/${VISIT_TASKS_BEFORE_DEFAULT.length} 完了`;
-  // メモ入力中の保護フラグ（IME変換中・フォーカス中はDB同期で上書きしない）
-  const isComposingRef = useRef(false);
-  const isNoteFocusedRef = useRef(false);
+  // 申し送り入力中の保護フラグ（IME変換中・フォーカス中・文章化中はDB同期で上書きしない）
+  const isHandoffComposingRef = useRef(false);
+  const isHandoffMemoFocusedRef = useRef(false);
+  const isFormattingHandoffRef = useRef(false);
+  const handoffFormatSeqRef = useRef(0);
+  const lastHandoffVoiceTextRef = useRef<string | null>(null);
   // 次回訪問日時の保護：前回の利用者IDを記憶（利用者が変わったら日時を再同期するため）
   const prevPatientIdRef = useRef<number | null>(slotData.patientId);
 
@@ -258,28 +251,6 @@ export function VisitSlotCard({ slotIndex, slotData, dbCardStateRaw, onSlotChang
     const el = timeListRef.current.querySelector(`[data-val="${target}"]`) as HTMLElement | null;
     if (el) el.scrollIntoView({ block: "center" });
   }, [timeDropdownOpen]);
-
-  // バイタルサイン カスタムドロップダウン
-  const [vitalDropdownOpen, setVitalDropdownOpen] = useState<"temp" | "pulse" | "spo2" | "sbp" | "dbp" | null>(null);
-  const vitalListRefs = {
-    temp: useRef<HTMLDivElement>(null),
-    pulse: useRef<HTMLDivElement>(null),
-    spo2: useRef<HTMLDivElement>(null),
-    sbp: useRef<HTMLDivElement>(null),
-    dbp: useRef<HTMLDivElement>(null),
-  };
-  const vitalDefaults = { temp: "36.0", pulse: "75", spo2: "99", sbp: "115", dbp: "75" };
-
-  useEffect(() => {
-    if (!vitalDropdownOpen) return;
-    const listRef = vitalListRefs[vitalDropdownOpen];
-    if (!listRef.current) return;
-    const currentVal = vitals[vitalDropdownOpen];
-    const targetVal = currentVal || vitalDefaults[vitalDropdownOpen];
-    const el = listRef.current.querySelector(`[data-val="${targetVal}"]`) as HTMLElement | null;
-    if (el) el.scrollIntoView({ block: "center" });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vitalDropdownOpen]);
 
   // タスク管理から利用者のタスクを取得（未完了のみ）
   const { data: patientTasks = [], refetch: refetchPatientTasks } = trpc.tasks.getByPatientName.useQuery(
@@ -433,10 +404,7 @@ const parsed = (typeof dbCardStateRaw === "string" ? JSON.parse(dbCardStateRaw) 
         }));
       }
       // テキスト系
-      // メモ入力中（IME変換中・フォーカス中）は上書きしない
-        if (typeof parsed.specialNote === "string" && !isComposingRef.current && !isNoteFocusedRef.current) {
-          setSpecialNote(parsed.specialNote);
-        }
+      if (typeof parsed.specialNote === "string") setSpecialNote(parsed.specialNote);
       if (typeof parsed.nextVisitDate === "string") setNextVisitDate(parsed.nextVisitDate);
       if (typeof parsed.nextVisitTime === "string") setNextVisitTime(parsed.nextVisitTime);
       if (typeof parsed.notifiedTo === "string") setNotifiedTo(parsed.notifiedTo);
@@ -446,7 +414,14 @@ const parsed = (typeof dbCardStateRaw === "string" ? JSON.parse(dbCardStateRaw) 
       // boolean
       if (typeof parsed.completed === "boolean") setCompleted(parsed.completed);
       if (typeof parsed.exported === "boolean") setExported(parsed.exported);
-      if (typeof parsed.handoffMemo === "string") setHandoffMemo(parsed.handoffMemo);
+      if (
+        typeof parsed.handoffMemo === "string" &&
+        !isHandoffComposingRef.current &&
+        !isHandoffMemoFocusedRef.current &&
+        !isFormattingHandoffRef.current
+      ) {
+        setHandoffMemo(parsed.handoffMemo);
+      }
       if (typeof parsed.handoffMemoExported === "boolean") setHandoffMemoExported(parsed.handoffMemoExported);
       if (typeof parsed.zestChecked === "boolean") setZestChecked(parsed.zestChecked);
       // バイタル
@@ -561,7 +536,7 @@ const handleClearPatient = () => {
     );
     // 入力済みなら確認ダイアログ
     if (hasInput) {
-      if (!window.confirm(`${slotData.patientName || ""}さんの入力内容（バイタル・メモ等）も全てクリアします。よろしいですか？`)) {
+      if (!window.confirm(`${slotData.patientName || ""}さんの入力内容も全てクリアします。よろしいですか？`)) {
         return;
       }
       // カード内容を全リセット
@@ -594,38 +569,6 @@ const handleClearPatient = () => {
     onSlotChange(slotIndex, { patientId: null, patientName: "" });
   };
 
-  // （身体科）プロンプトをコピーする
-  const handleCopyPrompt = async () => {
-    if (!selectedPromptBody) {
-      toast.error("管理者が（身体科）プロンプトを選択していません");
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(selectedPromptBody);
-      setCopied(true);
-      toast.success("（身体科）プロンプトをコピーしました");
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error("コピーに失敗しました");
-    }
-  };
-
-  // （精神科）プロンプトをコピーする
-  const handleCopyPsychiatricPrompt = async () => {
-    if (!selectedPsychiatricPromptBody) {
-      toast.error("管理者が（精神科）プロンプトを選択していません");
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(selectedPsychiatricPromptBody);
-      setPsychiatricCopied(true);
-      toast.success("（精神科）プロンプトをコピーしました");
-      setTimeout(() => setPsychiatricCopied(false), 2000);
-    } catch {
-      toast.error("コピーに失敗しました");
-    }
-  };
-
   // 訪問完了トグル
   const handleToggleCompleted = () => {
     const next = !completed;
@@ -656,51 +599,45 @@ const handleClearPatient = () => {
     onNextVisitChange?.("", "");
   };
 
-  // このカードだけリセット（全状態 + localStorage削除）
-  const handleResetCard = () => {
-    if (!window.confirm(`${slotData.patientName ? slotData.patientName + "さんの" : ""}カード${slotIndex + 1}の入力内容を全てリセットしますか？`)) return;
-    setTasksBefore(VISIT_TASKS_BEFORE_DEFAULT.map(t => ({ ...t })));
-    setSpecialNote("");
-    setNextVisitDate("");
-    setNextVisitTime("");
-    setNotifiedTo("");
-    setNotifiedToOther("");
-    setNotifyMethod("");
-    setNotifyMethodOther("");
-    setCompleted(false);
-    setExported(false);
-    setHandoffMemo("");
-    setHandoffMemoExported(false);
-    setSavedRecordId(null);
-    setVitals({ temp: "", pulse: "", spo2: "", sbp: "", dbp: "" });
-    setZestChecked(false);
-    setShowTaskForm(false);
-    try {
-      localStorage.removeItem(getCardStorageKey(slotIndex));
-      // DB からも削除（端末跨ぎ同期）
-      resetCardStateMutation.mutate({
-        dateKey: todayStr,
-        slotKey: slotData.slotKey,
-      });
-    } catch {}
-    toast.success(`カード${slotIndex + 1}をリセットしました`);
-  };
-
   const handleHandoffVoiceResult = useCallback(async (text: string) => {
     const rawText = text.trim();
     if (!rawText) return;
+
+    // 同一トランスクリプトの二重発火を無視
+    if (lastHandoffVoiceTextRef.current === rawText) return;
+    lastHandoffVoiceTextRef.current = rawText;
+    setTimeout(() => {
+      if (lastHandoffVoiceTextRef.current === rawText) {
+        lastHandoffVoiceTextRef.current = null;
+      }
+    }, 2000);
+
     const previousText = handoffMemo;
     const draftText = previousText ? `${previousText}\n${rawText}` : rawText;
 
     setHandoffMemo(draftText);
     setHandoffMemoExported(false);
 
+    const seq = ++handoffFormatSeqRef.current;
+    isFormattingHandoffRef.current = true;
     try {
       const result = await formatHandoffMemo.mutateAsync({ text: rawText });
-      setHandoffMemo(previousText ? `${previousText}\n${result.text}` : result.text);
+      if (seq !== handoffFormatSeqRef.current) return;
+      setHandoffMemo((current) => {
+        if (current === draftText || current.endsWith(rawText)) {
+          return previousText ? `${previousText}\n${result.text}` : result.text;
+        }
+        return current.endsWith("\n") ? `${current}${result.text}` : `${current}\n${result.text}`;
+      });
       setHandoffMemoExported(false);
     } catch (err) {
+      if (seq !== handoffFormatSeqRef.current) return;
+      // エラー時は draftText を保持（上書きしない）
       toast.error(err instanceof Error ? `文章化エラー: ${err.message}` : "文章化に失敗しました");
+    } finally {
+      if (seq === handoffFormatSeqRef.current) {
+        isFormattingHandoffRef.current = false;
+      }
     }
   }, [formatHandoffMemo, handoffMemo]);
 
@@ -984,101 +921,6 @@ const handleClearPatient = () => {
               </div>
             </div>
 
-            {/* バイタルサイン入力（月初め保険証確認の直後） */}
-            <div className="rounded-lg border border-border bg-background p-3 space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">バイタルサイン</p>
-              <div className="grid grid-cols-2 gap-2">
-                {/* 体温 */}
-                {([
-                  { key: "temp" as const, label: "体温（℃）", options: TEMP_OPTIONS },
-                  { key: "pulse" as const, label: "脈拍（回/分）", options: PULSE_OPTIONS },
-                  { key: "spo2" as const, label: "SpO₂（%）", options: SPO2_OPTIONS },
-                  { key: "sbp" as const, label: "収縮期血圧（mmHg）", options: SBP_OPTIONS },
-                  { key: "dbp" as const, label: "拡張期血圧（mmHg）", options: DBP_OPTIONS },
-                ] as const).map(({ key, label, options }) => (
-                  <div key={key} className="relative">
-                    <label className="text-[11px] text-muted-foreground block mb-0.5">{label}</label>
-                    <button
-                      type="button"
-                      onClick={() => setVitalDropdownOpen(vitalDropdownOpen === key ? null : key)}
-                      className="w-full flex items-center justify-between text-sm border border-border rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 hover:bg-muted/50 transition-colors"
-                    >
-                      <span className={vitals[key] ? "text-foreground" : "text-muted-foreground"}>
-                        {vitals[key] || "---"}
-                      </span>
-                      <ChevronDown className={cn("w-3.5 h-3.5 text-muted-foreground transition-transform flex-shrink-0", vitalDropdownOpen === key && "rotate-180")} />
-                    </button>
-                    {vitalDropdownOpen === key && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-40"
-                          onClick={() => setVitalDropdownOpen(null)}
-                        />
-                        <div
-                          ref={vitalListRefs[key]}
-                          className="absolute z-50 mt-1 w-full bg-background border border-border rounded-lg shadow-lg overflow-y-auto"
-                          style={{ maxHeight: "200px" }}
-                        >
-                          <button
-                            type="button"
-                            data-val=""
-                            onClick={() => { setVitals(v => ({ ...v, [key]: "" })); setVitalDropdownOpen(null); }}
-                            className={cn(
-                              "w-full text-left px-3 py-2 text-sm hover:bg-muted/60 transition-colors",
-                              vitals[key] === "" && "bg-primary/10 font-semibold text-primary"
-                            )}
-                          >
-                            ---
-                          </button>
-                          {options.map(v => (
-                            <button
-                              key={v}
-                              type="button"
-                              data-val={v}
-                              onClick={() => { setVitals(prev => ({ ...prev, [key]: v })); setVitalDropdownOpen(null); }}
-                              className={cn(
-                                "w-full text-left px-3 py-2 text-sm hover:bg-muted/60 transition-colors",
-                                vitals[key] === v && "bg-primary/10 font-semibold text-primary"
-                              )}
-                            >
-                              {v}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* メモ（月初め保険証確認と訪問後の間） */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <p className="text-xs text-muted-foreground">メモ</p>
-                <VoiceMicButton
-                  size="sm"
-                  previewMode="inline"
-                  context="clinical_notes"
-                  onResult={(text) => setSpecialNote((prev) => prev ? prev + "\n" + text : text)}
-                />
-              </div>
-              <textarea
-                className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-colors placeholder:text-muted-foreground/50"
-                rows={2}
-                placeholder="例：看護記録Ⅱ作成時に使用するキーワード、支援者・家族への連絡等"
-                value={specialNote}
-                onChange={(e) => setSpecialNote(e.target.value)}
-                onCompositionStart={() => { isComposingRef.current = true; }}
-              onCompositionEnd={(e) => {
-                isComposingRef.current = false;
-                setSpecialNote((e.target as HTMLTextAreaElement).value);
-              }}
-              onFocus={() => { isNoteFocusedRef.current = true; }}
-              onBlur={() => { isNoteFocusedRef.current = false; }}
-              />
-              <p className="text-[11px] text-muted-foreground/60 mt-0.5">（注）リセットボタンでメモ削除</p>
-            </div>
             {/* 新しい利用者タスクを追加ボタン */}
             {isPatientSelected && (
               <div>
@@ -1108,18 +950,6 @@ const handleClearPatient = () => {
                 )}
               </div>
             )}
-
-            {/* このカードだけリセットボタン */}
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={handleResetCard}
-                className="flex items-center gap-1 px-2 py-1 rounded-lg border border-border text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                このカードだけリセット
-              </button>
-            </div>
           </div>
 
           {/* ===== ② 次回訪問日時 ===== */}
@@ -1364,52 +1194,6 @@ const handleClearPatient = () => {
                 <span className="text-sm text-foreground">処置内容・外観・環境・視覚情報等を追加録音</span>
               </div>
 
-              {/* ボイスメモをNotebookLMに... + コピーボタン（身体科＋精神科） */}
-              <div className="flex flex-col gap-2 p-2.5 rounded-lg border border-border bg-background">
-                <span className="text-sm text-foreground leading-snug">
-                  ボイスメモをNotebookLMにソースとして追加し、指定のプロンプトで文章を作成
-                </span>
-                {/* 身体科ボタン */}
-                <button
-                  type="button"
-                  onClick={handleCopyPrompt}
-                  title={selectedPromptBody ? "（身体科）プロンプトをコピー" : "管理者が（身体科）プロンプトを選択していません"}
-                  className={cn(
-                    "w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200",
-                    selectedPromptBody
-                      ? copied
-                        ? "bg-emerald-500 dark:bg-emerald-600 text-white shadow-sm"
-                        : "bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg active:scale-95"
-                      : "bg-muted border border-border text-muted-foreground cursor-not-allowed opacity-60"
-                  )}
-                >
-                  {copied ? (
-                    <><Check className="w-4 h-4" />コピー済み</>
-                  ) : (
-                    <><Copy className="w-4 h-4" />（身体科）プロンプトをコピー</>
-                  )}
-                </button>
-                {/* 精神科ボタン */}
-                <button
-                  type="button"
-                  onClick={handleCopyPsychiatricPrompt}
-                  title={selectedPsychiatricPromptBody ? "（精神科）プロンプトをコピー" : "管理者が（精神科）プロンプトを選択していません"}
-                  className={cn(
-                    "w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200",
-                    selectedPsychiatricPromptBody
-                      ? psychiatricCopied
-                        ? "bg-emerald-500 dark:bg-emerald-600 text-white shadow-sm"
-                        : "bg-purple-600 hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-800 text-white shadow-md hover:shadow-lg active:scale-95"
-                      : "bg-muted border border-border text-muted-foreground cursor-not-allowed opacity-60"
-                  )}
-                >
-                  {psychiatricCopied ? (
-                    <><Check className="w-4 h-4" />コピー済み</>
-                  ) : (
-                    <><Copy className="w-4 h-4" />（精神科）プロンプトをコピー</>
-                  )}
-                </button>
-              </div>
               <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground">
                 <CheckSquare className="w-3.5 h-3.5" />
                 {visitTaskProgressLabel}
@@ -1440,6 +1224,14 @@ const handleClearPatient = () => {
                     setHandoffMemo(e.target.value);
                     setHandoffMemoExported(false);
                   }}
+                  onCompositionStart={() => { isHandoffComposingRef.current = true; }}
+                  onCompositionEnd={(e) => {
+                    isHandoffComposingRef.current = false;
+                    setHandoffMemo((e.target as HTMLTextAreaElement).value);
+                    setHandoffMemoExported(false);
+                  }}
+                  onFocus={() => { isHandoffMemoFocusedRef.current = true; }}
+                  onBlur={() => { isHandoffMemoFocusedRef.current = false; }}
                 />
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   {handoffMemoExported ? (
