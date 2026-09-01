@@ -1,4 +1,3 @@
-import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { useState, useCallback, useEffect } from "react";
@@ -165,7 +164,6 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light" switchable={true}>
         <TooltipProvider>
-          <Toaster />
           <PageLoadingBar />
           {showSplash && <SplashScreen onFinish={handleFinish} duration={2000} />}
           <OfflineProvider>
