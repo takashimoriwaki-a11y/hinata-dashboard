@@ -2797,7 +2797,21 @@ type ToolsTabId = typeof TOOLS_TABS[number]["id"];
 // リンク行コンポーネント
 const DAILY_REPORT_SPREADSHEET_ID = "10Leb7UR6ARVlCGbf5pBa5yxsgm5WAV9m-ETyYrzfBCs";
 
-function LinkRow({ href, label, color, colorStyle, emoji, onAddToMyLinks, isInMyLinks }: { href: string; label: string; color?: string; colorStyle?: React.CSSProperties; emoji?: string; onAddToMyLinks?: () => void; isInMyLinks?: boolean }) {
+function isQrCodeToolLabel(label: string): boolean {
+  return /QR|ＱＲ/i.test(label);
+}
+
+function isImageHref(href: string): boolean {
+  return /^data:image\//i.test(href) || /\.(png|jpe?g|gif|webp|svg)(\?|#|$)/i.test(href);
+}
+
+function buildQrCodeImageUrl(data: string): string {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(data)}`;
+}
+
+type QrModalPayload = { label: string; href: string; isImage: boolean };
+
+function LinkRow({ href, label, color, colorStyle, emoji, onAddToMyLinks, isInMyLinks, onQrOpen }: { href: string; label: string; color?: string; colorStyle?: React.CSSProperties; emoji?: string; onAddToMyLinks?: () => void; isInMyLinks?: boolean; onQrOpen?: (payload: QrModalPayload) => void }) {
   const { isNight } = useTheme();
   const [isOpening, setIsOpening] = useState(false);
   const utils = trpc.useUtils();
@@ -2805,8 +2819,14 @@ function LinkRow({ href, label, color, colorStyle, emoji, onAddToMyLinks, isInMy
   const nightColor = color ? color.replace(/-600$/, "-400").replace(/-700$/, "-300") : undefined;
 
   const isDailyReport = href.includes(DAILY_REPORT_SPREADSHEET_ID);
+  const isQrTool = isQrCodeToolLabel(label) || (onQrOpen != null && isImageHref(href));
 
   const handleClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (isQrTool && onQrOpen) {
+      e.preventDefault();
+      onQrOpen({ label, href, isImage: isImageHref(href) });
+      return;
+    }
     if (!isDailyReport) return; // 業務日報以外は通常のリンク動作
     e.preventDefault();
     setIsOpening(true);
@@ -3662,6 +3682,7 @@ export function TeamToolsCard() {
   const [editLabel, setEditLabel] = useState("");
   const [editHref, setEditHref] = useState("");
   const [editEmoji, setEditEmoji] = useState("");
+  const [qrModal, setQrModal] = useState<QrModalPayload | null>(null);
 
   const createTool = trpc.teamTools.create.useMutation({
     onSuccess: () => { utils.teamTools.list.invalidate(); toast.success("ツールを追加しました"); setShowAddForm(false); setNewLabel(""); setNewHref(""); setNewEmoji("🔗"); },
@@ -3796,6 +3817,7 @@ export function TeamToolsCard() {
                       label={tool.label}
                       colorStyle={isNight ? getTeamTextStyleNight(activeTeam === "全チーム" ? (tool as any).team ?? activeTeam : activeTeam) : getTeamTextStyle(activeTeam === "全チーム" ? (tool as any).team ?? activeTeam : activeTeam)}
                       emoji={tool.emoji ?? undefined}
+                      onQrOpen={setQrModal}
                     />
                     {isAdmin && (
                       <>
@@ -3845,8 +3867,37 @@ export function TeamToolsCard() {
           )}
         </div>
 
-
-
+        <Dialog open={qrModal !== null} onOpenChange={(open) => { if (!open) setQrModal(null); }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>{qrModal?.label ?? "QRコード"}</DialogTitle>
+            </DialogHeader>
+            {qrModal && (
+              <div className="flex flex-col items-center gap-4 py-2">
+                <img
+                  src={qrModal.isImage ? qrModal.href : buildQrCodeImageUrl(qrModal.href)}
+                  alt={qrModal.label}
+                  className="w-64 h-64 max-w-full rounded-lg border border-border bg-white object-contain"
+                />
+                <p className="text-xs text-muted-foreground text-center">
+                  スマートフォンのカメラで読み取ってください
+                </p>
+              </div>
+            )}
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setQrModal(null)}>閉じる</Button>
+              {qrModal && !qrModal.isImage && (
+                <Button
+                  onClick={() => {
+                    window.open(qrModal.href, "_blank", "noopener,noreferrer");
+                  }}
+                >
+                  LINEで開く
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
       </CardContent>
     </Card>
