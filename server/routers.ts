@@ -8020,6 +8020,7 @@ ${todayStr}
                 requestedEndAt: request.endAt,
                 requestedReason: request.reason,
               });
+              if (!overtimeRecord.created) continue;
               const startStr = new Date(request.startAt).toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' });
               const endStr = new Date(request.endAt).toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' });
               const notifTitle = `⏰ 残業申請：${ctx.user.name ?? '不明'}`;
@@ -8030,7 +8031,7 @@ ${todayStr}
                   type: 'overtime_request',
                   title: notifTitle,
                   body: notifBody,
-                  resourceId: overtimeRecord?.insertId,
+                  resourceId: overtimeRecord.id,
                 }).catch((e) => console.warn('[OvertimeAuto] Notification insert failed:', e));
                 sendPushToUser(admin.name ?? '', {
                   title: notifTitle,
@@ -8615,8 +8616,8 @@ ${todayStr}
           applicantName: ctx.user.name ?? "不明",
           ...input,
         });
-        // 特級管理者全員に残業申請のアプリ内通知を送信
-        try {
+        // 特級管理者全員に残業申請のアプリ内通知を送信（新規作成時のみ）
+        if (record.created) try {
           const superAdmins = await getSuperAdminUsers();
           const startTime = new Date(input.requestedStartAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
           const endTime = new Date(input.requestedEndAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
@@ -8626,7 +8627,7 @@ ${todayStr}
               type: "overtime_request",
               title: `残業申請：${ctx.user.name ?? "不明"}`,
               body: `${input.applicationDate} ${startTime}～${endTime}\n理由：${input.requestedReason ?? "（理由なし）"}\n承認または却下をお願いします。`,
-              resourceId: (record as any)?.insertId ?? undefined,
+              resourceId: record.id,
             }).catch((e) => console.error(`[Overtime] notify failed for userId=${admin.id}:`, e))
           );
           await Promise.allSettled(notifyPromises);
@@ -8644,7 +8645,7 @@ ${todayStr}
         } catch (e) {
           console.error("[Overtime] Super admin notification failed:", e);
         }
-        return { success: true };
+        return { success: true, created: record.created };
       }),
     /** 残業申請を承認・却下する（管理者用） */
     approve: protectedProcedure

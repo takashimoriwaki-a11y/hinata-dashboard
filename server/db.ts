@@ -2392,7 +2392,7 @@ export async function getOvertimeApprovalsByUser(userId: number) {
     .orderBy(desc(overtimeApprovals.createdAt));
 }
 
-/** 残業申請を作成する */
+/** 残業申請を作成する（同一内容の pending が既にあれば重複作成しない） */
 export async function createOvertimeApproval(input: {
   applicantUserId: number;
   applicantName: string;
@@ -2400,9 +2400,26 @@ export async function createOvertimeApproval(input: {
   requestedStartAt: number;
   requestedEndAt: number;
   requestedReason?: string;
-}) {
+}): Promise<{ id: number; created: boolean }> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+
+  const existing = await db
+    .select({ id: overtimeApprovals.id })
+    .from(overtimeApprovals)
+    .where(and(
+      eq(overtimeApprovals.applicantUserId, input.applicantUserId),
+      eq(overtimeApprovals.applicationDate, input.applicationDate),
+      eq(overtimeApprovals.requestedStartAt, input.requestedStartAt),
+      eq(overtimeApprovals.requestedEndAt, input.requestedEndAt),
+      eq(overtimeApprovals.status, "pending"),
+    ))
+    .limit(1);
+
+  if (existing[0]) {
+    return { id: existing[0].id, created: false };
+  }
+
   const [result] = await db.insert(overtimeApprovals).values({
     applicantUserId: input.applicantUserId,
     applicantName: input.applicantName,
@@ -2411,7 +2428,8 @@ export async function createOvertimeApproval(input: {
     requestedEndAt: input.requestedEndAt,
     requestedReason: input.requestedReason ?? null,
   });
-  return result;
+  const id = Number((result as { insertId?: number })?.insertId ?? 0);
+  return { id, created: true };
 }
 
 /** 残業申請を承認・却下する（管理者用） */
