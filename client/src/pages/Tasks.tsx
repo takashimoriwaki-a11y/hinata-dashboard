@@ -1191,7 +1191,7 @@ export default function Tasks() {
                         className="flex-1 h-8"
                         onClick={() => setEditingId(null)}
                       >
-                        <X className="w-3.5 h-3.5 mr-1" />キャンセル
+                        <X className="w-5 h-5 mr-1" />キャンセル
                       </Button>
                       <Button
                         size="sm"
@@ -1199,7 +1199,7 @@ export default function Tasks() {
                         onClick={handleUpdate}
                         disabled={updateTask.isPending || !editText.trim()}
                       >
-                        <Check className="w-3.5 h-3.5 mr-1" />
+                        <Check className="w-5 h-5 mr-1" />
                         {updateTask.isPending ? "保存中..." : "保存"}
                       </Button>
                     </div>
@@ -1286,7 +1286,7 @@ export default function Tasks() {
                           className="text-muted-foreground hover:text-primary transition-colors"
                           title="編集（作成者のみ）"
                         >
-                          <Pencil className="w-3.5 h-3.5" />
+                          <Pencil className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => deleteTask.mutate({ id: task.id })}

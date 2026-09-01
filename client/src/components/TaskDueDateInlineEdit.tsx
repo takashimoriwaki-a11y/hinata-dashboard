@@ -168,19 +168,19 @@ export function TaskDueDateInlineEdit({
             type="button"
             onClick={handleSave}
             disabled={updateTask.isPending}
-            className="p-1 text-primary hover:bg-primary/10 rounded transition-colors disabled:opacity-40"
+            className="p-1.5 text-primary hover:bg-primary/10 rounded transition-colors disabled:opacity-40"
             title="保存"
           >
-            <Check className="w-3.5 h-3.5" />
+            <Check className="w-5 h-5" />
           </button>
           <button
             type="button"
             onClick={handleCancel}
             disabled={updateTask.isPending}
-            className="p-1 text-muted-foreground hover:text-destructive rounded transition-colors"
+            className="p-1.5 text-muted-foreground hover:text-destructive rounded transition-colors"
             title="キャンセル"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-5 h-5" />
           </button>
         </div>
       </div>
@@ -205,10 +205,10 @@ export function TaskDueDateInlineEdit({
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="flex-shrink-0 p-0.5 text-muted-foreground hover:text-primary opacity-70 sm:opacity-0 sm:group-hover/due:opacity-100 focus:opacity-100 transition-opacity"
+          className="flex-shrink-0 p-1 text-muted-foreground hover:text-primary opacity-70 sm:opacity-0 sm:group-hover/due:opacity-100 focus:opacity-100 transition-opacity"
           title="期日を編集"
         >
-          <Pencil className="w-3 h-3" />
+          <Pencil className="w-5 h-5" />
         </button>
       )}
     </div>

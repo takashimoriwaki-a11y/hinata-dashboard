@@ -1149,7 +1149,7 @@ function TaskCard({
               onClick={() => { setExpanded(false); onEdit(task); }}
               className="flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 px-2.5 py-1.5 rounded-lg bg-amber-900/20 hover:bg-amber-900/40 transition-colors"
             >
-              <Pencil className="w-3.5 h-3.5" />編集
+              <Pencil className="w-5 h-5" />編集
             </button>
           <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
             <AlertDialogTrigger asChild>
