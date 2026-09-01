@@ -69,7 +69,6 @@ import {
   Trash2,
   MessageSquare,
   ClipboardList,
-  ClipboardEdit,
   Upload,
   Phone,
   Calendar,
@@ -101,6 +100,7 @@ import {
   RotateCcw,
   StickyNote,
   Save,
+  Lightbulb,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, openLink } from "@/lib/utils";
@@ -5997,6 +5997,11 @@ export default function Dashboard() {
     ? "linear-gradient(135deg, rgba(30,27,75,0.75) 0%, rgba(49,46,129,0.65) 50%, rgba(76,29,149,0.70) 100%)"
     : "linear-gradient(135deg, rgba(249,115,22,0.55) 0%, rgba(251,146,60,0.45) 50%, rgba(251,191,36,0.50) 100%)";
 
+  const handleScrollToImprovementBox = () => {
+    const el = document.getElementById("improvement-box");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <div ref={scrollContainerRef as React.RefObject<HTMLDivElement>} className="px-4 py-3 md:py-4 pb-6 md:pb-4 space-y-3 md:space-y-4 max-w-screen-xl mx-auto">
       {/* ウェルカムバナー */}
@@ -6118,15 +6123,19 @@ export default function Dashboard() {
               <CalendarDays className="w-3.5 h-3.5 md:w-4 md:h-4" />
               日程管理
             </Link>
-            {/* 6. 訪問 */}
-            <Link
-              href="/record#record-condition"
+            {/* 6. 業務改善意見箱 */}
+            <button
+              type="button"
               onPointerDown={() => {}}
-              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px]" style={{backgroundColor: '#b06a1a', touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent'}} onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#9a5c14')} onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor='#b06a1a')}
+              onClick={handleScrollToImprovementBox}
+              className="flex items-center justify-center gap-1 transition-all duration-200 text-white text-xs md:text-sm font-semibold px-2 py-2 md:px-4 md:py-2 rounded-full shadow-sm whitespace-nowrap hover:-translate-y-0.5 hover:shadow-md active:scale-95 active:translate-y-0 active:shadow-sm select-none min-h-[40px] relative"
+              style={{ backgroundColor: '#7c3aed', touchAction: 'pan-y', WebkitTapHighlightColor: 'transparent' }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#6d28d9')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#7c3aed')}
             >
-              <ClipboardEdit className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              訪問
-            </Link>
+              <Lightbulb className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              業務改善意見箱
+            </button>
             {/* 7. 直帰申請 */}
             <Link
               href="/direct-return"
