@@ -4,6 +4,7 @@
  * - 今日の利用者タスクのフィルタリングロジック（assignUserId=nullのpersonalタスク）
  */
 import { describe, it, expect } from "vitest";
+import { isTaskDueOnDate } from "../shared/taskRecurrence";
 
 // ========== 今日の利用者タスクフィルタロジックのテスト ==========
 
@@ -15,6 +16,9 @@ type TaskLike = {
   assignUserId?: number | null;
   createdBy?: number;
   dueDate?: Date | null;
+  repeatType?: string | null;
+  repeatDayOfWeek?: number | null;
+  repeatDayOfMonth?: number | null;
 };
 
 /**
@@ -36,11 +40,7 @@ function filterTodayPatientTasks(tasks: TaskLike[], userId: number): TaskLike[] 
         if (t.createdBy !== userId) return false;
       }
     }
-    if (!t.dueDate) return true;
-    const d = new Date(t.dueDate);
-    const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const diff = Math.floor((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return diff <= 0;
+    return isTaskDueOnDate(t, today);
   });
 }
 
@@ -117,6 +117,72 @@ describe("今日の利用者タスクフィルタ", () => {
       { done: 0, patientName: "田中花子", assignType: "team", dueDate: null },
     ];
     expect(filterTodayPatientTasks(tasks, userId)).toHaveLength(1);
+  });
+
+  it("毎週繰り返し: 今日が該当曜日なら表示される", () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tasks: TaskLike[] = [
+      {
+        done: 0,
+        patientName: "田中花子",
+        assignType: "all",
+        dueDate: new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000),
+        repeatType: "weekly",
+        repeatDayOfWeek: today.getDay(),
+      },
+    ];
+    expect(filterTodayPatientTasks(tasks, userId)).toHaveLength(1);
+  });
+
+  it("毎週繰り返し: 今日が該当曜日でなければ除外される", () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const otherDay = (today.getDay() + 1) % 7;
+    const tasks: TaskLike[] = [
+      {
+        done: 0,
+        patientName: "田中花子",
+        assignType: "all",
+        dueDate: new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000),
+        repeatType: "weekly",
+        repeatDayOfWeek: otherDay,
+      },
+    ];
+    expect(filterTodayPatientTasks(tasks, userId)).toHaveLength(0);
+  });
+
+  it("毎月繰り返し: 今日が該当日なら表示される", () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tasks: TaskLike[] = [
+      {
+        done: 0,
+        patientName: "田中花子",
+        assignType: "all",
+        dueDate: new Date(today.getFullYear(), today.getMonth() - 1, today.getDate()),
+        repeatType: "monthly",
+        repeatDayOfMonth: today.getDate(),
+      },
+    ];
+    expect(filterTodayPatientTasks(tasks, userId)).toHaveLength(1);
+  });
+
+  it("毎月繰り返し: 今日が該当日でなければ除外される", () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const otherDay = today.getDate() === 1 ? 2 : 1;
+    const tasks: TaskLike[] = [
+      {
+        done: 0,
+        patientName: "田中花子",
+        assignType: "all",
+        dueDate: new Date(today.getFullYear(), today.getMonth() - 1, otherDay),
+        repeatType: "monthly",
+        repeatDayOfMonth: otherDay,
+      },
+    ];
+    expect(filterTodayPatientTasks(tasks, userId)).toHaveLength(0);
   });
 });
 

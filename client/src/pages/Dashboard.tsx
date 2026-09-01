@@ -6,6 +6,7 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useCountUp, useAnimatedProgress } from "@/hooks/useCountUp";
+import { isTaskDueOnDate } from "@shared/taskRecurrence";
 import { Confetti } from "@/components/Confetti";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -4372,12 +4373,7 @@ function PatientTasksCard() {
           }
         }
         // team/all/未設定は全員に表示（チームフィルターボタンで絞り込む）
-        if (!t.dueDate) return true; // 期日なしは表示
-        // ローカル時間でdiff計算（タイムゾーン問題を回避）
-        const d = new Date(t.dueDate);
-        const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-        const diff = Math.floor((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        return diff <= 0; // 今日以前（期日過ぎ含む）を表示
+        return isTaskDueOnDate(t, today);
       })
       .sort((a, b) => {
         if (!a.dueDate && !b.dueDate) return 0;
