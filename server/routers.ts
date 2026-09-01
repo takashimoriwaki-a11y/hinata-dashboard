@@ -3743,6 +3743,28 @@ ${todayStr}
 
         return { assignments: rows };
       }),
+
+    /**
+     * 指定日の訪問予定に含まれる利用者名一覧を取得（今日の利用者タスク表示用）
+     */
+    getVisitPatientNamesByDate: protectedProcedure
+      .input(z.object({ date: z.string().min(10).max(10) }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return { patientNames: [] as string[] };
+        const { dailyVisitAssignments } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+
+        const rows = await db
+          .select({ patientName: dailyVisitAssignments.patientName })
+          .from(dailyVisitAssignments)
+          .where(eq(dailyVisitAssignments.date, input.date));
+
+        const patientNames = [...new Set(
+          rows.map((r) => r.patientName.trim()).filter((name) => name.length > 0)
+        )];
+        return { patientNames };
+      }),
   }),
 
   // ========== タスク一括取り込み（特級管理者専用） ===========

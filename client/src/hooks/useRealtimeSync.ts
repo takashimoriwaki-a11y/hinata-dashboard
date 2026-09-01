@@ -81,6 +81,7 @@ const EVENT_QUERY_MAP: Record<string, string[][]> = {
   dailyVisitAssignments: [
     ["dailyVisitAssignments", "getMine"],
     ["dailyVisitAssignments", "getAllByDate"],
+    ["dailyVisitAssignments", "getVisitPatientNamesByDate"],
   ],
   // 共有プロンプト（追加・編集・削除・並び替え・選択を全職員に即時反映）
   sharedPrompts: [

@@ -6,7 +6,8 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useCountUp, useAnimatedProgress } from "@/hooks/useCountUp";
-import { isTaskDueOnDate } from "@shared/taskRecurrence";
+import { isTaskDueOnDate, isTaskOverdue } from "@shared/taskRecurrence";
+import { getTodayJstKey, isPatientScheduledForVisit } from "@shared/patientTaskFilter";
 import { Confetti } from "@/components/Confetti";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -4353,7 +4354,13 @@ function PatientTasksCard() {
     staleTime: 30 * 1000,
     refetchOnWindowFocus: true,
   });
-  // 今日の利用者タスク（patientNameが設定されていて、今日が期日 or 期日過ぎ or 期日なし or 次回訪問時）
+  const todayKey = useMemo(() => getTodayJstKey(), []);
+  const { data: visitSchedule } = trpc.dailyVisitAssignments.getVisitPatientNamesByDate.useQuery(
+    { date: todayKey },
+    { staleTime: 30 * 1000, refetchOnWindowFocus: true },
+  );
+  const scheduledPatientNames = visitSchedule?.patientNames ?? [];
+  // 今日の利用者タスク（今日の訪問予定者 + 期日超過の未実施タスク）
   const todayPatientTasks = useMemo(() => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -4361,8 +4368,9 @@ function PatientTasksCard() {
       .filter((t) => {
         if (t.done !== 0) return false;
         if (!(t as any).patientName) return false; // 利用者名なしは除外
-        // next_visitタスクは期日なしで登録されるため、assignTypeに関わらず常に表示
-        if ((t as any).taskKind === "next_visit") return true;
+        const overdue = isTaskOverdue(t, today);
+        const scheduled = isPatientScheduledForVisit((t as any).patientName, scheduledPatientNames);
+        if (!scheduled && !overdue) return false;
         // personalタスクは自分宛てのみ表示（他人の個人タスクは除外）
         // assignUserIdがnullの場合は作成者自身向けとして扱う
         if (t.assignType === "personal") {
@@ -4373,7 +4381,7 @@ function PatientTasksCard() {
           }
         }
         // team/all/未設定は全員に表示（チームフィルターボタンで絞り込む）
-        return isTaskDueOnDate(t, today);
+        return isTaskDueOnDate(t, today) || overdue;
       })
       .sort((a, b) => {
         if (!a.dueDate && !b.dueDate) return 0;
@@ -4381,7 +4389,7 @@ function PatientTasksCard() {
         if (!b.dueDate) return -1;
         return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
       });
-  }, [tasks, user?.id, (user as any)?.team]);
+  }, [tasks, user?.id, (user as any)?.team, scheduledPatientNames]);
 
   // チーム・利用者名フィルター後のタスク
   const filteredPatientTasks = useMemo(() => {

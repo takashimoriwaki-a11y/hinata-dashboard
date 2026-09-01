@@ -40,3 +40,10 @@ export function isTaskDueOnDate(task: TaskDueCheckInput, today: Date): boolean {
   const target = startOfDay(new Date(task.dueDate));
   return target.getTime() <= today.getTime();
 }
+
+/** 期日を過ぎて未実施のタスクか（期日なしは false） */
+export function isTaskOverdue(task: TaskDueCheckInput, today: Date): boolean {
+  if (!task.dueDate) return false;
+  const target = startOfDay(new Date(task.dueDate));
+  return target.getTime() < today.getTime();
+}
