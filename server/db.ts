@@ -1940,6 +1940,140 @@ export async function getYesterdayAttendance(userId: number): Promise<Attendance
     .orderBy(attendanceLogs.clockedAt);
 }
 
+/** 退勤リマインド対象職員 */
+export type UncheckedOutStaff = {
+  userId: number;
+  userName: string;
+  email: string | null;
+  clockInAt: number;
+};
+
+function getNthMonday(year: number, monthIndex: number, n: number): number {
+  const first = new Date(year, monthIndex, 1);
+  const firstDow = first.getDay();
+  const firstMonday = 1 + ((1 - firstDow + 7) % 7);
+  return firstMonday + (n - 1) * 7;
+}
+
+/** 日本の祝日判定（固定日・ハッピーマンデー・春分秋分・振替休日・国民の休日） */
+export function isJapaneseHoliday(year: number, month: number, day: number): boolean {
+  const key = (m: number, d: number) => `${m}-${d}`;
+  const holidays = new Set<string>();
+
+  const add = (m: number, d: number) => {
+    if (d >= 1 && d <= 31) holidays.add(key(m, d));
+  };
+
+  add(1, 1); // 元日
+  add(1, getNthMonday(year, 0, 2)); // 成人の日
+  add(2, 11); // 建国記念の日
+  add(2, 23); // 天皇誕生日
+  const vernal = Math.floor(20.8431 + 0.242194 * (year - 1980) - Math.floor((year - 1980) / 4));
+  add(3, vernal); // 春分の日
+  add(4, 29); // 昭和の日
+  add(5, 3); // 憲法記念日
+  add(5, 4); // みどりの日
+  add(5, 5); // こどもの日
+  add(7, getNthMonday(year, 6, 3)); // 海の日
+  add(8, 11); // 山の日
+  add(9, getNthMonday(year, 8, 3)); // 敬老の日
+  const autumnal = Math.floor(23.2488 + 0.242194 * (year - 1980) - Math.floor((year - 1980) / 4));
+  add(9, autumnal); // 秋分の日
+  add(10, getNthMonday(year, 9, 2)); // スポーツの日
+  add(11, 3); // 文化の日
+  add(11, 23); // 勤労感謝の日
+
+  // 振替休日（日曜祝日の翌月曜）
+  for (const h of [...holidays]) {
+    const [mStr, dStr] = h.split("-");
+    const m = Number(mStr);
+    const d = Number(dStr);
+    if (new Date(year, m - 1, d).getDay() === 0) {
+      add(m, d + 1);
+    }
+  }
+
+  // 国民の休日（祝日に挟まれた平日）
+  for (let m = 1; m <= 12; m++) {
+    const daysInMonth = new Date(year, m, 0).getDate();
+    for (let d = 2; d < daysInMonth; d++) {
+      if (!holidays.has(key(m, d)) && holidays.has(key(m, d - 1)) && holidays.has(key(m, d + 1))) {
+        holidays.add(key(m, d));
+      }
+    }
+  }
+
+  return holidays.has(key(month, day));
+}
+
+function getJstParts(now: Date): {
+  year: number;
+  month: number;
+  day: number;
+  dow: number;
+  startMs: number;
+  endMs: number;
+  eightThirtyMs: number;
+} {
+  const jstOffset = 9 * 60 * 60 * 1000;
+  const jstNow = new Date(now.getTime() + jstOffset);
+  const year = jstNow.getUTCFullYear();
+  const month = jstNow.getUTCMonth() + 1;
+  const day = jstNow.getUTCDate();
+  const dow = jstNow.getUTCDay();
+  const startMs = Date.UTC(year, month - 1, day) - jstOffset;
+  const endMs = startMs + 24 * 60 * 60 * 1000 - 1;
+  const eightThirtyMs = startMs + (8 * 60 + 30) * 60 * 1000;
+  return { year, month, day, dow, startMs, endMs, eightThirtyMs };
+}
+
+/**
+ * 退勤リマインド対象：今日出勤あり・退勤なしの職員一覧
+ * - 平日: 出勤あり・退勤なし全員
+ * - 土日祝: 出勤打刻が 8:30（JST）以前の人のみ
+ */
+export async function getUncheckedOutStaffForReminder(now: Date = new Date()): Promise<UncheckedOutStaff[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const { and, gte, lte } = await import("drizzle-orm");
+  const { year, month, day, dow, startMs, endMs, eightThirtyMs } = getJstParts(now);
+  const isWeekendOrHoliday = dow === 0 || dow === 6 || isJapaneseHoliday(year, month, day);
+
+  const logs = await db.select().from(attendanceLogs)
+    .where(and(gte(attendanceLogs.clockedAt, startMs), lte(attendanceLogs.clockedAt, endMs)))
+    .orderBy(attendanceLogs.clockedAt);
+
+  const byUser = new Map<number, { userName: string; clockIns: number[]; hasClockOut: boolean }>();
+  for (const log of logs) {
+    const entry = byUser.get(log.userId) ?? { userName: log.userName, clockIns: [], hasClockOut: false };
+    entry.userName = log.userName || entry.userName;
+    if (log.type === "clock_in") entry.clockIns.push(log.clockedAt);
+    if (log.type === "clock_out") entry.hasClockOut = true;
+    byUser.set(log.userId, entry);
+  }
+
+  const candidates: UncheckedOutStaff[] = [];
+  for (const [userId, entry] of byUser) {
+    if (entry.clockIns.length === 0 || entry.hasClockOut) continue;
+    const firstClockIn = Math.min(...entry.clockIns);
+    if (isWeekendOrHoliday && firstClockIn > eightThirtyMs) continue;
+    candidates.push({
+      userId,
+      userName: entry.userName,
+      email: null,
+      clockInAt: firstClockIn,
+    });
+  }
+
+  if (candidates.length === 0) return [];
+
+  const userRows = await db.select({ id: users.id, email: users.email }).from(users);
+  const emailById = new Map(userRows.map((u) => [u.id, u.email ?? null]));
+  return candidates
+    .map((c) => ({ ...c, email: emailById.get(c.userId) ?? null }))
+    .sort((a, b) => a.userName.localeCompare(b.userName, "ja"));
+}
+
 // ============================================================
 // AI共有プロンプト
 // ============================================================

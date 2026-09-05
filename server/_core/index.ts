@@ -8,7 +8,7 @@ import { registerGoogleAuthRoutes } from "./googleAuth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
-import { deleteAllTodayScreenshots, moveTomorrowToToday, rotateScheduleDays, getTodayDueTasks, getPatients, getAllUsers, getCommentsByDate, deleteCommentsByDate, cleanupExpiredDeletedTasks, getAlcoholCheckSpreadsheet } from "../db";
+import { deleteAllTodayScreenshots, moveTomorrowToToday, rotateScheduleDays, getTodayDueTasks, getPatients, getAllUsers, getCommentsByDate, deleteCommentsByDate, cleanupExpiredDeletedTasks, getAlcoholCheckSpreadsheet, getUncheckedOutStaffForReminder } from "../db";
 import { notifyOwner } from "./notification";
 import multer from "multer";
 import { ENV } from "./env";
@@ -1858,3 +1858,83 @@ function scheduleScheduleChangeCleanup() {
   console.log("[ScheduleChangeCleanup] 毎日0:05のスケジュール変更連絡自動削除スケジューラーを開始しました");
 }
 scheduleScheduleChangeCleanup();
+
+// ========== 毎日20:00 / 21:00（JST）に未退勤職員をGoogle Chatスペースへ通知 ==========
+async function postCheckoutReminderToGoogleChat(hourLabel: string): Promise<void> {
+  const webhookUrl = process.env.GOOGLE_CHAT_CHECKOUT_WEBHOOK_URL?.trim();
+  if (!webhookUrl) {
+    console.warn("[CheckoutReminder] GOOGLE_CHAT_CHECKOUT_WEBHOOK_URL が未設定のためスキップします");
+    return;
+  }
+
+  const staff = await getUncheckedOutStaffForReminder();
+  if (staff.length === 0) {
+    console.log(`[CheckoutReminder] ${hourLabel} - 未退勤職員なし（投稿しません）`);
+    return;
+  }
+
+  const nameLines = staff.map((s) => `・${s.userName}`).join("\n");
+  const text = [
+    `⏰ 退勤打刻リマインド（${hourLabel}）`,
+    `出勤済み・退勤未打刻：${staff.length}名`,
+    "",
+    nameLines,
+    "",
+    "ひなたダッシュボードから退勤打刻をお願いします。",
+  ].join("\n");
+
+  const res = await fetch(webhookUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json; charset=UTF-8" },
+    body: JSON.stringify({ text }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Google Chat Webhook失敗: ${res.status} ${body}`);
+  }
+
+  console.log(`[CheckoutReminder] ${hourLabel} - ${staff.length}名をGoogle Chatへ投稿しました`);
+}
+
+function scheduleCheckoutReminder() {
+  const checkInterval = 60 * 1000; // 1分ごとにチェック
+  const sentKeys = new Set<string>();
+
+  setInterval(async () => {
+    const now = new Date();
+    const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    const h = jstNow.getUTCHours();
+    const m = jstNow.getUTCMinutes();
+    const dateStr = jstNow.toISOString().slice(0, 10);
+
+    // 20:00 / 21:00（JST）に各1回
+    if (m !== 0 || (h !== 20 && h !== 21)) return;
+
+    const key = `${dateStr}-${h}`;
+    if (sentKeys.has(key)) return;
+    sentKeys.add(key);
+
+    // 古いキーを掃除（直近2日分以外）
+    for (const k of [...sentKeys]) {
+      if (!k.startsWith(dateStr) && !k.startsWith(
+        new Date(jstNow.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      )) {
+        sentKeys.delete(k);
+      }
+    }
+
+    try {
+      const hourLabel = `${String(h).padStart(2, "0")}:00`;
+      console.log(`[CheckoutReminder] ${dateStr} ${hourLabel} - 未退勤職員を確認します`);
+      await postCheckoutReminderToGoogleChat(hourLabel);
+    } catch (e) {
+      console.error(`[CheckoutReminder] エラー:`, e);
+      // 失敗時は同日同時刻の再試行を許可
+      sentKeys.delete(key);
+    }
+  }, checkInterval);
+
+  console.log("[CheckoutReminder] 毎日20:00/21:00の退勤リマインドスケジューラーを開始しました");
+}
+scheduleCheckoutReminder();
