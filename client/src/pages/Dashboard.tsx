@@ -5884,47 +5884,12 @@ export default function Dashboard() {
   // 出退勤打刻
   const [attendanceModalType, setAttendanceModalType] = useState<"clock_in" | "clock_out" | null>(null);
   const [alcoholCheckModalType, setAlcoholCheckModalType] = useState<"clock_in" | "clock_out" | null>(null);
-  // 出勤完了フラグ（出勤画面で全タスク完了後にtrueになる）
-  // localStorageに保存済みの当日状態を読み込んで初期値に反映
-  const [clockInAllDone, setClockInAllDone] = useState(() => {
-    try {
-      // 日付に関係なく完了フラグをチェック（毎朝リセットボタン必須仕様）
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith("attendance_done_clock_in_") && localStorage.getItem(key) === "true") return true;
-        if (key && key.startsWith("attendance_clock_in_")) {
-          const saved = localStorage.getItem(key);
-          if (saved) {
-            try {
-              const state = JSON.parse(saved);
-              if (state.clockInDone === true && state.alcoholRecorded === true) return true;
-            } catch {}
-          }
-        }
-      }
-    } catch {}
-    return false;
-  });
-  const [clockOutAllDone, setClockOutAllDone] = useState(() => {
-    try {
-      // 日付に関係なく完了フラグをチェック（毎朝リセットボタン必須仕様）
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith("attendance_done_clock_out_") && localStorage.getItem(key) === "true") return true;
-        if (key && key.startsWith("attendance_clock_out_")) {
-          const saved = localStorage.getItem(key);
-          if (saved) {
-            try {
-              const state = JSON.parse(saved);
-              if (state.clockOutDone === true && state.alcoholRecorded === true) return true;
-            } catch {}
-          }
-        }
-      }
-    } catch {}
-    return false;
-  });
   const { data: todayAttendance, refetch: refetchAttendance } = trpc.attendance.today.useQuery();
+  // 出勤済み／退勤済みは「本日のDB打刻」のみで判定（localStorageの日付またぎ残存で誤表示しない）
+  const clockInCount = todayAttendance?.filter((r) => r.type === "clock_in").length ?? 0;
+  const clockOutCount = todayAttendance?.filter((r) => r.type === "clock_out").length ?? 0;
+  const clockInAllDone = clockInCount > 0;
+  const clockOutAllDone = clockOutCount > 0;
   // 退勤時チェックリストURL（全チーム共通ツールのcheckout_checklistリンク）
   const { data: allLinks } = trpc.spreadsheetLinks.getCurrent.useQuery();
   // 承認残業時間サマリー（当日・今月）
@@ -5966,17 +5931,15 @@ export default function Dashboard() {
   };
   // 出勤モーダルで全タスク完了時のコールバック
   const handleClockInConfirm = () => {
-    setClockInAllDone(true);
     setAttendanceModalType(null);
     void refetchAttendance();
   };
   // 退勤モーダルで全タスク完了時のコールバック
   const handleClockOutConfirm = () => {
-    setClockOutAllDone(true);
     setAttendanceModalType(null);
     void refetchAttendance();
   };
-  // 出勤・退勤の打刻状態をlocalStorageからリセットする
+  // 手順チェックの途中保存（localStorage）をクリアする（DBの打刻自体は消えない）
   const handleResetAttendance = () => {
     try {
       // 全ての勤怠関連キーを削除（日付に関係なく）
@@ -5991,9 +5954,7 @@ export default function Dashboard() {
         )) keysToRemove.push(key);
       }
       keysToRemove.forEach(k => localStorage.removeItem(k));
-      setClockInAllDone(false);
-      setClockOutAllDone(false);
-      toast.success("打刻状態をリセットしました");
+      toast.success("手順の途中保存をクリアしました");
     } catch {
       toast.error("リセットに失敗しました");
     }
@@ -6007,9 +5968,6 @@ export default function Dashboard() {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
     setAttendanceModalType("clock_out");
   };
-  // 当日の打刻履歴数（複数回打刻判定用）
-  const clockInCount = todayAttendance?.filter((r) => r.type === "clock_in").length ?? 0;
-  const clockOutCount = todayAttendance?.filter((r) => r.type === "clock_out").length ?? 0;
   // 毎朝8時以降は緊急出退勤ボタンを非表示にする
   const currentHour = new Date().getHours();
   const isAfter8AM = currentHour >= 8;

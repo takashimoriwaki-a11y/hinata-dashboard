@@ -1867,10 +1867,23 @@ async function postCheckoutReminderToGoogleChat(hourLabel: string): Promise<void
     return;
   }
 
-  const staff = await getUncheckedOutStaffForReminder();
-  if (staff.length === 0) {
+  const first = await getUncheckedOutStaffForReminder();
+  if (first.length === 0) {
     console.log(`[CheckoutReminder] ${hourLabel} - 未退勤職員なし（投稿しません）`);
     return;
+  }
+
+  // 送信直前に再確認（20:00ちょうど退勤との競合を減らす）
+  await new Promise((resolve) => setTimeout(resolve, 3000));
+  const staff = await getUncheckedOutStaffForReminder();
+  if (staff.length === 0) {
+    console.log(`[CheckoutReminder] ${hourLabel} - 再確認で未退勤なし（投稿しません）`);
+    return;
+  }
+  if (staff.length < first.length) {
+    const remain = new Set(staff.map((s) => s.userId));
+    const dropped = first.filter((s) => !remain.has(s.userId)).map((s) => s.userName);
+    console.log(`[CheckoutReminder] ${hourLabel} - 再確認で除外: ${dropped.join(", ")}`);
   }
 
   const nameLines = staff.map((s) => `・${s.userName}`).join("\n");
