@@ -9024,6 +9024,38 @@ ${todayStr}
         });
         const insertId = (result as any).insertId as number;
 
+        // Google Chat（業務改善委員会スペース）へ通知（失敗しても投稿は成功扱い）
+        try {
+          const webhookUrl = process.env.GOOGLE_CHAT_IMPROVEMENT_WEBHOOK_URL?.trim();
+          if (!webhookUrl) {
+            console.warn("[Improvement] GOOGLE_CHAT_IMPROVEMENT_WEBHOOK_URL が未設定のためChat通知をスキップします");
+          } else {
+            const text = [
+              "💡 業務改善意見箱に新しい提案がありました",
+              "",
+              `投稿者: ${displayName}`,
+              `カテゴリ: ${input.category}`,
+              "",
+              input.content,
+              "",
+              "ひなたダッシュボードの意見箱から確認できます。",
+            ].join("\n");
+            const chatRes = await fetch(webhookUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json; charset=UTF-8" },
+              body: JSON.stringify({ text }),
+            });
+            if (!chatRes.ok) {
+              const body = await chatRes.text().catch(() => "");
+              console.error(`[Improvement] Google Chat Webhook失敗: ${chatRes.status} ${body}`);
+            } else {
+              console.log("[Improvement] Google Chatへ通知しました");
+            }
+          }
+        } catch (e) {
+          console.error("[Improvement] Google Chat通知失敗:", e);
+        }
+
         // スプレッドシート転記
         try {
           const sheet = await getImprovementSpreadsheet();
