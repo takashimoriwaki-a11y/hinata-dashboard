@@ -4411,7 +4411,7 @@ function PatientTasksCard() {
     { staleTime: 30 * 1000, refetchOnWindowFocus: true },
   );
   const scheduledPatientNames = visitSchedule?.patientNames ?? [];
-  // 今日の利用者タスク（今日の訪問予定者 + 期日超過の未実施タスク）
+  // 今日の利用者タスク（訪問予定者 + 今日期日 + 期日超過。期日なしは訪問予定者のみ）
   const todayPatientTasks = useMemo(() => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -4419,9 +4419,16 @@ function PatientTasksCard() {
       .filter((t) => {
         if (t.done !== 0) return false;
         if (!(t as any).patientName) return false; // 利用者名なしは除外
+        const dueOnDate = isTaskDueOnDate(t, today);
         const overdue = isTaskOverdue(t, today);
+        if (!dueOnDate && !overdue) return false;
         const scheduled = isPatientScheduledForVisit((t as any).patientName, scheduledPatientNames);
-        if (!scheduled && !overdue) return false;
+        const isUndatedNonRepeat =
+          !(t as any).dueDate &&
+          (t as any).repeatType !== "weekly" &&
+          (t as any).repeatType !== "monthly";
+        // 期日なし（繰り返しなし）は今日の訪問予定者のみ。期日あり／繰り返し該当／超過は訪問なしでも表示
+        if (isUndatedNonRepeat && !scheduled) return false;
         // personalタスクは自分宛てのみ表示（他人の個人タスクは除外）
         // assignUserIdがnullの場合は作成者自身向けとして扱う
         if (t.assignType === "personal") {
@@ -4432,7 +4439,7 @@ function PatientTasksCard() {
           }
         }
         // team/all/未設定は全員に表示（チームフィルターボタンで絞り込む）
-        return isTaskDueOnDate(t, today) || overdue;
+        return true;
       })
       .sort((a, b) => {
         if (!a.dueDate && !b.dueDate) return 0;

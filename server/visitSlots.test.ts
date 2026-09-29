@@ -24,7 +24,7 @@ type TaskLike = {
 
 /**
  * PatientTasksCard の todayPatientTasks フィルタロジックを再現
- * （Dashboard.tsx の修正後ロジック）
+ * （Dashboard.tsx と同じ: 訪問予定者 + 今日期日 + 期日超過。期日なしは訪問予定者のみ）
  */
 function filterTodayPatientTasks(
   tasks: TaskLike[],
@@ -36,9 +36,13 @@ function filterTodayPatientTasks(
   return tasks.filter((t) => {
     if (t.done !== 0) return false;
     if (!t.patientName) return false;
+    const dueOnDate = isTaskDueOnDate(t, today);
     const overdue = isTaskOverdue(t, today);
+    if (!dueOnDate && !overdue) return false;
     const scheduled = isPatientScheduledForVisit(t.patientName, scheduledPatientNames);
-    if (!scheduled && !overdue) return false;
+    const isUndatedNonRepeat =
+      !t.dueDate && t.repeatType !== "weekly" && t.repeatType !== "monthly";
+    if (isUndatedNonRepeat && !scheduled) return false;
     // personalタスク: assignUserIdがnullの場合はcreatedByで判定
     if (t.assignType === "personal") {
       if (t.assignUserId != null) {
@@ -47,7 +51,7 @@ function filterTodayPatientTasks(
         if (t.createdBy !== userId) return false;
       }
     }
-    return isTaskDueOnDate(t, today) || overdue;
+    return true;
   });
 }
 
@@ -76,6 +80,22 @@ describe("今日の利用者タスクフィルタ", () => {
       { done: 0, patientName: "佐藤太郎", assignType: "all", dueDate: yesterday },
     ];
     expect(filterTodayPatientTasks(tasks, userId, scheduled)).toHaveLength(1);
+  });
+
+  it("今日の期日で訪問予定にない利用者のタスクも表示される", () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tasks: TaskLike[] = [
+      { done: 0, patientName: "佐藤太郎", assignType: "all", dueDate: today },
+    ];
+    expect(filterTodayPatientTasks(tasks, userId, scheduled)).toHaveLength(1);
+  });
+
+  it("期日なしで訪問予定にない利用者のタスクは除外される", () => {
+    const tasks: TaskLike[] = [
+      { done: 0, patientName: "佐藤太郎", assignType: "all", dueDate: null },
+    ];
+    expect(filterTodayPatientTasks(tasks, userId, scheduled)).toHaveLength(0);
   });
 
   it("patientNameがないタスクは除外される", () => {
