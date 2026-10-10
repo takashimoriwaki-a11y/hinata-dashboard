@@ -2074,6 +2074,51 @@ export async function getUncheckedOutStaffForReminder(now: Date = new Date()): P
     .sort((a, b) => a.userName.localeCompare(b.userName, "ja"));
 }
 
+/** JSTで平日（月〜金）かつ祝日でないか */
+export function isJstWeekdayNotHoliday(now: Date = new Date()): boolean {
+  const { year, month, day, dow } = getJstParts(now);
+  if (dow === 0 || dow === 6) return false;
+  if (isJapaneseHoliday(year, month, day)) return false;
+  return true;
+}
+
+/**
+ * 翌営業日（JST）を YYYY-MM-DD で返す。
+ * 翌日以降で、土日・祝日を飛ばした最初の日。
+ */
+export function getNextBusinessDayJst(now: Date = new Date()): string {
+  const jstOffset = 9 * 60 * 60 * 1000;
+  const jstNow = new Date(now.getTime() + jstOffset);
+  let cursor = new Date(Date.UTC(jstNow.getUTCFullYear(), jstNow.getUTCMonth(), jstNow.getUTCDate() + 1));
+  for (let i = 0; i < 14; i++) {
+    const year = cursor.getUTCFullYear();
+    const month = cursor.getUTCMonth() + 1;
+    const day = cursor.getUTCDate();
+    const dow = cursor.getUTCDay();
+    if (dow !== 0 && dow !== 6 && !isJapaneseHoliday(year, month, day)) {
+      return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
+    cursor = new Date(Date.UTC(year, cursor.getUTCMonth(), day + 1));
+  }
+  const year = cursor.getUTCFullYear();
+  const month = cursor.getUTCMonth() + 1;
+  const day = cursor.getUTCDate();
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/** 指定日（YYYY-MM-DD）の訪問予定割り当てが1件以上あるか */
+export async function hasDailyVisitAssignmentsForDate(date: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const { dailyVisitAssignments } = await import("../drizzle/schema");
+  const rows = await db
+    .select({ id: dailyVisitAssignments.id })
+    .from(dailyVisitAssignments)
+    .where(eq(dailyVisitAssignments.date, date))
+    .limit(1);
+  return rows.length > 0;
+}
+
 // ============================================================
 // AI共有プロンプト
 // ============================================================

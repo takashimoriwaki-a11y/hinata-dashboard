@@ -8,7 +8,7 @@ import { registerGoogleAuthRoutes } from "./googleAuth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
-import { deleteAllTodayScreenshots, moveTomorrowToToday, rotateScheduleDays, getTodayDueTasks, getPatients, getAllUsers, getCommentsByDate, deleteCommentsByDate, cleanupExpiredDeletedTasks, getAlcoholCheckSpreadsheet, getUncheckedOutStaffForReminder } from "../db";
+import { deleteAllTodayScreenshots, moveTomorrowToToday, rotateScheduleDays, getTodayDueTasks, getPatients, getAllUsers, getCommentsByDate, deleteCommentsByDate, cleanupExpiredDeletedTasks, getAlcoholCheckSpreadsheet, getUncheckedOutStaffForReminder, isJstWeekdayNotHoliday, getNextBusinessDayJst, hasDailyVisitAssignmentsForDate } from "../db";
 import { notifyOwner } from "./notification";
 import multer from "multer";
 import { ENV } from "./env";
@@ -1951,3 +1951,81 @@ function scheduleCheckoutReminder() {
   console.log("[CheckoutReminder] 毎日20:00/21:00の退勤リマインドスケジューラーを開始しました");
 }
 scheduleCheckoutReminder();
+
+// ========== 平日20:00（JST）に翌営業日の訪問予定未割り当てをGoogle Chatへ通知 ==========
+async function postVisitAssignReminderToGoogleChat(): Promise<void> {
+  const webhookUrl = process.env.GOOGLE_CHAT_CHECKOUT_WEBHOOK_URL?.trim();
+  if (!webhookUrl) {
+    console.warn("[VisitAssignReminder] GOOGLE_CHAT_CHECKOUT_WEBHOOK_URL が未設定のためスキップします");
+    return;
+  }
+
+  const nextBizDay = getNextBusinessDayJst();
+  const hasAssignments = await hasDailyVisitAssignmentsForDate(nextBizDay);
+  if (hasAssignments) {
+    console.log(`[VisitAssignReminder] 翌営業日 ${nextBizDay} は割り当て済み（投稿しません）`);
+    return;
+  }
+
+  const text = [
+    "⚠️ 訪問予定割り当てリマインド（20:00）",
+    "",
+    `翌営業日（${nextBizDay}）の訪問先割り当てが、まだ登録されていません。`,
+    "",
+    "割当担当者の方へ",
+    "ひなたダッシュボードの管理画面から割り当てをお願いします。",
+  ].join("\n");
+
+  const res = await fetch(webhookUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json; charset=UTF-8" },
+    body: JSON.stringify({ text }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Google Chat Webhook失敗: ${res.status} ${body}`);
+  }
+
+  console.log(`[VisitAssignReminder] 翌営業日 ${nextBizDay} の未割り当てをGoogle Chatへ投稿しました`);
+}
+
+function scheduleVisitAssignReminder() {
+  const checkInterval = 60 * 1000;
+  const sentKeys = new Set<string>();
+
+  setInterval(async () => {
+    const now = new Date();
+    const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    const h = jstNow.getUTCHours();
+    const m = jstNow.getUTCMinutes();
+    const dateStr = jstNow.toISOString().slice(0, 10);
+
+    // 平日（祝日除く）の 20:00（JST）のみ
+    if (m !== 0 || h !== 20) return;
+    if (!isJstWeekdayNotHoliday(now)) return;
+
+    const key = `${dateStr}-visit-assign`;
+    if (sentKeys.has(key)) return;
+    sentKeys.add(key);
+
+    for (const k of [...sentKeys]) {
+      if (!k.startsWith(dateStr) && !k.startsWith(
+        new Date(jstNow.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      )) {
+        sentKeys.delete(k);
+      }
+    }
+
+    try {
+      console.log(`[VisitAssignReminder] ${dateStr} 20:00 - 翌営業日の割り当てを確認します`);
+      await postVisitAssignReminderToGoogleChat();
+    } catch (e) {
+      console.error(`[VisitAssignReminder] エラー:`, e);
+      sentKeys.delete(key);
+    }
+  }, checkInterval);
+
+  console.log("[VisitAssignReminder] 平日20:00の訪問予定割り当てリマインドスケジューラーを開始しました");
+}
+scheduleVisitAssignReminder();
