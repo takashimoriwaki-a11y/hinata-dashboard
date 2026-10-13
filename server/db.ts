@@ -1906,18 +1906,29 @@ export async function clockAttendance(data: {
   return row;
 }
 
+/** JSTの指定日（today=0, yesterday=-1）の 0:00〜23:59.999 をUTC msで返す（サーバーTZ非依存） */
+function getJstDayRangeMs(daysFromToday: number, now: Date = new Date()): { startMs: number; endMs: number } {
+  const jstOffset = 9 * 60 * 60 * 1000;
+  const jstNow = new Date(now.getTime() + jstOffset);
+  const anchor = Date.UTC(
+    jstNow.getUTCFullYear(),
+    jstNow.getUTCMonth(),
+    jstNow.getUTCDate() + daysFromToday,
+  );
+  const y = new Date(anchor).getUTCFullYear();
+  const m = new Date(anchor).getUTCMonth();
+  const d = new Date(anchor).getUTCDate();
+  const startMs = Date.UTC(y, m, d) - jstOffset;
+  const endMs = startMs + 24 * 60 * 60 * 1000 - 1;
+  return { startMs, endMs };
+}
+
 /** 今日の自分の打刻履歴を取得する */
 export async function getTodayAttendance(userId: number): Promise<AttendanceLog[]> {
   const db = await getDb();
   if (!db) return [];
   const { and, gte, lte, eq: eqOp } = await import("drizzle-orm");
-  // 今日のJST 0:00〜23:59をUTCミリ秒で計算
-  const now = new Date();
-  const jstOffset = 9 * 60 * 60 * 1000;
-  const jstNow = new Date(now.getTime() + jstOffset);
-  const jstMidnight = new Date(jstNow.getFullYear(), jstNow.getMonth(), jstNow.getDate());
-  const startMs = jstMidnight.getTime() - jstOffset;
-  const endMs = startMs + 24 * 60 * 60 * 1000 - 1;
+  const { startMs, endMs } = getJstDayRangeMs(0);
   return db.select().from(attendanceLogs)
     .where(and(eqOp(attendanceLogs.userId, userId), gte(attendanceLogs.clockedAt, startMs), lte(attendanceLogs.clockedAt, endMs)))
     .orderBy(attendanceLogs.clockedAt);
@@ -1928,13 +1939,7 @@ export async function getYesterdayAttendance(userId: number): Promise<Attendance
   const db = await getDb();
   if (!db) return [];
   const { and, gte, lte, eq: eqOp } = await import("drizzle-orm");
-  // 前日のJST 0:00〜23:59をUTCミリ秒で計算
-  const now = new Date();
-  const jstOffset = 9 * 60 * 60 * 1000;
-  const jstNow = new Date(now.getTime() + jstOffset);
-  const jstYesterday = new Date(jstNow.getFullYear(), jstNow.getMonth(), jstNow.getDate() - 1);
-  const startMs = jstYesterday.getTime() - jstOffset;
-  const endMs = startMs + 24 * 60 * 60 * 1000 - 1;
+  const { startMs, endMs } = getJstDayRangeMs(-1);
   return db.select().from(attendanceLogs)
     .where(and(eqOp(attendanceLogs.userId, userId), gte(attendanceLogs.clockedAt, startMs), lte(attendanceLogs.clockedAt, endMs)))
     .orderBy(attendanceLogs.clockedAt);
