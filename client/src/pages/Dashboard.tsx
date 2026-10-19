@@ -1943,10 +1943,8 @@ function ScheduleScreenshotCard() {
   const touchStartY = useRef<number | null>(null);
   const isSwiping = useRef(false); // スワイプ中はタップを無効化
 
-  // ユーザーのデフォルトチームを取得
+  // ユーザーのデフォルトチームを取得（スケジュール表示の初期値用。所属チーム自体は変更しない）
   const { data: myTeamData } = trpc.userSettings.getMyTeam.useQuery();
-  // invalidateしない：チーム切替後にmyTeamDataが再取得されてuseEffectが再実行されるのを防ぐ
-  const setMyTeamMutation = trpc.userSettings.setMyTeam.useMutation();
   // 初回のみデフォルトチームを設定するフラグ（手動切替後は上書きしない）
   const teamInitializedRef = useRef(false);
   // ユーザーのチームが取得できたら初回のみデフォルト選択を更新
@@ -2190,9 +2188,8 @@ function ScheduleScreenshotCard() {
   };
 
   const handleTeamChange = (t: TeamType) => {
+    // 表示用の選択のみ変更（localStorage）。DBの所属チームは管理画面／初回設定でのみ変更する
     setSelectedTeam(t);
-    // チームをデフォルトとして保存
-    setMyTeamMutation.mutate({ team: t });
   };
 
   return (
