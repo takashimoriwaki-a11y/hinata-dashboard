@@ -2144,30 +2144,49 @@ function StaffManagementPanel() {
           {/* 権限 */}
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">権限</label>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setEditRole("user")}
-                className={cn(
-                  "flex-1 py-1.5 text-xs rounded-lg border transition-colors",
-                  editRole === "user"
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "border-border text-muted-foreground hover:border-blue-400"
+            {currentUser?.role !== "super_admin" && editRole === "super_admin" ? (
+              <div className="py-1.5 text-xs rounded-lg border border-purple-200 bg-purple-50 text-purple-700 text-center">
+                特級管理者（権限変更は特級管理者のみ）
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setEditRole("user")}
+                  className={cn(
+                    "flex-1 py-1.5 text-xs rounded-lg border transition-colors",
+                    editRole === "user"
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "border-border text-muted-foreground hover:border-blue-400"
+                  )}
+                >
+                  一般スタッフ
+                </button>
+                <button
+                  onClick={() => setEditRole("admin")}
+                  className={cn(
+                    "flex-1 py-1.5 text-xs rounded-lg border transition-colors",
+                    editRole === "admin"
+                      ? "bg-amber-500 text-white border-amber-500"
+                      : "border-border text-muted-foreground hover:border-amber-400"
+                  )}
+                >
+                  管理者
+                </button>
+                {currentUser?.role === "super_admin" && (
+                  <button
+                    onClick={() => setEditRole("super_admin")}
+                    className={cn(
+                      "flex-1 py-1.5 text-xs rounded-lg border transition-colors",
+                      editRole === "super_admin"
+                        ? "bg-purple-600 text-white border-purple-600"
+                        : "border-border text-muted-foreground hover:border-purple-400"
+                    )}
+                  >
+                    特級管理者
+                  </button>
                 )}
-              >
-                一般スタッフ
-              </button>
-              <button
-                onClick={() => setEditRole("admin")}
-                className={cn(
-                  "flex-1 py-1.5 text-xs rounded-lg border transition-colors",
-                  editRole === "admin"
-                    ? "bg-amber-500 text-white border-amber-500"
-                    : "border-border text-muted-foreground hover:border-amber-400"
-                )}
-              >
-                管理者
-              </button>
-            </div>
+              </div>
+            )}
           </div>
 
           {/* ナンバープレート */}
