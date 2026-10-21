@@ -1,6 +1,7 @@
 /**
  * 訪問予定一括割り当てページ（管理者+特級管理者専用）
- * 全職員分の今日の訪問予定をテキストで一括入力 → AI解析 → 各職員のアカウントに保存
+ * 全職員分の訪問予定をテキストで一括入力 → 解析 → 各職員のアカウントに保存
+ * 【職員名】形式はブラウザ側でルール解析（サーバーAI待ちで固まらない）
  */
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
@@ -24,12 +25,147 @@ type ParsedAssignment = {
   }>;
 };
 
+type RawVisit = { patientName: string; nextVisitDate: string; nextVisitTime: string };
+type RawAssignment = { userName: string; visits: RawVisit[] };
+
+function normalizeName(s: string): string {
+  return s.replace(/[\s　]/g, "");
+}
+
+function parseNextVisitFields(line: string, year: number): RawVisit {
+  let rest = line
+    .replace(/^\s*(?:\d+[\.\)、．]|[・\-＊*])\s*/, "")
+    .replace(/様\s*$/, "")
+    .trim();
+  let nextVisitDate = "";
+  let nextVisitTime = "";
+
+  const nextMatch = rest.match(/次回\s*(\d{1,2})[\/／月](\d{1,2})日?(?:\s*[　 ]*(\d{1,2})[:：時](\d{0,2})分?)?/);
+  if (nextMatch) {
+    const m = Number(nextMatch[1]);
+    const d = Number(nextMatch[2]);
+    nextVisitDate = `${year}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    if (nextMatch[3] != null) {
+      const hh = String(Number(nextMatch[3])).padStart(2, "0");
+      const mm = nextMatch[4] ? String(Number(nextMatch[4])).padStart(2, "0") : "00";
+      nextVisitTime = `${hh}:${mm}`;
+    }
+    rest = rest.slice(0, nextMatch.index).trim();
+  } else {
+    const unspec = rest.match(/次回\s*(未定|不明)/);
+    if (unspec) {
+      nextVisitTime = "unspecified";
+      rest = rest.slice(0, unspec.index).trim();
+    }
+  }
+
+  return {
+    patientName: rest.replace(/\s+/g, " ").trim(),
+    nextVisitDate,
+    nextVisitTime,
+  };
+}
+
+/** 【職員名】形式をルール解析 */
+function parseRuleBased(text: string, year: number): RawAssignment[] {
+  const blocks = text.split(/(?=【[^】]+】)/).map((b) => b.trim()).filter(Boolean);
+  const assignments: RawAssignment[] = [];
+  for (const block of blocks) {
+    const header = block.match(/^【([^】]+)】/);
+    if (!header) continue;
+    const userName = header[1].trim();
+    const body = block.slice(header[0].length);
+    const visits: RawVisit[] = [];
+    for (const rawLine of body.split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line) continue;
+      if (!/^(?:\d+[\.\)、．]|[・\-＊*])/.test(line) && !/次回/.test(line)) continue;
+      const v = parseNextVisitFields(line, year);
+      if (!v.patientName) continue;
+      visits.push(v);
+    }
+    assignments.push({ userName, visits });
+  }
+  return assignments;
+}
+
+function matchAssignments(
+  raw: RawAssignment[],
+  staffList: Array<{ id: number; name: string }>,
+  patientList: Array<{ id: number; name: string; team: string | null; active?: number | null }>,
+): {
+  assignments: ParsedAssignment[];
+  stats: { totalUsers: number; totalVisits: number; unmatchedUsers: number; unmatchedPatients: number };
+} {
+  const activePatients = patientList.filter((p) => p.active == null || p.active === 1);
+  let unmatchedUsers = 0;
+  let unmatchedPatients = 0;
+  let totalVisits = 0;
+
+  const assignments = raw.map((a) => {
+    const aNorm = normalizeName(a.userName);
+    let matchedUser = staffList.find((u) => u.name === a.userName);
+    if (!matchedUser) {
+      matchedUser = staffList.find((u) => normalizeName(u.name) === aNorm);
+    }
+    if (!matchedUser) {
+      matchedUser = staffList.find((u) => {
+        const uNorm = normalizeName(u.name);
+        return uNorm.includes(aNorm) || aNorm.includes(uNorm);
+      });
+    }
+    if (!matchedUser) unmatchedUsers++;
+
+    const visits = a.visits.map((v) => {
+      const vNorm = normalizeName(v.patientName);
+      let matchedPatient = activePatients.find((p) => p.name === v.patientName);
+      if (!matchedPatient) {
+        matchedPatient = activePatients.find((p) => normalizeName(p.name) === vNorm);
+      }
+      if (!matchedPatient) {
+        matchedPatient = activePatients.find((p) => {
+          const pNorm = normalizeName(p.name);
+          return pNorm.includes(vNorm) || vNorm.includes(pNorm);
+        });
+      }
+      if (!matchedPatient) unmatchedPatients++;
+      totalVisits++;
+      return {
+        patientId: matchedPatient?.id ?? null,
+        patientName: matchedPatient?.name ?? v.patientName,
+        team: matchedPatient?.team ?? null,
+        nextVisitDate: v.nextVisitDate || "",
+        nextVisitTime: v.nextVisitTime || "",
+        matched: !!matchedPatient,
+      };
+    });
+
+    return {
+      userId: matchedUser?.id ?? null,
+      userName: matchedUser?.name ?? a.userName,
+      matched: !!matchedUser,
+      visits,
+    };
+  });
+
+  return {
+    assignments,
+    stats: {
+      totalUsers: raw.length,
+      totalVisits,
+      unmatchedUsers,
+      unmatchedPatients,
+    },
+  };
+}
+
 export default function VisitAssignments() {
   const [text, setText] = useState("");
   const [previewData, setPreviewData] = useState<{
     assignments: ParsedAssignment[];
     stats: { totalUsers: number; totalVisits: number; unmatchedUsers: number; unmatchedPatients: number };
   } | null>(null);
+  const [localParsing, setLocalParsing] = useState(false);
 
   // 今日の日付
   const today = new Date();
@@ -37,6 +173,8 @@ export default function VisitAssignments() {
   const [date, setDate] = useState(todayStr);
 
   const utils = trpc.useUtils();
+  const { data: staffList = [] } = trpc.staff.listForForm.useQuery();
+  const { data: patientList = [] } = trpc.patients.listAll.useQuery({});
 
   const parseMutation = trpc.dailyVisitAssignments.bulkParse.useMutation({
     onSuccess: (data) => {
@@ -60,11 +198,39 @@ export default function VisitAssignments() {
     onError: (err) => toast.error(`割り当てエラー: ${err.message}`),
   });
 
+  const isParsing = localParsing || parseMutation.isPending;
+
   const handleParse = () => {
     if (!text.trim()) {
       toast.warning("テキストを入力してください");
       return;
     }
+
+    const year = new Date().getFullYear();
+    const raw = parseRuleBased(text, year);
+
+    // 【職員名】形式ならサーバーAIを呼ばず即プレビュー
+    if (raw.length > 0) {
+      setLocalParsing(true);
+      try {
+        if (staffList.length === 0 || patientList.length === 0) {
+          toast.error("職員・利用者一覧の読み込み中です。数秒後にもう一度押してください");
+          return;
+        }
+        const matched = matchAssignments(raw, staffList, patientList);
+        setPreviewData(matched);
+        if (matched.stats.unmatchedUsers > 0 || matched.stats.unmatchedPatients > 0) {
+          toast.warning(`プレビュー作成完了（職員未マッチ: ${matched.stats.unmatchedUsers}名 / 利用者未マッチ: ${matched.stats.unmatchedPatients}名）`);
+        } else {
+          toast.success(`プレビュー作成完了（${matched.stats.totalUsers}名 / ${matched.stats.totalVisits}件）`);
+        }
+      } finally {
+        setLocalParsing(false);
+      }
+      return;
+    }
+
+    // 【職員名】形式でない場合のみサーバーAIへ
     parseMutation.mutate({ text });
   };
 
@@ -99,8 +265,8 @@ export default function VisitAssignments() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="text-sm text-muted-foreground space-y-1">
-            <p>📋 全職員分の訪問予定を一括入力 → AI解析 → 各職員のアカウントに保存します</p>
-            <p>💡 各職員はログイン時に訪問タブで自動的に予定が反映されます</p>
+            <p>📋 全職員分の訪問予定を一括入力 → 解析 → 各職員のアカウントに保存します</p>
+            <p>💡 【職員名】形式はすぐプレビューできます（AI待ちしません）</p>
             <p className="text-amber-600 dark:text-amber-400">⚠️ 既存の割り当ては<strong>上書き</strong>されます</p>
           </div>
 
@@ -131,17 +297,17 @@ export default function VisitAssignments() {
 2. 高橋誠一`}
               rows={10}
               className="text-sm font-mono"
-              disabled={parseMutation.isPending}
+              disabled={isParsing}
             />
           </div>
 
           <div className="flex gap-2 justify-end">
             <Button
               onClick={handleParse}
-              disabled={parseMutation.isPending || !text.trim()}
+              disabled={isParsing || !text.trim()}
               className="bg-purple-600 hover:bg-purple-700 text-white"
             >
-              {parseMutation.isPending ? (
+              {isParsing ? (
                 <><Loader2 className="w-4 h-4 mr-1 animate-spin" />解析中...</>
               ) : (
                 <><Sparkles className="w-4 h-4 mr-1" />AI解析してプレビュー</>
