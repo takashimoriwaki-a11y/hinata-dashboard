@@ -3482,18 +3482,87 @@ JSON配列で返す。各要素は { patientName: string, nextVisitDate: string,
         if (!db) throw new Error("Database not available");
         const { patients, users } = await import("../drizzle/schema");
         const { eq } = await import("drizzle-orm");
-        const { invokeLLM } = await import("./_core/llm");
 
         // 利用者・職員一覧取得
         const allPatients = await db.select().from(patients).where(eq(patients.active, 1));
         const allUsers = await db.select().from(users);
         const patientNames = allPatients.map(p => p.name);
-        const userNames = allUsers.map(u => u.name).filter(Boolean);
+        const userNames = allUsers.map(u => u.name).filter(Boolean) as string[];
 
-        const today = new Date();
-        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        const jstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+        const year = jstNow.getUTCFullYear();
+        const todayStr = `${year}-${String(jstNow.getUTCMonth() + 1).padStart(2, "0")}-${String(jstNow.getUTCDate()).padStart(2, "0")}`;
 
-        const systemPrompt = `あなたは訪問看護ステーションの「全職員分の訪問予定」を解析するアシスタントです。
+        type RawVisit = { patientName: string; nextVisitDate: string; nextVisitTime: string };
+        type RawAssignment = { userName: string; visits: RawVisit[] };
+
+        /** 「次回5/8 14:00」「次回10/22 9:30」などを YYYY-MM-DD / HH:MM に変換 */
+        const parseNextVisitFields = (line: string): { patientName: string; nextVisitDate: string; nextVisitTime: string } => {
+          let rest = line
+            .replace(/^\s*(?:\d+[\.\)、．]|[・\-＊*])\s*/, "")
+            .replace(/様\s*$/, "")
+            .trim();
+          let nextVisitDate = "";
+          let nextVisitTime = "";
+
+          const nextMatch = rest.match(/次回\s*(\d{1,2})[\/／月](\d{1,2})日?(?:\s*[　 ]*(\d{1,2})[:：時](\d{0,2})分?)?/);
+          if (nextMatch) {
+            const m = Number(nextMatch[1]);
+            const d = Number(nextMatch[2]);
+            nextVisitDate = `${year}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+            if (nextMatch[3] != null) {
+              const hh = String(Number(nextMatch[3])).padStart(2, "0");
+              const mm = nextMatch[4] ? String(Number(nextMatch[4])).padStart(2, "0") : "00";
+              nextVisitTime = `${hh}:${mm}`;
+            }
+            rest = rest.slice(0, nextMatch.index).trim();
+          } else {
+            const unspec = rest.match(/次回\s*(未定|不明)/);
+            if (unspec) {
+              nextVisitTime = "unspecified";
+              rest = rest.slice(0, unspec.index).trim();
+            }
+          }
+
+          const patientName = rest.replace(/\s+/g, " ").trim();
+          return { patientName, nextVisitDate, nextVisitTime };
+        };
+
+        /** 【職員名】形式のテキストをルールで解析（AI不要） */
+        const parseRuleBased = (text: string): RawAssignment[] => {
+          const blocks = text.split(/(?=【[^】]+】)/).map((b) => b.trim()).filter(Boolean);
+          const assignments: RawAssignment[] = [];
+          for (const block of blocks) {
+            const header = block.match(/^【([^】]+)】/);
+            if (!header) continue;
+            const userName = header[1].trim();
+            const body = block.slice(header[0].length);
+            const visits: RawVisit[] = [];
+            for (const rawLine of body.split(/\r?\n/)) {
+              const line = rawLine.trim();
+              if (!line) continue;
+              if (!/^(?:\d+[\.\)、．]|[・\-＊*])/.test(line) && !line.includes("次回")) {
+                // 番号・箇条書きでも次回でもない行はスキップ（注釈など）
+                if (line.length < 2) continue;
+              }
+              // 番号付き／箇条書き、または「氏名 次回…」行のみ採用
+              if (!/^(?:\d+[\.\)、．]|[・\-＊*])/.test(line) && !/次回/.test(line)) continue;
+              const v = parseNextVisitFields(line);
+              if (!v.patientName) continue;
+              visits.push(v);
+            }
+            assignments.push({ userName, visits });
+          }
+          return assignments;
+        };
+
+        let parsed: { assignments: RawAssignment[] } = { assignments: parseRuleBased(input.text) };
+        const usedRuleBased = parsed.assignments.length > 0;
+
+        if (!usedRuleBased) {
+          // 【職員名】形式でない場合のみ AI にフォールバック（60秒タイムアウト）
+          const { invokeLLM } = await import("./_core/llm");
+          const systemPrompt = `あなたは訪問看護ステーションの「全職員分の訪問予定」を解析するアシスタントです。
 入力テキストから、各職員ごとの訪問予定（利用者名 + 次回訪問日時）を抽出してJSON形式で返してください。
 
 # ルール
@@ -3529,52 +3598,69 @@ ${todayStr}
   ]
 }`;
 
-        const result = await invokeLLM({
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: input.text },
-          ],
-          response_format: {
-            type: "json_schema",
-            json_schema: {
-              schema: {
-                type: "object",
-                properties: {
-                  assignments: {
-                    type: "array",
-                    items: {
+          const AI_TIMEOUT_MS = 60_000;
+          let result;
+          try {
+            result = await Promise.race([
+              invokeLLM({
+                messages: [
+                  { role: "system", content: systemPrompt },
+                  { role: "user", content: input.text },
+                ],
+                response_format: {
+                  type: "json_schema",
+                  json_schema: {
+                    name: "bulk_visit_assignments",
+                    schema: {
                       type: "object",
                       properties: {
-                        userName: { type: "string" },
-                        visits: {
+                        assignments: {
                           type: "array",
                           items: {
                             type: "object",
                             properties: {
-                              patientName: { type: "string" },
-                              nextVisitDate: { type: "string" },
-                              nextVisitTime: { type: "string" },
+                              userName: { type: "string" },
+                              visits: {
+                                type: "array",
+                                items: {
+                                  type: "object",
+                                  properties: {
+                                    patientName: { type: "string" },
+                                    nextVisitDate: { type: "string" },
+                                    nextVisitTime: { type: "string" },
+                                  },
+                                  required: ["patientName", "nextVisitDate", "nextVisitTime"],
+                                },
+                              },
                             },
-                            required: ["patientName", "nextVisitDate", "nextVisitTime"],
+                            required: ["userName", "visits"],
                           },
                         },
                       },
-                      required: ["userName", "visits"],
+                      required: ["assignments"],
                     },
                   },
                 },
-                required: ["assignments"],
-              },
-            },
-          },
-        });
+              }),
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error("AI解析がタイムアウトしました（60秒）。【職員名】形式で入力するか、分割して再試行してください。")), AI_TIMEOUT_MS)
+              ),
+            ]);
+          } catch (e: any) {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: e?.message ?? "AI解析に失敗しました",
+            });
+          }
 
-        const responseText = result.choices[0]?.message?.content ?? "{}";
-        let parsed: { assignments: Array<{ userName: string; visits: Array<{ patientName: string; nextVisitDate: string; nextVisitTime: string }> }> };
-        try {
-          parsed = JSON.parse(responseText);
-        } catch (e) {
-          throw new Error("AI解析結果のパースに失敗しました");
+          const responseText = typeof result.choices[0]?.message?.content === "string"
+            ? result.choices[0].message.content
+            : "{}";
+          try {
+            parsed = JSON.parse(responseText);
+          } catch {
+            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI解析結果のパースに失敗しました" });
+          }
         }
 
         if (!parsed.assignments || !Array.isArray(parsed.assignments)) {
@@ -3585,20 +3671,34 @@ ${todayStr}
         let unmatchedUsers = 0;
         let unmatchedPatients = 0;
         let totalVisits = 0;
+        const normalizeName = (s: string) => s.replace(/[\s　]/g, "");
 
         const assignmentsWithMatch = parsed.assignments.map((a) => {
-          // 職員マッチング
+          // 職員マッチング（空白差を無視）
+          const aNorm = normalizeName(a.userName);
           let matchedUser = allUsers.find(u => u.name === a.userName);
           if (!matchedUser) {
-            matchedUser = allUsers.find(u => u.name?.includes(a.userName) || a.userName.includes(u.name ?? ""));
+            matchedUser = allUsers.find(u => normalizeName(u.name ?? "") === aNorm);
+          }
+          if (!matchedUser) {
+            matchedUser = allUsers.find(u => {
+              const uNorm = normalizeName(u.name ?? "");
+              return uNorm.includes(aNorm) || aNorm.includes(uNorm);
+            });
           }
           if (!matchedUser) unmatchedUsers++;
 
           const visits = a.visits.map((v) => {
-            // 利用者マッチング
+            const vNorm = normalizeName(v.patientName);
             let matchedPatient = allPatients.find(p => p.name === v.patientName);
             if (!matchedPatient) {
-              matchedPatient = allPatients.find(p => p.name.includes(v.patientName) || v.patientName.includes(p.name));
+              matchedPatient = allPatients.find(p => normalizeName(p.name) === vNorm);
+            }
+            if (!matchedPatient) {
+              matchedPatient = allPatients.find(p => {
+                const pNorm = normalizeName(p.name);
+                return pNorm.includes(vNorm) || vNorm.includes(pNorm);
+              });
             }
             if (!matchedPatient) unmatchedPatients++;
             totalVisits++;
@@ -3619,6 +3719,8 @@ ${todayStr}
             visits,
           };
         });
+
+        console.log(`[VisitAssign] bulkParse ${usedRuleBased ? "rule-based" : "AI"}: ${parsed.assignments.length} staff / ${totalVisits} visits`);
 
         return {
           assignments: assignmentsWithMatch,
