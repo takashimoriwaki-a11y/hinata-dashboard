@@ -40,7 +40,10 @@ function parseNextVisitFields(line: string, year: number): RawVisit {
   let nextVisitDate = "";
   let nextVisitTime = "";
 
-  const nextMatch = rest.match(/次回\s*(\d{1,2})[\/／月](\d{1,2})日?(?:\s*[　 ]*(\d{1,2})[:：時](\d{0,2})分?)?/);
+  // 「次回」「次回訪問日時」+ 10月29日8時45分 / 10/29 8:45 など
+  const nextMatch = rest.match(
+    /次回(?:訪問日時)?\s*(\d{1,2})[\/／月](\d{1,2})日?(?:\s*[（(][^）)]*[）)])?(?:\s*(\d{1,2})[:：時](\d{0,2})分?)?/
+  );
   if (nextMatch) {
     const m = Number(nextMatch[1]);
     const d = Number(nextMatch[2]);
@@ -52,15 +55,21 @@ function parseNextVisitFields(line: string, year: number): RawVisit {
     }
     rest = rest.slice(0, nextMatch.index).trim();
   } else {
-    const unspec = rest.match(/次回\s*(未定|不明)/);
+    const unspec = rest.match(/次回(?:訪問日時)?\s*(未定|不明)/);
     if (unspec) {
       nextVisitTime = "unspecified";
       rest = rest.slice(0, unspec.index).trim();
     }
   }
 
+  const patientName = rest
+    .replace(/^[［\[]\s*/, "")
+    .replace(/\s*[］\]]$/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
   return {
-    patientName: rest.replace(/\s+/g, " ").trim(),
+    patientName,
     nextVisitDate,
     nextVisitTime,
   };
@@ -79,7 +88,7 @@ function parseRuleBased(text: string, year: number): RawAssignment[] {
     for (const rawLine of body.split(/\r?\n/)) {
       const line = rawLine.trim();
       if (!line) continue;
-      if (!/^(?:\d+[\.\)、．]|[・\-＊*])/.test(line) && !/次回/.test(line)) continue;
+      if (!/^(?:\d+[\.\)、．]|[・\-＊*]|[［\[])/.test(line) && !/次回/.test(line)) continue;
       const v = parseNextVisitFields(line, year);
       if (!v.patientName) continue;
       visits.push(v);

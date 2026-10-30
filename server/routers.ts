@@ -3496,7 +3496,7 @@ JSON配列で返す。各要素は { patientName: string, nextVisitDate: string,
         type RawVisit = { patientName: string; nextVisitDate: string; nextVisitTime: string };
         type RawAssignment = { userName: string; visits: RawVisit[] };
 
-        /** 「次回5/8 14:00」「次回10/22 9:30」などを YYYY-MM-DD / HH:MM に変換 */
+        /** 「次回訪問日時10月29日8時45分」「次回5/8 14:00」などを YYYY-MM-DD / HH:MM に変換 */
         const parseNextVisitFields = (line: string): { patientName: string; nextVisitDate: string; nextVisitTime: string } => {
           let rest = line
             .replace(/^\s*(?:\d+[\.\)、．]|[・\-＊*])\s*/, "")
@@ -3505,7 +3505,10 @@ JSON配列で返す。各要素は { patientName: string, nextVisitDate: string,
           let nextVisitDate = "";
           let nextVisitTime = "";
 
-          const nextMatch = rest.match(/次回\s*(\d{1,2})[\/／月](\d{1,2})日?(?:\s*[　 ]*(\d{1,2})[:：時](\d{0,2})分?)?/);
+          // 「次回」「次回訪問日時」+ 10月29日8時45分 / 10/29 8:45 など
+          const nextMatch = rest.match(
+            /次回(?:訪問日時)?\s*(\d{1,2})[\/／月](\d{1,2})日?(?:\s*[（(][^）)]*[）)])?(?:\s*(\d{1,2})[:：時](\d{0,2})分?)?/
+          );
           if (nextMatch) {
             const m = Number(nextMatch[1]);
             const d = Number(nextMatch[2]);
@@ -3517,14 +3520,18 @@ JSON配列で返す。各要素は { patientName: string, nextVisitDate: string,
             }
             rest = rest.slice(0, nextMatch.index).trim();
           } else {
-            const unspec = rest.match(/次回\s*(未定|不明)/);
+            const unspec = rest.match(/次回(?:訪問日時)?\s*(未定|不明)/);
             if (unspec) {
               nextVisitTime = "unspecified";
               rest = rest.slice(0, unspec.index).trim();
             }
           }
 
-          const patientName = rest.replace(/\s+/g, " ").trim();
+          const patientName = rest
+            .replace(/^[［\[]\s*/, "")
+            .replace(/\s*[］\]]$/, "")
+            .replace(/\s+/g, " ")
+            .trim();
           return { patientName, nextVisitDate, nextVisitTime };
         };
 
@@ -3541,12 +3548,12 @@ JSON配列で返す。各要素は { patientName: string, nextVisitDate: string,
             for (const rawLine of body.split(/\r?\n/)) {
               const line = rawLine.trim();
               if (!line) continue;
-              if (!/^(?:\d+[\.\)、．]|[・\-＊*])/.test(line) && !line.includes("次回")) {
+              if (!/^(?:\d+[\.\)、．]|[・\-＊*]|[［\[])/.test(line) && !line.includes("次回")) {
                 // 番号・箇条書きでも次回でもない行はスキップ（注釈など）
                 if (line.length < 2) continue;
               }
-              // 番号付き／箇条書き、または「氏名 次回…」行のみ採用
-              if (!/^(?:\d+[\.\)、．]|[・\-＊*])/.test(line) && !/次回/.test(line)) continue;
+              // 番号付き／箇条書き／［氏名］、または「氏名 次回…」行のみ採用
+              if (!/^(?:\d+[\.\)、．]|[・\-＊*]|[［\[])/.test(line) && !/次回/.test(line)) continue;
               const v = parseNextVisitFields(line);
               if (!v.patientName) continue;
               visits.push(v);
