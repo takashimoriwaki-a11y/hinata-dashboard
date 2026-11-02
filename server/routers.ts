@@ -1004,11 +1004,12 @@ async function appendTimesheetToSheet(record: {
 /**
  * 残業申請の承認状況を出退勤スプレッドシートの職員タブに反映する
  * 対象日・対象者の行のI列（残業申請承認状況）を更新する
- * 承認時は「承認残業時間（HH:MM〜HH:MM）・今日の残業時間：X時間Y分」も転記する
+ * 同日に前残業と夕方残業など複数件ある場合は合算して転記し、後承認で上書き消えないようにする
  */
 async function updateTimesheetOvertimeApproval(record: {
   applicationDate: string; // "YYYY-MM-DD"
   applicantName: string;
+  applicantUserId?: number | null;
   status: string; // "approved" | "rejected" | "pending"
   approverName?: string | null;
   approverComment?: string | null;
@@ -1032,29 +1033,64 @@ async function updateTimesheetOvertimeApproval(record: {
     // 日付文字列を「YYYY/MM/DD」形式に変換（スプレッドシートのA列と一致させる）
     const [y, m, d] = record.applicationDate.split("-").map(Number);
     const dateStr = `${y}/${String(m).padStart(2, "0")}/${String(d).padStart(2, "0")}`;
-    // 承認時：承認残業時間と今日の残業時間を計算してI列に転記
+
+    const toHHMM = (ms: number | null | undefined) =>
+      ms ? new Date(ms).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit" }) : "";
+    const formatDuration = (minutes: number) => {
+      const h = Math.floor(minutes / 60);
+      const min = minutes % 60;
+      if (h > 0 && min > 0) return `${h}時間${min}分`;
+      if (h > 0) return `${h}時間`;
+      return `${min}分`;
+    };
+    const calcMinutes = (startMs: number | null | undefined, endMs: number | null | undefined) => {
+      if (!startMs || !endMs) return 0;
+      return Math.max(0, Math.round((endMs - startMs) / 60000));
+    };
+
+    // 同日・同職員の承認済み残業をすべて取得（前残業＋夕方残業の合算用）
+    const { getOvertimeApprovals } = await import("./db");
+    const dayRows = await getOvertimeApprovals({ date: record.applicationDate });
+    const mine = dayRows.filter((r) =>
+      record.applicantUserId != null
+        ? r.applicantUserId === record.applicantUserId
+        : r.applicantName === record.applicantName
+    );
+    const approved = mine
+      .filter((r) => r.status === "approved")
+      .sort((a, b) =>
+        (a.adjustedStartAt ?? a.requestedStartAt) - (b.adjustedStartAt ?? b.requestedStartAt)
+      );
+
+    const approvedRanges = approved.map((r) => {
+      const startMs = r.adjustedStartAt ?? r.requestedStartAt;
+      const endMs = r.adjustedEndAt ?? r.requestedEndAt;
+      return {
+        startMs,
+        endMs,
+        startStr: toHHMM(startMs) || "--:--",
+        endStr: toHHMM(endMs) || "--:--",
+        minutes: calcMinutes(startMs, endMs),
+        reason: r.requestedReason ?? "",
+      };
+    });
+    const totalApprovedMinutes = approvedRanges.reduce((sum, r) => sum + r.minutes, 0);
+    const rangesLabel = approvedRanges.map((r) => `${r.startStr}〜${r.endStr}`).join("、");
+    const totalDurationStr = totalApprovedMinutes > 0 ? formatDuration(totalApprovedMinutes) : "0分";
+
     let statusLabel: string;
     if (record.status === "approved") {
-      const startMs = record.adjustedStartAt ?? record.requestedStartAt;
-      const endMs = record.adjustedEndAt ?? record.requestedEndAt;
-      const toHHMM = (ms: number | null | undefined) =>
-        ms ? new Date(ms).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit" }) : "--:--";
-      const startStr = toHHMM(startMs);
-      const endStr = toHHMM(endMs);
-      let durationStr = "";
-      if (startMs && endMs) {
-        const minutes = Math.max(0, Math.round((endMs - startMs) / 60000));
-        const h = Math.floor(minutes / 60);
-        const min = minutes % 60;
-        durationStr = h > 0 ? `${h}時間${min}分` : `${min}分`;
-      }
       const approverPart = record.approverName ? ` (${record.approverName})` : "";
-      statusLabel = `承認済み${approverPart}\n承認残業時間：${startStr}〜${endStr}\n今日の残業時間：${durationStr}`;
+      statusLabel = `承認済み${approverPart}\n承認残業時間：${rangesLabel || "--:--〜--:--"}\n今日の残業時間：${totalDurationStr}`;
     } else if (record.status === "rejected") {
-      statusLabel = `却下${record.approverComment ? `：${record.approverComment}` : ""}`;
+      const rejectPart = `却下${record.approverComment ? `：${record.approverComment}` : ""}`;
+      statusLabel = approvedRanges.length > 0
+        ? `${rejectPart}\n承認済み残：${rangesLabel}\n今日の残業時間：${totalDurationStr}`
+        : rejectPart;
     } else {
       statusLabel = "承認待ち";
     }
+
     // タブの存在確認
     const spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId });
     const tabExists = (spreadsheetMeta.data.sheets ?? []).some((s) => s.properties?.title === tabName);
@@ -1078,31 +1114,24 @@ async function updateTimesheetOvertimeApproval(record: {
       console.warn(`[Timesheet] No row found for ${record.applicantName} on ${dateStr}, skipping approval update`);
       return;
     }
-    // 承認・却下時：D〜H列（残業情報）も更新する
+    // 承認・却下時：D〜H列は同日の承認済み分を合算して更新（1件だけで上書きしない）
     if (record.status === "approved" || record.status === "rejected") {
-      const toHHMM = (ms: number | null | undefined) =>
-        ms ? new Date(ms).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit" }) : "";
-      // 承認時は adjustedStartAt/adjustedEndAt を優先、なければ requestedStartAt/requestedEndAt
-      const startMs = record.adjustedStartAt ?? record.requestedStartAt;
-      const endMs = record.adjustedEndAt ?? record.requestedEndAt;
-      const overtimeStartStr = toHHMM(startMs);
-      const overtimeEndStr = toHHMM(endMs);
-      let overtimeMinutes = "";
-      if (startMs && endMs) {
-        const mins = Math.max(0, Math.round((endMs - startMs) / 60000));
-        overtimeMinutes = String(mins);
-      }
-      const overtimeReason = record.requestedReason ?? "";
-      const overtimeDetail = record.requestedDetail ?? "";
+      const overtimeStartStr = approvedRanges.map((r) => r.startStr).join("\n");
+      const overtimeEndStr = approvedRanges.map((r) => r.endStr).join("\n");
+      const overtimeMinutes = approvedRanges.length > 0 ? String(totalApprovedMinutes) : "";
+      const overtimeReason = approvedRanges.map((r) => r.reason).filter(Boolean).join(" / ");
+      const overtimeDetail = approvedRanges.length > 1
+        ? `${approvedRanges.length}件合算`
+        : (record.requestedDetail ?? "");
       await sheets.spreadsheets.values.update({
         spreadsheetId,
         range: `${tabName}!D${targetRowIndex}:H${targetRowIndex}`,
         valueInputOption: "USER_ENTERED",
         requestBody: {
           values: [[
-            overtimeStartStr,  // D: 残業開始
-            overtimeEndStr,    // E: 残業終了
-            overtimeMinutes,   // F: 残業時間(分)
+            overtimeStartStr,  // D: 残業開始（複数件は改行）
+            overtimeEndStr,    // E: 残業終了（複数件は改行）
+            overtimeMinutes,   // F: 残業時間(分) 合計
             overtimeReason,    // G: 残業理由
             overtimeDetail,    // H: 残業詳細
           ]],
@@ -1151,6 +1180,7 @@ async function updateTimesheetOvertimeApproval(record: {
     throw err;
   }
 }
+
 /** 残業署名を出退勤記録スプレッドシートの月末最終行に転記する */
 async function appendSignatureToTimesheetSheet(record: {
   userName: string;
@@ -8806,6 +8836,7 @@ ${todayStr}
               updateTimesheetOvertimeApproval({
                 applicationDate: appDate,
                 applicantName: record.applicantName,
+                applicantUserId: record.applicantUserId,
                 status: input.status,
                 approverName: ctx.user.name ?? "不明",
                 approverComment: input.approverComment ?? null,
@@ -8908,6 +8939,7 @@ ${todayStr}
                   updateTimesheetOvertimeApproval({
                   applicationDate: appDate,
                   applicantName: record.applicantName,
+                  applicantUserId: record.applicantUserId,
                   status: "approved",
                   approverName: ctx.user.name ?? "不明",
                   approverComment: null,

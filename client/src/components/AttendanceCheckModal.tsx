@@ -658,13 +658,6 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     }
   };
   const overtimeMutation = trpc.overtime.create.useMutation({
-    onSuccess: () => {
-      toast.success("残業申請を送信しました");
-      setOvertimeSubmitted(true);
-      // 申請完了後に残業カードを折りたたむ
-      setHasOvertime(false);
-      void utils.overtime.getMine.invalidate();
-    },
     onError: (e) => {
       toast.error(`残業申請に失敗しました: ${e.message}`);
     },
@@ -690,16 +683,53 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
     setShowOvertimeConfirm(true);
   };
 
-  const handleOvertimeConfirm = () => {
+  const handleOvertimeConfirm = async () => {
     const today = new Date();
     const applicationDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-    overtimeMutation.mutate({
+    setShowOvertimeConfirm(false);
+
+    const requests: Array<{
+      applicationDate: string;
+      requestedStartAt: number;
+      requestedEndAt: number;
+      requestedReason: string;
+    }> = [];
+
+    // 前残業チェックがある場合は夕方申請と同時に送る（アルコール記録を待たない）
+    if (morningOvertime && morningOvertimeRequested) {
+      const morningApplicationDate = new Date(morningOvertime.startAt).toLocaleDateString("en-CA", {
+        timeZone: "Asia/Tokyo",
+      });
+      requests.push({
+        applicationDate: morningApplicationDate,
+        requestedStartAt: morningOvertime.startAt,
+        requestedEndAt: morningOvertime.endAt,
+        requestedReason: `${scheduledWorkStartLabel}前の訪問看護`,
+      });
+    }
+
+    requests.push({
       applicationDate,
       requestedStartAt: toTodayMs(overtimeStartHour, overtimeStartMinute),
       requestedEndAt: toTodayMs(overtimeEndHour, overtimeEndMinute),
       requestedReason: buildOvertimeReason(),
     });
-    setShowOvertimeConfirm(false);
+
+    try {
+      for (const req of requests) {
+        await overtimeMutation.mutateAsync(req);
+      }
+      toast.success(
+        requests.length > 1
+          ? "前残業と夕方の残業申請を送信しました"
+          : "残業申請を送信しました"
+      );
+      setOvertimeSubmitted(true);
+      setHasOvertime(false);
+      void utils.overtime.getMine.invalidate();
+    } catch {
+      // onError でトースト表示済み
+    }
   };
 
   // 打刻専用 mutation
@@ -2011,6 +2041,14 @@ export function AttendanceCheckModal({ type, onClose, onConfirm, checkoutCheckli
 
               {/* 時刻・残業時間 */}
               <div className="bg-blue-50 dark:bg-blue-950/30 rounded-xl p-3 space-y-2">
+                {morningOvertime && morningOvertimeRequested && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">前残業</span>
+                    <span className="font-semibold text-amber-700 dark:text-amber-300 tabular-nums">
+                      {morningOvertime.startLabel} 〜 {morningOvertime.endLabel}
+                    </span>
+                  </div>
+                )}
                 {/* 時刻行 */}
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">残業時間帯</span>
